@@ -13,8 +13,8 @@ import Sidebar from './sidebar';
 import { useRouter } from 'next/navigation';
 
 
-// const SERVER_BASE = "https://mentor-server-theta.vercel.app"
-const SERVER_BASE = "http://127.0.0.1:5555"
+const SERVER_BASE = "https://mentor-server-theta.vercel.app"
+// const SERVER_BASE = "http://127.0.0.1:5555"
 const SAVE = SERVER_BASE + "/save"
 const FEEDBACK = SERVER_BASE + "/feedback"  // New endpoint for feedback
 
