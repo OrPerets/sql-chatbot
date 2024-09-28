@@ -21,7 +21,8 @@ const FEEDBACK = SERVER_BASE + "/feedback"  // New endpoint for feedback
 type MessageProps = {
   role: "user" | "assistant" | "code";
   text: string;
-  onFeedback?: (isLike: boolean) => void;
+  feedback: "like" | "dislike" | null;
+  onFeedback?: (feedback: "like" | "dislike" | null) => void;
 };
 
 // Add these types
@@ -35,41 +36,37 @@ const UserMessage = ({ text }: { text: string }) => {
   return <div className={styles.userMessage}>{text}</div>;
 };
 
-const AssistantMessage = ({ text, onFeedback }: { text: string; onFeedback?: (isLike: boolean) => void }) => {
+const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedback: "like" | "dislike" | null; onFeedback?: (feedback: "like" | "dislike" | null) => void }) => {
   const [likeActive, setLikeActive] = useState(false);
   const [dislikeActive, setDislikeActive] = useState(false);
 
   const handleLike = () => {
-    setLikeActive(true);
-    setDislikeActive(false);
-    onFeedback && onFeedback(true);
+    onFeedback && onFeedback("like");
   };
 
   const handleDislike = () => {
-    setLikeActive(false);
-    setDislikeActive(true);
-    onFeedback && onFeedback(false);
+    onFeedback && onFeedback("dislike");
   };
 
   return (
     <div className={styles.assistantMessage}>
       <Markdown>{text}</Markdown>
-      <div className={styles.feedbackContainer}>
+      {/* <div className={styles.feedbackContainer}>
         <button
           onClick={handleLike}
-          className={`${styles.feedbackButton} ${likeActive ? styles.active : ''}`}
+          className={`${styles.feedbackButton} ${feedback === "like" ? styles.active : ''}`}
           aria-label="Like"
         >
           <ThumbsUp size={20} />
         </button>
         <button
           onClick={handleDislike}
-          className={`${styles.feedbackButton} ${dislikeActive ? styles.active : ''}`}
+          className={`${styles.feedbackButton} ${feedback === "dislike" ? styles.active : ''}`}
           aria-label="Dislike"
         >
           <ThumbsDown size={20} />
         </button>
-      </div>
+      </div> */}
     </div>
   );
 };
@@ -87,12 +84,12 @@ const CodeMessage = ({ text }: { text: string }) => {
   );
 };
 
-const Message = ({ role, text, onFeedback }: MessageProps) => {
+const Message = ({ role, text, feedback, onFeedback }: MessageProps) => {
   switch (role) {
     case "user":
       return <UserMessage text={text} />;
     case "assistant":
-      return <AssistantMessage text={text} onFeedback={onFeedback} />;
+      return <AssistantMessage text={text} feedback={feedback} onFeedback={onFeedback} />;
     case "code":
       return <CodeMessage text={text} />;
     default:
@@ -163,39 +160,6 @@ useEffect(() => {
     };
     createThread();
   }, []);
-
-  const sendFeedback = (isLike: boolean, messageIndex: number) => {
-    // const FEEDBACK = "/api/feedback"; // Adjust this URL to match your API endpoint
-    const message = messages[messageIndex];
-    
-    fetch(FEEDBACK, {
-      method: 'POST',
-      mode: 'cors',
-      credentials: 'same-origin',
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      },
-      body: JSON.stringify({
-        threadId: threadId,
-        userId: localStorage.getItem("currentUser")["email"],
-        isLike: isLike,
-        userText: messages[messageIndex - 1]?.text, // Assuming the user message is right before the assistant's
-        message: message.text
-      })
-    })
-    .then(response => response.json())
-    .then(data => {
-      console.log("Feedback sent:", data);
-    })
-    .catch(error => {
-      console.error('Error sending feedback:', error);
-    });
-  };
-
-  const handleFeedback = (isLike: boolean, messageIndex: number) => {
-    sendFeedback(isLike, messageIndex);
-  };
 
   const sendMessage = async (text) => {
     let today = new Date().toISOString().slice(0, 10);
@@ -467,6 +431,11 @@ const loadChatMessages = (chatId: string) => {
     
   }
 
+  const handleFeedback = (isLike, index) => {
+    const message = messages[index];
+    message.feedback = isLike;
+  }
+
 
 return (
   <div className={styles.main}>
@@ -479,6 +448,7 @@ return (
               key={index} 
               role={msg.role} 
               text={msg.text} 
+              feedback={msg.feedback}
               onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
             />
           ))}
