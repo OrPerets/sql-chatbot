@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+    maxDuration: 30,
+};
 
 export default nextConfig;
