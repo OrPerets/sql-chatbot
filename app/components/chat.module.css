@@ -149,9 +149,10 @@
   border-radius: 16px;
 }
 .chatContainer {
-  width: 100%;
+  width: 80%;
   height: 100%;
   display: flex;
+  margin-left: 15%;
   flex-direction: column;
   align-items: center;
   background-color: white;
@@ -188,3 +189,4 @@
 .a:hover {
   color: #007BFF; /* Changes the link color on hover */
 }
+

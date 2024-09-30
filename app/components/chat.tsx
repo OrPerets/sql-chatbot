@@ -12,6 +12,7 @@ import Link from 'next/link';
 import Sidebar from './sidebar';
 import { useRouter } from 'next/navigation';
 
+export const maxDuration = 50;
 
 const SERVER_BASE = "https://mentor-server-theta.vercel.app"
 // const SERVER_BASE = "http://127.0.0.1:5555"
@@ -436,10 +437,14 @@ const loadChatMessages = (chatId: string) => {
     message.feedback = isLike;
   }
 
+  const openNewChat = () => {
+    setCurrentChatId(null);
+    setMessages([]);
+  }
 
 return (
   <div className={styles.main}>
-    <Sidebar chatSessions={chatSessions} onChatSelect={loadChatMessages} handleLogout={handleLogout}/>
+    <Sidebar chatSessions={chatSessions} onChatSelect={loadChatMessages} handleLogout={handleLogout} onNewChat={openNewChat}/>
     <div className={styles.container}>
       <div className={styles.chatContainer}>
         <div className={styles.messages} style={{direction:"rtl"}}>
@@ -454,6 +459,7 @@ return (
           ))}
           <div ref={messagesEndRef} />
         </div>
+        
         <form
           onSubmit={handleSubmit}
           style={{direction:"rtl"}}
@@ -466,6 +472,7 @@ return (
           >
             שלח
           </button>
+          
           <input
             type="text"
             className={styles.input}

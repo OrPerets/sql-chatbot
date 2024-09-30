@@ -13,13 +13,17 @@ type SidebarProps = {
   chatSessions: ChatSession[];
   onChatSelect: (chatId: string) => void;
   handleLogout: () => void;
+  onNewChat: () => void; // Add this new prop
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, handleLogout }) => {
+const Sidebar: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, handleLogout, onNewChat }) => {
   const pathname = usePathname();
 
   return (
     <div className={styles.sidebar}>
+      <div>
+      <button onClick={onNewChat} className={styles.newChatButton} aria-label="New Chat"></button>
+      </div>
       <h2 className={styles.sidebarTitle}>שיחות קודמות</h2>
       <ul className={styles.sidebarList}>
         {chatSessions.map((session) => (
