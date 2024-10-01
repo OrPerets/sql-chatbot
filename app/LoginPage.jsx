@@ -146,6 +146,7 @@ const LoginPage = () => {
   const storeUserInfo = (user) => {
       localStorage.setItem("currentUser", JSON.stringify({
           email: user.email,
+          name: user.firstName
       }));
   };
 

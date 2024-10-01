@@ -12,6 +12,12 @@
   height: 100%;
   /* margin-right: 10%; */
 }
+
+.nickname {
+  text-align: right;
+  margin-right: 2.5%;
+  font-size: 18px;
+}
 /* 
 .header {
   display: flex;
