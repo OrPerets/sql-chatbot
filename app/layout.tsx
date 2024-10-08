@@ -17,7 +17,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={inter.className}>
         {assistantId ? children : <Warnings />}
-        <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "120px", height: "120px"}}/>
+        {/* <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "120px", height: "120px"}}/> */}
       </body>
     </html>
   );

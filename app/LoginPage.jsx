@@ -3,8 +3,6 @@ import styled from 'styled-components';
 import { User, Lock, Loader } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-// Styled components (LoginContainer, LoginCard, Title, Form, InputGroup, Input, IconWrapper, Button) remain the same
-
 const ErrorMessage = styled.div`
   color: red;
   margin-top: 1rem;
@@ -18,10 +16,45 @@ const UPDATE_PASSWORD = `${SERVER_BASE}/updatePassword`;
 
 const LoginContainer = styled.div`
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background-color: #f0f2f5;
+  background: radial-gradient(circle, #2a8ad8, #002e67);
+`;
+
+const BotImage = styled.img`
+  width: 120px;
+  height: 120px;
+  margin-bottom: 1rem;
+  margin-right: 2rem;
+`;
+
+const LogoWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  font-size: 22px;
+`;
+
+const LogoImage = styled.img`
+  width: 50px;
+  height: 50px;
+  margin-right: 1rem;
+`;
+
+const AssistantName = styled.div`
+  text-align: left;
+`;
+
+const AssistantTitle = styled.h2`
+  color: #e5eefd;
+  margin: 0;
+`;
+
+const AssistantSubtitle = styled.p`
+  color: #e5eefd;
+  margin: 0;
 `;
 
 const LoginCard = styled.div`
@@ -31,6 +64,7 @@ const LoginCard = styled.div`
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   width: 100%;
   max-width: 400px;
+  text-align: center;
 `;
 
 const Title = styled.h2`
@@ -84,14 +118,13 @@ const Button = styled.button`
   }
 `;
 
-
 const LoadingOverlay = styled.div`
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(255, 255, 255, 0.7);
+  background: radial-gradient(circle, #2a8ad8, #002e67);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -106,6 +139,7 @@ const LoadingSpinner = styled(Loader)`
     }
   }
 `;
+
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -118,167 +152,175 @@ const LoginPage = () => {
   const router = useRouter();
 
   useEffect(() => {
-      fetchUsers();
+    fetchUsers();
   }, []);
 
   const fetchUsers = async () => {
-      setIsFetchingUsers(true);
-      try {
-          const response = await fetch(SERVER, {
-              method: 'GET',
-              mode: 'cors',
-              credentials: 'same-origin',
-              headers: {
-                  'Content-Type': 'application/json',
-                  'Access-Control-Allow-Origin': '*'
-              }
-          });
-          const data = await response.json();
-          setUsers(data);
-      } catch (error) {
-          console.error('Error fetching users:', error);
-          setError('Failed to fetch users. Please try again.');
-      } finally {
-          setIsFetchingUsers(false);
-      }
+    setIsFetchingUsers(true);
+    try {
+      const response = await fetch(SERVER, {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+      const data = await response.json();
+      setUsers(data);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      setError('Failed to fetch users. Please try again.');
+    } finally {
+      setIsFetchingUsers(false);
+    }
   };
 
   const storeUserInfo = (user) => {
-      localStorage.setItem("currentUser", JSON.stringify({
-          email: user.email,
-          name: user.firstName
-      }));
+    localStorage.setItem("currentUser", JSON.stringify({
+      email: user.email,
+      name: user.firstName
+    }));
   };
 
   const handleLogin = async (e) => {
-      e.preventDefault();
-      setIsLoading(true);
-      setError('');
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
 
-      const user = users.find(item => item.email === email);
+    const user = users.find(item => item.email === email);
 
-      if (password === "shenkar") {
-          setChangePassword(true);
-      } else if (user && password === user.password) {
-          storeUserInfo(user);
-          router.push('/entities/basic-chat');
-      } else {
-          setError('Wrong Password or Email');
-          setTimeout(() => setError(''), 3000);
-      }
+    if (password === "shenkar") {
+      setChangePassword(true);
+    } else if (user && password === user.password) {
+      storeUserInfo(user);
+      router.push('/entities/basic-chat');
+    } else {
+      setError('Wrong Password or Email');
+      setTimeout(() => setError(''), 3000);
+    }
 
-      setIsLoading(false);
+    setIsLoading(false);
   };
 
   const handleChangePassword = async (e) => {
-      e.preventDefault();
-      setIsLoading(true);
-      setError('');
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
 
-      if (newPassword && newPassword !== "shenkar") {
-          const user = users.find(item => item.email === email);
-          if (user) {
-              try {
-                  const response = await fetch(UPDATE_PASSWORD, {
-                      method: 'POST',
-                      mode: 'cors',
-                      credentials: 'same-origin',
-                      headers: {
-                          'Content-Type': 'application/json',
-                          'Access-Control-Allow-Origin': '*'
-                      },
-                      body: JSON.stringify({
-                          "email": email,
-                          "password": newPassword
-                      })
-                  });
-                  if (response.ok) {
-                      storeUserInfo(user);
-                      router.push('/entities/basic-chat');
-                  } else {
-                      setError('Failed to update password');
-                  }
-              } catch (error) {
-                  console.error('Error updating password:', error);
-                  setError('Failed to update password');
-              }
+    if (newPassword && newPassword !== "shenkar") {
+      const user = users.find(item => item.email === email);
+      if (user) {
+        try {
+          const response = await fetch(UPDATE_PASSWORD, {
+            method: 'POST',
+            mode: 'cors',
+            credentials: 'same-origin',
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            },
+            body: JSON.stringify({
+              "email": email,
+              "password": newPassword
+            })
+          });
+          if (response.ok) {
+            storeUserInfo(user);
+            router.push('/entities/basic-chat');
+          } else {
+            setError('Failed to update password');
           }
-      } else {
-          setError('Invalid new password');
-          setTimeout(() => setError(''), 3000);
+        } catch (error) {
+          console.error('Error updating password:', error);
+          setError('Failed to update password');
+        }
       }
+    } else {
+      setError('Invalid new password');
+      setTimeout(() => setError(''), 3000);
+    }
 
-      setIsLoading(false);
+    setIsLoading(false);
   };
 
   if (isFetchingUsers) {
-      return (
-          <LoginContainer>
-              <LoadingOverlay>
-                  <LoadingSpinner size={48} />
-              </LoadingOverlay>
-          </LoginContainer>
-      );
+    return (
+      <LoginContainer>
+        <LoadingOverlay>
+          <LoadingSpinner size={48} />
+        </LoadingOverlay>
+      </LoginContainer>
+    );
   }
 
   return (
-      <LoginContainer>
-          <LoginCard>
-              <Title>התחברות</Title>
-              {!changePassword ? (
-                  <Form onSubmit={handleLogin}>
-                      <InputGroup>
-                          <IconWrapper>
-                              <User size={18} />
-                          </IconWrapper>
-                          <Input 
-                              type="email" 
-                              placeholder="כתובת מייל" 
-                              value={email}
-                              onChange={(e) => setEmail(e.target.value)}
-                          />
-                      </InputGroup>
-                      <InputGroup>
-                          <IconWrapper>
-                              <Lock size={18} />
-                          </IconWrapper>
-                          <Input 
-                              type="password" 
-                              placeholder="סיסמה"
-                              value={password}
-                              onChange={(e) => setPassword(e.target.value)}
-                          />
-                      </InputGroup>
-                      <Button type="submit" disabled={isLoading}>
-                          {isLoading ? <LoadingSpinner size={18} /> : 'אישור'}
-                      </Button>
-                  </Form>
-              ) : (
-                  <Form onSubmit={handleChangePassword}>
-                      <InputGroup>
-                          <IconWrapper>
-                              <Lock size={18} />
-                          </IconWrapper>
-                          <Input 
-                              type="password" 
-                              placeholder="סיסמה חדשה"
-                              value={newPassword}
-                              onChange={(e) => setNewPassword(e.target.value)}
-                          />
-                      </InputGroup>
-                      <Button type="submit" disabled={isLoading}>
-                          {isLoading ? <LoadingSpinner size={18} /> : 'שנה סיסמה'}
-                      </Button>
-                  </Form>
-              )}
-              {error && <ErrorMessage>{error}</ErrorMessage>}
-          </LoginCard>
-          {isLoading && (
-              <LoadingOverlay>
-                  <LoadingSpinner size={48} />
-              </LoadingOverlay>
-          )}
-      </LoginContainer>
+    <LoginContainer>
+      <LogoWrapper>
+      <BotImage src="bot.png" alt="Bot" />
+        <AssistantName>
+        <LogoImage src="logo.png" alt="Logo" />
+          <AssistantTitle>MICHAEL</AssistantTitle>
+          <AssistantSubtitle>SQL AI Assistant</AssistantSubtitle>
+        </AssistantName>
+      </LogoWrapper>
+      <LoginCard>
+        <Title>התחברות</Title>
+        {!changePassword ? (
+          <Form onSubmit={handleLogin}>
+            <InputGroup>
+              <IconWrapper>
+                <User size={18} />
+              </IconWrapper>
+              <Input 
+                type="email" 
+                placeholder="כתובת מייל" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </InputGroup>
+            <InputGroup>
+              <IconWrapper>
+                <Lock size={18} />
+              </IconWrapper>
+              <Input 
+                type="password" 
+                placeholder="סיסמה"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </InputGroup>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? <LoadingSpinner size={18} /> : 'אישור'}
+            </Button>
+          </Form>
+        ) : (
+          <Form onSubmit={handleChangePassword}>
+            <InputGroup>
+              <IconWrapper>
+                <Lock size={18} />
+              </IconWrapper>
+              <Input 
+                type="password" 
+                placeholder="סיסמה חדשה"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </InputGroup>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? <LoadingSpinner size={18} /> : 'שנה סיסמה'}
+            </Button>
+          </Form>
+        )}
+        {error && <ErrorMessage>{error}</ErrorMessage>}
+      </LoginCard>
+      {isLoading && (
+        <LoadingOverlay>
+          <LoadingSpinner size={48} />
+        </LoadingOverlay>
+      )}
+    </LoginContainer>
   );
 };
 
