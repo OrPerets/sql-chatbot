@@ -4,15 +4,35 @@
   background-color: #f5f5f5;
   padding: 20px;
   overflow-y: auto;
-  margin-top: -3.5%;
+  position: relative;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.userIcon {
+  background-color: rgba(245,73,148,255);
+  border-radius: 50%;
+  width: 47px;
+  height: 47px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  cursor: pointer;
+  color: white;
+  font-size: 20px;
+  margin-left: 45px;
 }
 
 .sidebarTitle {
   font-size: 1.2rem;
   font-weight: bold;
-  margin-bottom: 20px;
   text-align: center;
-  margin-top: -10%;
+  margin-left: 25%;
 }
 
 .sidebarList {
@@ -65,11 +85,9 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 40px;
-  height: 40px;
-  margin-left: 90%;
-  /* margin-bottom: 5px; */
-  background-color: #4CAF50;
+  width: 50px;
+  height: 50px;
+  background-color: rgba(33,79,149,255);
   color: white;
   border: none;
   border-radius: 50%;
@@ -78,14 +96,13 @@
   font-weight: bold;
   transition: all 0.3s ease;
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
 }
 
 .newChatButton:hover {
-  background-color: #45a049;
+  background-color: rgba(33,79,149,255);
   transform: scale(1.1);
   box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-}
-
-.newChatButton:before {
-  content: "+";
 }

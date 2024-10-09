@@ -117,6 +117,8 @@ const Chat = ({
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isDone, setIsDone] = useState(false);
+  const [currentUser, setCurrectUser] = useState(null);
+
   const router = useRouter();
 
   // automatically scroll to bottom of chat
@@ -127,6 +129,12 @@ const Chat = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+
+  useEffect(() => {
+    let cUser = JSON.parse(localStorage.getItem("currentUser"))
+    setCurrectUser(cUser["name"])
+  }, [])
 
   // Add this useEffect to load chat sessions when the component mounts
 useEffect(() => {
@@ -444,7 +452,7 @@ const loadChatMessages = (chatId: string) => {
 
 return (
   <div className={styles.main}>
-    <Sidebar chatSessions={chatSessions} onChatSelect={loadChatMessages} handleLogout={handleLogout} onNewChat={openNewChat}/>
+    <Sidebar chatSessions={chatSessions} onChatSelect={loadChatMessages} handleLogout={handleLogout} onNewChat={openNewChat} currentUser={currentUser}/>
     <div className={styles.container}>
       <div className={styles.chatContainer}>
         <div className={styles.messages} style={{direction:"rtl"}}>
@@ -465,24 +473,56 @@ return (
           style={{direction:"rtl"}}
           className={`${styles.inputForm} ${styles.clearfix}`}
         >
-          <button
-            type="submit"
-            className={styles.button}
-            disabled={inputDisabled}
-          >
-            שלח
-          </button>
-          
+          <div className={styles.inputContainer}>
           <input
             type="text"
             className={styles.input}
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
             placeholder="הקלד כאן..."
+            style={{
+              height: "55px"
+            }}
           />
+          <button
+            type="submit"
+            className={styles.button}
+            disabled={inputDisabled}
+            style={{
+              width: "6%",
+              height: "90%",
+              marginTop: "0.5%"
+              // padding: "15px",
+            }}
+          >
+            	<svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 4 28 25"
+    fill="none"
+    stroke="white"
+    strokeWidth="4"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={styles.arrowIcon}
+  >
+    <path d="M15 30V9M8 12l7-7 7 7" />
+    </svg>
+    
+          </button>
+          </div>
+          
         </form>
       </div>
     </div>
+    <div className={styles.rightColumn}>
+    <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "120px", height: "120px"}}/>
+      <div className={styles.nickname}>
+        היי {currentUser}
+      </div>
+    </div>
+   
   </div>
 );
 };

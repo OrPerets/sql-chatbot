@@ -24,10 +24,13 @@ const LoginContainer = styled.div`
 `;
 
 const BotImage = styled.img`
-  width: 120px;
-  height: 120px;
+  width: 150px;
+  height: 150px;
   margin-bottom: 1rem;
   margin-right: 2rem;
+  border-radius: 50%;
+  background-color: white;
+  padding: 15px;
 `;
 
 const LogoWrapper = styled.div`
