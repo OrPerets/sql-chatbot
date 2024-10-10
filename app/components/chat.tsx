@@ -489,8 +489,8 @@ return (
             className={styles.button}
             disabled={inputDisabled}
             style={{
-              width: "6%",
-              height: "90%",
+              width: "40px",
+              height: "80%",
               marginTop: "0.5%"
               // padding: "15px",
             }}
@@ -517,7 +517,7 @@ return (
       </div>
     </div>
     <div className={styles.rightColumn}>
-    <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "120px", height: "120px"}}/>
+    <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "100px", height: "100px"}}/>
       <div className={styles.nickname}>
         היי {currentUser}
       </div>

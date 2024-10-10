@@ -27,15 +27,15 @@
 
 .button {
   position: absolute;
-  left: 10px; /* Position to the right inside the input box */
+  left: 1%; 
   top: 50%;
   transform: translateY(-50%);
   background-color: #003366; /* Dark blue color for the button */
   color: white;
   border: none;
   border-radius: 50%;
-  width: 40px;
-  height: 40px;
+  /* width: 40px; */
+  /* height: 40px; */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -217,12 +217,12 @@
   display: flex;
   flex-direction: column;
   width: 20%;
-  height: calc(100% - 45%);
+  height: calc(100% - 32%);
   /* gap: 20px;
   margin: 20px; */
   justify-content: space-between;
   /* direction: "rtl"; */
-  margin-right: -5%;
+  margin-right: -6.5%;
 }
 
 .rightColumn > * {
