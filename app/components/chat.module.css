@@ -83,12 +83,12 @@
 
 .userMessage {
   align-self: flex-end;
-  color: #fff;
-  background-color: #000;
+  color: black;
+  background-color: #e6f1f7;
 }
 
 .assistantMessage {
-  background-color: #efefef;
+  background-color: #fff;
 }
 
 .codeMessage {

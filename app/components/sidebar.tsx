@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import styles from './sidebar.module.css';
@@ -14,26 +14,46 @@ type SidebarProps = {
   onChatSelect: (chatId: string) => void;
   handleLogout: () => void;
   onNewChat: () => void;
-  currentUser: string; // Add this new prop
+  currentUser: string;
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, handleLogout, onNewChat, currentUser }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
+
+  const toggleMenu = () => {
+    setIsMenuOpen((prev) => !prev);
+  };
+
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+  };
 
   return (
     <div className={styles.sidebar}>
       <div className={styles.header}>
-      <h2 className={styles.sidebarTitle}>שיחות קודמות</h2>
+        <h2 className={styles.sidebarTitle}>שיחות קודמות</h2>
         {/* User Icon with first letter of currentUser */}
-        <div
-          className={styles.userIcon}
-          title="Want to logout?"
-          onClick={handleLogout}
-          aria-label="User Icon"
-        >
-          {currentUser.charAt(0).toUpperCase()}
+        <div className={styles.userIconWrapper}>
+          <div
+            className={styles.userIcon}
+            title="User Menu"
+            onClick={toggleMenu}
+            aria-label="User Icon"
+          >
+            {currentUser.charAt(0).toUpperCase()}
+          </div>
+          {isMenuOpen && (
+            <div className={styles.dropdownMenu}>
+              <button onClick={onNewChat} className={styles.menuItem}>
+                שיחה חדשה
+              </button>
+              <button onClick={handleLogout} className={styles.menuItem}>
+                התנתק
+              </button>
+            </div>
+          )}
         </div>
-        
       </div>
       <ul className={styles.sidebarList}>
         {chatSessions.map((session) => (
@@ -53,7 +73,6 @@ const Sidebar: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, handleLog
           </li>
         ))}
       </ul>
-      {/* New Chat Button moved to bottom left */}
       <button
         onClick={onNewChat}
         className={styles.newChatButton}
@@ -61,7 +80,6 @@ const Sidebar: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, handleLog
       >
         +
       </button>
-      {/* <button onClick={handleLogout} className={styles.logoutButton}>התנתק</button> */}
     </div>
   );
 };

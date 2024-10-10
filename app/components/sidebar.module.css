@@ -1,3 +1,4 @@
+
 .sidebar {
   width: 650px;
   height: 100%;
@@ -11,10 +12,15 @@
   display: flex;
   align-items: center;
   margin-bottom: 20px;
+  position: relative;
+}
+
+.userIconWrapper {
+  position: relative;
 }
 
 .userIcon {
-  background-color: rgba(245,73,148,255);
+  background-color: rgba(245, 73, 148, 255);
   border-radius: 50%;
   width: 47px;
   height: 47px;
@@ -26,6 +32,36 @@
   color: white;
   font-size: 20px;
   margin-left: 45px;
+}
+
+.dropdownMenu {
+  position: absolute;
+  top: 60px;
+  right: 0;
+  width: 140%;
+  background-color: white;
+  border: 1px solid #ddd;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.menuItem {
+  width: 100%;
+  padding: 10px 15px;
+  background-color: white;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  font-size: 16px;
+  direction: "rtl";
+  text-align: right;
+}
+
+.menuItem:hover {
+  background-color: #f0f0f0;
 }
 
 .sidebarTitle {
@@ -73,7 +109,7 @@
   transition: background-color 0.3s;
   margin: 0;
   margin-left: 8%;
-  position: absolute; 
+  position: absolute;
   bottom: 20px;
 }
 
@@ -87,7 +123,7 @@
   align-items: center;
   width: 50px;
   height: 50px;
-  background-color: rgba(33,79,149,255);
+  background-color: rgba(33, 79, 149, 255);
   color: white;
   border: none;
   border-radius: 50%;
@@ -95,14 +131,14 @@
   font-size: 24px;
   font-weight: bold;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   position: fixed;
   bottom: 20px;
   left: 20px;
 }
 
 .newChatButton:hover {
-  background-color: rgba(33,79,149,255);
+  background-color: rgba(33, 79, 149, 255);
   transform: scale(1.1);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
