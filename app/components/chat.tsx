@@ -11,11 +11,12 @@ import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import Link from 'next/link';
 import Sidebar from './sidebar';
 import { useRouter } from 'next/navigation';
+import config from "../config";
 
 export const maxDuration = 50;
 
-const SERVER_BASE = "https://mentor-server-theta.vercel.app"
-// const SERVER_BASE = "http://127.0.0.1:5555"
+const SERVER_BASE = config.serverUrl;
+
 const SAVE = SERVER_BASE + "/save"
 const FEEDBACK = SERVER_BASE + "/feedback"  // New endpoint for feedback
 
@@ -38,36 +39,40 @@ const UserMessage = ({ text }: { text: string }) => {
 };
 
 const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedback: "like" | "dislike" | null; onFeedback?: (feedback: "like" | "dislike" | null) => void }) => {
-  const [likeActive, setLikeActive] = useState(false);
-  const [dislikeActive, setDislikeActive] = useState(false);
+  const [activeFeedback, setActiveFeedback] = useState(feedback);
 
   const handleLike = () => {
-    onFeedback && onFeedback("like");
+    const newFeedback = activeFeedback === "like" ? null : "like"; // Toggle like
+    setActiveFeedback(newFeedback);
+    onFeedback && onFeedback(newFeedback);
   };
 
   const handleDislike = () => {
-    onFeedback && onFeedback("dislike");
+    const newFeedback = activeFeedback === "dislike" ? null : "dislike"; // Toggle dislike
+    setActiveFeedback(newFeedback);
+    onFeedback && onFeedback(newFeedback);
   };
 
   return (
     <div className={styles.assistantMessage}>
       <Markdown>{text}</Markdown>
-      {/* <div className={styles.feedbackContainer}>
+      <div className={styles.feedbackButtons}>
         <button
           onClick={handleLike}
-          className={`${styles.feedbackButton} ${feedback === "like" ? styles.active : ''}`}
-          aria-label="Like"
+          className={`${styles.feedbackButton} ${activeFeedback === "like" ? styles.positive : ""}`}
+          style={{
+            marginLeft: "-1%"
+          }}
         >
-          <ThumbsUp size={20} />
+          {activeFeedback === "like" ? <ThumbsUp width="80%" height="80%" color="green" fill="green"/> : <ThumbsUp width="80%" height="80%"/>}
         </button>
         <button
           onClick={handleDislike}
-          className={`${styles.feedbackButton} ${feedback === "dislike" ? styles.active : ''}`}
-          aria-label="Dislike"
+          className={`${styles.feedbackButton} ${activeFeedback === "dislike" ? styles.negative : ""}`}
         >
-          <ThumbsDown size={20} />
+          {activeFeedback === "dislike" ? <ThumbsDown width="80%" height="80%" color="red" fill="red"/> : <ThumbsDown width="80%" height="80%"/>}
         </button>
-      </div> */}
+      </div>
     </div>
   );
 };
@@ -443,6 +448,19 @@ const loadChatMessages = (chatId: string) => {
   const handleFeedback = (isLike, index) => {
     const message = messages[index];
     message.feedback = isLike;
+
+    fetch(`${SERVER_BASE}/saveFeedback`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        "chatId": currentChatId,
+        "userId": JSON.parse(localStorage.getItem("currentUser"))["email"],
+        "message": message.text,
+        "feedback": message.feedback
+      }),
+    }); 
   }
 
   const openNewChat = () => {

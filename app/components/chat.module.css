@@ -112,26 +112,40 @@
   justify-content: flex-end;
   margin-top: 10px;
 }
-
-.feedbackButton {
-  background-color: lightgray;
-  border: none;
-  border-radius: 50%;
-  padding: 5px;
-  margin-left: 10px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
+.feedbackButtons {
+  /* display: flex; Arrange buttons horizontally */
+  /* justify-content: flex-start; Align buttons to the left */
+  margin-top: 5px; 
+  text-align: left;
+  /* position: relative;
+  left: 0; */
 }
 
-.feedbackButton.active {
-  background-color: #4a90e2;
-  color: white;
+.feedbackButton {
+  background-color: #fff; /* Default button background */
+  border: none;
+  padding: 2px; /* Reduce padding to make the button smaller */
+  margin: 2px; /* Reduce margin to make it more compact */
+  cursor: pointer;
+  transition: background-color 0.3s;
+  border-radius: 50%; /* Keep button circular */
+  width: 30px; /* Set width to make the button smaller */
+  height: 30px; /* Set height to make the button smaller */
 }
 
 .feedbackButton:hover {
-  opacity: 0.8;
+  background-color: #d0d0d0; /* Button color on hover */
 }
 
+.positive {
+  /* background-color: #4caf50; Green for positive (like) */
+  color: white;
+}
+
+.negative {
+  /* background-color: #f44336; Red for negative (dislike) */
+  color: white;
+}
 
 .main {
   display: flex;
