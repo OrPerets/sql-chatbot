@@ -224,14 +224,17 @@
 
 .nickname {
   text-align: right;
-  font-size: 18px;
+  font-size: 20px;
+  position: absolute;
+  top: 17%;
+  right: 2.4%;
 }
 
 .rightColumn {
   display: flex;
   flex-direction: column;
   width: 20%;
-  height: calc(100% - 32%);
+  /* height: calc(100% - 32%); */
   /* gap: 20px;
   margin: 20px; */
   justify-content: space-between;
@@ -253,4 +256,34 @@
   height: 80%;
   /* max-width: 650px; */
   margin: 0 auto;
+}
+
+/* Update the toggleButton class */
+.toggleButton {
+  position: fixed;
+  bottom: 6.5%;
+  right: 2.5%;
+  /* margin-left: 1.5%; */
+  height: 8%;
+  display: block;
+
+  /* Styling to match the rounded button */
+  background-color: #003366; /* Dark blue */
+  color: white;
+  border: none;
+  border-radius: 50px; /* To make it more rounded */
+  padding: 10px 20px; /* Adjust padding for a rectangular button */
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s ease, transform 0.3s ease;
+  font-size: 16px; /* Adjust the text size */
+}
+
+.toggleButton:hover {
+  background-color: #002244; /* Darker shade for hover */
+  transform: scale(1.1); /* Slight scale effect */
+}
+
+.toggleButton:disabled {
+  background-color: lightgrey;
 }

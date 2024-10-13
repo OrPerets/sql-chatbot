@@ -12,6 +12,8 @@ import Link from 'next/link';
 import Sidebar from './sidebar';
 import { useRouter } from 'next/navigation';
 import config from "../config";
+import Modal from "./modal";
+import SQLQueryEditorComponent from "./query-vizualizer";
 
 export const maxDuration = 50;
 
@@ -123,8 +125,15 @@ const Chat = ({
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isDone, setIsDone] = useState(false);
   const [currentUser, setCurrectUser] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   const router = useRouter();
+
+    // Function to toggle the modal
+    const toggleModal = () => {
+      setShowModal(!showModal);
+    };
+  
 
   // automatically scroll to bottom of chat
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -470,6 +479,7 @@ const loadChatMessages = (chatId: string) => {
 
 return (
   <div className={styles.main}>
+    
     <Sidebar chatSessions={chatSessions} onChatSelect={loadChatMessages} handleLogout={handleLogout} onNewChat={openNewChat} currentUser={currentUser}/>
     <div className={styles.container}>
       <div className={styles.chatContainer}>
@@ -533,14 +543,25 @@ return (
           
         </form>
       </div>
+      <button
+                type="button"
+                className={styles.toggleButton}
+                onClick={toggleModal}
+              >
+                עורך שאילתות
+              </button>
     </div>
+    
     <div className={styles.rightColumn}>
     <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "100px", height: "100px"}}/>
       <div className={styles.nickname}>
         היי {currentUser}
       </div>
+      
     </div>
-   
+    <Modal isOpen={showModal} onClose={toggleModal}>
+        <SQLQueryEditorComponent toggleModal={toggleModal} />
+      </Modal>
   </div>
 );
 };
