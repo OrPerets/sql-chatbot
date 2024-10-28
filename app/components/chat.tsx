@@ -543,13 +543,13 @@ return (
           
         </form>
       </div>
-      <button
+      {/* <button
                 type="button"
                 className={styles.toggleButton}
                 onClick={toggleModal}
               >
                 עורך שאילתות
-              </button>
+              </button> */}
     </div>
     
     <div className={styles.rightColumn}>

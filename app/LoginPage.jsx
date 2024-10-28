@@ -197,6 +197,7 @@ const LoginPage = () => {
     } else if (user && password === user.password) {
       storeUserInfo(user);
       router.push('/entities/basic-chat');
+      // router.push('/entities/questionnaire');
     } else {
       setError('Wrong Password or Email');
       setTimeout(() => setError(''), 3000);
@@ -229,7 +230,8 @@ const LoginPage = () => {
           });
           if (response.ok) {
             storeUserInfo(user);
-            router.push('/entities/basic-chat');
+            // router.push('/entities/basic-chat');
+            router.push('/entities/questionnaire');
           } else {
             setError('Failed to update password');
           }
