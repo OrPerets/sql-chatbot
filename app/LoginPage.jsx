@@ -1,145 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
 import { User, Lock, Loader } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import config from './config';
+import styles from './login.module.css';
 
-const ErrorMessage = styled.div`
-  color: red;
-  margin-top: 1rem;
-  text-align: center;
-`;
-
-// Assuming you're using an environment variable for the server base URL
-const SERVER_BASE = "https://mentor-server-theta.vercel.app";
+const SERVER_BASE = config.serverUrl;
 const SERVER = `${SERVER_BASE}/allUsers`;
 const UPDATE_PASSWORD = `${SERVER_BASE}/updatePassword`;
-
-const LoginContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background: radial-gradient(circle, #2a8ad8, #002e67);
-`;
-
-const BotImage = styled.img`
-  width: 180px;
-  height: 180px;
-  margin-right: 2rem;
-  border-radius: 50%;
-  padding: 15px;
-`;
-
-const LogoWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  font-size: 22px;
-`;
-
-const LogoImage = styled.img`
-  width: 50px;
-  height: 50px;
-  margin-right: 1rem;
-`;
-
-const AssistantName = styled.div`
-  text-align: left;
-`;
-
-const AssistantTitle = styled.h2`
-  color: #e5eefd;
-  margin: 0;
-`;
-
-const AssistantSubtitle = styled.p`
-  color: #e5eefd;
-  margin: 0;
-`;
-
-const LoginCard = styled.div`
-  background-color: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  max-width: 400px;
-  text-align: center;
-`;
-
-const Title = styled.h2`
-  text-align: center;
-  color: #333;
-  margin-bottom: 1.5rem;
-`;
-
-const Form = styled.form`
-  display: flex;
-  flex-direction: column;
-`;
-
-const InputGroup = styled.div`
-  position: relative;
-  margin-bottom: 1rem;
-`;
-
-const Input = styled.input`
-  width: 100%;
-  padding: 0.75rem;
-  padding-left: 2.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
-  &:focus {
-    outline: none;
-    border-color: #4a90e2;
-  }
-`;
-
-const IconWrapper = styled.span`
-  position: absolute;
-  left: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #666;
-`;
-
-const Button = styled.button`
-  background-color: #4a90e2;
-  color: white;
-  padding: 0.75rem;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.3s;
-  &:hover {
-    background-color: #3a7cbd;
-  }
-`;
-
-const LoadingOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle, #2a8ad8, #002e67);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-`;
-
-const LoadingSpinner = styled(Loader)`
-  animation: spin 1s linear infinite;
-  @keyframes spin {
-    100% {
-      transform: rotate(360deg);
-    }
-  }
-`;
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -197,7 +64,6 @@ const LoginPage = () => {
     } else if (user && password === user.password) {
       storeUserInfo(user);
       router.push('/entities/basic-chat');
-      // router.push('/entities/questionnaire');
     } else {
       setError('Wrong Password or Email');
       setTimeout(() => setError(''), 3000);
@@ -230,7 +96,6 @@ const LoginPage = () => {
           });
           if (response.ok) {
             storeUserInfo(user);
-            // router.push('/entities/basic-chat');
             router.push('/entities/questionnaire');
           } else {
             setError('Failed to update password');
@@ -250,80 +115,83 @@ const LoginPage = () => {
 
   if (isFetchingUsers) {
     return (
-      <LoginContainer>
-        <LoadingOverlay>
-          <LoadingSpinner size={48} />
-        </LoadingOverlay>
-      </LoginContainer>
+      <div className={styles.loginContainer}>
+        <div className={styles.loadingOverlay}>
+          <Loader className={styles.loadingSpinner} size={48} />
+        </div>
+      </div>
     );
   }
 
   return (
-    <LoginContainer>
-      <LogoWrapper>
-      <BotImage src="bot.png" alt="Bot" />
-        <AssistantName>
-        <LogoImage src="logo.png" alt="Logo" />
-          <AssistantTitle>MICHAEL</AssistantTitle>
-          <AssistantSubtitle>SQL AI Assistant</AssistantSubtitle>
-        </AssistantName>
-      </LogoWrapper>
-      <LoginCard>
-        <Title>התחברות</Title>
+    <div className={styles.loginContainer}>
+      <div className={styles.logoWrapper}>
+        <img className={styles.botImage} src="bot.png" alt="Bot" />
+        <div className={styles.assistantName}>
+          <img className={styles.logoImage} src="logo.png" alt="Logo" />
+          <h2 className={styles.assistantTitle}>MICHAEL</h2>
+          <p className={styles.assistantSubtitle}>SQL AI Assistant</p>
+        </div>
+      </div>
+      <div className={styles.loginCard}>
+        <h2 className={styles.title}>התחברות</h2>
         {!changePassword ? (
-          <Form onSubmit={handleLogin}>
-            <InputGroup>
-              <IconWrapper>
+          <form className={styles.form} onSubmit={handleLogin}>
+            <div className={styles.inputGroup}>
+              <span className={styles.iconWrapper}>
                 <User size={18} />
-              </IconWrapper>
-              <Input 
+              </span>
+              <input 
                 type="email" 
+                className={styles.input}
                 placeholder="כתובת מייל" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
-            </InputGroup>
-            <InputGroup>
-              <IconWrapper>
+            </div>
+            <div className={styles.inputGroup}>
+              <span className={styles.iconWrapper}>
                 <Lock size={18} />
-              </IconWrapper>
-              <Input 
+              </span>
+              <input 
                 type="password" 
+                className={styles.input}
                 placeholder="סיסמה"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-            </InputGroup>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? <LoadingSpinner size={18} /> : 'אישור'}
-            </Button>
-          </Form>
+            </div>
+            <button type="submit" className={styles.button} disabled={isLoading}>
+              {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'אישור'}
+            </button>
+          </form>
         ) : (
-          <Form onSubmit={handleChangePassword}>
-            <InputGroup>
-              <IconWrapper>
+          <form className={styles.form} onSubmit={handleChangePassword}>
+            <div className={styles.inputGroup}>
+              <span className={styles.iconWrapper}>
                 <Lock size={18} />
-              </IconWrapper>
-              <Input 
+              </span>
+              <input 
                 type="password" 
+                className={styles.input}
                 placeholder="סיסמה חדשה"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
               />
-            </InputGroup>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? <LoadingSpinner size={18} /> : 'שנה סיסמה'}
-            </Button>
-          </Form>
+            </div>
+            <button type="submit" className={styles.button} disabled={isLoading}>
+              {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'שנה סיסמה'}
+            </button>
+          </form>
         )}
-        {error && <ErrorMessage>{error}</ErrorMessage>}
-      </LoginCard>
+        {error && <div className={styles.errorMessage}>{error}</div>}
+      </div>
       {isLoading && (
-        <LoadingOverlay>
-          <LoadingSpinner size={48} />
-        </LoadingOverlay>
+        <div className={styles.loadingOverlay}>
+          <Loader className={styles.loadingSpinner} size={48} />
+        </div>
       )}
-    </LoginContainer>
+    </div>
   );
 };
 
