@@ -107,49 +107,49 @@ const Questionnaire = () => {
         },
     });
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleStatementChange = (name, value) => {
-    setForm((prev) => ({
-      ...prev,
-      statements: {
-        ...prev.statements,
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setForm((prev) => ({
+        ...prev,
         [name]: value,
-      },
-    }));
-  };
+        }));
+    };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log('Submitted form data:', form);
-
-    let currentUser = JSON.parse(localStorage.getItem("currentUser"))
-
-    fetch(`${SERVER_BASE}/saveUserForm`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+    const handleStatementChange = (name, value) => {
+        setForm((prev) => ({
+        ...prev,
+        statements: {
+            ...prev.statements,
+            [name]: value,
         },
-        body: JSON.stringify({
-            "user": currentUser,
-            "form": form
-        })
-      }).then(response => response.json()).then(ans => {
-        if (ans["status"]) {
-            router.push('/entities/basic-chat');
-        } else {
-            // handle
-        }
-      })
+        }));
+    };
 
-    
-  };
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        console.log('Submitted form data:', form);
+
+        let currentUser = JSON.parse(localStorage.getItem("currentUser"))
+
+        fetch(`${SERVER_BASE}/saveUserForm`, {
+            method: 'POST',
+            headers: {
+            'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                "user": currentUser,
+                "form": form
+            })
+        }).then(response => response.json()).then(ans => {
+            if (ans["status"]) {
+                router.push('/entities/basic-chat');
+            } else {
+                // handle
+            }
+        })
+
+        
+    };
 
   return (
     <QuestionnaireContainer>
