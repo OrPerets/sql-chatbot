@@ -84,28 +84,28 @@ const SERVER_BASE = "https://mentor-server-theta.vercel.app";
 
 const Questionnaire = () => {
     const router = useRouter();
-  const [form, setForm] = useState({
-    firstName: '',
-    lastName: '',
-    idCode: '',
-    gender: '',
-    birthYear: '',
-    preferredLanguage: '',
-    worksInIndustry: '',
-    aiUsage: '',
-    statements: {
-      aiLearningPotential: 3,
-      aiEaseOfUse: 3,
-      aiComplexity: 3,
-      aiLearningImprovement: 3,
-      selfLearningComfort: 3,
-      selfLearningWithTech: 3,
-      selfLearningWithAI: 3,
-      aiDecisionComfort: 3,
-      aiTrustworthiness: 3,
-      aiIndependencePreference: 3,
-    },
-  });
+    const [form, setForm] = useState({
+        firstName: '',
+        lastName: '',
+        idCode: '',
+        gender: '',
+        birthYear: '',
+        preferredLanguage: '',
+        worksInIndustry: '',
+        aiUsage: '',
+        statements: {
+        aiLearningPotential: 3,
+        aiEaseOfUse: 3,
+        aiComplexity: 3,
+        aiLearningImprovement: 3,
+        selfLearningComfort: 3,
+        selfLearningWithTech: 3,
+        selfLearningWithAI: 3,
+        aiDecisionComfort: 3,
+        aiTrustworthiness: 3,
+        aiIndependencePreference: 3,
+        },
+    });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
