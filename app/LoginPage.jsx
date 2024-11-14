@@ -125,7 +125,11 @@ const LoginPage = () => {
 
   return (
     <div className={styles.loginContainer}>
-      <div className={styles.logoWrapper}>
+      <div className={styles.loginCard}>
+        <div className={styles.assistantTitle} style={{color: "black"}}>Michael is sleeping now</div>
+        <p className={styles.assistantTitle} style={{color: "black"}}>Take a break or check back later!</p>
+      </div>
+      {/* <div className={styles.logoWrapper}>
         <img className={styles.botImage} src="bot.png" alt="Bot" />
         <div className={styles.assistantName}>
           <img className={styles.logoImage} src="logo.png" alt="Logo" />
@@ -190,7 +194,7 @@ const LoginPage = () => {
         <div className={styles.loadingOverlay}>
           <Loader className={styles.loadingSpinner} size={48} />
         </div>
-      )}
+      )} */}
     </div>
   );
 };
