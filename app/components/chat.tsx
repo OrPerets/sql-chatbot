@@ -80,6 +80,7 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
 };
 
 const CodeMessage = ({ text }: { text: string }) => {
+  console.log("AAA")
   return (
     <div className={styles.codeMessage}>
       {text.split("\n").map((line, index) => (
