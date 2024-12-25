@@ -39,7 +39,6 @@ type ChatSession = {
 const UserMessage = ({ text }: { text: string }) => {
   return <div className={styles.userMessage}>{text}</div>;
 };
-
 const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedback: "like" | "dislike" | null; onFeedback?: (feedback: "like" | "dislike" | null) => void }) => {
   const [activeFeedback, setActiveFeedback] = useState(feedback);
 
@@ -55,6 +54,12 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
     onFeedback && onFeedback(newFeedback);
   };
 
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(text).catch((err) =>
+      console.error("Failed to copy text: ", err)
+    );
+  };
+
   return (
     <div className={styles.assistantMessage}>
       <Markdown>{text}</Markdown>
@@ -66,19 +71,24 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
             marginLeft: "-1%"
           }}
         >
-          {activeFeedback === "like" ? <ThumbsUp width="80%" height="80%" color="green" fill="green"/> : <ThumbsUp width="80%" height="80%"/>}
+          {activeFeedback === "like" ? <ThumbsUp width="80%" height="80%" color="green" fill="green" /> : <ThumbsUp width="80%" height="80%" />}
         </button>
         <button
           onClick={handleDislike}
           className={`${styles.feedbackButton} ${activeFeedback === "dislike" ? styles.negative : ""}`}
         >
-          {activeFeedback === "dislike" ? <ThumbsDown width="80%" height="80%" color="red" fill="red"/> : <ThumbsDown width="80%" height="80%"/>}
+          {activeFeedback === "dislike" ? <ThumbsDown width="80%" height="80%" color="red" fill="red" /> : <ThumbsDown width="80%" height="80%" />}
+        </button>
+        <button
+          onClick={copyToClipboard}
+          className={`${styles.feedbackButton} ${styles.copyButton}`}
+        >
+          📋
         </button>
       </div>
     </div>
   );
 };
-
 const CodeMessage = ({ text }: { text: string }) => {
   return (
     <div className={styles.codeMessage}>
