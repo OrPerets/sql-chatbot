@@ -287,3 +287,17 @@
 .toggleButton:disabled {
   background-color: lightgrey;
 }
+
+.tooltip {
+  position: absolute;
+  background-color: #333; /* Or any suitable background color */
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  /* Add other styling as needed, such as top/left positioning */
+  top: 25px;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0.9
+}

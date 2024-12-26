@@ -7,7 +7,7 @@ import Markdown from "react-markdown";
 // @ts-expect-error - no types for this yet
 import { AssistantStreamEvent } from "openai/resources/beta/assistants/assistants";
 import { RequiredActionFunctionToolCall } from "openai/resources/beta/threads/runs/runs";
-import { ThumbsUp, ThumbsDown } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ClipboardCopy } from 'lucide-react';
 import Link from 'next/link';
 import Sidebar from './sidebar';
 import { useRouter } from 'next/navigation';
@@ -41,6 +41,8 @@ const UserMessage = ({ text }: { text: string }) => {
 };
 const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedback: "like" | "dislike" | null; onFeedback?: (feedback: "like" | "dislike" | null) => void }) => {
   const [activeFeedback, setActiveFeedback] = useState(feedback);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleLike = () => {
     const newFeedback = activeFeedback === "like" ? null : "like"; // Toggle like
@@ -55,9 +57,17 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(text).catch((err) =>
-      console.error("Failed to copy text: ", err)
-    );
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        setShowTooltip(true);
+        if (tooltipTimeoutRef.current) {
+          clearTimeout(tooltipTimeoutRef.current);
+        }
+        tooltipTimeoutRef.current = setTimeout(() => {
+          setShowTooltip(false);
+        }, 2000); // Show tooltip for 2 seconds
+      })
+      .catch((err) => console.error("Failed to copy text: ", err));
   };
 
   return (
@@ -83,7 +93,10 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
           onClick={copyToClipboard}
           className={`${styles.feedbackButton} ${styles.copyButton}`}
         >
-          📋
+          <ClipboardCopy />
+          {showTooltip && (
+            <div className={styles.tooltip}>טקסט הועתק בהצלחה</div>
+          )}
         </button>
       </div>
     </div>
