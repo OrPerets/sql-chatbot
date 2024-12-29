@@ -57,7 +57,26 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(text)
+    // Improved regex to only capture content within ```sql``` blocks or SQL-like blocks
+    const sqlBlockRegex = /```sql([\s\S]*?)```/gi;
+  
+    // Match SQL blocks
+    const sqlMatches = text.match(sqlBlockRegex);
+  
+    let contentToCopy;
+    if (sqlMatches) {
+      // Remove the enclosing ```sql``` and ``` markers
+      contentToCopy = sqlMatches
+        .map((match) => match.replace(/```sql|```/g, "").trim())
+        .join("\n");
+    } else {
+      // Fallback to capturing all text that resembles SQL
+      const fallbackRegex = /(SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TRUNCATE|USE|SHOW)[\s\S]*?;/gi;
+      const fallbackMatches = text.match(fallbackRegex);
+      contentToCopy = fallbackMatches ? fallbackMatches.join("\n") : text;
+    }
+  
+    navigator.clipboard.writeText(contentToCopy)
       .then(() => {
         setShowTooltip(true);
         if (tooltipTimeoutRef.current) {
@@ -92,10 +111,12 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
         <button
           onClick={copyToClipboard}
           className={`${styles.feedbackButton} ${styles.copyButton}`}
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
         >
           <ClipboardCopy />
           {showTooltip && (
-            <div className={styles.tooltip}>טקסט הועתק בהצלחה</div>
+            <div className={styles.tooltip}>העתק שאילתה</div>
           )}
         </button>
       </div>
