@@ -124,6 +124,7 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
   );
 };
 const CodeMessage = ({ text }: { text: string }) => {
+  console.log("AAA")
   return (
     <div className={styles.codeMessage}>
       {text.split("\n").map((line, index) => (
@@ -170,8 +171,21 @@ const Chat = ({
   const [isDone, setIsDone] = useState(false);
   const [currentUser, setCurrectUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  // Added for query cost estimation feature
+  const [estimatedCost, setEstimatedCost] = useState(0);
+  const [currentBalance, setCurrentBalance] = useState(0);
+ 
 
   const router = useRouter();
+
+  // Added for query cost estimation: Calculates cost based on input length using GPT-4 pricing
+  const calculateCost = (text: string) => { // TO-OR - Need to connect this function to DB
+  // Rough estimate: 1 token ≈ 4 characters
+    const estimatedTokens = Math.ceil(text.length / 4);
+    // GPT-4 pricing: $0.03 per 1K tokens, convert to NIS (approximate rate: 1 USD = 3.7 NIS)
+    const costInNIS = (estimatedTokens / 1000) * 0.03 * 3.7;
+    return costInNIS;
+  };
 
     // Function to toggle the modal
     const toggleModal = () => {
@@ -189,10 +203,12 @@ const Chat = ({
   }, [messages]);
 
 
-  useEffect(() => {
+  useEffect(() => { // Modified useEffect with balance:
     let cUser = JSON.parse(localStorage.getItem("currentUser"))
     setCurrectUser(cUser["name"])
-  }, [])
+    // TO-DO - Need to connect this function to DB to fetch user's current balance
+    setCurrentBalance(0) // This will be replaced with DB fetch
+}, [])
 
   // Add this useEffect to load chat sessions when the component mounts
 useEffect(() => {
@@ -228,7 +244,9 @@ useEffect(() => {
     createThread();
   }, []);
 
-  const sendMessage = async (text) => {
+  const sendMessage = async (text) => { 
+    // TO-DO - Need to connect this function to DB to update user's balance after message is sent
+    // Should subtract estimatedCost from currentBalance and update in MongoDB
     let today = new Date().toISOString().slice(0, 10);
     if (!currentChatId) {
       fetch(`${SERVER_BASE}/chat-sessions`, {
@@ -546,16 +564,25 @@ return (
           className={`${styles.inputForm} ${styles.clearfix}`}
         >
           <div className={styles.inputContainer}>
-          <input
-            type="text"
-            className={styles.input}
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            placeholder="הקלד כאן..."
-            style={{
-              height: "55px"
-            }}
-          />
+            {/* Added for query cost estimation: Shows estimated cost while typing */}
+            {userInput && (
+              <div className={styles.costPopup}>
+                עלות השאילתה: ₪{estimatedCost.toFixed(2)}
+              </div>
+            )}
+            <input
+              type="text"
+              className={styles.input}
+              value={userInput}
+              onChange={(e) => {
+                setUserInput(e.target.value);
+                setEstimatedCost(calculateCost(e.target.value));
+              }}
+              placeholder="הקלד כאן..."
+              style={{
+                height: "55px"
+              }}
+            />
           <button
             type="submit"
             className={styles.button}
@@ -598,10 +625,15 @@ return (
     
     <div className={styles.rightColumn}>
     <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "100px", height: "100px"}}/>
-      <div className={styles.nickname}>
-        היי {currentUser}
+      {/* Added section for user info with current balance */}
+      <div className={styles.userInfo}>
+        <div className={styles.nickname}>
+          היי {currentUser}
+        </div>
+        <div className={styles.balance}>
+        יתרה נוכחית: ₪{currentBalance}
+        </div>
       </div>
-      
     </div>
     <Modal isOpen={showModal} onClose={toggleModal}>
         <SQLQueryEditorComponent toggleModal={toggleModal} />
