@@ -546,27 +546,54 @@ return (
           className={`${styles.inputForm} ${styles.clearfix}`}
         >
           <div className={styles.inputContainer}>
-          <input
-            type="text"
-            className={styles.input}
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            placeholder="הקלד כאן..."
-            style={{
-              height: "55px"
-            }}
-          />
-          <button
-            type="submit"
-            className={styles.button}
-            disabled={inputDisabled}
-            style={{
-              width: "40px",
-              height: "80%",
-              marginTop: "0.5%"
-              // padding: "15px",
-            }}
-          >
+          <textarea
+  className={styles.input}
+  value={userInput}
+  onChange={(e) => setUserInput(e.target.value)}
+  placeholder="הקלד כאן..."
+  onKeyDown={(e) => {
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault();
+      setUserInput(userInput + '\n');
+    } else if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  }}
+  style={{
+    height: 'auto', // Allow height to grow
+    minHeight: '55px', // Maintain initial height
+    overflowY: 'hidden', // Prevent scrollbars appearing initially, hide internal scroll
+  }}
+  onInput={(e) => {
+    // Adjust height based on content
+    e.currentTarget.style.height = 'auto'; // Reset height to recalculate
+    e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px'; // Set height to content height
+
+    // Limit height to avoid it growing indefinitely:
+    const maxHeight = 200; // Set your desired max height
+    if (e.currentTarget.scrollHeight > maxHeight) {
+      e.currentTarget.style.height = maxHeight + 'px';
+      e.currentTarget.style.overflowY = 'auto';  // Show scrollbar if content exceeds max height
+    }
+  }}
+/>
+</div>
+<button // Button is now *outside* the inputContainer
+    type="submit"
+    className={styles.button}
+    disabled={inputDisabled}
+    style={{
+      width: "40px",
+      height: "40px", // Fixed height (adjust as needed)
+      // marginTop: "0.5%",
+      // Consider adding other positioning styles as necessary, e.g.,
+      position: "relative", // Or "relative" depending on your layout
+      bottom: 10, // Example position
+      left: "50px",
+      right: "10px",  // Example position
+    }}
+  >
             	<svg
     xmlns="http://www.w3.org/2000/svg"
     width="20"
@@ -583,7 +610,7 @@ return (
     </svg>
     
           </button>
-          </div>
+    
           
         </form>
       </div>
