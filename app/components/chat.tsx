@@ -56,7 +56,7 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
     onFeedback && onFeedback(newFeedback);
   };
 
-  const copyToClipboard = () => {
+  const copyToClipboard = (code = null) => {
     // Improved regex to only capture content within ```sql``` blocks or SQL-like blocks
     const sqlBlockRegex = /```sql([\s\S]*?)```/gi;
   
@@ -89,9 +89,40 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
       .catch((err) => console.error("Failed to copy text: ", err));
   };
 
+  const sqlBlockRegex = /```sql([\s\S]*?)```/gi;
+  const sqlMatches = text.match(sqlBlockRegex);
+  const extractedQuery = sqlMatches ? sqlMatches[0] : null;
+  
+  const renderers = {
+    code: ({node, inline, className, children, ...props}) => {
+      if (className === "language-sql") {
+          // Ensure code is always a string, even if children is an array
+          const code = Array.isArray(children) ? children.join('') : children; 
+
+          return (
+            <pre className={styles.sqlCode} 
+            style={{cursor: "pointer"}} 
+            onClick={() => copyToClipboard(code)}
+            onMouseMove={() => setShowTooltip(true)}
+            onMouseOut={() => setShowTooltip(false)}
+            > 
+            <code
+              onClick={() => copyToClipboard(code)}
+              className={styles.sqlCode} style={{cursor: "pointer"}}
+            >
+                 {code}
+            </code>
+            </pre>
+        );
+      }
+      return <code className={className} {...props}>{children}</code>;
+  },
+};
+
   return (
     <div className={styles.assistantMessage}>
-      <Markdown>{text}</Markdown>
+      {/* <Markdown>{text}</Markdown> */}
+      <Markdown components={renderers} >{text}</Markdown>
       <div className={styles.feedbackButtons}>
         <button
           onClick={handleLike}
@@ -109,10 +140,11 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
           {activeFeedback === "dislike" ? <ThumbsDown width="80%" height="80%" color="red" fill="red" /> : <ThumbsDown width="80%" height="80%" />}
         </button>
         <button
-          onClick={copyToClipboard}
+          onClick={copyToClipboard} // Keep this for general copying
           className={`${styles.feedbackButton} ${styles.copyButton}`}
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
+          style={{ opacity: extractedQuery ? 0.5 : 1 }} // Dim if SQL-specific copy exists
         >
           <ClipboardCopy />
           {showTooltip && (

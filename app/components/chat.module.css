@@ -335,3 +335,9 @@
   visibility: visible;
   opacity: 1;
 }
+
+.sqlCode:hover {
+  cursor: pointer;
+  background-color: darkgrey;
+  font-weight: bold;
+}
