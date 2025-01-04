@@ -202,6 +202,7 @@ const Chat = ({
   const [isDone, setIsDone] = useState(false);
   const [currentUser, setCurrectUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false); // Add loading state
 
   const router = useRouter();
 
@@ -317,16 +318,31 @@ useEffect(() => {
     handleReadableStream(stream);
   };
 
+  const keepOneInstance = (arr, key) => {
+    const seen = new Set();
+    return arr.filter(obj => {
+      if (seen.has(obj[key])) {
+        return false; // Skip duplicates
+      } else {
+        seen.add(obj[key]);
+        return true; // Keep the first instance
+      }
+    });
+  };
+
   // Add a function to load messages for a specific chat
 const loadChatMessages = (chatId: string) => {
+  setLoadingMessages(true); // Set loading to true before fetching
   fetch(`${SERVER_BASE}/chat-sessions/${chatId}/messages`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
     },
   }).then(response => response.json()).then(chatMessages => {
-    setMessages(chatMessages);
+    const uniqueItems = keepOneInstance(chatMessages, "text");   
+    setMessages(uniqueItems);
     setCurrentChatId(chatId);
+    setLoadingMessages(false);
   })  
 };
 
@@ -560,15 +576,19 @@ return (
     <div className={styles.container}>
       <div className={styles.chatContainer}>
         <div className={styles.messages} style={{direction:"rtl"}}>
-          {messages.map((msg, index) => (
-            <Message 
-              key={index} 
-              role={msg.role} 
-              text={msg.text} 
-              feedback={msg.feedback}
-              onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
-            />
-          ))}
+          {loadingMessages ? (
+            <div className={styles.loadingIndicator}></div>
+          ) : (
+            messages.map((msg, index) => (
+              <Message
+                key={index}
+                role={msg.role}
+                text={msg.text}
+                feedback={msg.feedback}
+                onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
+              />
+            ))
+          )}
           <div ref={messagesEndRef} />
         </div>
         

@@ -341,3 +341,47 @@
   background-color: darkgrey;
   font-weight: bold;
 }
+
+.loadingBar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 50px; /* Adjust height as needed */
+  width: 100%;
+  background-color: #f0f0f0; /* Light gray background */
+  font-size: 16px;
+  color: #333; /* Dark gray text */
+}
+
+.loadingIndicator {
+  display: flex;
+  justify-content: center; /* Horizontally center */
+  align-items: center;     /* Vertically center */
+  height: 100px;           /* Increase height as needed */
+  width: 100%;
+  margin-top: 25%;
+  /* background-color: rgba(255, 255, 255, 0.5);   Optional semi-transparent background */
+
+  /* Circular loading animation: */
+  animation: rotate 1s linear infinite;  /* Adjust animation speed as desired */
+}
+
+.loadingIndicator::before {
+  content: "";
+  display: block;
+  width: 40px;           /* Increase size as needed */
+  height: 40px;          /* Increase size as needed */
+  border: 6px solid #ccc;  /* Adjust color and thickness */
+  border-top-color: #3498db; /* Example primary color - change as desired */
+  border-radius: 50%;     /* Make it circular */
+}
+
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
