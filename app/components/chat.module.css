@@ -316,8 +316,8 @@
 }
 
 .tooltip {
-  position: absolute;
-  bottom: 120%; /* Adjust as needed */
+  position: fixed;
+  bottom: 80%; /* Adjust as needed */
   left: 50%;
   transform: translateX(-50%);
   background-color: #333;
@@ -336,11 +336,6 @@
   opacity: 1;
 }
 
-.sqlCode:hover {
-  cursor: pointer;
-  background-color: darkgrey;
-  font-weight: bold;
-}
 
 .loadingBar {
   display: flex;
@@ -385,3 +380,62 @@
     transform: rotate(360deg);
   }
 }
+
+.sqlCodeContainer {
+  display: flex;
+  align-items: center;
+  position: relative; /* Crucial for tooltip positioning */
+  z-index: 100;
+}
+
+.sqlCodeContainer:hover {
+  /* background-color: red; */
+}
+
+.sqlCodeContainer:hover .sqlCode:hover {
+  cursor: pointer;
+  background-color: darkgrey;
+  font-weight: bold;
+}
+
+.sqlCode:hover {
+  cursor: pointer;
+  background-color: darkgrey;
+  font-weight: bold;
+}
+
+.copyButton {
+  position: relative;  /* This is important for the next selector to work */
+
+}
+
+.copyButton:hover {
+  background-color: #eee;
+   
+}
+
+.tooltip { /* Tooltip styles */
+  position: absolute;
+  top: 100%;         /* Position below the button */
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #333;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  height: 20px;
+  z-index: 1000; /* Ensure tooltip is on top */
+
+  opacity: 0;             /* Initially hidden */
+  visibility: hidden;   /* Initially hidden */
+  transition: opacity 0.15s ease-in-out, visibility 0.15s ease-in-out; /* Smooth transitions */
+
+}
+
+.sqlCodeContainer:hover .tooltip,  /* Show on container hover */
+.copyButton:hover .tooltip {       /* Show on button hover */
+  opacity: 1;
+  visibility: visible;
+}
+

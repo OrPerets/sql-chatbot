@@ -43,6 +43,9 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
   const [activeFeedback, setActiveFeedback] = useState(feedback);
   const [showTooltip, setShowTooltip] = useState(false);
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [copied, setCopied] = useState(false);  // Tooltip state
+  const [copiedText, setCopiedText] =  useState("העתק שאילתה")
+
 
   const handleLike = () => {
     const newFeedback = activeFeedback === "like" ? null : "like"; // Toggle like
@@ -56,68 +59,40 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
     onFeedback && onFeedback(newFeedback);
   };
 
-  const copyToClipboard = (code = null) => {
-    // Improved regex to only capture content within ```sql``` blocks or SQL-like blocks
-    const sqlBlockRegex = /```sql([\s\S]*?)```/gi;
-  
-    // Match SQL blocks
-    const sqlMatches = text.match(sqlBlockRegex);
-  
-    let contentToCopy;
-    if (sqlMatches) {
-      // Remove the enclosing ```sql``` and ``` markers
-      contentToCopy = sqlMatches
-        .map((match) => match.replace(/```sql|```/g, "").trim())
-        .join("\n");
-    } else {
-      // Fallback to capturing all text that resembles SQL
-      const fallbackRegex = /(SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TRUNCATE|USE|SHOW)[\s\S]*?;/gi;
-      const fallbackMatches = text.match(fallbackRegex);
-      contentToCopy = fallbackMatches ? fallbackMatches.join("\n") : text;
-    }
-  
-    navigator.clipboard.writeText(contentToCopy)
+  const copyToClipboard = (textToCopy) => {
+    navigator.clipboard.writeText(textToCopy)
       .then(() => {
-        setShowTooltip(true);
+        setCopied(true); // Show "Copied!" tooltip
         if (tooltipTimeoutRef.current) {
           clearTimeout(tooltipTimeoutRef.current);
         }
         tooltipTimeoutRef.current = setTimeout(() => {
-          setShowTooltip(false);
-        }, 2000); // Show tooltip for 2 seconds
+          setCopied(false); // Hide tooltip after delay
+        }, 2000); 
       })
       .catch((err) => console.error("Failed to copy text: ", err));
   };
 
-  const sqlBlockRegex = /```sql([\s\S]*?)```/gi;
-  const sqlMatches = text.match(sqlBlockRegex);
-  const extractedQuery = sqlMatches ? sqlMatches[0] : null;
-  
-  const renderers = {
-    code: ({node, inline, className, children, ...props}) => {
-      if (className === "language-sql") {
-          // Ensure code is always a string, even if children is an array
-          const code = Array.isArray(children) ? children.join('') : children; 
+const renderers = {
+  code: ({ node, inline, className, children, ...props }) => {
+    if (className === "language-sql") {
+      const code = Array.isArray(children) ? children.join("") : children;
 
-          return (
-            <pre className={styles.sqlCode} 
-            style={{cursor: "pointer"}} 
-            onClick={() => copyToClipboard(code)}
-            onMouseMove={() => setShowTooltip(true)}
-            onMouseOut={() => setShowTooltip(false)}
-            > 
-            <code
-              onClick={() => copyToClipboard(code)}
-              className={styles.sqlCode} style={{cursor: "pointer"}}
-            >
-                 {code}
-            </code>
-            </pre>
-        );
-      }
-      return <code className={className} {...props}>{children}</code>;
+      return (
+        <div className={styles.sqlCodeContainer}> {/* Container for code and button */}
+          <pre className={styles.sqlCode}><code className={styles.sqlCode} onClick={() => {
+            copyToClipboard(code)
+            setCopiedText("הועתק בהצלחה")
+          }}>{code}</code></pre>
+          
+          {copied && <div className={styles.tooltip}>{copiedText}</div>}
+        </div>
+      );
+    }
+    return <code className={className} {...props}>{children}</code>;
   },
 };
+
 
   return (
     <div className={styles.assistantMessage}>
@@ -144,11 +119,11 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
           className={`${styles.feedbackButton} ${styles.copyButton}`}
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
-          style={{ opacity: extractedQuery ? 0.5 : 1 }} // Dim if SQL-specific copy exists
+          // style={{ opacity: extractedQuery ? 0.5 : 1 }} // Dim if SQL-specific copy exists
         >
           <ClipboardCopy />
           {showTooltip && (
-            <div className={styles.tooltip}>העתק שאילתה</div>
+            <div className={styles.tooltip}>העתק</div>
           )}
         </button>
       </div>
