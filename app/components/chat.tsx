@@ -148,7 +148,7 @@ const copyQueryToClipboard = (text) => {
         >
           <ClipboardCopy />
           {showTooltip && (
-            <div className={styles.tooltip}>העתק שאילתה</div>
+            <div className={styles.tooltip}>{copiedText}</div>
           )}
         </button>
       </div>
