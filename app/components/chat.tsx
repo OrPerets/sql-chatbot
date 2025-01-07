@@ -93,11 +93,36 @@ const renderers = {
   },
 };
 
+const copyQueryToClipboard = (text) => {
+  // Regular expression to find SQL queries within ```sql ... ``` blocks
+  const sqlRegex = /```sql\s*([\s\S]*?)\s*```/gi; 
+  const match = sqlRegex.exec(text);
+
+  if (match) {
+    const extractedQuery = match[1].trim(); // Extract and trim the query
+    navigator.clipboard.writeText(extractedQuery)
+      .then(() => {
+        // Optionally show a success message or tooltip here
+        console.log("SQL query copied to clipboard:", extractedQuery);
+        setCopiedText("הועתק בהצלחה")
+        setTimeout(() => {
+          setCopiedText("העתק שאילתה");
+        }, 3000)
+      })
+      .catch((error) => {
+        console.error("Failed to copy:", error);
+        // Optionally show an error message
+      });
+  } else {
+    // Handle cases where no SQL query is found (optional)
+    console.log("No SQL query found in text.");
+  }
+};
 
   return (
     <div className={styles.assistantMessage}>
-      {/* <Markdown>{text}</Markdown> */}
-      <Markdown components={renderers} >{text}</Markdown>
+      <Markdown>{text}</Markdown>
+      {/* <Markdown components={renderers} >{text}</Markdown> */}
       <div className={styles.feedbackButtons}>
         <button
           onClick={handleLike}
@@ -115,7 +140,7 @@ const renderers = {
           {activeFeedback === "dislike" ? <ThumbsDown width="80%" height="80%" color="red" fill="red" /> : <ThumbsDown width="80%" height="80%" />}
         </button>
         <button
-          onClick={copyToClipboard} // Keep this for general copying
+          onClick={() => copyQueryToClipboard(text)} // Keep this for general copying
           className={`${styles.feedbackButton} ${styles.copyButton}`}
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
@@ -123,7 +148,7 @@ const renderers = {
         >
           <ClipboardCopy />
           {showTooltip && (
-            <div className={styles.tooltip}>העתק</div>
+            <div className={styles.tooltip}>העתק שאילתה</div>
           )}
         </button>
       </div>
@@ -314,8 +339,8 @@ const loadChatMessages = (chatId: string) => {
       'Content-Type': 'application/json',
     },
   }).then(response => response.json()).then(chatMessages => {
-    const uniqueItems = keepOneInstance(chatMessages, "text");   
-    setMessages(uniqueItems);
+    // const uniqueItems = keepOneInstance(chatMessages, "text");   
+    setMessages(chatMessages);
     setCurrentChatId(chatId);
     setLoadingMessages(false);
   })  
