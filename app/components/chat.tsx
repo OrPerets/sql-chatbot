@@ -92,33 +92,34 @@ const renderers = {
     return <code className={className} {...props}>{children}</code>;
   },
 };
-
 const copyQueryToClipboard = (text) => {
   // Regular expression to find SQL queries within ```sql ... ``` blocks
   const sqlRegex = /```sql\s*([\s\S]*?)\s*```/gi; 
-  const match = sqlRegex.exec(text);
+  let extractedQueries = [];
+  let match;
 
-  if (match) {
-    const extractedQuery = match[1].trim(); // Extract and trim the query
-    navigator.clipboard.writeText(extractedQuery)
+  // Loop through all matches
+  while ((match = sqlRegex.exec(text)) !== null) {
+    extractedQueries.push(match[1].trim());
+  }
+
+  if (extractedQueries.length > 0) {
+    const queriesToCopy = extractedQueries.join('\n\n'); // Join queries with newlines
+    navigator.clipboard.writeText(queriesToCopy)
       .then(() => {
-        // Optionally show a success message or tooltip here
-        console.log("SQL query copied to clipboard:", extractedQuery);
-        setCopiedText("הועתק בהצלחה")
+        console.log("SQL queries copied to clipboard:\n", queriesToCopy);
+        setCopiedText("הועתק בהצלחה");
         setTimeout(() => {
           setCopiedText("העתק שאילתה");
-        }, 3000)
+        }, 3000);
       })
       .catch((error) => {
         console.error("Failed to copy:", error);
-        // Optionally show an error message
       });
   } else {
-    // Handle cases where no SQL query is found (optional)
-    console.log("No SQL query found in text.");
+    console.log("No SQL queries found in text.");
   }
 };
-
   return (
     <div className={styles.assistantMessage}>
       <Markdown>{text}</Markdown>
@@ -339,8 +340,8 @@ const loadChatMessages = (chatId: string) => {
       'Content-Type': 'application/json',
     },
   }).then(response => response.json()).then(chatMessages => {
-    // const uniqueItems = keepOneInstance(chatMessages, "text");   
-    setMessages(chatMessages);
+    const uniqueItems = keepOneInstance(chatMessages, "text");   
+    setMessages(uniqueItems);
     setCurrentChatId(chatId);
     setLoadingMessages(false);
   })  
