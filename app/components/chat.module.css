@@ -312,3 +312,17 @@
 .toggleButton:disabled {
   background-color: lightgrey;
 }
+
+.balanceError {
+  position: fixed; /* Stay in the middle of the screen */
+  top: 40%;
+  left: 60%;
+  transform: translate(-50%, -50%); /* Center perfectly */
+  background-color: rgba(255, 0, 0, 0.8); /* Red background with some transparency */
+  color: white;  /* White text */
+  padding: 20px;  /* Add padding */
+  border-radius: 8px; /* Rounded corners */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+  z-index: 1001; /* Ensure it's on top of other elements */
+  text-align: center; /* Center text inside */
+}

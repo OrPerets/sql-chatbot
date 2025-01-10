@@ -80,7 +80,6 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
 };
 
 const CodeMessage = ({ text }: { text: string }) => {
-  console.log("AAA")
   return (
     <div className={styles.codeMessage}>
       {text.split("\n").map((line, index) => (
@@ -130,6 +129,7 @@ const Chat = ({
   // Added for query cost estimation feature
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [currentBalance, setCurrentBalance] = useState(0);
+  const [balanceError, setBalanceError] = useState(false);
  
 
   const router = useRouter();
@@ -138,9 +138,7 @@ const Chat = ({
   const calculateCost = (text: string) => { // TO-OR - Need to connect this function to DB
   // Rough estimate: 1 token ≈ 4 characters
     const estimatedTokens = Math.ceil(text.length / 4);
-    // GPT-4 pricing: $0.03 per 1K tokens, convert to NIS (approximate rate: 1 USD = 3.7 NIS)
-    const costInNIS = (estimatedTokens / 1000) * 0.03 * 3.7;
-    return costInNIS;
+    return estimatedTokens
   };
 
     // Function to toggle the modal
@@ -203,7 +201,14 @@ useEffect(() => {
   const sendMessage = async (text) => { 
     // TO-DO - Need to connect this function to DB to update user's balance after message is sent
     // Should subtract estimatedCost from currentBalance and update in MongoDB
-    let today = new Date().toISOString().slice(0, 10);
+    if (currentBalance - estimatedCost < 0) {
+      setBalanceError(true)
+      setUserInput("")
+      setTimeout(() => {  // Set timeout to clear error after 3 seconds
+        setBalanceError(false);
+      }, 3000);
+    } else {
+      let today = new Date().toISOString().slice(0, 10);
     if (!currentChatId) {
       fetch(`${SERVER_BASE}/chat-sessions`, {
         method: 'POST',
@@ -257,6 +262,8 @@ useEffect(() => {
     );
     const stream = AssistantStream.fromReadableStream(response.body);
     handleReadableStream(stream);
+
+    }
   };
 
   // Add a function to load messages for a specific chat
@@ -294,10 +301,12 @@ const loadChatMessages = (chatId: string) => {
     e.preventDefault();
     if (!userInput.trim()) return;
     sendMessage(userInput);
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      { role: "user", text: userInput },
-    ]);
+    if (currentBalance - estimatedCost >= 0) {
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        { role: "user", text: userInput },
+      ]);
+    }
     setUserInput("");
     setInputDisabled(true);
     scrollToBottom();
@@ -578,6 +587,11 @@ return (
                 עורך שאילתות
               </button> */}
     </div>
+    {balanceError && (
+  <div className={styles.balanceError}>
+    No enough tokens
+  </div>
+)}
     
     <div className={styles.rightColumn}>
     <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "100px", height: "100px"}}/>
