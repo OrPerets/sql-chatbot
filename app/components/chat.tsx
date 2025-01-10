@@ -103,9 +103,13 @@ const copyQueryToClipboard = (text) => {
     extractedQueries.push(match[1].trim());
   }
 
+  var queriesToCopy;
   if (extractedQueries.length > 0) {
-    const queriesToCopy = extractedQueries.join('\n\n'); // Join queries with newlines
-    navigator.clipboard.writeText(queriesToCopy)
+    queriesToCopy = extractedQueries.join('\n\n'); // Join queries with newlines
+  } else {
+    queriesToCopy = text;
+  }
+  navigator.clipboard.writeText(queriesToCopy)
       .then(() => {
         console.log("SQL queries copied to clipboard:\n", queriesToCopy);
         setCopiedText("הועתק בהצלחה");
@@ -116,9 +120,6 @@ const copyQueryToClipboard = (text) => {
       .catch((error) => {
         console.error("Failed to copy:", error);
       });
-  } else {
-    console.log("No SQL queries found in text.");
-  }
 };
   return (
     <div className={styles.assistantMessage}>
