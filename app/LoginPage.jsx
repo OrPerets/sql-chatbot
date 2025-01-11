@@ -7,6 +7,7 @@ import styles from './login.module.css';
 const SERVER_BASE = config.serverUrl;
 const SERVER = `${SERVER_BASE}/allUsers`;
 const UPDATE_PASSWORD = `${SERVER_BASE}/updatePassword`;
+const GET_COINS_BALANCE = `${SERVER_BASE}/coinsBalance`;
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -22,6 +23,31 @@ const LoginPage = () => {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  const getCoinsBalance = async (userEmail) => {
+    setIsFetchingUsers(true);
+    try {
+      const response = await fetch(GET_COINS_BALANCE + "/" + userEmail, {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+      const data = await response.json();
+      if (data.length > 0) {
+        localStorage.setItem("currentBalance", data[0]["coins"]);
+      }
+      // setUsers(data);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      setError('Failed to fetch users. Please try again.');
+    } finally {
+      setIsFetchingUsers(false);
+    }
+  }
 
   const fetchUsers = async () => {
     setIsFetchingUsers(true);
@@ -62,6 +88,7 @@ const LoginPage = () => {
     if (password === "shenkar") {
       setChangePassword(true);
     } else if (user && password === user.password) {
+      getCoinsBalance(user.email);
       storeUserInfo(user);
       router.push('/entities/basic-chat');
     } else {

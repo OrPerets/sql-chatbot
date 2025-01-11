@@ -1,4 +1,4 @@
-const environment = 'prod';
+const environment = 'dev';
 
 const config = {
   dev: {
