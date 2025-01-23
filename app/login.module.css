@@ -1,137 +1,152 @@
-/* Login container styling */
 .loginContainer {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    background: radial-gradient(circle, #2a8ad8, #002e67);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: radial-gradient(circle, #2a8ad8, #002e67);
+}
+
+.errorMessage {
+  color: red;
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.botImage {
+  width: 180px;
+  height: 180px;
+  margin-right: 2rem;
+  border-radius: 50%;
+  padding: 15px;
+}
+
+.logoWrapper {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  font-size: 22px;
+}
+
+.logoImage {
+  width: 50px;
+  height: 50px;
+  margin-right: 1rem;
+}
+
+.assistantName {
+  text-align: left;
+}
+
+.assistantTitle {
+  color: #e5eefd;
+  margin: 0;
+}
+
+.assistantSubtitle {
+  color: #e5eefd;
+  margin: 0;
+}
+
+.loginCard {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.title {
+  text-align: center;
+  color: #333;
+  margin-bottom: 1.5rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+}
+
+.inputGroup {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem;
+  padding-left: 2.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #4a90e2;
+}
+
+.iconWrapper {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666;
+}
+
+.button {
+  background-color: #4a90e2;
+  color: white;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.button:hover {
+  background-color: #3a7cbd;
+}
+
+/* Added this for the admin-interface: Styles for the admin login button, using a different color scheme to distinguish it from the regular login button */
+.adminButton {
+  background-color: #6c757d;
+  color: white;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.adminButton:hover {
+  background-color: #5a6268;
+}
+
+.loadingOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle, #2a8ad8, #002e67);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
   }
-  
-  .errorMessage {
-    color: red;
-    margin-top: 1rem;
-    text-align: center;
-  }
-  
-  .botImage {
-    width: 180px;
-    height: 180px;
-    margin-right: 2rem;
-    border-radius: 50%;
-    padding: 15px;
-  }
-  
-  .logoWrapper {
-    display: flex;
-    align-items: center;
-    margin-bottom: 1.5rem;
-    font-size: 22px;
-  }
-  
-  .logoImage {
-    width: 50px;
-    height: 50px;
-    margin-right: 1rem;
-  }
-  
-  .assistantName {
-    text-align: left;
-  }
-  
-  .assistantTitle {
-    color: #e5eefd;
-    margin: 0;
-  }
-  
-  .assistantSubtitle {
-    color: #e5eefd;
-    margin: 0;
-  }
-  
-  .loginCard {
-    background-color: white;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    max-width: 400px;
-    text-align: center;
-  }
-  
-  .title {
-    text-align: center;
-    color: #333;
-    margin-bottom: 1.5rem;
-  }
-  
-  .form {
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .inputGroup {
-    position: relative;
-    margin-bottom: 1rem;
-  }
-  
-  .input {
-    width: 100%;
-    padding: 0.75rem;
-    padding-left: 2.5rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 1rem;
-  }
-  
-  .input:focus {
-    outline: none;
-    border-color: #4a90e2;
-  }
-  
-  .iconWrapper {
-    position: absolute;
-    left: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #666;
-  }
-  
-  .button {
-    background-color: #4a90e2;
-    color: white;
-    padding: 0.75rem;
-    border: none;
-    border-radius: 4px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background-color 0.3s;
-  }
-  
-  .button:hover {
-    background-color: #3a7cbd;
-  }
-  
-  .loadingOverlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: radial-gradient(circle, #2a8ad8, #002e67);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-  }
-  
-  @keyframes spin {
-    100% {
-      transform: rotate(360deg);
-    }
-  }
-  
-  .loadingSpinner {
-    animation: spin 1s linear infinite;
-  }
-  
+}
+
+.loadingSpinner {
+  animation: spin 1s linear infinite;}
