@@ -20,7 +20,7 @@ export const maxDuration = 50;
 const SERVER_BASE = config.serverUrl;
 
 const SAVE = SERVER_BASE + "/save"
-const FEEDBACK = SERVER_BASE + "/feedback"  // New endpoint for feedback
+const UPDATE_BALANCE = SERVER_BASE + "/updateBalance"  // New endpoint for feedback
 
 type MessageProps = {
   role: "user" | "assistant" | "code";
@@ -130,7 +130,8 @@ const Chat = ({
   // Added for query cost estimation feature
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [currentBalance, setCurrentBalance] = useState(0);
- 
+  const [balanceError, setBalanceError] = useState(false);
+
 
   const router = useRouter();
 
@@ -138,9 +139,7 @@ const Chat = ({
   const calculateCost = (text: string) => { // TO-OR - Need to connect this function to DB
   // Rough estimate: 1 token ≈ 4 characters
     const estimatedTokens = Math.ceil(text.length / 4);
-    // GPT-4 pricing: $0.03 per 1K tokens, convert to NIS (approximate rate: 1 USD = 3.7 NIS)
-    const costInNIS = (estimatedTokens / 1000) * 0.03 * 3.7;
-    return costInNIS;
+    return estimatedTokens;
   };
 
     // Function to toggle the modal
@@ -163,7 +162,7 @@ const Chat = ({
     let cUser = JSON.parse(localStorage.getItem("currentUser"))
     setCurrectUser(cUser["name"])
     // TO-DO - Need to connect this function to DB to fetch user's current balance
-    setCurrentBalance(0) // This will be replaced with DB fetch
+    setCurrentBalance(Number(localStorage.getItem("currentBalance"))) // This will be replaced with DB fetch
 }, [])
 
   // Add this useEffect to load chat sessions when the component mounts
@@ -183,10 +182,29 @@ useEffect(() => {
   loadChatSessions();
 }, []);
 
-  useEffect(() => {
-    const storedUser = localStorage.getItem("currentUser");
-    setUser(JSON.parse(storedUser));
-  }, []);
+  const updateUserBalance = async (value) => {
+    const response = await fetch(UPDATE_BALANCE, {
+      method: 'POST',
+      mode: 'cors',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify({
+        "email": user.email,
+        "currentBalance": value
+      })
+    });
+    if (response.ok) {
+    } else {
+    }
+    }
+
+    useEffect(() => {
+      const storedUser = localStorage.getItem("currentUser");
+      setUser(JSON.parse(storedUser));
+    }, []);
 
   // create a new threadID when chat component created
   useEffect(() => {
@@ -203,7 +221,18 @@ useEffect(() => {
   const sendMessage = async (text) => { 
     // TO-DO - Need to connect this function to DB to update user's balance after message is sent
     // Should subtract estimatedCost from currentBalance and update in MongoDB
-    let today = new Date().toISOString().slice(0, 10);
+    const sendMessage = async (text) => { 
+      if (currentBalance - estimatedCost < 0) {
+        setBalanceError(true)
+        setUserInput("")
+        setTimeout(() => {  // Set timeout to clear error after 3 seconds
+          setBalanceError(false);
+        }, 3000);
+      } else {
+        updateUserBalance(currentBalance - estimatedCost)
+        setCurrentBalance(currentBalance - estimatedCost)
+        let today = new Date().toISOString().slice(0, 10);
+   
     if (!currentChatId) {
       fetch(`${SERVER_BASE}/chat-sessions`, {
         method: 'POST',
@@ -257,7 +286,8 @@ useEffect(() => {
     );
     const stream = AssistantStream.fromReadableStream(response.body);
     handleReadableStream(stream);
-  };
+      }
+    };
 
   // Add a function to load messages for a specific chat
 const loadChatMessages = (chatId: string) => {
@@ -292,12 +322,17 @@ const loadChatMessages = (chatId: string) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
     if (!userInput.trim()) return;
     sendMessage(userInput);
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      { role: "user", text: userInput },
-    ]);
+
+    if (currentBalance - estimatedCost >= 0) {
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        { role: "user", text: userInput },
+      ]);
+    }
+
     setUserInput("");
     setInputDisabled(true);
     scrollToBottom();
@@ -579,6 +614,12 @@ return (
               </button> */}
     </div>
     
+    {balanceError && (
+  <div className={styles.balanceError}>
+    Not enough tokens
+  </div>
+  )}
+
     <div className={styles.rightColumn}>
     <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "100px", height: "100px"}}/>
       {/* Added section for user info with current balance */}

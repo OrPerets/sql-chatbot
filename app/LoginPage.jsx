@@ -168,6 +168,14 @@ const LoginPage = () => {
             <button type="submit" className={styles.button} disabled={isLoading}>
               {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'אישור'}
             </button>
+            {/* Added this for the admin-interface: Button that redirects to the admin page, placed below the main login button */}
+            <button 
+              type="button" 
+              className={styles.adminButton}
+              onClick={() => router.push('/admin')}
+            >
+              כניסת מנהל מערכת
+            </button>
           </form>
         ) : (
           <form className={styles.form} onSubmit={handleChangePassword}>
