@@ -263,6 +263,7 @@ useEffect(() => {
     createThread();
   }, []);
 
+  
   const sendMessage = async (text) => {
     let today = new Date().toISOString().slice(0, 10);
     if (!currentChatId) {
