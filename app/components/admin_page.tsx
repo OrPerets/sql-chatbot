@@ -18,7 +18,7 @@ const AdminPage: React.FC = () => {
     const fetchData = async () => {
       try {
         // Fetch users
-        const usersResponse = await fetch(`${SERVER_BASE}/users`);
+        const usersResponse = await fetch(`${SERVER_BASE}/allUsers`);
         const usersData = await usersResponse.json();
         setUsers(usersData);
 
@@ -233,13 +233,13 @@ const AdminPage: React.FC = () => {
                 type="checkbox"
                 checked={selectedUsers.length === users.filter(user => 
                   (selectedClass === 0 || user.classId === selectedClass) &&
-                  (user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  (user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   user.email.toLowerCase().includes(searchTerm.toLowerCase()))
                 ).length}
                 onChange={(e) => {
                   const filteredUsers = users.filter(user => 
                     (selectedClass === 0 || user.classId === selectedClass) &&
-                    (user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    (user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     user.email.toLowerCase().includes(searchTerm.toLowerCase()))
                   );
                   setSelectedUsers(e.target.checked ? filteredUsers.map(u => u.email) : []);
@@ -252,7 +252,7 @@ const AdminPage: React.FC = () => {
             {users
               .filter(user => 
                 (selectedClass === 0 || user.classId === selectedClass) &&
-                (user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 user.email.toLowerCase().includes(searchTerm.toLowerCase()))
               )
               .map(user => (
