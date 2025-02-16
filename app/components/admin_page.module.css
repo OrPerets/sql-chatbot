@@ -20,11 +20,102 @@
 
 .userInfo {
   text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .nickname {
   font-size: 20px;
   color: #333;
+}
+
+.tokenVisibilityToggle {
+  position: absolute;
+  left: 20px;
+  top: calc(20px + 84px); /* header padding + approximate header height */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 10;
+}
+
+.tokenVisibilityToggle label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  background: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.tokenVisibilityToggle .toggle {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 28px;
+  margin-left: 8px;
+}
+
+.tokenVisibilityToggle .toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.tokenVisibilityToggle .slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+
+.tokenVisibilityToggle .slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 24px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+.tokenVisibilityToggle input:checked + .slider {
+  background-color: #4a90e2;
+}
+
+.tokenVisibilityToggle input:checked + .slider:before {
+  transform: translateX(28px);
+}
+
+.tokenVisibilityToggle .slider span {
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.tokenVisibilityToggle .slider .on {
+  padding-right: 4px;
+}
+
+.tokenVisibilityToggle .slider .off {
+  padding-left: 4px;
 }
 
 /* Added for admin interface: Search bar styling */
@@ -151,7 +242,7 @@
 
 .usersHeader {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-items: center;
   margin-bottom: 16px;
   margin-top: 8px;
@@ -165,6 +256,7 @@
   color: #333;
   cursor: pointer;
   font-weight: 500;
+  flex-direction: row-reverse;
 }
 
 .selectAllContainer input[type="checkbox"],
@@ -194,6 +286,12 @@
   position: relative;
 }
 
+.leftSection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .userInfo {
   display: flex;
   flex-direction: column;
@@ -219,8 +317,8 @@
   border-radius: 4px;
   font-size: 14px;
   font-weight: 500;
+  margin-left: 8px;
 }
-
 
 /* Added this for the admin-interface: Error message styling for unauthorized access */
 .errorMessage {
@@ -235,6 +333,5 @@
   text-align: center;
   font-size: 18px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  direction: rtl;
   direction: rtl;
 }
