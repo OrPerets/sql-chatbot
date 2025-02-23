@@ -10,6 +10,12 @@ import config from '../config';
 const SERVER_BASE = config.serverUrl;
 
 
+const options = {
+  'add_balance': 'הוסף מטבעות',
+  'reduce_balance': 'הפחת מטבעות',
+  'reset_password': 'איפוס סיסמה'
+}
+
 const AdminPage: React.FC = () => {
  const [currentUser, setCurrentUser] = useState(null);
  const [error, setError] = useState('');
@@ -34,6 +40,17 @@ const AdminPage: React.FC = () => {
        // Fetch users
        const usersResponse = await fetch(`${SERVER_BASE}/allUsers`);
        const usersData = await usersResponse.json();
+
+       const coinsData = await fetch(`${SERVER_BASE}/getAllCoins`);
+       const coins = await coinsData.json();
+       usersData.forEach(user => {
+        let temp = coins.filter(item => item.user === user.email)
+        if (temp.length > 0) {
+          user.coins = temp[0]["coins"]
+        } else {
+          user.coins = 0;
+        }
+       });
        setUsers(usersData);
 
 
@@ -102,15 +119,17 @@ const AdminPage: React.FC = () => {
  ) : (
    <div className={styles.adminContainer}>
      <div className={styles.header}>
+      
        <div className={styles.userInfo}>
          <div className={styles.nickname}>
-           Hello {currentUser}
+           היי {currentUser}
          </div>
        </div>
+       
      </div>
      <div className={styles.tokenVisibilityToggle}>
        <label>
-       Tokens Balance
+       מטבעות וירטואלים
          <div className={styles.toggle}>
            <input
              type="checkbox"
@@ -132,8 +151,8 @@ const AdminPage: React.FC = () => {
              }}
            />
            <div className={styles.slider}>
-             <span className={styles.on}>ON</span>
-             <span className={styles.off}>OFF</span>
+             <span className={styles.on}></span>
+             <span className={styles.off}></span>
            </div>
          </div>
        </label>
@@ -146,14 +165,15 @@ const AdminPage: React.FC = () => {
              onChange={(e) => setActionType(e.target.value)}
              className={styles.actionSelect}
            >
-             <option value="">...Choose Action</option>
-             <option value="reset_password">Reset Password</option>
-             <option value="add_balance">Add Tokens </option>
-             <option value="reduce_balance">Reduce Tokens </option>
-             <option value="set_balance">Set New Balance </option>
+             <option value="">בחר אפשרות</option>
+             {Object.keys(options).map(option => (
+               <option key={option} value={option}>
+                 {options[option]}
+               </option>
+             ))}
            </select>
           
-           {['add_balance', 'reduce_balance', 'set_balance'].includes(actionType) && (
+           {Object.keys(options).includes(actionType) && (
              <input
                type="number"
                value={balanceAmount}
@@ -171,28 +191,30 @@ const AdminPage: React.FC = () => {
                    setError('Please select an action');
                    return;
                  }
-
-
                  if (['add_balance', 'reduce_balance', 'set_balance'].includes(actionType) && !balanceAmount) {
                    setError('Please enter an amount');
                    return;
                  }
 
+                 if (actionType === "reset_password") {
+                  await fetch(SERVER_BASE + '/updatePasswordToMany', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ emails: selectedUsers})
+                 })
+                } else {
 
                  // Prepare the request body with the single action
                  const requestBody = {
                    users: selectedUsers,
-                   actions: [{
-                     type: actionType,
-                     amount: ['add_balance', 'reduce_balance', 'set_balance'].includes(actionType)
-                       ? parseInt(balanceAmount)
-                       : undefined
-                   }]
+                   type: actionType,
+                   amount: parseInt(balanceAmount)
                  };
 
-
                  // Send request to server with multiple actions
-                 const response = await fetch('/api/admin/bulk-actions', {
+                 const response = await fetch(SERVER_BASE + '/admin/changeBalance', {
                    method: 'POST',
                    headers: {
                      'Content-Type': 'application/json',
@@ -200,15 +222,15 @@ const AdminPage: React.FC = () => {
                    body: JSON.stringify(requestBody)
                  });
 
-
                  if (!response.ok) {
                    const errorData = await response.json();
                    throw new Error(errorData.error || 'Failed to perform bulk action');
                  }
+                 }
 
 
                  // Refresh users data after successful action
-                 const usersResponse = await fetch(`${SERVER_BASE}/users`);
+                 const usersResponse = await fetch(`${SERVER_BASE}/allUsers`);
                  const usersData = await usersResponse.json();
                  setUsers(usersData);
 
@@ -226,7 +248,7 @@ const AdminPage: React.FC = () => {
              className={styles.actionButton}
              disabled={!actionType}
            >
-             Execute Action
+             אישור
            </button>
          </div>
        )}
@@ -235,7 +257,7 @@ const AdminPage: React.FC = () => {
          <div className={styles.searchHeader}>
            <input
              type="text"
-             placeholder="Enter user's name/email"
+             placeholder="הכנס מילות חיפוש..."
              value={searchTerm}
              onChange={(e) => setSearchTerm(e.target.value)}
              className={styles.searchInput}
@@ -276,7 +298,7 @@ const AdminPage: React.FC = () => {
                  setSelectedUsers(e.target.checked ? filteredUsers.map(u => u.email) : []);
                }}
              />
-              Choose All
+           בחר הכל
            </label>
          </div>
          <div className={styles.usersList}>
@@ -302,7 +324,7 @@ const AdminPage: React.FC = () => {
                      className={styles.userCheckbox}
                    />
                    <div className={styles.userBalance}>
-                     <span>current balance: </span>{user.balance} tokens
+                     <span>יתרה נוכחית: </span>{user.coins}
                    </div>
                  </div>
                  <div className={styles.userInfo}>
