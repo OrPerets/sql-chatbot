@@ -22,6 +22,7 @@ const AdminPage: React.FC = () => {
  const [users, setUsers] = useState([]);
  const [classes, setClasses] = useState([{ id: 0, name: 'All classes' }]);
  const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(true);
+ const [isStatuseVisible, setIsStatusVisible] = useState(true);
 
 
  // Fetch initial token visibility state
@@ -69,7 +70,29 @@ const AdminPage: React.FC = () => {
        console.error('Error fetching users:', err);
        setError('Failed to fetch users');
      }
+
+     try {
+      const response = await fetch(SERVER_BASE + "/getStatus" , {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+      const data = await response.json();
+      if (data["status"] === 'ON') {
+        setIsStatusVisible(true);
+      
+      } else {
+        setIsStatusVisible(false);
+      }
+    } catch (error) {
+      setError('Failed to fetch status. Please try again.');
+    }
    };
+
 
 
    fetchData();
@@ -144,6 +167,36 @@ const AdminPage: React.FC = () => {
                      'Content-Type': 'application/json',
                    },
                    body: JSON.stringify({ isVisible: newValue })
+                 });
+               } catch (error) {
+                 console.error('Error updating token visibility:', error);
+               }
+             }}
+           />
+           <div className={styles.slider}>
+             <span className={styles.on}></span>
+             <span className={styles.off}></span>
+           </div>
+         </div>
+       </label>
+     </div>
+     <div className={styles.tokenVisibilityToggle}>
+       <label>
+       מייקל
+         <div className={styles.toggle}>
+           <input
+             type="checkbox"
+             checked={isStatuseVisible}
+             onChange={async (e) => {
+               const newValue = e.target.checked;
+               setIsStatusVisible(newValue);
+               try {
+                 await fetch(`${SERVER_BASE}/setStatus`, {
+                   method: 'POST',
+                   headers: {
+                     'Content-Type': 'application/json',
+                   },
+                   body: JSON.stringify({ newStatus: newValue ? "ON" : "OFF"})
                  });
                } catch (error) {
                  console.error('Error updating token visibility:', error);

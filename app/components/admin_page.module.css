@@ -44,11 +44,11 @@
 }
 
 .tokenVisibilityToggle {
-  position: absolute;
+  position: initial;
   left: 2rem;
   top: 2.5rem;
   display: flex;
-  align-items: center;
+  align-items: left;
   gap: 1rem;
   z-index: 10;
 }
