@@ -23,6 +23,8 @@ const AdminPage: React.FC = () => {
  const [classes, setClasses] = useState([{ id: 0, name: 'All classes' }]);
  const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(true);
  const [isStatuseVisible, setIsStatusVisible] = useState(true);
+ const [successMessage, setSuccessMessage] = useState('');
+
 
 
  // Fetch initial token visibility state
@@ -148,7 +150,7 @@ const AdminPage: React.FC = () => {
            היי {currentUser}
          </div>
        </div>
-       
+
      </div>
      <div className={styles.tokenVisibilityToggle}>
        <label>
@@ -180,7 +182,7 @@ const AdminPage: React.FC = () => {
          </div>
        </label>
      </div>
-     <div className={styles.tokenVisibilityToggle}>
+     <div className={styles.tokenVisibilityToggle} style={{marginLeft: "18%"}}>
        <label>
        מייקל
          <div className={styles.toggle}>
@@ -210,6 +212,7 @@ const AdminPage: React.FC = () => {
          </div>
        </label>
      </div>
+     {successMessage && <div className={styles.successMessage}>{successMessage}</div>}
      <div className={styles.controlsContainer}>
        {selectedUsers.length > 0 && (
          <div className={styles.bulkActions}>
@@ -231,7 +234,7 @@ const AdminPage: React.FC = () => {
                type="number"
                value={balanceAmount}
                onChange={(e) => setBalanceAmount(e.target.value)}
-               placeholder="Amount"
+               placeholder="כמות"
                className={styles.balanceInput}
              />
            )}
@@ -293,6 +296,8 @@ const AdminPage: React.FC = () => {
                  setActionType('');
                  setBalanceAmount('');
                  setSelectedUsers([]);
+                 setSuccessMessage('הפעולה בוצעה בהצלחה! ✅');
+                 setTimeout(() => setSuccessMessage(''), 3000);
                } catch (err) {
                  console.error('Error performing bulk action:', err);
                  setError('Failed to perform action');
@@ -315,7 +320,7 @@ const AdminPage: React.FC = () => {
              onChange={(e) => setSearchTerm(e.target.value)}
              className={styles.searchInput}
            />
-           <div className={styles.filterGroup}>
+           {/* <div className={styles.filterGroup}>
              <select
                value={selectedClass}
                onChange={(e) => setSelectedClass(Number(e.target.value))}
@@ -327,7 +332,7 @@ const AdminPage: React.FC = () => {
                  </option>
                ))}
              </select>
-           </div>
+           </div> */}
          </div>
        </div>
 
@@ -387,6 +392,7 @@ const AdminPage: React.FC = () => {
                </div>
              ))
            }
+
          </div>
        </div>
      </div>
