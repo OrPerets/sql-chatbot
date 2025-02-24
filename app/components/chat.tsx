@@ -623,12 +623,12 @@ return (
       <div className={styles.userInfo}>
         <div className={styles.nickname}>
           היי {currentUser}
-        </div>
-        {isTokenBalanceVisible && (
-          <div className={styles.balance}>
+          {isTokenBalanceVisible && (
+          <div>
             יתרה נוכחית: ₪{currentBalance}
           </div>
         )}
+        </div>
       </div>
     </div>
     <Modal isOpen={showModal} onClose={toggleModal}>
