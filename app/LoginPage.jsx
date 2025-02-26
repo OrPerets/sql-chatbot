@@ -18,7 +18,18 @@ const LoginPage = () => {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingUsers, setIsFetchingUsers] = useState(true);
+  const [status, setStatus] = useState("");
   const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const setEmailandAdmin  = (val) => {
+    if (val === "orperets11@gmail.com") {
+      setIsAdmin(true);
+    } else {
+      setIsAdmin(false);
+    }
+    setEmail(val);
+  }
 
   useEffect(() => {
     fetchUsers();
@@ -68,6 +79,22 @@ const LoginPage = () => {
       setError('Failed to fetch users. Please try again.');
     } finally {
       setIsFetchingUsers(false);
+    }
+    try {
+      const response = await fetch(SERVER_BASE + "/getStatus" , {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+      const data = await response.json();
+      setStatus(data["status"])
+      // setUsers(data);
+    } catch (error) {
+      setError('Failed to fetch status. Please try again.');
     }
   };
 
@@ -152,11 +179,15 @@ const LoginPage = () => {
 
   return (
     <div className={styles.loginContainer}>
-      {/* <div className={styles.loginCard}>
+      {status === "OFF" && (
+        <div className={styles.loginCard}>
         <div className={styles.assistantTitle} style={{color: "black"}}>Michael is sleeping now</div>
         <p className={styles.assistantTitle} style={{color: "black"}}>Take a break or check back later!</p>
-      </div> */}
-      <div className={styles.logoWrapper}>
+      </div>
+      )}
+      {status === "ON" && (
+        <div>
+        <div className={styles.logoWrapper}>
         <img className={styles.botImage} src="bot.png" alt="Bot" />
         <div className={styles.assistantName}>
           <img className={styles.logoImage} src="logo.png" alt="Logo" />
@@ -177,7 +208,7 @@ const LoginPage = () => {
                 className={styles.input}
                 placeholder="כתובת מייל" 
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => setEmailandAdmin(e.target.value)}
               />
             </div>
             <div className={styles.inputGroup}>
@@ -195,14 +226,16 @@ const LoginPage = () => {
             <button type="submit" className={styles.button} disabled={isLoading}>
               {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'אישור'}
             </button>
-            {/* Added this for the admin-interface: Button that redirects to the admin page, placed below the main login button */}
-            <button 
+            {isAdmin && (
+              <button 
               type="button" 
               className={styles.adminButton}
               onClick={() => router.push('/admin')}
             >
               כניסת מנהל מערכת
             </button>
+            )}
+            
           </form>
         ) : (
           <form className={styles.form} onSubmit={handleChangePassword}>
@@ -229,6 +262,8 @@ const LoginPage = () => {
         <div className={styles.loadingOverlay}>
           <Loader className={styles.loadingSpinner} size={48} />
         </div>
+      )}
+</div>
       )}
     </div>
   );

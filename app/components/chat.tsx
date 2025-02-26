@@ -130,8 +130,8 @@ const Chat = ({
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [currentBalance, setCurrentBalance] = useState(0);
   const [balanceError, setBalanceError] = useState(false);
+  const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(true);
  
-
   const router = useRouter();
 
   // Added for query cost estimation: Calculates cost based on input length using GPT-4 pricing
@@ -157,11 +157,17 @@ const Chat = ({
   }, [messages]);
 
 
-  useEffect(() => { // Modified useEffect with balance:
-    let cUser = JSON.parse(localStorage.getItem("currentUser"))
-    setCurrectUser(cUser["name"])
-    setCurrentBalance(Number(localStorage.getItem("currentBalance"))) // This will be replaced with DB fetch
-}, [])
+  useEffect(() => {
+    let cUser = JSON.parse(localStorage.getItem("currentUser"));
+    setCurrectUser(cUser["name"]);
+    setCurrentBalance(Number(localStorage.getItem("currentBalance")));
+
+    // Fetch token visibility setting
+    fetch(`${SERVER_BASE}/getTokenVisibility`)
+      .then(response => response.json())
+      .then(data => setIsTokenBalanceVisible(data.isVisible))
+      .catch(error => console.error('Error fetching token visibility:', error));
+  }, []);
 
   // Add this useEffect to load chat sessions when the component mounts
 useEffect(() => {
@@ -548,7 +554,7 @@ return (
         >
           <div className={styles.inputContainer}>
             {/* Added for query cost estimation: Shows estimated cost while typing */}
-            {userInput && (
+            {userInput && isTokenBalanceVisible && (
               <div className={styles.costPopup}>
                 עלות השאילתה: ₪{estimatedCost.toFixed(2)}
               </div>
@@ -617,9 +623,11 @@ return (
       <div className={styles.userInfo}>
         <div className={styles.nickname}>
           היי {currentUser}
-        </div>
-        <div className={styles.balance}>
-        יתרה נוכחית: ₪{currentBalance}
+          {isTokenBalanceVisible && (
+          <div>
+            יתרה נוכחית: ₪{currentBalance}
+          </div>
+        )}
         </div>
       </div>
     </div>

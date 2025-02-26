@@ -5,8 +5,6 @@
   padding: 2rem;
   background-color: #f8f9fa;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  direction: rtl;
-  text-align: right;
 }
 
 .header {
@@ -16,8 +14,8 @@
   background-color: white;
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-  /* width: 100%; */
-  /* justify-content: flex-end; */
+  width: 100%;
+  justify-content: flex-end;
   margin-bottom: 2rem;
   transition: box-shadow 0.3s ease;
 }
@@ -27,33 +25,27 @@
 }
 
 .userInfo {
-  text-align: center;
-  /* display: flex; */
+  text-align: right;
+  display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  
 }
 
 .nickname {
   font-size: 1.25rem;
   color: #2c3e50;
   font-weight: 600;
-  text-align: right;
-  display: inherit;
-  right: 0;
 }
 
 .tokenVisibilityToggle {
-  position: absolute;  /* Moves the button relative to the screen */
-  top: 2.5rem;  /* Adjusts distance from the top */
-  left: 2.5rem; /* Adjusts distance from the left */
+  position: absolute;
+  left: 2rem;
+  top: 7rem;
   display: flex;
-  flex-direction: column; /* Stacks buttons vertically */
-  align-items: flex-start; /* Aligns text to the left */
-  gap: 0.5rem;
-  z-index: 10; /* Ensures the buttons stay on top */
+  align-items: center;
+  gap: 1rem;
+  z-index: 10;
 }
-
 
 .tokenVisibilityToggle label {
   display: flex;
@@ -70,7 +62,7 @@
 }
 
 .tokenVisibilityToggle label:hover {
-  box-shadow: 5px 8px 6px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.08);
   transform: translateY(-1px);
 }
 
@@ -133,7 +125,8 @@ input:checked + .slider:before {
 }
 
 .controlsContainer {
-  width: 90%;
+  width: 100%;
+  max-width: 800px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -342,13 +335,4 @@ input:checked + .slider:before {
   text-align: center;
   margin-bottom: 1rem;
   font-weight: 500;
-}
-
-.successMessage {
-  color: #fff;
-  background-color: #28a745;
-  padding: 10px;
-  border-radius: 5px;
-  text-align: center;
-  margin-bottom: 10px;
 }
