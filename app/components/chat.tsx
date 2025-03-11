@@ -668,7 +668,7 @@ return (
                 height: "55px"
               }}
             />
-          <button
+          {/* <button
             type="submit"
             className={styles.button}
             disabled={inputDisabled}
@@ -678,8 +678,8 @@ return (
               marginTop: "0.5%"
               // padding: "15px",
             }}
-          >
-          <textarea
+          > */}
+          {/* <textarea
   className={styles.input}
   value={userInput}
   onChange={(e) => setUserInput(e.target.value)}
@@ -710,7 +710,7 @@ return (
       e.currentTarget.style.overflowY = 'auto';  // Show scrollbar if content exceeds max height
     }
   }}
-/>
+/> */}
 </div>
 <button // Button is now *outside* the inputContainer
     type="submit"
