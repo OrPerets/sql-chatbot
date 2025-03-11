@@ -162,11 +162,9 @@ const Chat = ({
     setCurrectUser(cUser["name"]);
     setCurrentBalance(Number(localStorage.getItem("currentBalance")));
 
-    // Fetch token visibility setting
-    fetch(`${SERVER_BASE}/getTokenVisibility`)
-      .then(response => response.json())
-      .then(data => setIsTokenBalanceVisible(data.isVisible))
-      .catch(error => console.error('Error fetching token visibility:', error));
+    fetch(`${SERVER_BASE}/getCoinsStatus`).then(response => response.json())
+    .then(data => setIsTokenBalanceVisible(data["status"] === "ON"))
+
   }, []);
 
   // Add this useEffect to load chat sessions when the component mounts

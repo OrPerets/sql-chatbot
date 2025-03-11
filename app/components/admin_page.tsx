@@ -29,9 +29,9 @@ const AdminPage: React.FC = () => {
 
  // Fetch initial token visibility state
  useEffect(() => {
-   fetch(`${SERVER_BASE}/getTokenVisibility`)
+   fetch(`${SERVER_BASE}/getCoinsStatus`)
      .then(response => response.json())
-     .then(data => setIsTokenBalanceVisible(data.isVisible))
+     .then(data => setIsTokenBalanceVisible(data["status"] === "ON"))
      .catch(error => console.error('Error fetching token visibility:', error));
  }, []);
 
@@ -136,6 +136,16 @@ const AdminPage: React.FC = () => {
    setCurrentUser(user.name);
  }, [router]);
 
+ const updateCoinsStatus = (value) => {
+  fetch(`${SERVER_BASE}/setCoinsStatus`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ newStatus: value ? "ON" : "OFF"})
+  });
+ }
+
 
  return error ? (
    <div className={styles.adminContainer}>
@@ -162,17 +172,7 @@ const AdminPage: React.FC = () => {
              onChange={async (e) => {
                const newValue = e.target.checked;
                setIsTokenBalanceVisible(newValue);
-               try {
-                 await fetch(`${SERVER_BASE}/setTokenVisibility`, {
-                   method: 'POST',
-                   headers: {
-                     'Content-Type': 'application/json',
-                   },
-                   body: JSON.stringify({ isVisible: newValue })
-                 });
-               } catch (error) {
-                 console.error('Error updating token visibility:', error);
-               }
+               updateCoinsStatus(newValue)
              }}
            />
            <div className={styles.slider}>
