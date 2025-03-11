@@ -7,7 +7,7 @@ import Markdown from "react-markdown";
 // @ts-expect-error - no types for this yet
 import { AssistantStreamEvent } from "openai/resources/beta/assistants/assistants";
 import { RequiredActionFunctionToolCall } from "openai/resources/beta/threads/runs/runs";
-import { ThumbsUp, ThumbsDown } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ClipboardCopy } from 'lucide-react';
 import Link from 'next/link';
 import Sidebar from './sidebar';
 import { useRouter } from 'next/navigation';
@@ -39,9 +39,13 @@ type ChatSession = {
 const UserMessage = ({ text }: { text: string }) => {
   return <div className={styles.userMessage}>{text}</div>;
 };
-
 const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedback: "like" | "dislike" | null; onFeedback?: (feedback: "like" | "dislike" | null) => void }) => {
   const [activeFeedback, setActiveFeedback] = useState(feedback);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [copied, setCopied] = useState(false);  // Tooltip state
+  const [copiedText, setCopiedText] =  useState("העתק שאילתה")
+
 
   const handleLike = () => {
     const newFeedback = activeFeedback === "like" ? null : "like"; // Toggle like
@@ -55,9 +59,72 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
     onFeedback && onFeedback(newFeedback);
   };
 
+  const copyToClipboard = (textToCopy) => {
+    navigator.clipboard.writeText(textToCopy)
+      .then(() => {
+        setCopied(true); // Show "Copied!" tooltip
+        if (tooltipTimeoutRef.current) {
+          clearTimeout(tooltipTimeoutRef.current);
+        }
+        tooltipTimeoutRef.current = setTimeout(() => {
+          setCopied(false); // Hide tooltip after delay
+        }, 2000); 
+      })
+      .catch((err) => console.error("Failed to copy text: ", err));
+  };
+
+const renderers = {
+  code: ({ node, inline, className, children, ...props }) => {
+    if (className === "language-sql") {
+      const code = Array.isArray(children) ? children.join("") : children;
+
+      return (
+        <div className={styles.sqlCodeContainer}> {/* Container for code and button */}
+          <pre className={styles.sqlCode}><code className={styles.sqlCode} onClick={() => {
+            copyToClipboard(code)
+            setCopiedText("הועתק בהצלחה")
+          }}>{code}</code></pre>
+          
+          {copied && <div className={styles.tooltip}>{copiedText}</div>}
+        </div>
+      );
+    }
+    return <code className={className} {...props}>{children}</code>;
+  },
+};
+const copyQueryToClipboard = (text) => {
+  // Regular expression to find SQL queries within ```sql ... ``` blocks
+  const sqlRegex = /```sql\s*([\s\S]*?)\s*```/gi; 
+  let extractedQueries = [];
+  let match;
+
+  // Loop through all matches
+  while ((match = sqlRegex.exec(text)) !== null) {
+    extractedQueries.push(match[1].trim());
+  }
+
+  var queriesToCopy;
+  if (extractedQueries.length > 0) {
+    queriesToCopy = extractedQueries.join('\n\n'); // Join queries with newlines
+  } else {
+    queriesToCopy = text;
+  }
+  navigator.clipboard.writeText(queriesToCopy)
+      .then(() => {
+        console.log("SQL queries copied to clipboard:\n", queriesToCopy);
+        setCopiedText("הועתק בהצלחה");
+        setTimeout(() => {
+          setCopiedText("העתק שאילתה");
+        }, 3000);
+      })
+      .catch((error) => {
+        console.error("Failed to copy:", error);
+      });
+};
   return (
     <div className={styles.assistantMessage}>
       <Markdown>{text}</Markdown>
+      {/* <Markdown components={renderers} >{text}</Markdown> */}
       <div className={styles.feedbackButtons}>
         <button
           onClick={handleLike}
@@ -66,19 +133,30 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
             marginLeft: "-1%"
           }}
         >
-          {activeFeedback === "like" ? <ThumbsUp width="80%" height="80%" color="green" fill="green"/> : <ThumbsUp width="80%" height="80%"/>}
+          {activeFeedback === "like" ? <ThumbsUp width="80%" height="80%" color="green" fill="green" /> : <ThumbsUp width="80%" height="80%" />}
         </button>
         <button
           onClick={handleDislike}
           className={`${styles.feedbackButton} ${activeFeedback === "dislike" ? styles.negative : ""}`}
         >
-          {activeFeedback === "dislike" ? <ThumbsDown width="80%" height="80%" color="red" fill="red"/> : <ThumbsDown width="80%" height="80%"/>}
+          {activeFeedback === "dislike" ? <ThumbsDown width="80%" height="80%" color="red" fill="red" /> : <ThumbsDown width="80%" height="80%" />}
+        </button>
+        <button
+          onClick={() => copyQueryToClipboard(text)} // Keep this for general copying
+          className={`${styles.feedbackButton} ${styles.copyButton}`}
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
+          // style={{ opacity: extractedQuery ? 0.5 : 1 }} // Dim if SQL-specific copy exists
+        >
+          <ClipboardCopy />
+          {showTooltip && (
+            <div className={styles.tooltip}>{copiedText}</div>
+          )}
         </button>
       </div>
     </div>
   );
 };
-
 const CodeMessage = ({ text }: { text: string }) => {
   return (
     <div className={styles.codeMessage}>
@@ -131,7 +209,8 @@ const Chat = ({
   const [currentBalance, setCurrentBalance] = useState(0);
   const [balanceError, setBalanceError] = useState(false);
   const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(true);
- 
+  const [loadingMessages, setLoadingMessages] = useState(false); // Add loading state
+
   const router = useRouter();
 
   // Added for query cost estimation: Calculates cost based on input length using GPT-4 pricing
@@ -288,16 +367,31 @@ const updateUserBalance = async (value) => {
     }
   };
 
+  const keepOneInstance = (arr, key) => {
+    const seen = new Set();
+    return arr.filter(obj => {
+      if (seen.has(obj[key])) {
+        return false; // Skip duplicates
+      } else {
+        seen.add(obj[key]);
+        return true; // Keep the first instance
+      }
+    });
+  };
+
   // Add a function to load messages for a specific chat
 const loadChatMessages = (chatId: string) => {
+  setLoadingMessages(true); // Set loading to true before fetching
   fetch(`${SERVER_BASE}/chat-sessions/${chatId}/messages`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
     },
   }).then(response => response.json()).then(chatMessages => {
-    setMessages(chatMessages);
+    const uniqueItems = keepOneInstance(chatMessages, "text");   
+    setMessages(uniqueItems);
     setCurrentChatId(chatId);
+    setLoadingMessages(false);
   })  
 };
 
@@ -533,15 +627,19 @@ return (
     <div className={styles.container}>
       <div className={styles.chatContainer}>
         <div className={styles.messages} style={{direction:"rtl"}}>
-          {messages.map((msg, index) => (
-            <Message 
-              key={index} 
-              role={msg.role} 
-              text={msg.text} 
-              feedback={msg.feedback}
-              onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
-            />
-          ))}
+          {loadingMessages ? (
+            <div className={styles.loadingIndicator}></div>
+          ) : (
+            messages.map((msg, index) => (
+              <Message
+                key={index}
+                role={msg.role}
+                text={msg.text}
+                feedback={msg.feedback}
+                onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
+              />
+            ))
+          )}
           <div ref={messagesEndRef} />
         </div>
         
@@ -581,6 +679,54 @@ return (
               // padding: "15px",
             }}
           >
+          <textarea
+  className={styles.input}
+  value={userInput}
+  onChange={(e) => setUserInput(e.target.value)}
+  placeholder="הקלד כאן..."
+  onKeyDown={(e) => {
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault();
+      setUserInput(userInput + '\n');
+    } else if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  }}
+  style={{
+    height: 'auto', // Allow height to grow
+    minHeight: '55px', // Maintain initial height
+    overflowY: 'hidden', // Prevent scrollbars appearing initially, hide internal scroll
+  }}
+  onInput={(e) => {
+    // Adjust height based on content
+    e.currentTarget.style.height = 'auto'; // Reset height to recalculate
+    e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px'; // Set height to content height
+
+    // Limit height to avoid it growing indefinitely:
+    const maxHeight = 200; // Set your desired max height
+    if (e.currentTarget.scrollHeight > maxHeight) {
+      e.currentTarget.style.height = maxHeight + 'px';
+      e.currentTarget.style.overflowY = 'auto';  // Show scrollbar if content exceeds max height
+    }
+  }}
+/>
+</div>
+<button // Button is now *outside* the inputContainer
+    type="submit"
+    className={styles.button}
+    disabled={inputDisabled}
+    style={{
+      width: "40px",
+      height: "40px", // Fixed height (adjust as needed)
+      // marginTop: "0.5%",
+      // Consider adding other positioning styles as necessary, e.g.,
+      position: "relative", // Or "relative" depending on your layout
+      bottom: 10, // Example position
+      left: "50px",
+      right: "10px",  // Example position
+    }}
+  >
             	<svg
     xmlns="http://www.w3.org/2000/svg"
     width="20"
@@ -597,7 +743,7 @@ return (
     </svg>
     
           </button>
-          </div>
+    
           
         </form>
       </div>
