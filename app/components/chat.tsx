@@ -208,7 +208,7 @@ const Chat = ({
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [currentBalance, setCurrentBalance] = useState(0);
   const [balanceError, setBalanceError] = useState(false);
-  const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(true);
+  const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false); // Add loading state
 
   const router = useRouter();
