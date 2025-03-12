@@ -7,6 +7,7 @@ import styles from './login.module.css';
 const SERVER_BASE = config.serverUrl;
 const SERVER = `${SERVER_BASE}/allUsers`;
 const UPDATE_PASSWORD = `${SERVER_BASE}/updatePassword`;
+const GET_COINS_BALANCE = `${SERVER_BASE}/coinsBalance`;
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -17,11 +18,47 @@ const LoginPage = () => {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingUsers, setIsFetchingUsers] = useState(true);
+  const [status, setStatus] = useState("");
   const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const setEmailandAdmin  = (val) => {
+    if (val === "orperets11@gmail.com") {
+      setIsAdmin(true);
+    } else {
+      setIsAdmin(false);
+    }
+    setEmail(val);
+  }
 
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  const getCoinsBalance = async (userEmail) => {
+    setIsFetchingUsers(true);
+    try {
+      const response = await fetch(GET_COINS_BALANCE + "/" + userEmail, {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+      const data = await response.json();
+      if (data.length > 0) {
+        localStorage.setItem("currentBalance", data[0]["coins"]);
+      }
+      // setUsers(data);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      setError('Failed to fetch users. Please try again.');
+    } finally {
+      setIsFetchingUsers(false);
+    }
+  }
 
   const fetchUsers = async () => {
     setIsFetchingUsers(true);
@@ -43,6 +80,22 @@ const LoginPage = () => {
     } finally {
       setIsFetchingUsers(false);
     }
+    try {
+      const response = await fetch(SERVER_BASE + "/getStatus" , {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+      const data = await response.json();
+      setStatus(data["status"])
+      // setUsers(data);
+    } catch (error) {
+      setError('Failed to fetch status. Please try again.');
+    }
   };
 
   const storeUserInfo = (user) => {
@@ -63,6 +116,7 @@ const LoginPage = () => {
     if (password === "shenkar") {
       setChangePassword(true);
     } else if (user && password === user.password) {
+      getCoinsBalance(user.email);
       storeUserInfo(user);
       router.push('/entities/basic-chat');
     } else {
@@ -126,11 +180,15 @@ const LoginPage = () => {
 
   return (
     <div className={styles.loginContainer}>
-      <div className={styles.loginCard}>
+      {status === "OFF" && (
+        <div className={styles.loginCard}>
         <div className={styles.assistantTitle} style={{color: "black"}}>Michael is sleeping now</div>
         <p className={styles.assistantTitle} style={{color: "black"}}>Take a break or check back later!</p>
       </div>
-      {/* <div className={styles.logoWrapper}>
+      )}
+      {status === "ON" && (
+        <div>
+        <div className={styles.logoWrapper}>
         <img className={styles.botImage} src="bot.png" alt="Bot" />
         <div className={styles.assistantName}>
           <img className={styles.logoImage} src="logo.png" alt="Logo" />
@@ -151,7 +209,7 @@ const LoginPage = () => {
                 className={styles.input}
                 placeholder="כתובת מייל" 
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => setEmailandAdmin(e.target.value)}
               />
             </div>
             <div className={styles.inputGroup}>
@@ -169,6 +227,16 @@ const LoginPage = () => {
             <button type="submit" className={styles.button} disabled={isLoading}>
               {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'אישור'}
             </button>
+            {isAdmin && (
+              <button 
+              type="button" 
+              className={styles.adminButton}
+              onClick={() => router.push('/admin')}
+            >
+              כניסת מנהל מערכת
+            </button>
+            )}
+            
           </form>
         ) : (
           <form className={styles.form} onSubmit={handleChangePassword}>
@@ -195,9 +263,11 @@ const LoginPage = () => {
         <div className={styles.loadingOverlay}>
           <Loader className={styles.loadingSpinner} size={48} />
         </div>
-      )} */}
+      )}
+</div>
+      )}
+
     </div>
   );
 };
-
 export default LoginPage;

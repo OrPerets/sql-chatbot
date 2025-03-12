@@ -1,0 +1,343 @@
+Changes Summary - Bulk Actions Implementation
+
+1. app/components/admin_page.tsx
+=================================
+"use client";
+
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import styles from './admin_page.module.css';
+import config from '../config';
+
+const SERVER_BASE = config.serverUrl;
+
+const AdminPage: React.FC = () => {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [error, setError] = useState('');
+  const [users, setUsers] = useState([]);
+  const [classes, setClasses] = useState([{ id: 0, name: 'כל הכיתות' }]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedClass, setSelectedClass] = useState(0);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [selectedActions, setSelectedActions] = useState<Array<{type: string; amount?: number}>>([]);
+  const [balanceAmount, setBalanceAmount] = useState<string>('');
+  const [currentAction, setCurrentAction] = useState<string>('');
+
+  // Fetch users and classes data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch users
+        const usersResponse = await fetch(`${SERVER_BASE}/users`);
+        const usersData = await usersResponse.json();
+        setUsers(usersData);
+
+        // Fetch classes
+        const classesResponse = await fetch(`${SERVER_BASE}/classes`);
+        const classesData = await classesResponse.json();
+        setClasses([{ id: 0, name: 'כל הכיתות' }, ...classesData]);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError('Failed to fetch data');
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("currentUser");
+    if (!storedUser) {
+      router.push('/login');
+      return;
+    }
+
+    const user = JSON.parse(storedUser);
+    
+    const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com"," roei mail"];
+    const isAdmin = adminEmails.includes(user.email);
+    
+    if (!isAdmin) {
+      setError('אין לך הרשאת גישה לממשק המנהל');
+      setTimeout(() => {
+        router.push('/login');
+      }, 3000);
+      return;
+    }
+
+    setCurrentUser(user.name);
+  }, [router]);
+
+  // Component JSX and event handlers
+  // ... Rest of the implementation remains the same
+};
+
+export default AdminPage;
+
+2. app/api/admin/bulk-actions/route.ts
+=====================================
+import { NextResponse } from 'next/server';
+import config from '../../../config';
+import { sendEmail, generateActionEmail } from '../../../utils/email-service';
+
+const SERVER_BASE = config.serverUrl;
+
+export async function POST(request: Request) {
+  try {
+    const data = await request.json();
+    const { users, actions } = data;
+
+    // Fetch only the selected users' data
+    const usersResponse = await fetch(`${SERVER_BASE}/users/selected`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ emails: users })
+    });
+    
+    if (!usersResponse.ok) {
+      throw new Error('Failed to fetch selected users');
+    }
+    const usersData = await usersResponse.json();
+    
+    // Create a map of user emails to their current balances
+    const userBalances = new Map(
+      usersData.map(user => [user.email, user.balance])
+    );
+    
+    interface UserUpdate {
+      email: string;
+      newBalance?: number;
+      resetPassword?: boolean;
+    }
+
+    // Process each user's updates
+    const userUpdates: UserUpdate[] = users.map(email => {
+      const currentBalance = Number(userBalances.get(email) || 0);
+      const update: UserUpdate = { email };
+      
+      // Apply each action for the user
+      actions.forEach(({ type, amount }) => {
+        switch (type) {
+          case 'add_balance':
+            update.newBalance = (update.newBalance ?? currentBalance) + Number(amount);
+            break;
+          case 'reduce_balance':
+            update.newBalance = Math.max(0, (update.newBalance ?? currentBalance) - Number(amount));
+            break;
+          case 'set_balance':
+            update.newBalance = Number(amount);
+            break;
+          case 'reset_password':
+            update.resetPassword = true;
+            break;
+        }
+      });
+
+      return update;
+    });
+
+    // Separate updates into balance updates and password resets
+    const balanceUpdates = userUpdates
+      .filter(update => update.newBalance !== undefined)
+      .map(({ email, newBalance }) => ({ email, newBalance }));
+
+    const passwordResets = userUpdates
+      .filter(update => update.resetPassword)
+      .map(update => update.email);
+
+    // Send balance updates if any
+    if (balanceUpdates.length > 0) {
+      const balanceResponse = await fetch(`${SERVER_BASE}/update-balance`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ users: balanceUpdates }),
+      });
+
+      if (!balanceResponse.ok) {
+        throw new Error('Failed to update balances');
+      }
+    }
+
+    // Send password resets if any
+    if (passwordResets.length > 0) {
+      const passwordResponse = await fetch(`${SERVER_BASE}/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          users: passwordResets,
+          newPassword: 'shenkar'
+        }),
+      });
+
+      if (!passwordResponse.ok) {
+        throw new Error('Failed to reset passwords');
+      }
+    }
+
+    // Send email notifications to selected users
+    const emailPromises = usersData.map(user => {
+      const emailContent = generateActionEmail(user.email, user.name, actions);
+      return sendEmail(emailContent);
+    });
+
+    // Wait for all emails to be sent
+    await Promise.all(emailPromises);
+
+    // Return success response with summary
+    return NextResponse.json({
+      success: true,
+      summary: {
+        balanceUpdates: balanceUpdates.length > 0 ? balanceUpdates : undefined,
+        passwordResets: passwordResets.length > 0 ? passwordResets : undefined,
+        emailsSent: users.length
+      }
+    });
+  } catch (error) {
+    console.error('Error in bulk actions:', error);
+    return NextResponse.json(
+      { error: 'Failed to perform bulk action' },
+      { status: 500 }
+    );
+  }
+}
+
+3. app/utils/email-service.ts
+============================
+import nodemailer from 'nodemailer';
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT),
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+interface EmailContent {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+}
+
+export async function sendEmail({ to, subject, text, html }: EmailContent) {
+  try {
+    const info = await transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to,
+      subject,
+      text,
+      html: html || text,
+    });
+    console.log('Email sent:', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('Error sending email:', error);
+    return false;
+  }
+}
+
+export function generateActionEmail(userEmail: string, userName: string, actions: Array<{type: string; amount?: number}>) {
+  let subject = 'Michael Account Update Notification';
+  let actionDescriptions = actions.map(action => {
+    switch (action.type) {
+      case 'reset_password':
+        return 'Your password has been reset to "shenkar"';
+      case 'add_balance':
+        return `${action.amount} tokens have been added to your balance`;
+      case 'reduce_balance':
+        return `${action.amount} tokens have been deducted from your balance`;
+      case 'set_balance':
+        return `Your balance has been set to ${action.amount} tokens`;
+      default:
+        return '';
+    }
+  }).filter(desc => desc);
+
+  const text = `
+Dear ${userName},
+
+This is to notify you that the following changes have been made to your account:
+
+${actionDescriptions.map(desc => `- ${desc}`).join('\n')}
+
+If you have any questions, please contact support.
+
+Best regards,
+Michael Team
+  `.trim();
+
+  return {
+    to: userEmail,
+    subject,
+    text,
+  };
+}
+
+4. app/api/admin/users/selected/route.ts
+======================================
+import { NextResponse } from 'next/server';
+import config from '../../../../config';
+
+const SERVER_BASE = config.serverUrl;
+
+export async function POST(request: Request) {
+  try {
+    const data = await request.json();
+    const { emails } = data;
+
+    // Forward request to main server to get selected users' data
+    const response = await fetch(`${SERVER_BASE}/users/selected`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ emails })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch selected users');
+    }
+
+    const users = await response.json();
+    return NextResponse.json(users);
+  } catch (error) {
+    console.error('Error fetching selected users:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch selected users' },
+      { status: 500 }
+    );
+  }
+}
+
+5. .env.local (Added SMTP Configuration)
+======================================
+OPENAI_API_KEY="sk-proj-IhJtrlj0ZbLzYzdR8up1T3BlbkFJelPMYRJpw3aHQcceY5W7"
+OPENAI_ASSISTANT_ID="asst_9bDfXIUHAqyYGa6SZgzBjE87"
+
+# Email Service Configuration
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT="465"
+SMTP_USER="your-email@gmail.com"
+SMTP_PASS="your-app-specific-password"
+SMTP_FROM="Michael System <your-email@gmail.com>"
+
+Note: The SMTP configuration in .env.local needs to be updated with actual email service credentials.
+
+Dependencies Added:
+- npm install nodemailer @types/nodemailer
+
+Key Features Implemented:
+1. Multiple action selection UI
+2. Optimized user data fetching
+3. Bulk action processing
+4. Email notifications
+5. Error handling

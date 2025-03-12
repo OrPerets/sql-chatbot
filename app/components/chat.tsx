@@ -20,7 +20,7 @@ export const maxDuration = 50;
 const SERVER_BASE = config.serverUrl;
 
 const SAVE = SERVER_BASE + "/save"
-const FEEDBACK = SERVER_BASE + "/feedback"  // New endpoint for feedback
+const UPDATE_BALANCE = SERVER_BASE + "/updateBalance"  // New endpoint for feedback
 
 type MessageProps = {
   role: "user" | "assistant" | "code";
@@ -204,9 +204,21 @@ const Chat = ({
   const [isDone, setIsDone] = useState(false);
   const [currentUser, setCurrectUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  // Added for query cost estimation feature
+  const [estimatedCost, setEstimatedCost] = useState(0);
+  const [currentBalance, setCurrentBalance] = useState(0);
+  const [balanceError, setBalanceError] = useState(false);
+  const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false); // Add loading state
 
   const router = useRouter();
+
+  // Added for query cost estimation: Calculates cost based on input length using GPT-4 pricing
+  const calculateCost = (text: string) => { 
+  // Rough estimate: 1 token ≈ 4 characters
+    const estimatedTokens = Math.ceil(text.length / 4);
+    return estimatedTokens
+  };
 
     // Function to toggle the modal
     const toggleModal = () => {
@@ -225,9 +237,14 @@ const Chat = ({
 
 
   useEffect(() => {
-    let cUser = JSON.parse(localStorage.getItem("currentUser"))
-    setCurrectUser(cUser["name"])
-  }, [])
+    let cUser = JSON.parse(localStorage.getItem("currentUser"));
+    setCurrectUser(cUser["name"]);
+    setCurrentBalance(Number(localStorage.getItem("currentBalance")));
+
+    fetch(`${SERVER_BASE}/getCoinsStatus`).then(response => response.json())
+    .then(data => setIsTokenBalanceVisible(data["status"] === "ON"))
+
+  }, []);
 
   // Add this useEffect to load chat sessions when the component mounts
 useEffect(() => {
@@ -246,6 +263,25 @@ useEffect(() => {
   loadChatSessions();
 }, []);
 
+const updateUserBalance = async (value) => {
+  const response = await fetch(UPDATE_BALANCE, {
+    method: 'POST',
+    mode: 'cors',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    },
+    body: JSON.stringify({
+      "email": user.email,
+      "currentBalance": value
+    })
+  });
+  if (response.ok) {
+  } else {
+  }
+  }
+
   useEffect(() => {
     const storedUser = localStorage.getItem("currentUser");
     setUser(JSON.parse(storedUser));
@@ -263,8 +299,17 @@ useEffect(() => {
     createThread();
   }, []);
 
-  const sendMessage = async (text) => {
-    let today = new Date().toISOString().slice(0, 10);
+  const sendMessage = async (text) => { 
+    if (currentBalance - estimatedCost < 0) {
+      setBalanceError(true)
+      setUserInput("")
+      setTimeout(() => {  // Set timeout to clear error after 3 seconds
+        setBalanceError(false);
+      }, 3000);
+    } else {
+      updateUserBalance(currentBalance - estimatedCost)
+      setCurrentBalance(currentBalance - estimatedCost)
+      let today = new Date().toISOString().slice(0, 10);
     if (!currentChatId) {
       fetch(`${SERVER_BASE}/chat-sessions`, {
         method: 'POST',
@@ -318,6 +363,8 @@ useEffect(() => {
     );
     const stream = AssistantStream.fromReadableStream(response.body);
     handleReadableStream(stream);
+
+    }
   };
 
   const keepOneInstance = (arr, key) => {
@@ -370,10 +417,12 @@ const loadChatMessages = (chatId: string) => {
     e.preventDefault();
     if (!userInput.trim()) return;
     sendMessage(userInput);
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      { role: "user", text: userInput },
-    ]);
+    if (currentBalance - estimatedCost >= 0) {
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        { role: "user", text: userInput },
+      ]);
+    }
     setUserInput("");
     setInputDisabled(true);
     scrollToBottom();
@@ -600,7 +649,37 @@ return (
           className={`${styles.inputForm} ${styles.clearfix}`}
         >
           <div className={styles.inputContainer}>
-          <textarea
+            {/* Added for query cost estimation: Shows estimated cost while typing */}
+            {userInput && isTokenBalanceVisible && (
+              <div className={styles.costPopup}>
+                עלות השאילתה: ₪{estimatedCost.toFixed(2)}
+              </div>
+            )}
+            <input
+              type="text"
+              className={styles.input}
+              value={userInput}
+              onChange={(e) => {
+                setUserInput(e.target.value);
+                setEstimatedCost(calculateCost(e.target.value));
+              }}
+              placeholder="הקלד כאן..."
+              style={{
+                height: "55px"
+              }}
+            />
+          {/* <button
+            type="submit"
+            className={styles.button}
+            disabled={inputDisabled}
+            style={{
+              width: "40px",
+              height: "80%",
+              marginTop: "0.5%"
+              // padding: "15px",
+            }}
+          > */}
+          {/* <textarea
   className={styles.input}
   value={userInput}
   onChange={(e) => setUserInput(e.target.value)}
@@ -631,7 +710,7 @@ return (
       e.currentTarget.style.overflowY = 'auto';  // Show scrollbar if content exceeds max height
     }
   }}
-/>
+/> */}
 </div>
 <button // Button is now *outside* the inputContainer
     type="submit"
@@ -676,13 +755,25 @@ return (
                 עורך שאילתות
               </button> */}
     </div>
+    {balanceError && (
+  <div className={styles.balanceError}>
+    No enough tokens
+  </div>
+)}
     
     <div className={styles.rightColumn}>
     <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "100px", height: "100px"}}/>
-      <div className={styles.nickname}>
-        היי {currentUser}
+      {/* Added section for user info with current balance */}
+      <div className={styles.userInfo}>
+        <div className={styles.nickname}>
+          היי {currentUser}
+          {isTokenBalanceVisible && (
+          <div>
+            יתרה נוכחית: ₪{currentBalance}
+          </div>
+        )}
+        </div>
       </div>
-      
     </div>
     <Modal isOpen={showModal} onClose={toggleModal}>
         <SQLQueryEditorComponent toggleModal={toggleModal} />
