@@ -138,7 +138,8 @@ const Questionnaire = () => {
             },
             body: JSON.stringify({
                 "user": currentUser,
-                "form": form
+                "form": form,
+                "time": new Date()
             })
         }).then(response => response.json()).then(ans => {
             if (ans["status"]) {
