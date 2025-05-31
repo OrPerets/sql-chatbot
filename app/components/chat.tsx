@@ -417,12 +417,11 @@ const loadChatMessages = (chatId: string) => {
     e.preventDefault();
     if (!userInput.trim()) return;
     sendMessage(userInput);
-    if (currentBalance - estimatedCost >= 0) {
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { role: "user", text: userInput },
-      ]);
-    }
+    // Always show the user message in the UI, regardless of balance
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      { role: "user", text: userInput },
+    ]);
     setUserInput("");
     setInputDisabled(true);
     scrollToBottom();
@@ -655,17 +654,21 @@ return (
                 עלות השאילתה: ₪{estimatedCost.toFixed(2)}
               </div>
             )}
-            <input
-              type="text"
+            <textarea
               className={styles.input}
               value={userInput}
               onChange={(e) => {
                 setUserInput(e.target.value);
                 setEstimatedCost(calculateCost(e.target.value));
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
               }}
               placeholder="הקלד כאן..."
               style={{
-                height: "55px"
+                height: "55px",
+                minHeight: "55px",
+                resize: "none",
+                overflowY: "hidden"
               }}
             />
           {/* <button
