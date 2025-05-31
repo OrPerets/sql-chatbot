@@ -113,12 +113,14 @@ const LoginPage = () => {
 
     const user = users.find(item => item.email === email);
 
-    if (password === "shenkar") {
-      setChangePassword(true);
-    } else if (user && password === user.password) {
+    // First check if user exists and password matches their stored password
+    if (user && password === user.password) {
       getCoinsBalance(user.email);
       storeUserInfo(user);
       router.push('/entities/basic-chat');
+    } else if (password === "shenkar") {
+      // Only check for default password if normal login failed
+      setChangePassword(true);
     } else {
       setError('Wrong Password or Email');
       setTimeout(() => setError(''), 3000);
