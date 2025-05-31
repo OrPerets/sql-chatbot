@@ -60,6 +60,7 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
   };
 
   const copyToClipboard = (textToCopy) => {
+    console.log(1)
     navigator.clipboard.writeText(textToCopy)
       .then(() => {
         setCopied(true); // Show "Copied!" tooltip
@@ -300,13 +301,13 @@ const updateUserBalance = async (value) => {
   }, []);
 
   const sendMessage = async (text) => { 
-    if (currentBalance - estimatedCost < 0) {
-      setBalanceError(true)
-      setUserInput("")
-      setTimeout(() => {  // Set timeout to clear error after 3 seconds
-        setBalanceError(false);
-      }, 3000);
-    } else {
+    // if (currentBalance - estimatedCost < 0) {
+    //   setBalanceError(true)
+    //   setUserInput("")
+    //   setTimeout(() => {  // Set timeout to clear error after 3 seconds
+    //     setBalanceError(false);
+    //   }, 3000);
+    // } else {
       updateUserBalance(currentBalance - estimatedCost)
       setCurrentBalance(currentBalance - estimatedCost)
       let today = new Date().toISOString().slice(0, 10);
@@ -364,7 +365,6 @@ const updateUserBalance = async (value) => {
     const stream = AssistantStream.fromReadableStream(response.body);
     handleReadableStream(stream);
 
-    }
   };
 
   const keepOneInstance = (arr, key) => {
@@ -417,12 +417,11 @@ const loadChatMessages = (chatId: string) => {
     e.preventDefault();
     if (!userInput.trim()) return;
     sendMessage(userInput);
-    if (currentBalance - estimatedCost >= 0) {
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { role: "user", text: userInput },
-      ]);
-    }
+    // Always show the user message in the UI, regardless of balance
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      { role: "user", text: userInput },
+    ]);
     setUserInput("");
     setInputDisabled(true);
     scrollToBottom();
@@ -655,17 +654,21 @@ return (
                 עלות השאילתה: ₪{estimatedCost.toFixed(2)}
               </div>
             )}
-            <input
-              type="text"
+            <textarea
               className={styles.input}
               value={userInput}
               onChange={(e) => {
                 setUserInput(e.target.value);
                 setEstimatedCost(calculateCost(e.target.value));
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
               }}
               placeholder="הקלד כאן..."
               style={{
-                height: "55px"
+                height: "55px",
+                minHeight: "55px",
+                resize: "none",
+                overflowY: "hidden"
               }}
             />
           {/* <button
@@ -755,11 +758,11 @@ return (
                 עורך שאילתות
               </button> */}
     </div>
-    {balanceError && (
+    {/* {balanceError && (
   <div className={styles.balanceError}>
     No enough tokens
   </div>
-)}
+)} */}
     
     <div className={styles.rightColumn}>
     <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "100px", height: "100px"}}/>
