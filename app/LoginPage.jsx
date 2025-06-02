@@ -91,8 +91,7 @@ const LoginPage = () => {
         }
       });
       const data = await response.json();
-      // setStatus(data["status"])
-      setStatus("ON")
+      setStatus(data["status"])
       // setUsers(data);
     } catch (error) {
       setError('Failed to fetch status. Please try again.');
