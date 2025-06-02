@@ -663,6 +663,15 @@ return (
                 e.target.style.height = 'auto';
                 e.target.style.height = e.target.scrollHeight + 'px';
               }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.shiftKey) {
+                  // Allow default behavior for Shift+Enter (line break)
+                  return;
+                } else if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
               placeholder="הקלד כאן..."
               style={{
                 height: "55px",
