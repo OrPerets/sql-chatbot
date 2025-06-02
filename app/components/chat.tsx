@@ -211,6 +211,8 @@ const Chat = ({
   const [balanceError, setBalanceError] = useState(false);
   const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false); // Add loading state
+  // Add SQL mode state
+  const [sqlMode, setSqlMode] = useState<'none' | 'create' | 'insert'>('none');
 
   const router = useRouter();
 
@@ -225,7 +227,36 @@ const Chat = ({
     const toggleModal = () => {
       setShowModal(!showModal);
     };
-  
+
+  // Function to cycle through SQL modes
+  const toggleSqlMode = () => {
+    setSqlMode(prev => {
+      switch (prev) {
+        case 'none': return 'create';
+        case 'create': return 'insert';
+        case 'insert': return 'none';
+        default: return 'none';
+      }
+    });
+  };
+
+  // Get SQL mode label for button
+  const getSqlModeLabel = () => {
+    switch (sqlMode) {
+      case 'create': return 'CREATE TABLE';
+      case 'insert': return 'INSERT VALUES';
+      default: return 'CREATE / INSERT';
+    }
+  };
+
+  // Get SQL mode color for button
+  const getSqlModeColor = () => {
+    switch (sqlMode) {
+      case 'create': return '#4CAF50'; // Green
+      case 'insert': return '#2196F3'; // Blue
+      default: return '#757575'; // Gray
+    }
+  };
 
   // automatically scroll to bottom of chat
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -301,6 +332,14 @@ const updateUserBalance = async (value) => {
   }, []);
 
   const sendMessage = async (text) => { 
+    // Add SQL tags based on mode
+    let messageWithTags = text;
+    if (sqlMode === 'create') {
+      messageWithTags = `<create_table>${text}`;
+    } else if (sqlMode === 'insert') {
+      messageWithTags = `<insert_values>${text}`;
+    }
+
     // if (currentBalance - estimatedCost < 0) {
     //   setBalanceError(true)
     //   setUserInput("")
@@ -321,7 +360,7 @@ const updateUserBalance = async (value) => {
       }).then(response => response.json()).then(newChat => {
         setCurrentChatId(newChat.id);
         setChatSessions([...chatSessions, newChat]);
-        // Save the message to the server
+        // Save the message to the server (save original text without tags)
         fetch(`${SERVER_BASE}/chat-sessions/${newChat.id}/messages`, {
           method: 'POST',
           headers: {
@@ -330,7 +369,7 @@ const updateUserBalance = async (value) => {
           body: JSON.stringify({
             chatId: newChat.id,
             userId: JSON.parse(localStorage.getItem("currentUser"))["email"],
-            message: text,
+            message: text, // Save original text without tags
             role: 'user'
           }),
         });
@@ -346,7 +385,7 @@ const updateUserBalance = async (value) => {
         body: JSON.stringify({
           chatId: currentChatId,
           userId: JSON.parse(localStorage.getItem("currentUser"))["email"],
-          message: text,
+          message: text, // Save original text without tags
           role: 'user'
         }),
       });
@@ -358,12 +397,15 @@ const updateUserBalance = async (value) => {
       {
         method: "POST",
         body: JSON.stringify({
-          content: text,
+          content: messageWithTags, // Send message with tags to AI
         }),
       }
     );
     const stream = AssistantStream.fromReadableStream(response.body);
     handleReadableStream(stream);
+
+    // Reset SQL mode after sending
+    setSqlMode('none');
 
   };
 
@@ -665,6 +707,47 @@ return (
                 עלות השאילתה: ₪{estimatedCost.toFixed(2)}
               </div>
             )}
+            
+            {/* SQL Mode Button */}
+            <button
+              type="button"
+              onClick={toggleSqlMode}
+              className={styles.sqlModeButton}
+              style={{
+                position: 'absolute',
+                top: '10px',
+                left: '10px',
+                padding: '6px 12px',
+                backgroundColor: getSqlModeColor(),
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '12px',
+                cursor: 'pointer',
+                zIndex: 1000,
+                transition: 'background-color 0.2s ease'
+              }}
+              title="לחץ כדי לעבור בין מצבי CREATE TABLE ו-INSERT VALUES"
+            >
+              {getSqlModeLabel()}
+            </button>
+
+            {/* SQL Mode Indicator in textarea */}
+            {sqlMode !== 'none' && (
+              <div style={{
+                position: 'absolute',
+                top: '15px',
+                right: '20px',
+                color: getSqlModeColor(),
+                fontSize: '12px',
+                fontWeight: 'bold',
+                zIndex: 999,
+                pointerEvents: 'none'
+              }}>
+                מצב {sqlMode === 'create' ? 'CREATE TABLE' : 'INSERT VALUES'} פעיל
+              </div>
+            )}
+
             <textarea
               className={styles.input}
               value={userInput}
@@ -683,73 +766,32 @@ return (
                   handleSubmit(e);
                 }
               }}
-              placeholder="הקלד כאן..."
+              placeholder={sqlMode !== 'none' ? `מצב ${getSqlModeLabel()} פעיל - הקלד את השאילתה שלך...` : "הקלד כאן..."}
               style={{
-                height: "55px",
-                minHeight: "55px",
+                height: sqlMode !== 'none' ? "80px" : "55px", // Increase height when SQL mode is active
+                minHeight: sqlMode !== 'none' ? "80px" : "55px", // Increase minimum height as well
                 resize: "none",
-                overflowY: "hidden"
+                overflowY: "hidden",
+                paddingTop: sqlMode !== 'none' ? '35px' : '15px', // Add top padding when SQL mode is active
+                paddingRight: sqlMode !== 'none' ? '220px' : '20px' // Add right padding for the indicator
               }}
             />
-          {/* <button
+          </div>
+          <button // Button is now *outside* the inputContainer
             type="submit"
             className={styles.button}
             disabled={inputDisabled}
             style={{
               width: "40px",
-              height: "80%",
-              marginTop: "0.5%"
-              // padding: "15px",
+              height: "40px", // Fixed height (adjust as needed)
+              // marginTop: "0.5%",
+              // Consider adding other positioning styles as necessary, e.g.,
+              position: "relative", // Or "relative" depending on your layout
+              bottom: 10, // Example position
+              left: "50px",
+              right: "10px",  // Example position
             }}
-          > */}
-          {/* <textarea
-  className={styles.input}
-  value={userInput}
-  onChange={(e) => setUserInput(e.target.value)}
-  placeholder="הקלד כאן..."
-  onKeyDown={(e) => {
-    if (e.key === 'Enter' && e.shiftKey) {
-      e.preventDefault();
-      setUserInput(userInput + '\n');
-    } else if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
-    }
-  }}
-  style={{
-    height: 'auto', // Allow height to grow
-    minHeight: '55px', // Maintain initial height
-    overflowY: 'hidden', // Prevent scrollbars appearing initially, hide internal scroll
-  }}
-  onInput={(e) => {
-    // Adjust height based on content
-    e.currentTarget.style.height = 'auto'; // Reset height to recalculate
-    e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px'; // Set height to content height
-
-    // Limit height to avoid it growing indefinitely:
-    const maxHeight = 200; // Set your desired max height
-    if (e.currentTarget.scrollHeight > maxHeight) {
-      e.currentTarget.style.height = maxHeight + 'px';
-      e.currentTarget.style.overflowY = 'auto';  // Show scrollbar if content exceeds max height
-    }
-  }}
-/> */}
-</div>
-<button // Button is now *outside* the inputContainer
-    type="submit"
-    className={styles.button}
-    disabled={inputDisabled}
-    style={{
-      width: "40px",
-      height: "40px", // Fixed height (adjust as needed)
-      // marginTop: "0.5%",
-      // Consider adding other positioning styles as necessary, e.g.,
-      position: "relative", // Or "relative" depending on your layout
-      bottom: 10, // Example position
-      left: "50px",
-      right: "10px",  // Example position
-    }}
-  >
+          >
             	<svg
     xmlns="http://www.w3.org/2000/svg"
     width="20"
@@ -766,8 +808,6 @@ return (
     </svg>
     
           </button>
-    
-          
         </form>
       </div>
       {/* <button
