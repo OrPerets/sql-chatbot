@@ -1,18 +1,63 @@
-
 .sidebar {
   width: 650px;
   height: 100%;
-  background-color: #f5f5f5;
-  padding: 20px;
+  background: linear-gradient(135deg, rgba(245, 245, 245, 0.95) 0%, rgba(250, 250, 250, 0.9) 100%);
+  padding: 24px;
   overflow-y: auto;
   position: relative;
+  backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 2px 0 24px rgba(0, 0, 0, 0.08);
+  animation: slideInLeft 0.4s ease-out;
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(0, 51, 102, 0.2);
+  border-radius: 3px;
+  transition: background 0.3s ease;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 51, 102, 0.4);
 }
 
 .header {
   display: flex;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   position: relative;
+  animation: fadeInDown 0.6s ease-out;
+}
+
+@keyframes fadeInDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .userIconWrapper {
@@ -20,18 +65,31 @@
 }
 
 .userIcon {
-  background-color: rgba(245, 73, 148, 255);
+  background: linear-gradient(135deg, rgba(245, 73, 148, 1) 0%, rgba(245, 100, 148, 1) 100%);
   border-radius: 50%;
-  width: 47px;
-  height: 47px;
+  width: 52px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: bold;
+  font-weight: 700;
   cursor: pointer;
   color: white;
   font-size: 20px;
   margin-left: 45px;
+  box-shadow: 0 4px 16px rgba(245, 73, 148, 0.3), 0 2px 8px rgba(245, 73, 148, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.userIcon:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 24px rgba(245, 73, 148, 0.4), 0 4px 12px rgba(245, 73, 148, 0.3);
+}
+
+.userIcon:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .dropdownMenu {
@@ -39,36 +97,58 @@
   top: 60px;
   right: 0;
   width: 140%;
-  background-color: white;
-  border: 1px solid #ddd;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.9) 100%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
   overflow: hidden;
   z-index: 10;
+  backdrop-filter: blur(20px);
+  animation: dropdownSlide 0.3s ease-out;
+}
+
+@keyframes dropdownSlide {
+  from {
+    transform: translateY(-10px) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
 
 .menuItem {
   width: 100%;
-  padding: 10px 15px;
-  background-color: white;
+  padding: 12px 18px;
+  background-color: transparent;
   border: none;
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
   font-size: 16px;
   direction: "rtl";
   text-align: right;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  font-weight: 500;
+  color: #2c3e50;
 }
 
 .menuItem:hover {
-  background-color: #f0f0f0;
+  background: linear-gradient(135deg, rgba(0, 51, 102, 0.08) 0%, rgba(0, 51, 102, 0.04) 100%);
+  transform: translateX(-4px);
+  color: #003366;
+  font-weight: 600;
 }
 
 .sidebarTitle {
-  font-size: 1.2rem;
-  font-weight: bold;
+  font-size: 1.3rem;
+  font-weight: 700;
   text-align: center;
   margin-left: 25%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  color: #2c3e50;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .sidebarList {
@@ -77,68 +157,135 @@
 }
 
 .sidebarItem {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   text-align: right;
+  animation: fadeInUp 0.4s ease-out;
+  animation-fill-mode: both;
+}
+
+.sidebarItem:nth-child(1) { animation-delay: 0.1s; }
+.sidebarItem:nth-child(2) { animation-delay: 0.2s; }
+.sidebarItem:nth-child(3) { animation-delay: 0.3s; }
+.sidebarItem:nth-child(4) { animation-delay: 0.4s; }
+.sidebarItem:nth-child(5) { animation-delay: 0.5s; }
+
+@keyframes fadeInUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .sidebarLink {
   display: block;
-  padding: 10px;
+  padding: 14px 16px;
   text-decoration: none;
-  color: #333;
-  border-radius: 5px;
-  transition: background-color 0.3s ease;
+  color: #2c3e50;
+  border-radius: 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  font-weight: 500;
+  border: 1px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.sidebarLink::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(0, 51, 102, 0.08) 0%, rgba(0, 51, 102, 0.04) 100%);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  z-index: -1;
 }
 
 .sidebarLink:hover {
-  background-color: #e0e0e0;
+  background: linear-gradient(135deg, rgba(0, 51, 102, 0.08) 0%, rgba(0, 51, 102, 0.04) 100%);
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0, 51, 102, 0.1);
+  color: #003366;
+  font-weight: 600;
+  border-color: rgba(0, 51, 102, 0.1);
+}
+
+.sidebarLink:hover::before {
+  transform: translateX(0);
 }
 
 .sidebarLink.active {
-  background-color: #d0d0d0;
-  font-weight: bold;
+  background: linear-gradient(135deg, rgba(0, 51, 102, 0.12) 0%, rgba(0, 51, 102, 0.08) 100%);
+  font-weight: 700;
+  color: #003366;
+  border-color: rgba(0, 51, 102, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 51, 102, 0.15);
 }
 
 .logoutButton {
-  padding: 0.8rem 1.2rem;
-  background-color: #ff4d4d;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #ff4d4d 0%, #ff6b6b 100%);
   color: white;
   border: none;
-  border-radius: 40px;
+  border-radius: 24px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   margin: 0;
   margin-left: 8%;
   position: absolute;
-  bottom: 20px;
+  bottom: 24px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  box-shadow: 0 4px 16px rgba(255, 77, 77, 0.3);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .logoutButton:hover {
-  background-color: #ff3333;
+  background: linear-gradient(135deg, #ff3333 0%, #ff5555 100%);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 24px rgba(255, 77, 77, 0.4);
+}
+
+.logoutButton:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .newChatButton {
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 50px;
-  height: 50px;
-  background-color: rgba(33, 79, 149, 255);
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, rgba(33, 79, 149, 1) 0%, rgba(33, 100, 149, 1) 100%);
   color: white;
   border: none;
   border-radius: 50%;
   cursor: pointer;
   font-size: 24px;
-  font-weight: bold;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  font-weight: 700;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 20px rgba(33, 79, 149, 0.3), 0 2px 8px rgba(33, 79, 149, 0.2);
   position: fixed;
-  bottom: 20px;
-  left: 20px;
+  bottom: 24px;
+  left: 24px;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
 .newChatButton:hover {
-  background-color: rgba(33, 79, 149, 255);
-  transform: scale(1.1);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(135deg, rgba(33, 79, 149, 1) 0%, rgba(20, 60, 120, 1) 100%);
+  transform: translateY(-3px) scale(1.08);
+  box-shadow: 0 8px 32px rgba(33, 79, 149, 0.4), 0 4px 16px rgba(33, 79, 149, 0.3);
+}
+
+.newChatButton:active {
+  transform: translateY(-1px) scale(1.02);
 }
