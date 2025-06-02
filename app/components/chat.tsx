@@ -629,15 +629,26 @@ return (
           {loadingMessages ? (
             <div className={styles.loadingIndicator}></div>
           ) : (
-            messages.map((msg, index) => (
-              <Message
-                key={index}
-                role={msg.role}
-                text={msg.text}
-                feedback={msg.feedback}
-                onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
-              />
-            ))
+            <>
+              {messages.map((msg, index) => (
+                <Message
+                  key={index}
+                  role={msg.role}
+                  text={msg.text}
+                  feedback={msg.feedback}
+                  onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
+                />
+              ))}
+              {inputDisabled && (
+                <div className={styles.assistantMessage}>
+                  <div className={styles.typingIndicator}>
+                    <div className={styles.dot}></div>
+                    <div className={styles.dot}></div>
+                    <div className={styles.dot}></div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
           <div ref={messagesEndRef} />
         </div>
