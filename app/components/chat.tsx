@@ -785,16 +785,18 @@ return (
 )} */}
     
     <div className={styles.rightColumn}>
-    <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "100px", height: "100px"}}/>
-      {/* Added section for user info with current balance */}
-      <div className={styles.userInfo}>
-        <div className={styles.nickname}>
-          היי {currentUser}
-          {isTokenBalanceVisible && (
-          <div>
-            יתרה נוכחית: ₪{currentBalance}
+      <div className={styles.avatarSection}>
+        <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "100px", height: "100px"}}/>
+        {/* Moved user info below the avatar */}
+        <div className={styles.userInfo}>
+          <div className={styles.nickname}>
+            היי {currentUser}
+            {isTokenBalanceVisible && (
+            <div>
+              יתרה נוכחית: ₪{currentBalance}
+            </div>
+          )}
           </div>
-        )}
         </div>
       </div>
     </div>
