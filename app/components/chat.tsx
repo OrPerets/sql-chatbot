@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import config from "../config";
 import Modal from "./modal";
 import SQLQueryEditorComponent from "./query-vizualizer";
+import { MultimodalMessage } from './MultimodalMessage';
 
 export const maxDuration = 50;
 
@@ -198,6 +199,22 @@ const Chat = ({
   const [userInput, setUserInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [inputDisabled, setInputDisabled] = useState(false);
+  
+  // Uploading state for UI feedback
+  const [uploading, setUploading] = useState(false);
+  
+  // Multimodal state for original form
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [selectedAudio, setSelectedAudio] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  
+  // Refs for media recording
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [threadId, setThreadId] = useState("");
   const [user, setUser] = useState(null);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
@@ -331,7 +348,7 @@ const updateUserBalance = async (value) => {
     createThread();
   }, []);
 
-  const sendMessage = async (text) => { 
+  const sendMessage = async (text, imageUrl?: string, audioUrl?: string) => { 
     // Add SQL tags based on mode
     let messageWithTags = text;
     if (sqlMode === 'create') {
@@ -392,17 +409,132 @@ const updateUserBalance = async (value) => {
     }
     
     // saveToDatabase(text, "user");
-    const response = await fetch(
-      `/api/assistants/threads/${threadId}/messages`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          content: messageWithTags, // Send message with tags to AI
-        }),
+    try {
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+
+      // Log what we're sending to OpenAI for validation
+      if (imageUrl) {
+        console.log('🖼️ Sending image to OpenAI:', imageUrl);
       }
-    );
-    const stream = AssistantStream.fromReadableStream(response.body);
-    handleReadableStream(stream);
+      if (audioUrl) {
+        console.log('🎵 Sending audio to OpenAI:', audioUrl);
+      }
+
+      const response = await fetch(
+        `/api/assistants/threads/${threadId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            content: messageWithTags, // Send message with tags to AI
+            imageUrl,
+            audioUrl
+          }),
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('API Response Error:', errorData);
+        
+        // Handle specific configuration errors
+        if (errorData.error === 'OpenAI API key not configured' || errorData.error === 'Assistant ID not configured') {
+          alert(`שגיאת תצורה: ${errorData.details}. אנא בדוק את הגדרות המערכת.`);
+          setInputDisabled(false);
+          return;
+        }
+        
+        throw new Error(`API Error: ${response.status} - ${errorData.error || 'Failed to send message'}`);
+      }
+
+      const stream = AssistantStream.fromReadableStream(response.body);
+      
+      // Add a safety timeout for stream processing
+      const streamTimeout = setTimeout(() => {
+        console.error('Stream processing timeout');
+        setInputDisabled(false);
+        alert('תגובת המערכת נקטעה. אנא נסה שוב.');
+      }, 120000); // 2 minutes timeout
+      
+      // Create a custom handleReadableStream with timeout clearing
+      const handleReadableStreamWithTimeout = (stream: AssistantStream) => {
+        console.log('Setting up stream event handlers');
+        
+        // Add error handling for the stream
+        stream.on("error", (error) => {
+          console.error('Stream error:', error);
+          clearTimeout(streamTimeout);
+          setInputDisabled(false);
+          alert('שגיאה בקבלת תגובה מהמערכת. אנא נסה שוב.');
+        });
+
+        // messages
+        stream.on("textCreated", () => {
+          console.log('Text creation started');
+          handleTextCreated();
+        });
+        
+        stream.on("textDelta", (delta) => {
+          console.log('Received text delta:', delta?.value?.length || 0, 'characters');
+          handleTextDelta(delta);
+        });
+
+        stream.on("end", () => {
+          console.log('Stream ended');
+          clearTimeout(streamTimeout);
+          endStreamResponse();
+        });
+
+        // image
+        stream.on("imageFileDone", handleImageFileDone);
+
+        // code interpreter
+        stream.on("toolCallCreated", toolCallCreated);
+        stream.on("toolCallDelta", toolCallDelta);
+
+        // events without helpers yet (e.g. requires_action and run.done)
+        stream.on("event", (event) => {
+          console.log('Stream event:', event.event);
+          if (event.event === "thread.run.requires_action")
+            handleRequiresAction(event);
+          if (event.event === "thread.run.completed") {
+            console.log('Run completed');
+            clearTimeout(streamTimeout);
+            handleRunCompleted();
+          }
+          if (event.event === "thread.run.failed") {
+            console.error('Run failed:', event.data);
+            clearTimeout(streamTimeout);
+            setInputDisabled(false);
+            alert('התהליך נכשל. אנא נסה שוב.');
+          }
+          if (event.event === "thread.run.cancelled") {
+            console.log('Run cancelled');
+            clearTimeout(streamTimeout);
+            setInputDisabled(false);
+          }
+        });
+      };
+      
+      handleReadableStreamWithTimeout(stream);
+    } catch (error) {
+      console.error('Error sending message to OpenAI:', error);
+      setInputDisabled(false); // Re-enable input on error
+      
+      if (error.name === 'AbortError') {
+        alert('הבקשה נקטעה בגלל חריגה מזמן התגובה. אנא נסה שוב.');
+      } else {
+        alert('שגיאה בשליחת ההודעה: ' + error.message);
+      }
+      return; // Don't proceed with reset if there was an error
+    }
 
     // Reset SQL mode after sending
     setSqlMode('none');
@@ -452,21 +584,129 @@ const loadChatMessages = (chatId: string) => {
       }
     );
     const stream = AssistantStream.fromReadableStream(response.body);
-    handleReadableStream(stream);
+    
+    // Simple stream handler for tool calls - no timeout needed here
+    stream.on("textCreated", handleTextCreated);
+    stream.on("textDelta", handleTextDelta);
+    stream.on("end", endStreamResponse);
+    stream.on("imageFileDone", handleImageFileDone);
+    stream.on("toolCallCreated", toolCallCreated);
+    stream.on("toolCallDelta", toolCallDelta);
+    stream.on("event", (event) => {
+      if (event.event === "thread.run.requires_action")
+        handleRequiresAction(event);
+      if (event.event === "thread.run.completed") handleRunCompleted();
+    });
+    };
+
+  // Multimodal helper functions for original form
+  const handleFileUpload = async (file: File, type: 'image' | 'audio'): Promise<string> => {
+    const formData = new FormData();
+    formData.append(type, file);
+    
+    const response = await fetch(`/api/upload/${type}`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer default-token' },
+      body: formData
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to upload ${type}`);
+    }
+    
+    const result = await response.json();
+    return result.url;
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!userInput.trim()) return;
-    sendMessage(userInput);
-    // Always show the user message in the UI, regardless of balance
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      { role: "user", text: userInput },
-    ]);
-    setUserInput("");
-    setInputDisabled(true);
-    scrollToBottom();
+  const clearImage = () => {
+    setSelectedImage(null);
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+      setImagePreview(null);
+    }
+  };
+
+  const clearAudio = () => {
+    setSelectedAudio(null);
+    setAudioBlob(null);
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+      setAudioUrl(null);
+    }
+    setRecordingTime(0);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type.startsWith('image/')) {
+      setSelectedImage(file);
+      const preview = URL.createObjectURL(file);
+      setImagePreview(preview);
+    } else if (file.type.startsWith('audio/')) {
+      setSelectedAudio(file);
+      const url = URL.createObjectURL(file);
+      setAudioUrl(url);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      const audioChunks: Blob[] = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunks.push(event.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        setAudioBlob(blob);
+        const url = URL.createObjectURL(blob);
+        setAudioUrl(url);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prev => {
+          if (prev >= 60) {
+            stopRecording();
+            return 60;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      alert('לא ניתן לגשת למיקרופון. אנא בדוק את ההרשאות.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   /* Stream Event Handlers */
@@ -576,27 +816,7 @@ const loadChatMessages = (chatId: string) => {
     return null; // Or you could return a loading indicator here
   }
 
-  const handleReadableStream = (stream: AssistantStream) => {
-    // messages
-    stream.on("textCreated", handleTextCreated);
-    stream.on("textDelta", handleTextDelta);
 
-    stream.on("end", endStreamResponse);
-
-    // image
-    stream.on("imageFileDone", handleImageFileDone);
-
-    // code interpreter
-    stream.on("toolCallCreated", toolCallCreated);
-    stream.on("toolCallDelta", toolCallDelta);
-
-    // events without helpers yet (e.g. requires_action and run.done)
-    stream.on("event", (event) => {
-      if (event.event === "thread.run.requires_action")
-        handleRequiresAction(event);
-      if (event.event === "thread.run.completed") handleRunCompleted();
-    });
-  };
 
   /*
     =======================
@@ -673,10 +893,12 @@ return (
           ) : (
             <>
               {messages.map((msg, index) => (
-                <Message
+                <MultimodalMessage
                   key={index}
                   role={msg.role}
                   text={msg.text}
+                  imageUrl={msg.imageUrl}
+                  audioUrl={msg.audioUrl}
                   feedback={msg.feedback}
                   onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
                 />
@@ -695,56 +917,105 @@ return (
           <div ref={messagesEndRef} />
         </div>
         
+        {/* Original Form with Custom Multimodal Logic */}
         <form
-          onSubmit={handleSubmit}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!userInput.trim() && !selectedImage && !selectedAudio && !audioBlob) return;
+
+            setUploading(true);
+            try {
+              let uploadedImageUrl: string | undefined;
+              let uploadedAudioUrl: string | undefined;
+
+              // Upload image if selected
+              if (selectedImage) {
+                uploadedImageUrl = await handleFileUpload(selectedImage, 'image');
+              }
+
+              // Upload audio file if selected
+              if (selectedAudio) {
+                uploadedAudioUrl = await handleFileUpload(selectedAudio, 'audio');
+              }
+              
+              // Upload recorded audio if exists
+              if (audioBlob) {
+                const recordedFile = new File([audioBlob], `recording_${Date.now()}.webm`, { type: 'audio/webm' });
+                uploadedAudioUrl = await handleFileUpload(recordedFile, 'audio');
+              }
+
+              // Add user message to UI immediately
+              setMessages((prevMessages) => [
+                ...prevMessages,
+                { role: "user", text: userInput, imageUrl: uploadedImageUrl, audioUrl: uploadedAudioUrl },
+              ]);
+              
+              const currentInput = userInput;
+              setUserInput("");
+              clearImage();
+              clearAudio();
+              setInputDisabled(true);
+              scrollToBottom();
+
+              try {
+                // Send message to OpenAI
+                await sendMessage(currentInput, uploadedImageUrl, uploadedAudioUrl);
+              } catch (error) {
+                console.error('Error sending to OpenAI:', error);
+                setInputDisabled(false);
+              }
+            } catch (error) {
+              console.error('Error in file upload:', error);
+              alert('שגיאה בהעלאת הקובץ: ' + error.message);
+              setInputDisabled(false);
+            } finally {
+              setUploading(false);
+            }
+          }}
           style={{direction:"rtl"}}
           className={`${styles.inputForm} ${styles.clearfix}`}
         >
           <div className={styles.inputContainer}>
-            {/* Added for query cost estimation: Shows estimated cost while typing */}
+            {/* Cost Estimation */}
             {userInput && isTokenBalanceVisible && (
               <div className={styles.costPopup}>
                 עלות השאילתה: ₪{estimatedCost.toFixed(2)}
               </div>
             )}
-            
-            {/* SQL Mode Button */}
-            <button
-              type="button"
-              onClick={toggleSqlMode}
-              className={styles.sqlModeButton}
-              style={{
-                position: 'absolute',
-                top: '10px',
-                left: '10px',
-                padding: '6px 12px',
-                backgroundColor: getSqlModeColor(),
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                fontSize: '12px',
-                cursor: 'pointer',
-                zIndex: 1000,
-                transition: 'background-color 0.2s ease'
-              }}
-              title="לחץ כדי לעבור בין מצבי CREATE TABLE ו-INSERT VALUES"
-            >
-              {getSqlModeLabel()}
-            </button>
 
             {/* SQL Mode Indicator in textarea */}
             {sqlMode !== 'none' && (
-              <div style={{
-                position: 'absolute',
-                top: '15px',
-                right: '20px',
-                color: getSqlModeColor(),
-                fontSize: '12px',
-                fontWeight: 'bold',
-                zIndex: 999,
-                pointerEvents: 'none'
-              }}>
+              <div className={styles.sqlModeIndicator}>
                 מצב {sqlMode === 'create' ? 'CREATE TABLE' : 'INSERT VALUES'} פעיל
+              </div>
+            )}
+
+            {/* Media Previews */}
+            {(selectedImage || audioUrl) && (
+              <div className={styles.mediaPreviewContainer}>
+                {/* Image Preview */}
+                {selectedImage && (
+                  <div className={styles.imagePreview}>
+                    <img src={imagePreview} alt="תצוגה מקדימה" className={styles.previewImage} />
+                    <button type="button" onClick={clearImage} className={styles.clearButton}>
+                      ✕
+                    </button>
+                  </div>
+                )}
+                
+                {/* Audio Preview */}
+                {audioUrl && (
+                  <div className={styles.audioPreview}>
+                    <audio controls className={styles.audioPlayer}>
+                      <source src={audioUrl} type="audio/webm" />
+                      <source src={audioUrl} type="audio/mpeg" />
+                      הדפדפן שלך לא תומך בנגן האודיו.
+                    </audio>
+                    <button type="button" onClick={clearAudio} className={styles.clearButton}>
+                      ✕
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -759,54 +1030,118 @@ return (
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && e.shiftKey) {
-                  // Allow default behavior for Shift+Enter (line break)
                   return;
                 } else if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
-                  handleSubmit(e);
+                  e.currentTarget.form?.requestSubmit();
                 }
               }}
               placeholder={sqlMode !== 'none' ? `מצב ${getSqlModeLabel()} פעיל - הקלד את השאילתה שלך...` : "הקלד כאן..."}
               style={{
-                height: sqlMode !== 'none' ? "80px" : "55px", // Increase height when SQL mode is active
-                minHeight: sqlMode !== 'none' ? "80px" : "55px", // Increase minimum height as well
+                minHeight: "55px",
                 resize: "none",
                 overflowY: "hidden",
-                paddingTop: sqlMode !== 'none' ? '35px' : '15px', // Add top padding when SQL mode is active
-                paddingRight: sqlMode !== 'none' ? '220px' : '20px' // Add right padding for the indicator
               }}
+              disabled={inputDisabled}
+            />
+
+            {/* Bottom Action Buttons */}
+            <div className={styles.bottomButtons}>
+              {/* Attachment Button */}
+              <button
+                type="button"
+                onClick={() => document.getElementById('fileInput')?.click()}
+                className={styles.actionButton}
+                disabled={inputDisabled || uploading}
+                title="צרף קובץ"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M12 8v8"/>
+                  <path d="M8 12h8"/>
+                </svg>
+              </button>
+
+              {/* SQL Mode Toggle */}
+              <button
+                type="button"
+                onClick={toggleSqlMode}
+                className={`${styles.actionButton} ${sqlMode !== 'none' ? styles.active : ''}`}
+                title="מצב SQL"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+                </svg>
+                <span className={styles.buttonLabel}>
+                  {sqlMode === 'create' ? 'CREATE' : sqlMode === 'insert' ? 'INSERT' : 'SQL'}
+                </span>
+              </button>
+
+              {/* Voice Recording Button */}
+              <button
+                type="button"
+                onClick={isRecording ? stopRecording : startRecording}
+                className={`${styles.actionButton} ${isRecording ? styles.recording : ''}`}
+                disabled={inputDisabled || uploading}
+                title={isRecording ? 'עצור הקלטה' : 'הקלט הודעה קולית'}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {isRecording ? (
+                    <rect x="9" y="9" width="6" height="6" rx="1" />
+                  ) : (
+                    <>
+                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                      <line x1="12" y1="19" x2="12" y2="23"/>
+                      <line x1="8" y1="23" x2="16" y2="23"/>
+                    </>
+                  )}
+                </svg>
+                {isRecording && <span className={styles.recordingTime}>{formatTime(recordingTime)}</span>}
+              </button>
+            </div>
+
+            {/* Hidden File Inputs */}
+            <input
+              id="fileInput"
+              type="file"
+              accept="image/jpeg,image/png,image/jpg,audio/mp3,audio/mpeg,audio/webm"
+              onChange={handleFileSelect}
+              style={{ display: 'none' }}
             />
           </div>
-          <button // Button is now *outside* the inputContainer
+
+          <button
             type="submit"
             className={styles.button}
-            disabled={inputDisabled}
+            disabled={inputDisabled || uploading || (!userInput.trim() && !selectedImage && !selectedAudio && !audioBlob)}
             style={{
               width: "40px",
-              height: "40px", // Fixed height (adjust as needed)
-              // marginTop: "0.5%",
-              // Consider adding other positioning styles as necessary, e.g.,
-              position: "relative", // Or "relative" depending on your layout
-              bottom: 10, // Example position
+              height: "40px",
+              position: "relative",
+              bottom: 10,
               left: "50px",
-              right: "10px",  // Example position
+              right: "10px",
             }}
           >
-            	<svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="20"
-    height="20"
-    viewBox="0 4 28 25"
-    fill="none"
-    stroke="white"
-    strokeWidth="4"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={styles.arrowIcon}
-  >
-    <path d="M15 30V9M8 12l7-7 7 7" />
-    </svg>
-    
+            {(inputDisabled || uploading) ? (
+              <div className={styles.spinner} />
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 4 28 25"
+                fill="none"
+                stroke="white"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={styles.arrowIcon}
+              >
+                <path d="M15 30V9M8 12l7-7 7 7" />
+              </svg>
+            )}
           </button>
         </form>
       </div>
