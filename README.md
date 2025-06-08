@@ -67,6 +67,7 @@ The main logic for chat will be found in the `Chat` component in `app/components
 - `api/assistants/threads/[threadId]/messages` - `POST`: send message to assistant
 - `api/assistants/threads/[threadId]/actions` - `POST`: inform assistant of the result of a function it decided to call
 - `api/assistants/files` - `GET`/`POST`/`DELETE`: fetch, upload, and delete assistant files for file search
+- Image uploads are supported in chat so the assistant can read screenshots.
 
 ## Feedback
 

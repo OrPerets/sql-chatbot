@@ -25,6 +25,7 @@ const UPDATE_BALANCE = SERVER_BASE + "/updateBalance"  // New endpoint for feedb
 type MessageProps = {
   role: "user" | "assistant" | "code";
   text: string;
+  imageUrl?: string;
   feedback: "like" | "dislike" | null;
   onFeedback?: (feedback: "like" | "dislike" | null) => void;
 };
@@ -36,8 +37,15 @@ type ChatSession = {
   lastMessageTimestamp: number;
 };
 
-const UserMessage = ({ text }: { text: string }) => {
-  return <div className={styles.userMessage}>{text}</div>;
+const UserMessage = ({ text, imageUrl }: { text: string; imageUrl?: string }) => {
+  return (
+    <div className={styles.userMessage}>
+      {text}
+      {imageUrl && (
+        <img src={imageUrl} alt="uploaded" className={styles.uploadedImage} />
+      )}
+    </div>
+  );
 };
 const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedback: "like" | "dislike" | null; onFeedback?: (feedback: "like" | "dislike" | null) => void }) => {
   const [activeFeedback, setActiveFeedback] = useState(feedback);
@@ -171,10 +179,10 @@ const CodeMessage = ({ text }: { text: string }) => {
   );
 };
 
-const Message = ({ role, text, feedback, onFeedback }: MessageProps) => {
+const Message = ({ role, text, imageUrl, feedback, onFeedback }: MessageProps) => {
   switch (role) {
     case "user":
-      return <UserMessage text={text} />;
+      return <UserMessage text={text} imageUrl={imageUrl} />;
     case "assistant":
       return <AssistantMessage text={text} feedback={feedback} onFeedback={onFeedback} />;
     case "code":
@@ -213,6 +221,8 @@ const Chat = ({
   const [loadingMessages, setLoadingMessages] = useState(false); // Add loading state
   // Add SQL mode state
   const [sqlMode, setSqlMode] = useState<'none' | 'create' | 'insert'>('none');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -331,7 +341,7 @@ const updateUserBalance = async (value) => {
     createThread();
   }, []);
 
-  const sendMessage = async (text) => { 
+  const sendMessage = async (text, file: File | null) => {
     // Add SQL tags based on mode
     let messageWithTags = text;
     if (sqlMode === 'create') {
@@ -392,20 +402,30 @@ const updateUserBalance = async (value) => {
     }
     
     // saveToDatabase(text, "user");
-    const response = await fetch(
-      `/api/assistants/threads/${threadId}/messages`,
-      {
+    let response;
+    if (file) {
+      const formData = new FormData();
+      formData.append("content", messageWithTags);
+      formData.append("file", file);
+      response = await fetch(`/api/assistants/threads/${threadId}/messages`, {
+        method: "POST",
+        body: formData,
+      });
+    } else {
+      response = await fetch(`/api/assistants/threads/${threadId}/messages`, {
         method: "POST",
         body: JSON.stringify({
           content: messageWithTags, // Send message with tags to AI
         }),
-      }
-    );
+      });
+    }
     const stream = AssistantStream.fromReadableStream(response.body);
     handleReadableStream(stream);
 
     // Reset SQL mode after sending
     setSqlMode('none');
+    setImageFile(null);
+    setImagePreview(null);
 
   };
 
@@ -457,12 +477,11 @@ const loadChatMessages = (chatId: string) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!userInput.trim()) return;
-    sendMessage(userInput);
-    // Always show the user message in the UI, regardless of balance
+    if (!userInput.trim() && !imageFile) return;
+    sendMessage(userInput, imageFile);
     setMessages((prevMessages) => [
       ...prevMessages,
-      { role: "user", text: userInput },
+      { role: "user", text: userInput, imageUrl: imagePreview || undefined },
     ]);
     setUserInput("");
     setInputDisabled(true);
@@ -677,6 +696,7 @@ return (
                   key={index}
                   role={msg.role}
                   text={msg.text}
+                  imageUrl={msg.imageUrl}
                   feedback={msg.feedback}
                   onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
                 />
@@ -773,8 +793,20 @@ return (
                 resize: "none",
                 overflowY: "hidden",
                 paddingTop: sqlMode !== 'none' ? '35px' : '15px', // Add top padding when SQL mode is active
-                paddingRight: sqlMode !== 'none' ? '220px' : '20px' // Add right padding for the indicator
+              paddingRight: sqlMode !== 'none' ? '220px' : '20px' // Add right padding for the indicator
               }}
+            />
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                if (file) {
+                  setImageFile(file);
+                  setImagePreview(URL.createObjectURL(file));
+                }
+              }}
+              style={{ marginTop: '8px' }}
             />
           </div>
           <button // Button is now *outside* the inputContainer
