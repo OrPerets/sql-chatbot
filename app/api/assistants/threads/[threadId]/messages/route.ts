@@ -7,12 +7,23 @@ export const maxDuration = 50;
 
 // Send a new message to a thread
 export async function POST(request, { params: { threadId } }) {
-  const { content } = await request.json();
+  const { content, fileIds } = await request.json();
 
-  await openai.beta.threads.messages.create(threadId, {
-    role: "user",
-    content: content,
-  });
+  if (fileIds && fileIds.length > 0) {
+    const messageContent = [
+      ...fileIds.map((id) => ({ type: "image_file", image_file: { file_id: id, detail: "auto" } })),
+      { type: "text", text: content },
+    ];
+    await openai.beta.threads.messages.create(threadId, {
+      role: "user",
+      content: messageContent,
+    });
+  } else {
+    await openai.beta.threads.messages.create(threadId, {
+      role: "user",
+      content: content,
+    });
+  }
 
   const stream = openai.beta.threads.runs.stream(threadId, {
     assistant_id: assistantId,

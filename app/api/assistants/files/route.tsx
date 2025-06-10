@@ -17,7 +17,7 @@ export async function POST(request) {
   await openai.beta.vectorStores.files.create(vectorStoreId, {
     file_id: openaiFile.id,
   });
-  return new Response();
+  return Response.json({ file_id: openaiFile.id });
 }
 
 // list files in assistant's vector store

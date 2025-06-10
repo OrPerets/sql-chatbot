@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import config from "../config";
 import Modal from "./modal";
 import SQLQueryEditorComponent from "./query-vizualizer";
+import SQLSandbox from "./sql-sandbox";
 
 export const maxDuration = 50;
 
@@ -205,6 +206,9 @@ const Chat = ({
   const [isDone, setIsDone] = useState(false);
   const [currentUser, setCurrectUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showSandbox, setShowSandbox] = useState(false);
+  const [imageFileId, setImageFileId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   // Added for query cost estimation feature
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [currentBalance, setCurrentBalance] = useState(0);
@@ -227,6 +231,21 @@ const Chat = ({
     const toggleModal = () => {
       setShowModal(!showModal);
     };
+
+  const toggleSandbox = () => {
+    setShowSandbox(!showSandbox);
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const data = new FormData();
+    data.append('file', file);
+    const resp = await fetch('/api/assistants/files', { method: 'POST', body: data });
+    const json = await resp.json();
+    setImageFileId(json.file_id);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   // Function to cycle through SQL modes
   const toggleSqlMode = () => {
@@ -398,6 +417,7 @@ const updateUserBalance = async (value) => {
         method: "POST",
         body: JSON.stringify({
           content: messageWithTags, // Send message with tags to AI
+          fileIds: imageFileId ? [imageFileId] : [],
         }),
       }
     );
@@ -406,6 +426,7 @@ const updateUserBalance = async (value) => {
 
     // Reset SQL mode after sending
     setSqlMode('none');
+    setImageFileId(null);
 
   };
 
@@ -732,6 +753,28 @@ return (
               {getSqlModeLabel()}
             </button>
 
+            <button
+              type="button"
+              onClick={toggleSandbox}
+              className={styles.sandboxButton}
+              style={{
+                position: 'absolute',
+                top: '10px',
+                left: '110px',
+                padding: '6px 12px',
+                backgroundColor: '#6c63ff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '12px',
+                cursor: 'pointer',
+                zIndex: 1000
+              }}
+              title="Open SQL sandbox"
+            >
+              Sandbox
+            </button>
+
             {/* SQL Mode Indicator in textarea */}
             {sqlMode !== 'none' && (
               <div style={{
@@ -776,6 +819,13 @@ return (
                 paddingRight: sqlMode !== 'none' ? '220px' : '20px' // Add right padding for the indicator
               }}
             />
+            <input
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              ref={fileInputRef}
+              onChange={handleImageUpload}
+            />
           </div>
           <button // Button is now *outside* the inputContainer
             type="submit"
@@ -807,6 +857,20 @@ return (
     <path d="M15 30V9M8 12l7-7 7 7" />
     </svg>
     
+          </button>
+          <button
+            type="button"
+            className={styles.imageUploadButton}
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              width: '40px',
+              height: '40px',
+              position: 'relative',
+              bottom: 10,
+              marginLeft: '10px'
+            }}
+          >
+            📷
           </button>
         </form>
       </div>
@@ -842,6 +906,9 @@ return (
     </div>
     <Modal isOpen={showModal} onClose={toggleModal}>
         <SQLQueryEditorComponent toggleModal={toggleModal} />
+      </Modal>
+    <Modal isOpen={showSandbox} onClose={toggleSandbox}>
+        <SQLSandbox onClose={toggleSandbox} />
       </Modal>
   </div>
 );
