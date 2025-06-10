@@ -54,11 +54,13 @@ The main logic for chat will be found in the `Chat` component in `app/components
 - Function Calling Example: [http://localhost:3000/examples/function-calling](http://localhost:3000/examples/function-calling)
 - File Search Example: [http://localhost:3000/examples/file-search](http://localhost:3000/examples/file-search)
 - Full-featured Example: [http://localhost:3000/examples/all](http://localhost:3000/examples/all)
+- SQL Sandbox: [http://localhost:3000/entities/sandbox](http://localhost:3000/entities/sandbox)
 
 ### Main Components
 
 - `app/components/chat.tsx` - handles chat rendering, [streaming](https://platform.openai.com/docs/assistants/overview?context=with-streaming), and [function call](https://platform.openai.com/docs/assistants/tools/function-calling/quickstart?context=streaming&lang=node.js) forwarding
 - `app/components/file-viewer.tsx` - handles uploading, fetching, and deleting files for [file search](https://platform.openai.com/docs/assistants/tools/file-search)
+- `app/components/sql-sandbox.tsx` - lightweight in-browser SQL environment with exercise tracking
 
 ### Endpoints
 

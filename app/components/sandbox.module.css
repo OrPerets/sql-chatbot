@@ -1,0 +1,52 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.runButton {
+  width: 80px;
+  align-self: flex-start;
+  background-color: #003366;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.table th,
+.table td {
+  border: 1px solid #ccc;
+  padding: 4px 8px;
+  text-align: left;
+}
+
+.error {
+  color: red;
+}
+
+.exercises ul {
+  list-style: none;
+  padding: 0;
+}
+
+.exercises li {
+  margin-bottom: 6px;
+}
+
+.check {
+  margin-left: 6px;
+  color: green;
+}
+
+.done {
+  text-decoration: line-through;
+}
