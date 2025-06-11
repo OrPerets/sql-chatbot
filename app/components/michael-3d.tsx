@@ -406,11 +406,8 @@ const Michael3D: React.FC<Michael3DProps> = ({
 
     // Event handlers
     utteranceRef.current.onstart = () => {
-      setIsTalking(true);
-      setIsThinking(false);
-      setAvatarState('talking');
-      isPlayingRef.current = true;
-      onSpeechStart?.();
+      // Talking state already set below for instant feedback
+      console.log('Speech synthesis started');
     };
 
     utteranceRef.current.onend = () => {
@@ -428,18 +425,19 @@ const Michael3D: React.FC<Michael3DProps> = ({
       onSpeechEnd?.();
     };
 
-    // Start speech immediately without thinking delay
+    // Set talking state IMMEDIATELY for instant visual feedback
+    setIsTalking(true);
+    setAvatarState('talking');
+    isPlayingRef.current = true;
+    onSpeechStart?.();
+    
     try {
       speechSynthesis.speak(utteranceRef.current!);
-      // Fallback retry in case speech doesn't start
-      setTimeout(() => {
-        if (!speechSynthesis.speaking && !isTalking) {
-          speechSynthesis.speak(utteranceRef.current!);
-        }
-      }, 25); // Ultra-fast fallback retry
     } catch (error) {
       console.error('Error starting speech:', error);
+      setIsTalking(false);
       setAvatarState('idle');
+      isPlayingRef.current = false;
     }
   }, [isSpeechEnabled, speechRate, isTalking, onSpeechStart, onSpeechEnd]);
 
@@ -488,7 +486,7 @@ const Michael3D: React.FC<Michael3DProps> = ({
         if (text && !isPlayingRef.current) {
           speak(text);
         }
-      }, 50); // Ultra-fast response - reduced to 50ms for immediate speech
+      }, 10); // Lightning-fast response - reduced to 10ms for instant speech
       
       return () => clearTimeout(timer);
     }

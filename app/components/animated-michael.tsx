@@ -666,13 +666,10 @@ const AnimatedMichael: React.FC<AnimatedMichaelProps> = ({
       utteranceRef.current.voice = selectedVoice;
     }
 
-    // Event handlers
+    // Event handlers for speech synthesis
     utteranceRef.current.onstart = () => {
-      setIsTalking(true);
-      setIsThinking(false);
-      setAvatarState('talking');
-      isPlayingRef.current = true;
-      onSpeechStart?.();
+      // Talking state already set above for instant feedback
+      console.log('Speech synthesis started');
     };
 
     utteranceRef.current.onend = () => {
@@ -690,18 +687,19 @@ const AnimatedMichael: React.FC<AnimatedMichaelProps> = ({
       onSpeechEnd?.();
     };
 
-    // Start speech immediately without thinking delay
+    // Set talking state IMMEDIATELY for instant visual feedback
+    setIsTalking(true);
+    setAvatarState('talking');
+    isPlayingRef.current = true;
+    onSpeechStart?.();
+    
     try {
       speechSynthesis.speak(utteranceRef.current!);
-      // Fallback retry in case speech doesn't start
-      setTimeout(() => {
-        if (!speechSynthesis.speaking && !isTalking) {
-          speechSynthesis.speak(utteranceRef.current!);
-        }
-      }, 25); // Ultra-fast fallback retry
     } catch (error) {
       console.error('Error starting speech:', error);
+      setIsTalking(false);
       setAvatarState('idle');
+      isPlayingRef.current = false;
     }
   }, [isSpeechEnabled, speechRate, isTalking, onSpeechStart, onSpeechEnd]);
 
@@ -750,7 +748,7 @@ const AnimatedMichael: React.FC<AnimatedMichaelProps> = ({
         if (text && !isPlayingRef.current) {
           speak(text);
         }
-      }, 50); // Ultra-fast response - reduced to 50ms for immediate speech
+      }, 10); // Lightning-fast response - reduced to 10ms for instant speech
       
       return () => clearTimeout(timer);
     }
