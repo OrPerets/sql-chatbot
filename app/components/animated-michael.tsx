@@ -613,14 +613,19 @@ const AnimatedMichael: React.FC<AnimatedMichaelProps> = ({
       speechSynthesis.cancel();
     }
 
-    // Clean text for speech
+    // Clean text for speech - optimized for faster, smoother speech
     const cleanText = textToSpeak
-      .replace(/\*\*(.*?)\*\*/g, '$1')
-      .replace(/\*(.*?)\*/g, '$1')
-      .replace(/```[\s\S]*?```/g, ' ')
-      .replace(/\b(SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|CREATE|TABLE|DATABASE)\b/gi, '')
-      .replace(/😊|😀|😃|😄|😁|😆|😅|🤣|😂|🙂|🙃|😉|😇|🥰|😍|🤩|😘|😗|😚|😙|😋|😛|😜|🤪|😝|🤑|🤗|🤭|🤫|🤔|🤐|🤨|😐|😑|😶|😏|😒|🙄|😬|🤥|😌|😔|😪|🤤|😴|😷|🤒|🤕|🤢|🤮|🤧|🥵|🥶|🥴|😵|🤯|🤠|🥳|😎|🤓|🧐|🚀|⚡|💡|🎯|🎓|✨|👍|👎|👏|🔧|🛠️|📝|📊|💻|⭐|🎉|🔥|💪|🏆|📈|🎪/g, '')
-      .replace(/\s+/g, ' ')
+      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold markdown
+      .replace(/\*(.*?)\*/g, '$1') // Remove italic markdown
+      .replace(/```[\s\S]*?```/g, 'code block') // Replace code blocks with readable text
+      .replace(/`([^`]+)`/g, '$1') // Remove inline code backticks
+      .replace(/\b(SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|CREATE|TABLE|DATABASE)\b/gi, '') // Remove SQL keywords
+      .replace(/[😊😀😃😄😁😆😅🤣😂🙂🙃😉😇🥰😍🤩😘😗😚😙😋😛😜🤪😝🤑🤗🤭🤫🤔🤐🤨😐😑😶😏😒🙄😬🤥😌😔😪🤤😴😷🤒🤕🤢🤮🤧🥵🥶🥴😵🤯🤠🥳😎🤓🧐🚀⚡💡🎯🎓✨👍👎👏🔧🛠️📝📊💻⭐🎉🔥💪🏆📈🎪]/g, '') // Remove emojis
+      .replace(/[\.]{2,}/g, '.') // Replace multiple dots with single dot
+      .replace(/[,]{2,}/g, ',') // Replace multiple commas with single comma  
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .replace(/\s*[,]\s*/g, ', ') // Ensure proper comma spacing
+      .replace(/\s*[.]\s*/g, '. ') // Ensure proper period spacing
       .trim();
     
     const finalText = cleanText || textToSpeak;
@@ -630,9 +635,9 @@ const AnimatedMichael: React.FC<AnimatedMichaelProps> = ({
     const detectedLanguage = hasHebrew ? 'he-IL' : 'en-US';
 
     utteranceRef.current = new SpeechSynthesisUtterance(finalText);
-    utteranceRef.current.rate = speechRate * 0.9;
-    utteranceRef.current.pitch = 0.95;
-    utteranceRef.current.volume = 0.85;
+    utteranceRef.current.rate = Math.min(speechRate * 1.2, 1.8); // Faster speech rate with max limit
+    utteranceRef.current.pitch = 1.0; // Normal pitch for clearer speech
+    utteranceRef.current.volume = 0.9; // Slightly louder
     utteranceRef.current.lang = detectedLanguage;
     
     // Voice selection
@@ -685,23 +690,19 @@ const AnimatedMichael: React.FC<AnimatedMichaelProps> = ({
       onSpeechEnd?.();
     };
 
-    // Start thinking state before speaking
-    setIsThinking(true);
-    setAvatarState('thinking');
-    setTimeout(() => {
-      try {
-        speechSynthesis.speak(utteranceRef.current!);
-        setTimeout(() => {
-          if (!speechSynthesis.speaking && !isTalking) {
-            speechSynthesis.speak(utteranceRef.current!);
-          }
-        }, 100);
-      } catch (error) {
-        console.error('Error starting speech:', error);
-        setIsThinking(false);
-        setAvatarState('idle');
-      }
-    }, 500);
+    // Start speech immediately without thinking delay
+    try {
+      speechSynthesis.speak(utteranceRef.current!);
+      // Fallback retry in case speech doesn't start
+      setTimeout(() => {
+        if (!speechSynthesis.speaking && !isTalking) {
+          speechSynthesis.speak(utteranceRef.current!);
+        }
+      }, 50); // Reduced fallback delay from 100ms to 50ms
+    } catch (error) {
+      console.error('Error starting speech:', error);
+      setAvatarState('idle');
+    }
   }, [isSpeechEnabled, speechRate, isTalking, onSpeechStart, onSpeechEnd]);
 
   const stopSpeech = useCallback(() => {
@@ -742,14 +743,14 @@ const AnimatedMichael: React.FC<AnimatedMichaelProps> = ({
     }
   }, [isTalking, isThinking, isListening]);
 
-  // Auto-play effect
+  // Auto-play effect - start speech immediately when text is ready
   useEffect(() => {
     if (autoPlay && text && isSpeechEnabled && !isPlayingRef.current) {
       const timer = setTimeout(() => {
         if (text && !isPlayingRef.current) {
           speak(text);
         }
-      }, 1000);
+      }, 200); // Reduced from 1000ms to 200ms for faster response
       
       return () => clearTimeout(timer);
     }
