@@ -87,52 +87,54 @@ class EnhancedTTSService {
   private currentAudio: HTMLAudioElement | null = null;
   private speechSynthesis: SpeechSynthesis | null = null;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
-  private audioPermissionGranted = false;
+  private userHasInteracted = false;
   private audioPermissionCallbacks: Array<(granted: boolean) => void> = [];
 
   constructor() {
     if (typeof window !== 'undefined') {
       this.speechSynthesis = window.speechSynthesis;
-      this.initializeAudioPermission();
+      this.setupUserInteractionDetection();
     }
   }
 
-  // Initialize audio permission detection
-  private async initializeAudioPermission(): Promise<void> {
-    try {
-      // Try to create a silent audio element to test autoplay permission
-      const testAudio = new Audio();
-      testAudio.volume = 0;
-      testAudio.muted = true;
+  // Setup user interaction detection
+  private setupUserInteractionDetection(): void {
+    const detectInteraction = () => {
+      this.userHasInteracted = true;
+      console.log('User interaction detected - audio permission likely available');
       
-      // Create a tiny silent audio file (data URL)
-      testAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+      // Notify all waiting callbacks
+      this.audioPermissionCallbacks.forEach(callback => callback(true));
+      this.audioPermissionCallbacks = [];
       
-      try {
-        await testAudio.play();
-        this.audioPermissionGranted = true;
-        console.log('Audio permission: Granted');
-      } catch (error) {
-        this.audioPermissionGranted = false;
-        console.log('Audio permission: Blocked (requires user interaction)');
-      }
-    } catch (error) {
-      console.warn('Could not test audio permission:', error);
-    }
+      // Remove listeners after first interaction
+      document.removeEventListener('click', detectInteraction);
+      document.removeEventListener('touchstart', detectInteraction);
+      document.removeEventListener('keydown', detectInteraction);
+    };
+
+    // Listen for any user interaction
+    document.addEventListener('click', detectInteraction);
+    document.addEventListener('touchstart', detectInteraction);
+    document.addEventListener('keydown', detectInteraction);
   }
 
   // Request audio permission through user interaction
   async requestAudioPermission(): Promise<boolean> {
-    if (this.audioPermissionGranted) return true;
+    if (this.userHasInteracted) return true;
 
+    // Try to enable audio permission by attempting real audio playback
     try {
-      // Try to play a silent audio to get permission
+      // Create a very short, quiet test audio
       const testAudio = new Audio();
-      testAudio.volume = 0;
+      testAudio.volume = 0.01; // Very quiet but not muted
       testAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
       
-      await testAudio.play();
-      this.audioPermissionGranted = true;
+      const playPromise = testAudio.play();
+      await playPromise;
+      
+      this.userHasInteracted = true;
+      console.log('Audio permission granted through test playback');
       
       // Notify all waiting callbacks
       this.audioPermissionCallbacks.forEach(callback => callback(true));
@@ -140,19 +142,19 @@ class EnhancedTTSService {
       
       return true;
     } catch (error) {
-      console.warn('Audio permission request failed:', error);
+      console.log('Audio permission request failed - user interaction required:', error);
       return false;
     }
   }
 
-  // Check if audio permission is granted
+  // Check if audio permission is likely granted
   hasAudioPermission(): boolean {
-    return this.audioPermissionGranted;
+    return this.userHasInteracted;
   }
 
   // Wait for audio permission
   waitForAudioPermission(): Promise<boolean> {
-    if (this.audioPermissionGranted) {
+    if (this.userHasInteracted) {
       return Promise.resolve(true);
     }
 
@@ -361,19 +363,6 @@ class EnhancedTTSService {
       // Stop any current speech
       this.stop();
 
-      // Check audio permission first
-      if (!this.audioPermissionGranted) {
-        console.log('Audio permission not granted, attempting to request...');
-        const granted = await this.requestAudioPermission();
-        if (!granted) {
-          // Audio is blocked - provide helpful error
-          const audioError = new Error('AUDIO_PERMISSION_REQUIRED');
-          audioError.message = 'Audio requires user interaction. Please click the sound button to enable audio.';
-          options.onError?.(audioError);
-          return;
-        }
-      }
-
       // Try OpenAI TTS first if enabled and available
       if (options.useOpenAI !== false) {
         try {
@@ -387,17 +376,30 @@ class EnhancedTTSService {
             console.log('Using cached OpenAI TTS audio');
           }
 
-          // Play audio immediately when ready
+          // Play audio with robust error handling
           this.currentAudio = new Audio(audioUrl);
           this.currentAudio.volume = options.volume || 0.8;
           this.currentAudio.playbackRate = options.speed || 1.0;
           
           try {
-            await this.currentAudio.play();
+            console.log('Attempting to play audio...');
+            const playPromise = this.currentAudio.play();
+            await playPromise;
+            console.log('Audio playback started successfully');
+            
+            // Mark that we successfully played audio
+            this.userHasInteracted = true;
+            
           } catch (playError) {
+            console.error('Audio play failed:', playError);
+            
             // If play fails due to autoplay policy, inform user
-            if (playError instanceof Error && playError.name === 'NotAllowedError') {
-              this.audioPermissionGranted = false;
+            if (playError instanceof Error && 
+                (playError.name === 'NotAllowedError' || 
+                 playError.message.includes('play() request was interrupted') ||
+                 playError.message.includes('user didn\'t interact'))) {
+              
+              this.userHasInteracted = false;
               const audioError = new Error('AUDIO_AUTOPLAY_BLOCKED');
               audioError.message = 'Audio was blocked by browser. Click the sound button to enable audio.';
               options.onError?.(audioError);
@@ -410,14 +412,21 @@ class EnhancedTTSService {
             if (!this.currentAudio) return reject(new Error('No audio'));
             
             this.currentAudio.onended = () => {
+              console.log('Audio playback ended');
               options.onEnd?.();
               resolve();
             };
+            
             this.currentAudio.onerror = (error) => {
               console.error('Audio playback error:', error);
               const err = new Error('Audio playback error');
               options.onError?.(err);
               reject(err);
+            };
+            
+            // Also handle cases where audio gets paused or interrupted
+            this.currentAudio.onpause = () => {
+              console.log('Audio was paused unexpectedly');
             };
           });
           
@@ -428,6 +437,7 @@ class EnhancedTTSService {
       }
 
       // Use browser TTS as fallback (onStart already called above)
+      console.log('Using browser TTS fallback');
       await this.generateBrowserTTS(text, { ...options, onStart: undefined }); // Don't call onStart again
       options.onEnd?.();
       
