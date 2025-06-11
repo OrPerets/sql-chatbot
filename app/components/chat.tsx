@@ -576,6 +576,11 @@ const loadChatMessages = (chatId: string) => {
 
   // handleRunCompleted - re-enable the input form
   const handleRunCompleted = () => {
+    console.log('🏁 handleRunCompleted called!');
+    console.log('📝 lastAssistantMessage:', lastAssistantMessage ? lastAssistantMessage.substring(0, 50) + '...' : 'EMPTY');
+    console.log('🔊 autoPlaySpeech:', autoPlaySpeech);
+    console.log('🎵 speechText current:', speechText ? speechText.substring(0, 50) + '...' : 'EMPTY');
+    
     setInputDisabled(false);
     setIsThinking(false); // Stop thinking when run is completed
     
@@ -583,6 +588,11 @@ const loadChatMessages = (chatId: string) => {
     if (lastAssistantMessage && autoPlaySpeech) {
       console.log('🎵 Message streaming complete - triggering speech for:', lastAssistantMessage.substring(0, 50) + '...');
       setSpeechText(lastAssistantMessage);
+    } else {
+      console.log('❌ Speech not triggered because:', {
+        hasMessage: !!lastAssistantMessage,
+        autoPlayEnabled: autoPlaySpeech
+      });
     }
   };
 
@@ -613,8 +623,17 @@ const loadChatMessages = (chatId: string) => {
 
 
   const endStreamResponse = () => {
-    setIsDone(true)
-  }
+    console.log('🔚 endStreamResponse called!');
+    setInputDisabled(false);
+    setIsThinking(false);
+    
+    // Backup mechanism: if we have a message and auto-play is enabled, trigger speech
+    // This is in case handleRunCompleted never gets called
+    if (lastAssistantMessage && autoPlaySpeech) {
+      console.log('🔄 Backup speech trigger from endStreamResponse:', lastAssistantMessage.substring(0, 50) + '...');
+      setSpeechText(lastAssistantMessage);
+    }
+  };
 
   useEffect(() => {
     const storedUser = localStorage.getItem("currentUser");
@@ -651,9 +670,13 @@ const loadChatMessages = (chatId: string) => {
 
     // events without helpers yet (e.g. requires_action and run.done)
     stream.on("event", (event) => {
+      console.log('🎪 Stream event received:', event.event, event);
       if (event.event === "thread.run.requires_action")
         handleRequiresAction(event);
-      if (event.event === "thread.run.completed") handleRunCompleted();
+      if (event.event === "thread.run.completed") {
+        console.log('🎯 Received thread.run.completed event!');
+        handleRunCompleted();
+      }
     });
   };
 
