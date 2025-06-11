@@ -807,7 +807,6 @@ const AnimatedMichael: React.FC<AnimatedMichaelProps> = ({
               className={styles.lottieAnimation}
               rendererSettings={{
                 preserveAspectRatio: 'xMidYMid slice',
-                clearCanvas: true,
                 progressiveLoad: true,
                 hideOnTransparent: true
               }}
