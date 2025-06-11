@@ -582,7 +582,7 @@ const AnimatedMichael: React.FC<AnimatedMichaelProps> = ({
   const [avatarState, setAvatarState] = useState<AvatarState>('idle');
   const [isTalking, setIsTalking] = useState(false);
   const [isSpeechEnabled, setIsSpeechEnabled] = useState(true);
-  const [speechRate, setSpeechRate] = useState(1);
+  const [speechRate, setSpeechRate] = useState(1.2); // Start with faster default speed
   const [showSettings, setShowSettings] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   
@@ -635,7 +635,7 @@ const AnimatedMichael: React.FC<AnimatedMichaelProps> = ({
     const detectedLanguage = hasHebrew ? 'he-IL' : 'en-US';
 
     utteranceRef.current = new SpeechSynthesisUtterance(finalText);
-    utteranceRef.current.rate = Math.min(speechRate * 1.2, 1.8); // Faster speech rate with max limit
+    utteranceRef.current.rate = Math.min(speechRate * 1.4, 2.0); // Even faster speech rate with higher max limit
     utteranceRef.current.pitch = 1.0; // Normal pitch for clearer speech
     utteranceRef.current.volume = 0.9; // Slightly louder
     utteranceRef.current.lang = detectedLanguage;
@@ -698,7 +698,7 @@ const AnimatedMichael: React.FC<AnimatedMichaelProps> = ({
         if (!speechSynthesis.speaking && !isTalking) {
           speechSynthesis.speak(utteranceRef.current!);
         }
-      }, 50); // Reduced fallback delay from 100ms to 50ms
+      }, 25); // Ultra-fast fallback retry
     } catch (error) {
       console.error('Error starting speech:', error);
       setAvatarState('idle');
@@ -750,7 +750,7 @@ const AnimatedMichael: React.FC<AnimatedMichaelProps> = ({
         if (text && !isPlayingRef.current) {
           speak(text);
         }
-      }, 200); // Reduced from 1000ms to 200ms for faster response
+      }, 50); // Ultra-fast response - reduced to 50ms for immediate speech
       
       return () => clearTimeout(timer);
     }
