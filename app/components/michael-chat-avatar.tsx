@@ -354,9 +354,9 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [voiceSettings, setVoiceSettings] = useState<TTSOptions>({
     voice: 'echo',
-    speed: 1.0,
+    speed: 1.4,
     volume: 0.9,
-    useOpenAI: true,
+    useOpenAI: false,
     characterStyle: 'university_ta',
     enhanceProsody: true,
     backgroundAmbiance: false
@@ -371,19 +371,36 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
     try {
       // Stop any current speech
       enhancedTTS.stop();
-      setIsInternalThinking(true);
+      
+      // Set talking state IMMEDIATELY for instant visual feedback
+      setIsTalking(true);
+      setIsInternalThinking(false);
+      isPlayingRef.current = true;
+      onSpeechStart?.();
+      
+      // Clean text to remove extra spaces and formatting that might cause delays
+      const cleanText = textToSpeak
+        .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+        .replace(/^\s+|\s+$/g, '') // Trim leading/trailing spaces
+        .replace(/\n+/g, ' ') // Replace newlines with spaces
+        .trim();
       
       // Use enhanced TTS with current voice settings
-      await enhancedTTS.speak(textToSpeak, {
+      await enhancedTTS.speak(cleanText, {
         ...voiceSettings,
         onStart: () => {
-          setIsTalking(true);
-          setIsInternalThinking(false);
-          isPlayingRef.current = true;
-          onSpeechStart?.();
+          // Already set above for instant feedback
+          console.log('Speech started');
         },
         onEnd: () => {
           setIsTalking(false);
+          isPlayingRef.current = false;
+          onSpeechEnd?.();
+        },
+        onError: (error) => {
+          console.error('TTS Error:', error);
+          setIsTalking(false);
+          setIsInternalThinking(false);
           isPlayingRef.current = false;
           onSpeechEnd?.();
         }
@@ -426,7 +443,7 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
         if (text && !isPlayingRef.current) {
           speak(text);
         }
-      }, 1000);
+      }, 0); // INSTANT response - 0ms delay for perfect text-audio synchronization
       
       return () => clearTimeout(timer);
     }
@@ -520,14 +537,36 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
       {/* Enhanced Voice Controls */}
       <div className={styles.voiceControls}>
         {/* Speech toggle button */}
-        {/* <button
-          className={`${styles.voiceButton} ${isTalking ? styles.stopButton : styles.playButton}`}
-          onClick={() => isTalking ? stopSpeech() : (text && speak(text))}
-          disabled={isInternalThinking || !text}
-          title={isTalking ? "Stop speaking" : "Speak message"}
+        <button
+          className={`${styles.voiceButton} ${!isSpeechEnabled ? styles.disabled : isTalking ? styles.stopButton : styles.playButton}`}
+          onClick={() => {
+            if (!isSpeechEnabled) {
+              setIsSpeechEnabled(true);
+            } else if (isTalking) {
+              stopSpeech();
+            } else if (text) {
+              speak(text);
+            }
+          }}
+          disabled={isInternalThinking}
+          title={!isSpeechEnabled ? "Enable speech" : isTalking ? "Stop speaking" : "Speak message"}
         >
-          {isTalking ? <VolumeX size={16} /> : <Volume2 size={16} />}
-        </button> */}
+          {!isSpeechEnabled ? <VolumeX size={16} /> : isTalking ? <VolumeX size={16} /> : <Volume2 size={16} />}
+        </button>
+
+        {/* Speech enable/disable toggle */}
+        <button
+          className={`${styles.voiceButton} ${styles.toggleButton} ${!isSpeechEnabled ? styles.disabled : ''}`}
+          onClick={() => {
+            setIsSpeechEnabled(!isSpeechEnabled);
+            if (isTalking) {
+              stopSpeech();
+            }
+          }}
+          title={isSpeechEnabled ? "Disable speech" : "Enable speech"}
+        >
+          {isSpeechEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+        </button>
 
         {/* Voice settings button */}
         

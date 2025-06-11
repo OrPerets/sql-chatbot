@@ -176,34 +176,30 @@ class EnhancedTTSService {
       .replace(/\*\*(.*?)\*\*/g, '$1')
       .replace(/\*(.*?)\*/g, '$1')
       .replace(/```[\s\S]*?```/g, ' code block ')
-      .replace(/😊|😀|😃|😄|😁|😆|😅|🤣|😂|🙂|🙃|😉|😇|🥰|😍|🤩|😘|😗|😚|😙|😋|😛|😜|🤪|😝|🤑|🤗|🤭|🤫|🤔|🤐|🤨|😐|😑|😶|😏|😒|🙄|😬|🤥|😌|😔|😪|🤤|😴|😷|🤒|🤕|🤢|🤮|🤧|🥵|🥶|🥴|😵|🤯|🤠|🥳|😎|🤓|🧐|🚀|⚡|💡|🎯|🎓|✨|👍|👎|👏|🔧|🛠️|📝|📊|💻|⭐|🎉|🔥|💪|🏆|📈|🎪/g, '')
+      .replace(/😊|😀|😃|😄|😁|😆|😅|🤣|😂|🙂|🙃|😉|😇|🥰|😍|🤩|😘|😗|😚|😙|😋|😛|😜|🤪|😝|🤑|🤗|🤭|🤫|🤔|🤐|🤨|😐|😑|😶|😏|😒|🙄|😬|🤥|😌|😔|😪|🤤|😴|😷|🤒|🤕|🤢|🤮|🤧|🥵|🥶|🥴|😵|🤯|🤠|🥳|😎|🤓|🧐|🚀|⚡|💡|🎯|🎓|✨|👍|👎|👏|🔧|🛠️|📝|📊|💻|⭐|🎉|🔥|💪|🏆|📈|🎪]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
 
     // Create utterance
     this.currentUtterance = new SpeechSynthesisUtterance(cleanText);
     this.currentUtterance.lang = language === 'he' ? 'he-IL' : 'en-US';
-    this.currentUtterance.rate = (options.speed || 1.0) * 0.9;
-    this.currentUtterance.pitch = options.pitch || 0.95;
+    this.currentUtterance.rate = Math.min((options.speed || 1.4) * 1.6, 2.5); // Ultra-fast speech like the components
+    this.currentUtterance.pitch = options.pitch || 1.0;
     this.currentUtterance.volume = options.volume || 0.9;
 
-    // Select browser voice
+    // FAST voice selection - get voices once and use first available
     const voices = this.speechSynthesis.getVoices();
     let selectedVoice = null;
     
     if (language === 'he') {
       selectedVoice = voices.find(voice => 
-        voice.lang.includes('he') || voice.lang.includes('iw') ||
-        voice.name.toLowerCase().includes('carmit') || 
-        voice.name.toLowerCase().includes('hebrew')
+        voice.lang.includes('he') || voice.lang.includes('iw')
       );
-    } else {
-      // Prefer male voices for university TA character
-      selectedVoice = voices.find(voice => {
-        const name = voice.name.toLowerCase();
-        return name.includes('alex') || name.includes('daniel') || 
-               name.includes('thomas') || name.includes('male');
-      });
+    }
+    
+    if (!selectedVoice) {
+      // Use first available voice for the language, or just first voice
+      selectedVoice = voices.find(voice => voice.lang.startsWith(language === 'he' ? 'he' : 'en')) || voices[0];
     }
     
     if (selectedVoice) {
@@ -216,9 +212,23 @@ class EnhancedTTSService {
         return;
       }
 
-      this.currentUtterance.onend = () => resolve();
-      this.currentUtterance.onerror = (event) => reject(new Error(`Speech error: ${event.error}`));
+      this.currentUtterance.onstart = () => {
+        // Call onStart immediately when speech actually starts
+        options.onStart?.();
+      };
+
+      this.currentUtterance.onend = () => {
+        options.onEnd?.();
+        resolve();
+      };
       
+      this.currentUtterance.onerror = (event) => {
+        const err = new Error(`Speech error: ${event.error}`);
+        options.onError?.(err);
+        reject(err);
+      };
+      
+      // Start speech immediately
       this.speechSynthesis!.speak(this.currentUtterance);
     });
   }
@@ -226,9 +236,6 @@ class EnhancedTTSService {
   // Main speak method
   async speak(text: string, options: TTSOptions = {}): Promise<void> {
     if (!text.trim()) return;
-
-    // Call onStart callback IMMEDIATELY for instant visual feedback
-    options.onStart?.();
 
     const cacheKey = this.getCacheKey(text, options);
     
@@ -251,6 +258,11 @@ class EnhancedTTSService {
           this.currentAudio.volume = options.volume || 0.9;
           this.currentAudio.playbackRate = options.speed || 1.0;
           
+          // Call onStart when audio actually starts playing
+          this.currentAudio.onloadstart = () => {
+            options.onStart?.();
+          };
+          
           await this.currentAudio.play();
           
           return new Promise((resolve, reject) => {
@@ -272,9 +284,8 @@ class EnhancedTTSService {
         }
       }
 
-      // Fallback to browser TTS
+      // Use browser TTS (onStart will be called by generateBrowserTTS when speech starts)
       await this.generateBrowserTTS(text, options);
-      options.onEnd?.();
       
     } catch (error) {
       console.error('All TTS methods failed:', error);
