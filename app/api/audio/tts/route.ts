@@ -116,9 +116,8 @@ export async function POST(request: NextRequest) {
 
     // Apply character-specific enhancements
     if (character_style === 'university_ta') {
-      // Make it sound more like a friendly TA
+      // Make it sound more like a friendly TA (removed "Alright" prefix for direct speech)
       processedText = processedText
-        .replace(/^/, 'Alright, ')  // Add friendly opening
         .replace(/\b(let me|let's)\b/gi, 'let\'s')
         .replace(/\b(you see|you can see)\b/gi, 'you\'ll notice')
         .replace(/\b(this is|this shows)\b/gi, 'here we have');
