@@ -354,8 +354,8 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [voiceSettings, setVoiceSettings] = useState<TTSOptions>({
     voice: 'echo',
-    speed: 1.0,
-    volume: 0.8,
+    speed: 0.9,
+    volume: 0.75,
     useOpenAI: false,
     characterStyle: 'university_ta',
     enhanceProsody: true,
@@ -378,14 +378,17 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
       isPlayingRef.current = true;
       onSpeechStart?.();
       
-      // Clean text to remove extra spaces and formatting that might cause delays
+      // Clean text for natural teaching speech with student comprehension focus
       const cleanText = textToSpeak
         .replace(/\s+/g, ' ') // Replace multiple spaces with single space
         .replace(/^\s+|\s+$/g, '') // Trim leading/trailing spaces
-        .replace(/\n+/g, '. ') // Replace newlines with natural pauses
-        .replace(/[.]{2,}/g, '.') // Clean up multiple dots
+        .replace(/\n\n+/g, '... ') // Double newlines become thoughtful pauses
+        .replace(/\n+/g, '. ') // Single newlines become sentence breaks
+        .replace(/([.!?])\s*([A-Z])/g, '$1... $2') // Add thoughtful pause after sentences
+        .replace(/[.]{2,}/g, '...') // Normalize multiple dots to ellipses
         .replace(/\s*[.]\s*/g, '. ') // Proper period spacing for natural pauses
         .replace(/\s*[,]\s*/g, ', ') // Proper comma spacing for brief pauses
+        .replace(/\s*[...]\s*/g, '... ') // Proper ellipses spacing for thinking pauses
         .trim();
       
       // Use enhanced TTS with current voice settings
