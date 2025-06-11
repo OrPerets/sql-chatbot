@@ -224,7 +224,7 @@ const Chat = ({
   const [sqlMode, setSqlMode] = useState<'none' | 'create' | 'insert'>('none');
   // Add audio and speech state
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
-  const [autoPlaySpeech, setAutoPlaySpeech] = useState(false);
+  const [autoPlaySpeech, setAutoPlaySpeech] = useState(true);
   // Add sidebar visibility state
   const [sidebarVisible, setSidebarVisible] = useState(true);
 
@@ -955,21 +955,8 @@ return (
 )} */}
     
     <div className={styles.rightColumn}>
-      <div className={styles.avatarSection}>
-        <MichaelChatAvatar
-          text={lastAssistantMessage}
-          autoPlay={autoPlaySpeech}
-          size="medium"
-          isListening={isRecording}
-          isThinking={isThinking}
-        />
-        
-        {/* User info below the avatar */}
-        <div className={styles.userInfo}>
-          <div className={styles.nickname}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', }}>
-              <span>היי {currentUser}</span>
-              <button
+       <div style={{display:"flex", justifyContent:"flex-end", alignItems:"right", gap:"10px", marginBottom:"10px"}}>
+            <button
                 className={`${styles.audioToggle} ${autoPlaySpeech ? styles.audioToggleOn : styles.audioToggleOff}`}
                 onClick={() => setAutoPlaySpeech(!autoPlaySpeech)}
                 title={autoPlaySpeech ? "השבת קול אוטומטי" : "הפעל קול אוטומטי"}
@@ -989,13 +976,29 @@ return (
                 )}
               </button>
             </div>
+      <div className={styles.avatarSection}>
+        <MichaelChatAvatar
+          text={lastAssistantMessage}
+          autoPlay={autoPlaySpeech}
+          size="medium"
+          isListening={isRecording}
+          isThinking={isThinking}
+        />
+        
+        {/* User info below the avatar */}
+        {/* <div className={styles.userInfo}>
+         
+        </div> */}
+        <div className={styles.nickname}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', }}>
+              <span>היי {currentUser}</span>
+            </div>
             {isTokenBalanceVisible && (
             <div>
               יתרה נוכחית: ₪{currentBalance}
             </div>
           )}
           </div>
-        </div>
       </div>
     </div>
     <Modal isOpen={showModal} onClose={toggleModal}>
