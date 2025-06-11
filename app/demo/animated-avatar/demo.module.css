@@ -1,0 +1,363 @@
+.demoContainer {
+  min-height: 100vh;
+  background: linear-gradient(135deg, 
+    #667eea 0%, 
+    #764ba2 25%, 
+    #f093fb 50%, 
+    #f5576c 75%, 
+    #4facfe 100%);
+  padding: 40px 20px;
+  color: white;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.title {
+  font-size: 3.5rem;
+  font-weight: bold;
+  margin-bottom: 20px;
+  text-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(45deg, #fff, #f0f8ff, #e6f3ff);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  font-size: 1.3rem;
+  opacity: 0.9;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.mainDemo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  max-width: 1200px;
+  margin: 0 auto 80px auto;
+  align-items: center;
+}
+
+.avatarSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.avatarContainer {
+  margin-bottom: 30px;
+  padding: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.demoAvatar {
+  filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.3));
+}
+
+.stateInfo {
+  max-width: 400px;
+}
+
+.stateName {
+  font-size: 2rem;
+  margin-bottom: 15px;
+  font-weight: bold;
+}
+
+.stateDescription {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  line-height: 1.6;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.stateControls h4,
+.demoControls h4 {
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+
+.stateButtons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.stateButton {
+  padding: 15px 20px;
+  border: none;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.stateButton:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.stateButton.active {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+  transform: translateY(-2px);
+}
+
+.demoControls {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.controlButton {
+  padding: 15px 25px;
+  border: none;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.controlButton:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.controlButton.active {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  box-shadow: 0 8px 25px rgba(240, 147, 251, 0.4);
+}
+
+.features {
+  max-width: 1200px;
+  margin: 0 auto 80px auto;
+  text-align: center;
+}
+
+.features h2 {
+  font-size: 2.5rem;
+  margin-bottom: 50px;
+  font-weight: bold;
+}
+
+.featureGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+}
+
+.feature {
+  padding: 30px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: center;
+}
+
+.feature:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.featureIcon {
+  font-size: 3rem;
+  margin-bottom: 20px;
+  display: block;
+}
+
+.feature h3 {
+  font-size: 1.5rem;
+  margin-bottom: 15px;
+  font-weight: bold;
+}
+
+.feature p {
+  opacity: 0.9;
+  line-height: 1.6;
+}
+
+.sizeDemos {
+  max-width: 1200px;
+  margin: 0 auto 80px auto;
+  text-align: center;
+}
+
+.sizeDemos h2 {
+  font-size: 2.5rem;
+  margin-bottom: 50px;
+  font-weight: bold;
+}
+
+.sizeContainer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 40px;
+  align-items: center;
+}
+
+.sizeDemo {
+  padding: 30px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sizeDemo:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.sizeDemo h4 {
+  font-size: 1.3rem;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+
+.smallDemo,
+.mediumDemo,
+.largeDemo {
+  filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.3));
+}
+
+.footer {
+  text-align: center;
+  padding-top: 40px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  opacity: 0.8;
+}
+
+.footer p {
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .mainDemo {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  
+  .title {
+    font-size: 2.8rem;
+  }
+  
+  .featureGrid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .demoContainer {
+    padding: 20px 15px;
+  }
+  
+  .title {
+    font-size: 2.2rem;
+  }
+  
+  .subtitle {
+    font-size: 1.1rem;
+  }
+  
+  .stateButtons {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  .sizeContainer {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+  
+  .avatarContainer {
+    padding: 20px;
+  }
+  
+  .feature {
+    padding: 20px;
+  }
+  
+  .features h2,
+  .sizeDemos h2 {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .title {
+    font-size: 1.8rem;
+  }
+  
+  .stateName {
+    font-size: 1.5rem;
+  }
+  
+  .stateDescription {
+    font-size: 1rem;
+  }
+  
+  .controlButton,
+  .stateButton {
+    padding: 12px 20px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .feature,
+  .sizeDemo,
+  .avatarContainer {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .stateButton,
+  .controlButton {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .stateButton:hover,
+  .controlButton:hover {
+    background: rgba(0, 0, 0, 0.3);
+  }
+} 

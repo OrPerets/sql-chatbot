@@ -13,12 +13,80 @@
   text-align: center;
 }
 
-.botImage {
+.avatarContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 2rem;
+}
+
+.animatedAvatarWrapper {
+  position: relative;
   width: 180px;
   height: 180px;
-  margin-right: 2rem;
   border-radius: 50%;
+  overflow: hidden;
+  background: radial-gradient(circle at center, 
+    rgba(255, 255, 255, 0.9) 0%, 
+    rgba(248, 250, 252, 0.8) 50%, 
+    rgba(226, 232, 240, 0.6) 100%);
+  backdrop-filter: blur(20px);
+  box-shadow: 
+    0 20px 60px rgba(59, 130, 246, 0.2),
+    0 8px 24px rgba(59, 130, 246, 0.15),
+    inset 0 2px 4px rgba(255, 255, 255, 0.4);
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: welcomeFloat 4s ease-in-out infinite;
+}
+
+.botImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  filter: brightness(1.1) contrast(1.05) saturate(1.1);
+  transition: transform 0.3s ease;
+  z-index: 2;
+  position: relative;
   padding: 15px;
+  box-sizing: border-box;
+}
+
+.breathingEffect {
+  position: absolute;
+  top: -15px;
+  left: -15px;
+  right: -15px;
+  bottom: -15px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center,
+    transparent 60%,
+    rgba(59, 130, 246, 0.15) 70%,
+    rgba(59, 130, 246, 0.08) 80%,
+    transparent 90%);
+  animation: breathingGlow 3s ease-in-out infinite;
+  z-index: 0;
+}
+
+.welcomeGlow {
+  position: absolute;
+  top: -20px;
+  left: -20px;
+  right: -20px;
+  bottom: -20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: linear-gradient(45deg, 
+    rgba(59, 130, 246, 0.4), 
+    rgba(168, 85, 247, 0.4), 
+    rgba(34, 197, 94, 0.4),
+    rgba(239, 68, 68, 0.4)) border-box;
+  mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: welcomeRotate 8s linear infinite;
+  opacity: 0.6;
+  z-index: 1;
 }
 
 .logoWrapper {
@@ -41,11 +109,53 @@
 .assistantTitle {
   color: #e5eefd;
   margin: 0;
+  font-size: 2.5rem;
+  font-weight: bold;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .assistantSubtitle {
   color: #e5eefd;
   margin: 0;
+  font-size: 1.2rem;
+  opacity: 0.9;
+}
+
+.welcomeMessage {
+  color: #e5eefd;
+  margin: 10px 0 0 0;
+  font-size: 1rem;
+  opacity: 0.8;
+  font-style: italic;
+}
+
+@keyframes welcomeFloat {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) scale(1.02);
+  }
+}
+
+@keyframes breathingGlow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes welcomeRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .loginCard {

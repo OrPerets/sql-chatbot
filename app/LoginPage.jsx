@@ -91,8 +91,8 @@ const LoginPage = () => {
         }
       });
       const data = await response.json();
-      setStatus(data["status"])
-      // setStatus("ON")
+      // setStatus(data["status"])
+      setStatus("ON")
       // setUsers(data);
     } catch (error) {
       setError('Failed to fetch status. Please try again.');
@@ -192,11 +192,18 @@ const LoginPage = () => {
       {status === "ON" && (
         <div>
         <div className={styles.logoWrapper}>
-        <img className={styles.botImage} src="bot.png" alt="Bot" />
+        <div className={styles.avatarContainer}>
+          <div className={styles.animatedAvatarWrapper}>
+            <img className={styles.botImage} src="bot.png" alt="Bot" />
+            <div className={styles.breathingEffect}></div>
+            <div className={styles.welcomeGlow}></div>
+          </div>
+        </div>
         <div className={styles.assistantName}>
           <img className={styles.logoImage} src="logo.png" alt="Logo" />
           <h2 className={styles.assistantTitle}>MICHAEL</h2>
           <p className={styles.assistantSubtitle}>SQL AI Assistant</p>
+          <p className={styles.welcomeMessage}>Ready to help you master SQL!</p>
         </div>
       </div>
       <div className={styles.loginCard}>
