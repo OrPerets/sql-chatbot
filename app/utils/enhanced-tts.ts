@@ -227,14 +227,14 @@ class EnhancedTTSService {
   async speak(text: string, options: TTSOptions = {}): Promise<void> {
     if (!text.trim()) return;
 
+    // Call onStart callback IMMEDIATELY for instant visual feedback
+    options.onStart?.();
+
     const cacheKey = this.getCacheKey(text, options);
     
     try {
       // Stop any current speech
       this.stop();
-
-      // Call onStart callback
-      options.onStart?.();
 
       // Try OpenAI TTS first if enabled and available
       if (options.useOpenAI !== false) {
