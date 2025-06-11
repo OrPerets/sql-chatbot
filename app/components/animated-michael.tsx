@@ -585,10 +585,12 @@ const AnimatedMichael: React.FC<AnimatedMichaelProps> = ({
   const [speechRate, setSpeechRate] = useState(1.5); // Ultra-fast default speed for instant response
   const [showSettings, setShowSettings] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  const [voicesLoaded, setVoicesLoaded] = useState(false);
   
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const isPlayingRef = useRef(false);
   const lottieRef = useRef<any>(null);
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
   // Animation data cache
   const animations = useRef({
@@ -597,6 +599,33 @@ const AnimatedMichael: React.FC<AnimatedMichaelProps> = ({
     listening: createListeningAnimation(),
     thinking: createThinkingAnimation()
   });
+
+  // Preload and cache voices immediately
+  const loadVoices = useCallback(() => {
+    const voices = speechSynthesis.getVoices();
+    voicesRef.current = voices;
+    if (voices.length > 0) {
+      setVoicesLoaded(true);
+      console.log('Voices loaded:', voices.length);
+    }
+  }, []);
+
+  // Initialize voices immediately
+  useEffect(() => {
+    loadVoices();
+    
+    // Ensure voices are loaded on voice change
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = loadVoices;
+    }
+    
+    // Fallback - try loading voices after delay
+    const timer = setTimeout(loadVoices, 100);
+    
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [loadVoices]);
 
   const speak = useCallback((textToSpeak: string) => {
     if (!isSpeechEnabled || !textToSpeak.trim()) {
@@ -608,100 +637,96 @@ const AnimatedMichael: React.FC<AnimatedMichaelProps> = ({
       return;
     }
 
-    // Stop any current speech
+    // Stop any current speech immediately
     if (speechSynthesis.speaking) {
       speechSynthesis.cancel();
     }
-
-    // Clean text for speech - optimized for faster, smoother speech
-    const cleanText = textToSpeak
-      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold markdown
-      .replace(/\*(.*?)\*/g, '$1') // Remove italic markdown
-      .replace(/```[\s\S]*?```/g, 'code block') // Replace code blocks with readable text
-      .replace(/`([^`]+)`/g, '$1') // Remove inline code backticks
-      .replace(/\b(SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|CREATE|TABLE|DATABASE)\b/gi, '') // Remove SQL keywords
-      .replace(/[😊😀😃😄😁😆😅🤣😂🙂🙃😉😇🥰😍🤩😘😗😚😙😋😛😜🤪😝🤑🤗🤭🤫🤔🤐🤨😐😑😶😏😒🙄😬🤥😌😔😪🤤😴😷🤒🤕🤢🤮🤧🥵🥶🥴😵🤯🤠🥳😎🤓🧐🚀⚡💡🎯🎓✨👍👎👏🔧🛠️📝📊💻⭐🎉🔥💪🏆📈🎪]/g, '') // Remove emojis
-      .replace(/[\.]{2,}/g, '.') // Replace multiple dots with single dot
-      .replace(/[,]{2,}/g, ',') // Replace multiple commas with single comma  
-      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-      .replace(/\s*[,]\s*/g, ', ') // Ensure proper comma spacing
-      .replace(/\s*[.]\s*/g, '. ') // Ensure proper period spacing
-      .trim();
     
-    const finalText = cleanText || textToSpeak;
+    // Small delay to ensure cancel is processed
+    setTimeout(() => {
+      // Clean text for speech - optimized for faster, smoother speech
+      const cleanText = textToSpeak
+        .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold markdown
+        .replace(/\*(.*?)\*/g, '$1') // Remove italic markdown
+        .replace(/```[\s\S]*?```/g, 'code block') // Replace code blocks with readable text
+        .replace(/`([^`]+)`/g, '$1') // Remove inline code backticks
+        .replace(/\b(SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|CREATE|TABLE|DATABASE)\b/gi, '') // Remove SQL keywords
+        .replace(/[😊😀😃😄😁😆😅🤣😂🙂🙃😉😇🥰😍🤩😘😗😚😙😋😛😜🤪😝🤑🤗🤭🤫🤔🤐🤨😐😑😶😏😒🙄😬🤥😌😔😪🤤😴😷🤒🤕🤢🤮🤧🥵🥶🥴😵🤯🤠🥳😎🤓🧐🚀⚡💡🎯🎓✨👍👎👏🔧🛠️📝📊💻⭐🎉🔥💪🏆📈🎪]/g, '') // Remove emojis
+        .replace(/[\.]{2,}/g, '.') // Replace multiple dots with single dot
+        .replace(/[,]{2,}/g, ',') // Replace multiple commas with single comma  
+        .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+        .replace(/\s*[,]\s*/g, ', ') // Ensure proper comma spacing
+        .replace(/\s*[.]\s*/g, '. ') // Ensure proper period spacing
+        .trim();
+      
+      const finalText = cleanText || textToSpeak;
 
-    // Detect language
-    const hasHebrew = /[\u0590-\u05FF]/.test(finalText);
-    const detectedLanguage = hasHebrew ? 'he-IL' : 'en-US';
+      // Detect language
+      const hasHebrew = /[\u0590-\u05FF]/.test(finalText);
+      const detectedLanguage = hasHebrew ? 'he-IL' : 'en-US';
 
-    utteranceRef.current = new SpeechSynthesisUtterance(finalText);
-    utteranceRef.current.rate = Math.min(speechRate * 1.6, 2.5); // Maximum speed! 1.5 * 1.6 = 2.4x (ultra-fast)
-    utteranceRef.current.pitch = 1.0; // Normal pitch for clearer speech
-    utteranceRef.current.volume = 0.9; // Slightly louder
-    utteranceRef.current.lang = detectedLanguage;
-    
-    // Voice selection
-    const voices = speechSynthesis.getVoices();
-    let selectedVoice = null;
-    
-    if (hasHebrew) {
-      selectedVoice = voices.find(voice => 
-        voice.lang.includes('he') || voice.lang.includes('iw') ||
-        voice.name.toLowerCase().includes('carmit') || 
-        voice.name.toLowerCase().includes('hebrew')
-      );
-    }
-    
-    if (!selectedVoice) {
-      selectedVoice = voices.find(voice => {
-        const name = voice.name.toLowerCase();
-        return name.includes('grandpa') || name.includes('aaron') || name.includes('arthur') || 
-            name.includes('gordon') || name.includes('martin') || name.includes('jacques') ||
-            name.includes('eddy') || name.includes('reed') || name.includes('rocko') ||
-            (name.includes('male') && !name.includes('female'));
-      });
-    }
-    
-    if (selectedVoice) {
-      utteranceRef.current.voice = selectedVoice;
-    }
+      utteranceRef.current = new SpeechSynthesisUtterance(finalText);
+      utteranceRef.current.rate = Math.min(speechRate * 1.6, 2.5); // Maximum speed! 1.5 * 1.6 = 2.4x (ultra-fast)
+      utteranceRef.current.pitch = 1.0; // Normal pitch for clearer speech
+      utteranceRef.current.volume = 0.9; // Slightly louder
+      utteranceRef.current.lang = detectedLanguage;
+      
+      // FAST voice selection using cached voices
+      let selectedVoice = null;
+      const voices = voicesRef.current.length > 0 ? voicesRef.current : speechSynthesis.getVoices();
+      
+      if (hasHebrew) {
+        selectedVoice = voices.find(voice => 
+          voice.lang.includes('he') || voice.lang.includes('iw')
+        );
+      }
+      
+      if (!selectedVoice) {
+        // Use first available voice if specific one not found
+        selectedVoice = voices.find(voice => voice.lang.startsWith(hasHebrew ? 'he' : 'en')) || voices[0];
+      }
+      
+      if (selectedVoice) {
+        utteranceRef.current.voice = selectedVoice;
+      }
 
-    // Event handlers for speech synthesis
-    utteranceRef.current.onstart = () => {
-      // Talking state already set above for instant feedback
-      console.log('Speech synthesis started');
-    };
+      // Event handlers for speech synthesis
+      utteranceRef.current.onstart = () => {
+        // Talking state already set below for instant feedback
+        console.log('Speech synthesis started');
+      };
 
-    utteranceRef.current.onend = () => {
-      setIsTalking(false);
-      setAvatarState('idle');
-      isPlayingRef.current = false;
-      onSpeechEnd?.();
-    };
+      utteranceRef.current.onend = () => {
+        setIsTalking(false);
+        setAvatarState('idle');
+        isPlayingRef.current = false;
+        onSpeechEnd?.();
+      };
 
-    utteranceRef.current.onerror = (event) => {
-      console.error('Speech error:', event);
-      setIsTalking(false);
-      setAvatarState('idle');
-      isPlayingRef.current = false;
-      onSpeechEnd?.();
-    };
+      utteranceRef.current.onerror = (event) => {
+        console.error('Speech error:', event);
+        setIsTalking(false);
+        setAvatarState('idle');
+        isPlayingRef.current = false;
+        onSpeechEnd?.();
+      };
 
-    // Set talking state IMMEDIATELY for instant visual feedback
-    setIsTalking(true);
-    setAvatarState('talking');
-    isPlayingRef.current = true;
-    onSpeechStart?.();
-    
-    try {
-      speechSynthesis.speak(utteranceRef.current!);
-    } catch (error) {
-      console.error('Error starting speech:', error);
-      setIsTalking(false);
-      setAvatarState('idle');
-      isPlayingRef.current = false;
-    }
-  }, [isSpeechEnabled, speechRate, isTalking, onSpeechStart, onSpeechEnd]);
+      // Set talking state IMMEDIATELY for instant visual feedback
+      setIsTalking(true);
+      setAvatarState('talking');
+      isPlayingRef.current = true;
+      onSpeechStart?.();
+      
+      try {
+        speechSynthesis.speak(utteranceRef.current!);
+      } catch (error) {
+        console.error('Error starting speech:', error);
+        setIsTalking(false);
+        setAvatarState('idle');
+        isPlayingRef.current = false;
+      }
+    }, 50); // Small delay to ensure speechSynthesis.cancel() is processed
+  }, [isSpeechEnabled, speechRate, isTalking, onSpeechStart, onSpeechEnd, voicesLoaded]);
 
   const stopSpeech = useCallback(() => {
     if (speechSynthesis.speaking) {
@@ -754,16 +779,8 @@ const AnimatedMichael: React.FC<AnimatedMichaelProps> = ({
     }
   }, [text, autoPlay, isSpeechEnabled, speak]);
 
-  // Load voices and cleanup
+  // Cleanup effect
   useEffect(() => {
-    const loadVoices = () => {
-      speechSynthesis.getVoices();
-    };
-
-    if (speechSynthesis.onvoiceschanged !== undefined) {
-      speechSynthesis.onvoiceschanged = loadVoices;
-    }
-
     return () => {
       stopSpeech();
     };
