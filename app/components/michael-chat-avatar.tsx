@@ -353,10 +353,10 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
   const [isSpeechEnabled, setIsSpeechEnabled] = useState(true);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [voiceSettings, setVoiceSettings] = useState<TTSOptions>({
-    voice: 'echo',
-    speed: 0.9,
-    volume: 0.75,
-    useOpenAI: false,
+    voice: 'onyx', // Natural, confident male voice - perfect for Michael
+    speed: 1.0, // Natural teaching pace
+    volume: 0.8, // Comfortable listening volume
+    useOpenAI: true, // Use OpenAI TTS HD for natural, human-like speech
     characterStyle: 'university_ta',
     enhanceProsody: true,
     backgroundAmbiance: false
