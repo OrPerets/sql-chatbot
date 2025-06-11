@@ -48,10 +48,11 @@ function enhanceTextWithSSML(text: string, options: {
   let enhancedText = text;
   
   if (options.addPauses) {
-    // Add natural pauses after punctuation
+    // Add natural pauses after punctuation - shorter pause for questions
     enhancedText = enhancedText
-      .replace(/([.!?])\s+/g, '$1 <break time="0.5s"/> ')
-      .replace(/([,;:])\s+/g, '$1 <break time="0.3s"/> ');
+      .replace(/([.!])\s+/g, '$1 <break time="0.4s"/> ') // Normal pause for periods and exclamations
+      .replace(/([?])\s+/g, '$1 <break time="0.2s"/> ') // Shorter pause for questions
+      .replace(/([,;:])\s+/g, '$1 <break time="0.25s"/> '); // Brief pause for other punctuation
   }
   
   if (options.emphasizeImportant) {
