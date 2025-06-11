@@ -106,12 +106,16 @@ export async function POST(request: NextRequest) {
     // Detect language
     const hasHebrew = /[\u0590-\u05FF]/.test(text);
     
-    // Clean and enhance text for better speech
+    // Clean and enhance text for better speech with natural pauses
     let processedText = text
       .replace(/\*\*(.*?)\*\*/g, '$1')
       .replace(/\*(.*?)\*/g, '$1')
       .replace(/```[\s\S]*?```/g, ' [code block] ')
-      .replace(/😊|😀|😃|😄|😁|😆|😅|🤣|😂|🙂|🙃|😉|😇|🥰|😍|🤩|😘|😗|😚|😙|😋|😛|😜|🤪|😝|🤑|🤗|🤭|🤫|🤔|🤐|🤨|😐|😑|😶|😏|😒|🙄|😬|🤥|😌|😔|😪|🤤|😴|😷|🤒|🤕|🤢|🤮|🤧|🥵|🥶|🥴|😵|🤯|🤠|🥳|😎|🤓|🧐|🚀|⚡|💡|🎯|🎓|✨|👍|👎|👏|🔧|🛠️|📝|📊|💻|⭐|🎉|🔥|💪|🏆|📈|🎪/g, '')
+      // Handle emojis with brief pause
+      .replace(/😊|😀|😃|😄|😁|😆|😅|🤣|😂|🙂|🙃|😉|😇|🥰|😍|🤩|😘|😗|😚|😙|😋|😛|😜|🤪|😝|🤑|🤗|🤭|🤫|🤔|🤐|🤨|😐|😑|😶|😏|😒|🙄|😬|🤥|😌|😔|😪|🤤|😴|😷|🤒|🤕|🤢|🤮|🤧|🥵|🥶|🥴|😵|🤯|🤠|🥳|😎|🤓|🧐|🚀|⚡|💡|🎯|🎓|✨|👍|👎|👏|🔧|🛠️|📝|📊|💻|⭐|🎉|🔥|💪|🏆|📈|🎪/g, ' <break time="0.2s"/> ') // Brief pause where emojis were
+      // Handle line breaks with natural pauses
+      .replace(/\n\n+/g, ' <break time="0.4s"/> ') // Longer pause for paragraph breaks
+      .replace(/\n/g, ' <break time="0.2s"/> ') // Brief pause for line breaks
       .replace(/\s+/g, ' ')
       .trim();
 

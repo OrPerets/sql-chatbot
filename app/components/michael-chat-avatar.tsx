@@ -310,28 +310,12 @@ const StateIndicator: React.FC<{
     }
   };
 
-  const getStateColor = () => {
-    switch (state) {
-      case 'thinking':
-        return '#8B5CF6';
-      case 'listening':
-        return '#10B981';
-      case 'talking':
-        return '#EF4444';
-      default:
-        return '#3B82F6';
-    }
-  };
-
   if (!isVisible || state === 'idle') return null;
 
   return (
     <div 
       className={styles.stateIndicator}
-      style={{ 
-        color: getStateColor(),
-        borderColor: getStateColor() + '30'
-      }}
+      data-state={state}
     >
       {getStateText()}
     </div>
