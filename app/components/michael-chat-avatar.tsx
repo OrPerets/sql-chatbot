@@ -354,8 +354,8 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [voiceSettings, setVoiceSettings] = useState<TTSOptions>({
     voice: 'echo',
-    speed: 1.4,
-    volume: 0.9,
+    speed: 1.0,
+    volume: 0.8,
     useOpenAI: false,
     characterStyle: 'university_ta',
     enhanceProsody: true,
@@ -382,7 +382,10 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
       const cleanText = textToSpeak
         .replace(/\s+/g, ' ') // Replace multiple spaces with single space
         .replace(/^\s+|\s+$/g, '') // Trim leading/trailing spaces
-        .replace(/\n+/g, ' ') // Replace newlines with spaces
+        .replace(/\n+/g, '. ') // Replace newlines with natural pauses
+        .replace(/[.]{2,}/g, '.') // Clean up multiple dots
+        .replace(/\s*[.]\s*/g, '. ') // Proper period spacing for natural pauses
+        .replace(/\s*[,]\s*/g, ', ') // Proper comma spacing for brief pauses
         .trim();
       
       // Use enhanced TTS with current voice settings
@@ -535,42 +538,7 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
       </div>
 
       {/* Enhanced Voice Controls */}
-      <div className={styles.voiceControls}>
-        {/* Speech toggle button */}
-        <button
-          className={`${styles.voiceButton} ${!isSpeechEnabled ? styles.disabled : isTalking ? styles.stopButton : styles.playButton}`}
-          onClick={() => {
-            if (!isSpeechEnabled) {
-              setIsSpeechEnabled(true);
-            } else if (isTalking) {
-              stopSpeech();
-            } else if (text) {
-              speak(text);
-            }
-          }}
-          disabled={isInternalThinking}
-          title={!isSpeechEnabled ? "Enable speech" : isTalking ? "Stop speaking" : "Speak message"}
-        >
-          {!isSpeechEnabled ? <VolumeX size={16} /> : isTalking ? <VolumeX size={16} /> : <Volume2 size={16} />}
-        </button>
-
-        {/* Speech enable/disable toggle */}
-        <button
-          className={`${styles.voiceButton} ${styles.toggleButton} ${!isSpeechEnabled ? styles.disabled : ''}`}
-          onClick={() => {
-            setIsSpeechEnabled(!isSpeechEnabled);
-            if (isTalking) {
-              stopSpeech();
-            }
-          }}
-          title={isSpeechEnabled ? "Disable speech" : "Enable speech"}
-        >
-          {isSpeechEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
-        </button>
-
-        {/* Voice settings button */}
-        
-      </div>
+      {/* <div className={styles.voiceControls}>
 
       {/* Hebrew State Indicator */}
       <StateIndicator 

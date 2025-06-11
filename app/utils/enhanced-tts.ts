@@ -171,37 +171,68 @@ class EnhancedTTSService {
 
     const language = this.detectLanguage(text);
     
-    // Clean text for browser TTS
+    // Clean text for natural, human-like browser TTS
     const cleanText = text
-      .replace(/\*\*(.*?)\*\*/g, '$1')
-      .replace(/\*(.*?)\*/g, '$1')
-      .replace(/```[\s\S]*?```/g, ' code block ')
-      .replace(/😊|😀|😃|😄|😁|😆|😅|🤣|😂|🙂|🙃|😉|😇|🥰|😍|🤩|😘|😗|😚|😙|😋|😛|😜|🤪|😝|🤑|🤗|🤭|🤫|🤔|🤐|🤨|😐|😑|😶|😏|😒|🙄|😬|🤥|😌|😔|😪|🤤|😴|😷|🤒|🤕|🤢|🤮|🤧|🥵|🥶|🥴|😵|🤯|🤠|🥳|😎|🤓|🧐|🚀|⚡|💡|🎯|🎓|✨|👍|👎|👏|🔧|🛠️|📝|📊|💻|⭐|🎉|🔥|💪|🏆|📈|🎪]/g, '')
-      .replace(/\s+/g, ' ')
+      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold markdown
+      .replace(/\*(.*?)\*/g, '$1') // Remove italic markdown
+      .replace(/```[\s\S]*?```/g, '. Here is some code. ') // Replace code blocks with natural phrase
+      .replace(/`([^`]+)`/g, '$1') // Remove inline code backticks
+      .replace(/[😊😀😃😄😁😆😅🤣😂🙂🙃😉😇🥰😍🤩😘😗😚😙😋😛😜🤪😝🤑🤗🤭🤫🤔🤐🤨😐😑😶😏😒🙄😬🤥😌😔😪🤤😴😷🤒🤕🤢🤮🤧🥵🥶🥴😵🤯🤠🥳😎🤓🧐🚀⚡💡🎯🎓✨👍👎👏🔧🛠️📝📊💻⭐🎉🔥💪🏆📈🎪]/g, '') // Remove emojis
+      .replace(/\n+/g, '. ') // Replace newlines with period and space for natural pauses
+      .replace(/[.]{2,}/g, '.') // Replace multiple dots with single dot
+      .replace(/[?]{2,}/g, '?') // Replace multiple question marks
+      .replace(/[!]{2,}/g, '!') // Replace multiple exclamation marks
+      .replace(/\s*[.]\s*/g, '. ') // Ensure proper period spacing with pause
+      .replace(/\s*[,]\s*/g, ', ') // Ensure proper comma spacing with brief pause
+      .replace(/\s*[?]\s*/g, '? ') // Proper question mark spacing
+      .replace(/\s*[!]\s*/g, '! ') // Proper exclamation spacing
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
       .trim();
 
-    // Create utterance
-    this.currentUtterance = new SpeechSynthesisUtterance(cleanText);
-    this.currentUtterance.lang = language === 'he' ? 'he-IL' : 'en-US';
-    this.currentUtterance.rate = Math.min((options.speed || 1.4) * 1.6, 2.5); // Ultra-fast speech like the components
-    this.currentUtterance.pitch = options.pitch || 1.0;
-    this.currentUtterance.volume = options.volume || 0.9;
-
-    // FAST voice selection - get voices once and use first available
+    // ENHANCED voice selection for natural human-like speech
     const voices = this.speechSynthesis.getVoices();
     let selectedVoice = null;
     
     if (language === 'he') {
+      // Prioritize high-quality Hebrew voices
       selectedVoice = voices.find(voice => 
-        voice.lang.includes('he') || voice.lang.includes('iw')
-      );
+        (voice.lang.includes('he') || voice.lang.includes('iw')) &&
+        (voice.name.toLowerCase().includes('carmit') || 
+         voice.name.toLowerCase().includes('hebrew') ||
+         voice.localService === true) // Prefer local/system voices for better quality
+      ) || voices.find(voice => voice.lang.includes('he') || voice.lang.includes('iw'));
+    } else {
+      // Prioritize natural English male voices for university TA character
+      selectedVoice = voices.find(voice => {
+        const name = voice.name.toLowerCase();
+        const isEnglish = voice.lang.startsWith('en');
+        const isLocal = voice.localService === true;
+        const isMale = name.includes('male') || name.includes('alex') || 
+                      name.includes('daniel') || name.includes('thomas') ||
+                      name.includes('arthur') || name.includes('gordon');
+        return isEnglish && (isLocal || isMale);
+      });
+      
+      // Fallback to any good English voice
+      if (!selectedVoice) {
+        selectedVoice = voices.find(voice => 
+          voice.lang.startsWith('en') && voice.localService === true
+        ) || voices.find(voice => voice.lang.startsWith('en'));
+      }
     }
     
+    // Final fallback to first available voice
     if (!selectedVoice) {
-      // Use first available voice for the language, or just first voice
       selectedVoice = voices.find(voice => voice.lang.startsWith(language === 'he' ? 'he' : 'en')) || voices[0];
     }
-    
+
+    // Create utterance
+    this.currentUtterance = new SpeechSynthesisUtterance(cleanText);
+    this.currentUtterance.lang = language === 'he' ? 'he-IL' : 'en-US';
+    this.currentUtterance.rate = Math.min((options.speed || 1.0) * 1.1, 1.8); // Natural human speech pace
+    this.currentUtterance.pitch = options.pitch || 0.9; // Slightly lower pitch for more natural male voice
+    this.currentUtterance.volume = options.volume || 0.8;
+
     if (selectedVoice) {
       this.currentUtterance.voice = selectedVoice;
     }
