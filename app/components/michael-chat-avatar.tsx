@@ -455,14 +455,18 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
     } else {
       // Turning on sound - request audio permission
       try {
+        console.log('🔊 User clicked sound toggle - requesting permission');
         const hasPermission = await enhancedTTS.requestAudioPermission();
         if (hasPermission) {
           setIsSpeechEnabled(true);
           setAudioError(null);
           setAudioPermissionNeeded(false);
+          console.log('✅ Audio permission granted through button click');
           
           // If there's current text and autoPlay is enabled, start speaking
           if (text && autoPlay && !isPlayingRef.current) {
+            console.log('🎯 Starting delayed speech after permission granted');
+            // Try with browser TTS first to eliminate OpenAI as variable
             speak(text);
           }
         } else {
