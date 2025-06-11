@@ -258,8 +258,11 @@ class EnhancedTTSService {
       }
 
       this.currentUtterance.onstart = () => {
-        // Call onStart immediately when speech actually starts
-        options.onStart?.();
+        // Call onStart only if it wasn't already called (for fallback scenarios)
+        if (options.onStart) {
+          options.onStart();
+        }
+        console.log('Browser speech synthesis started');
       };
 
       this.currentUtterance.onend = () => {
@@ -282,6 +285,9 @@ class EnhancedTTSService {
   async speak(text: string, options: TTSOptions = {}): Promise<void> {
     if (!text.trim()) return;
 
+    // Call onStart callback IMMEDIATELY for instant visual feedback
+    options.onStart?.();
+
     const cacheKey = this.getCacheKey(text, options);
     
     try {
@@ -294,19 +300,17 @@ class EnhancedTTSService {
           let audioUrl = this.audioCache.get(cacheKey);
           
           if (!audioUrl) {
+            console.log('Generating new OpenAI TTS audio...');
             audioUrl = await this.generateOpenAITTS(text, options);
             this.audioCache.set(cacheKey, audioUrl);
+          } else {
+            console.log('Using cached OpenAI TTS audio');
           }
 
-          // Play audio
+          // Play audio immediately when ready
           this.currentAudio = new Audio(audioUrl);
-          this.currentAudio.volume = options.volume || 0.9;
+          this.currentAudio.volume = options.volume || 0.8;
           this.currentAudio.playbackRate = options.speed || 1.0;
-          
-          // Call onStart when audio actually starts playing
-          this.currentAudio.onloadstart = () => {
-            options.onStart?.();
-          };
           
           await this.currentAudio.play();
           
@@ -318,6 +322,7 @@ class EnhancedTTSService {
               resolve();
             };
             this.currentAudio.onerror = (error) => {
+              console.error('Audio playback error:', error);
               const err = new Error('Audio playback error');
               options.onError?.(err);
               reject(err);
@@ -326,11 +331,13 @@ class EnhancedTTSService {
           
         } catch (openaiError) {
           console.warn('OpenAI TTS failed, falling back to browser TTS:', openaiError);
+          // Fall through to browser TTS
         }
       }
 
-      // Use browser TTS (onStart will be called by generateBrowserTTS when speech starts)
-      await this.generateBrowserTTS(text, options);
+      // Use browser TTS as fallback (onStart already called above)
+      await this.generateBrowserTTS(text, { ...options, onStart: undefined }); // Don't call onStart again
+      options.onEnd?.();
       
     } catch (error) {
       console.error('All TTS methods failed:', error);
