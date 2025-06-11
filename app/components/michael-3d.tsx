@@ -3,20 +3,10 @@
 import React, { useRef, useState, useEffect, Suspense, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { Volume2, VolumeX, Settings, Mic, MicOff } from 'lucide-react';
+import * as THREE from 'three';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, Environment, ContactShadows, Float, Sphere, Cylinder, RoundedBox, Text3D } from '@react-three/drei';
 import styles from './michael-3d.module.css';
-
-// Dynamic import for Three.js components to avoid SSR issues
-const Canvas = dynamic(() => import('@react-three/fiber').then(mod => ({ default: mod.Canvas })), { ssr: false });
-const useFrame = dynamic(() => import('@react-three/fiber').then(mod => ({ default: mod.useFrame })), { ssr: false });
-
-// Dynamic imports for Drei components
-const OrbitControls = dynamic(() => import('@react-three/drei').then(mod => ({ default: mod.OrbitControls })), { ssr: false });
-const Environment = dynamic(() => import('@react-three/drei').then(mod => ({ default: mod.Environment })), { ssr: false });
-const ContactShadows = dynamic(() => import('@react-three/drei').then(mod => ({ default: mod.ContactShadows })), { ssr: false });
-const Float = dynamic(() => import('@react-three/drei').then(mod => ({ default: mod.Float })), { ssr: false });
-const Sphere = dynamic(() => import('@react-three/drei').then(mod => ({ default: mod.Sphere })), { ssr: false });
-const Cylinder = dynamic(() => import('@react-three/drei').then(mod => ({ default: mod.Cylinder })), { ssr: false });
-const RoundedBox = dynamic(() => import('@react-three/drei').then(mod => ({ default: mod.RoundedBox })), { ssr: false });
 
 interface Michael3DProps {
   text?: string;
