@@ -369,36 +369,95 @@ class EnhancedTTSService {
           let audioUrl = this.audioCache.get(cacheKey);
           
           if (!audioUrl) {
-            console.log('Generating new OpenAI TTS audio...');
+            console.log('🎵 Generating new OpenAI TTS audio...');
             audioUrl = await this.generateOpenAITTS(text, options);
             this.audioCache.set(cacheKey, audioUrl);
+            console.log('✅ Audio generated successfully');
           } else {
-            console.log('Using cached OpenAI TTS audio');
+            console.log('📦 Using cached OpenAI TTS audio');
           }
 
-          // Play audio with robust error handling
+          // Create audio element with comprehensive event handling
           this.currentAudio = new Audio(audioUrl);
           this.currentAudio.volume = options.volume || 0.8;
           this.currentAudio.playbackRate = options.speed || 1.0;
+          this.currentAudio.preload = 'auto'; // Ensure audio is preloaded
           
+          // Add comprehensive event listeners BEFORE playing
+          this.currentAudio.addEventListener('loadstart', () => console.log('🔄 Audio loading started'));
+          this.currentAudio.addEventListener('loadeddata', () => console.log('📊 Audio data loaded'));
+          this.currentAudio.addEventListener('canplay', () => console.log('▶️ Audio can start playing'));
+          this.currentAudio.addEventListener('playing', () => console.log('🎵 Audio is now playing'));
+          this.currentAudio.addEventListener('pause', () => console.log('⏸️ Audio was paused'));
+          this.currentAudio.addEventListener('ended', () => console.log('🏁 Audio playback ended normally'));
+          this.currentAudio.addEventListener('error', (e) => console.error('❌ Audio error event:', e));
+          this.currentAudio.addEventListener('abort', () => console.log('🛑 Audio playback was aborted'));
+          this.currentAudio.addEventListener('suspend', () => console.log('⏸️ Audio loading was suspended'));
+          this.currentAudio.addEventListener('stalled', () => console.log('⚠️ Audio loading stalled'));
+          
+          // Wait for audio to be ready before playing
+          const waitForAudioReady = () => {
+            return new Promise<void>((resolve, reject) => {
+              if (this.currentAudio!.readyState >= 3) { // HAVE_FUTURE_DATA or better
+                console.log('✅ Audio is ready to play');
+                resolve();
+                return;
+              }
+              
+              const onCanPlay = () => {
+                console.log('🎬 Audio can play event fired');
+                this.currentAudio!.removeEventListener('canplay', onCanPlay);
+                this.currentAudio!.removeEventListener('error', onError);
+                resolve();
+              };
+              
+              const onError = (e: any) => {
+                console.error('❌ Audio loading error:', e);
+                this.currentAudio!.removeEventListener('canplay', onCanPlay);
+                this.currentAudio!.removeEventListener('error', onError);
+                reject(new Error('Audio failed to load'));
+              };
+              
+              this.currentAudio!.addEventListener('canplay', onCanPlay);
+              this.currentAudio!.addEventListener('error', onError);
+              
+              // Force load
+              this.currentAudio!.load();
+            });
+          };
+          
+          // Try to play with detailed error catching
           try {
-            console.log('Attempting to play audio...');
+            console.log('🚀 Attempting to play audio...');
+            console.log('📍 User has interacted:', this.userHasInteracted);
+            console.log('📍 Audio duration:', this.currentAudio.duration);
+            console.log('📍 Audio ready state:', this.currentAudio.readyState);
+            
+            // Wait for audio to be ready
+            await waitForAudioReady();
+            
             const playPromise = this.currentAudio.play();
+            console.log('📋 Play promise created');
+            
             await playPromise;
-            console.log('Audio playback started successfully');
+            console.log('✅ Audio playback started successfully');
             
             // Mark that we successfully played audio
             this.userHasInteracted = true;
             
           } catch (playError) {
-            console.error('Audio play failed:', playError);
+            console.error('💥 Audio play failed with error:', playError);
+            console.error('💥 Error name:', playError instanceof Error ? playError.name : 'Unknown');
+            console.error('💥 Error message:', playError instanceof Error ? playError.message : 'Unknown');
             
             // If play fails due to autoplay policy, inform user
             if (playError instanceof Error && 
                 (playError.name === 'NotAllowedError' || 
                  playError.message.includes('play() request was interrupted') ||
-                 playError.message.includes('user didn\'t interact'))) {
+                 playError.message.includes('user didn\'t interact') ||
+                 playError.message.includes('autoplay policy'))) {
               
+              console.log('🚫 Autoplay blocked - user interaction required');
               this.userHasInteracted = false;
               const audioError = new Error('AUDIO_AUTOPLAY_BLOCKED');
               audioError.message = 'Audio was blocked by browser. Click the sound button to enable audio.';
@@ -411,38 +470,76 @@ class EnhancedTTSService {
           return new Promise((resolve, reject) => {
             if (!this.currentAudio) return reject(new Error('No audio'));
             
-            this.currentAudio.onended = () => {
-              console.log('Audio playback ended');
+            // Set up promise event handlers
+            const handleEnded = () => {
+              console.log('🎯 Audio ended - cleaning up');
+              cleanup();
               options.onEnd?.();
               resolve();
             };
             
-            this.currentAudio.onerror = (error) => {
-              console.error('Audio playback error:', error);
-              const err = new Error('Audio playback error');
+            const handleError = (error: any) => {
+              console.error('🔥 Audio playback error during promise:', error);
+              cleanup();
+              const err = new Error('Audio playback error during playback');
               options.onError?.(err);
               reject(err);
             };
             
-            // Also handle cases where audio gets paused or interrupted
-            this.currentAudio.onpause = () => {
-              console.log('Audio was paused unexpectedly');
+            const handlePause = () => {
+              console.log('⚠️ Audio was paused unexpectedly during playback');
+              // Don't reject immediately - might be user pausing
             };
+            
+            const handleAbort = () => {
+              console.log('🛑 Audio was aborted during playback');
+              cleanup();
+              const err = new Error('Audio playback was aborted');
+              options.onError?.(err);
+              reject(err);
+            };
+            
+            const cleanup = () => {
+              if (this.currentAudio) {
+                this.currentAudio.removeEventListener('ended', handleEnded);
+                this.currentAudio.removeEventListener('error', handleError);
+                this.currentAudio.removeEventListener('pause', handlePause);
+                this.currentAudio.removeEventListener('abort', handleAbort);
+              }
+            };
+            
+            // Add event listeners
+            this.currentAudio.addEventListener('ended', handleEnded);
+            this.currentAudio.addEventListener('error', handleError);
+            this.currentAudio.addEventListener('pause', handlePause);
+            this.currentAudio.addEventListener('abort', handleAbort);
+            
+            // Also add a timeout as safety net
+            const timeout = setTimeout(() => {
+              console.log('⏰ Audio playback timeout reached');
+              cleanup();
+              const err = new Error('Audio playback timeout');
+              options.onError?.(err);
+              reject(err);
+            }, 30000); // 30 second timeout
+            
+            // Clear timeout when audio ends
+            this.currentAudio.addEventListener('ended', () => clearTimeout(timeout));
           });
           
         } catch (openaiError) {
-          console.warn('OpenAI TTS failed, falling back to browser TTS:', openaiError);
+          console.warn('⚠️ OpenAI TTS failed, falling back to browser TTS:', openaiError);
           // Fall through to browser TTS
         }
       }
 
       // Use browser TTS as fallback (onStart already called above)
-      console.log('Using browser TTS fallback');
+      console.log('🔄 Using browser TTS fallback');
       await this.generateBrowserTTS(text, { ...options, onStart: undefined }); // Don't call onStart again
       options.onEnd?.();
       
     } catch (error) {
-      console.error('All TTS methods failed:', error);
+      console.error('💀 All TTS methods failed:', error);
       const err = error instanceof Error ? error : new Error('TTS failed');
       options.onError?.(err);
       throw err;
