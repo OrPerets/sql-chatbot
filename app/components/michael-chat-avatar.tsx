@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Volume2, Mic, Settings, VolumeX } from 'lucide-react';
+import { Volume2, Mic, Settings, VolumeX, Square } from 'lucide-react';
 import Lottie from 'lottie-react';
 import { enhancedTTS, TTSOptions } from '../utils/enhanced-tts';
 import EnhancedVoiceSettings from './enhanced-voice-settings';
@@ -336,6 +336,8 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
   const [isInternalThinking, setIsInternalThinking] = useState(false);
   const [isSpeechEnabled, setIsSpeechEnabled] = useState(true);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const [audioPermissionNeeded, setAudioPermissionNeeded] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const [voiceSettings, setVoiceSettings] = useState<TTSOptions>({
     voice: 'onyx', // Natural, confident male voice - perfect for Michael
     speed: 1.0, // Natural teaching pace
@@ -353,6 +355,10 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
     if (!textToSpeak.trim() || !isSpeechEnabled) return;
     
     try {
+      // Clear any previous audio errors
+      setAudioError(null);
+      setAudioPermissionNeeded(false);
+      
       // Stop any current speech
       enhancedTTS.stop();
       
@@ -389,6 +395,16 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
         },
         onError: (error) => {
           console.error('TTS Error:', error);
+          
+          // Handle specific audio permission errors
+          if (error.message.includes('AUDIO_PERMISSION_REQUIRED') || 
+              error.message.includes('AUDIO_AUTOPLAY_BLOCKED')) {
+            setAudioPermissionNeeded(true);
+            setAudioError('🔊 Click the sound button to enable audio');
+          } else {
+            setAudioError('Audio playback failed. Please try again.');
+          }
+          
           setIsTalking(false);
           setIsInternalThinking(false);
           isPlayingRef.current = false;
@@ -398,6 +414,7 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
       
     } catch (error) {
       console.error('Enhanced TTS failed:', error);
+      setAudioError('Audio playback failed. Please try again.');
       setIsTalking(false);
       setIsInternalThinking(false);
       isPlayingRef.current = false;
@@ -412,6 +429,37 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
     setIsInternalThinking(false);
     isPlayingRef.current = false;
   }, []);
+
+  // Handle sound button toggle with audio permission request
+  const handleSoundToggle = useCallback(async () => {
+    if (isSpeechEnabled) {
+      // Turning off sound
+      stopSpeech();
+      setIsSpeechEnabled(false);
+      setAudioError(null);
+      setAudioPermissionNeeded(false);
+    } else {
+      // Turning on sound - request audio permission
+      try {
+        const hasPermission = await enhancedTTS.requestAudioPermission();
+        if (hasPermission) {
+          setIsSpeechEnabled(true);
+          setAudioError(null);
+          setAudioPermissionNeeded(false);
+          
+          // If there's current text and autoPlay is enabled, start speaking
+          if (text && autoPlay && !isPlayingRef.current) {
+            speak(text);
+          }
+        } else {
+          setAudioError('Audio permission denied. Please check browser settings.');
+        }
+      } catch (error) {
+        console.error('Failed to request audio permission:', error);
+        setAudioError('Failed to enable audio. Please try again.');
+      }
+    }
+  }, [isSpeechEnabled, stopSpeech, text, autoPlay, speak]);
 
   // Load voice settings from localStorage
   useEffect(() => {
@@ -525,7 +573,53 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
       </div>
 
       {/* Enhanced Voice Controls */}
-      {/* <div className={styles.voiceControls}>
+      <div className={styles.voiceControls}>
+        {/* Sound Toggle Button */}
+        <button
+          className={`${styles.voiceButton} ${isSpeechEnabled ? styles.playButton : ''}`}
+          onClick={handleSoundToggle}
+          title={isSpeechEnabled ? 'Disable Sound' : 'Enable Sound'}
+        >
+          {isSpeechEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+        </button>
+
+        {/* Stop Button (only when playing) */}
+        {isTalking && (
+          <button
+            className={`${styles.voiceButton} ${styles.stopButton}`}
+            onClick={stopSpeech}
+            title="Stop Speaking"
+          >
+            <Square size={16} />
+          </button>
+        )}
+
+        {/* Settings Button */}
+        <button
+          className={styles.settingsButton}
+          onClick={() => setShowVoiceSettings(true)}
+          title="Voice Settings"
+        >
+          <Settings size={16} />
+        </button>
+      </div>
+
+      {/* Audio Permission Prompt */}
+      {(audioPermissionNeeded || audioError) && (
+        <div className={styles.audioPrompt}>
+          <div className={styles.audioPromptContent}>
+            {audioError || 'Audio permission required'}
+            {audioPermissionNeeded && (
+              <button 
+                className={styles.audioPromptButton}
+                onClick={handleSoundToggle}
+              >
+                Enable Audio
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Hebrew State Indicator */}
       <StateIndicator 
