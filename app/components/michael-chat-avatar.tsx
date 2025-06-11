@@ -389,6 +389,7 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
           console.log('Speech started');
         },
         onEnd: () => {
+          console.log('Speech ended');
           setIsTalking(false);
           isPlayingRef.current = false;
           onSpeechEnd?.();
@@ -397,10 +398,12 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
           console.error('TTS Error:', error);
           
           // Handle specific audio permission errors
-          if (error.message.includes('AUDIO_PERMISSION_REQUIRED') || 
-              error.message.includes('AUDIO_AUTOPLAY_BLOCKED')) {
+          if (error.message.includes('AUDIO_AUTOPLAY_BLOCKED') || 
+              error.message.includes('Audio was blocked') ||
+              error.name === 'NotAllowedError') {
             setAudioPermissionNeeded(true);
-            setAudioError('🔊 Click the sound button to enable audio');
+            setAudioError('🔊 Audio blocked - Click sound button to enable');
+            console.log('Audio permission needed - showing user prompt');
           } else {
             setAudioError('Audio playback failed. Please try again.');
           }
@@ -414,7 +417,18 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
       
     } catch (error) {
       console.error('Enhanced TTS failed:', error);
-      setAudioError('Audio playback failed. Please try again.');
+      
+      // Check if it's an autoplay issue
+      if (error instanceof Error && 
+          (error.message.includes('AUDIO_AUTOPLAY_BLOCKED') ||
+           error.message.includes('play() request was interrupted') ||
+           error.name === 'NotAllowedError')) {
+        setAudioPermissionNeeded(true);
+        setAudioError('🔊 Audio blocked - Click sound button to enable');
+      } else {
+        setAudioError('Audio playback failed. Please try again.');
+      }
+      
       setIsTalking(false);
       setIsInternalThinking(false);
       isPlayingRef.current = false;
