@@ -171,22 +171,36 @@ class EnhancedTTSService {
 
     const language = this.detectLanguage(text);
     
-    // Clean text for natural, human-like browser TTS
+    // Clean text for natural, teacher-like speech with comprehension focus
     const cleanText = text
       .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold markdown
       .replace(/\*(.*?)\*/g, '$1') // Remove italic markdown
-      .replace(/```[\s\S]*?```/g, '. Here is some code. ') // Replace code blocks with natural phrase
+      .replace(/```[\s\S]*?```/g, '. Here is some code... ') // Natural pause before code explanation
       .replace(/`([^`]+)`/g, '$1') // Remove inline code backticks
       .replace(/[😊😀😃😄😁😆😅🤣😂🙂🙃😉😇🥰😍🤩😘😗😚😙😋😛😜🤪😝🤑🤗🤭🤫🤔🤐🤨😐😑😶😏😒🙄😬🤥😌😔😪🤤😴😷🤒🤕🤢🤮🤧🥵🥶🥴😵🤯🤠🥳😎🤓🧐🚀⚡💡🎯🎓✨👍👎👏🔧🛠️📝📊💻⭐🎉🔥💪🏆📈🎪]/g, '') // Remove emojis
-      .replace(/\n+/g, '. ') // Replace newlines with period and space for natural pauses
-      .replace(/[.]{2,}/g, '.') // Replace multiple dots with single dot
-      .replace(/[?]{2,}/g, '?') // Replace multiple question marks
-      .replace(/[!]{2,}/g, '!') // Replace multiple exclamation marks
-      .replace(/\s*[.]\s*/g, '. ') // Ensure proper period spacing with pause
-      .replace(/\s*[,]\s*/g, ', ') // Ensure proper comma spacing with brief pause
-      .replace(/\s*[?]\s*/g, '? ') // Proper question mark spacing
+      // Natural sentence flow and pauses for teaching
+      .replace(/\n\n+/g, '... ') // Double newlines become thoughtful pauses
+      .replace(/\n+/g, '. ') // Single newlines become sentence breaks
+      .replace(/([.!?])\s*([A-Z])/g, '$1... $2') // Add thoughtful pause after sentences
+      .replace(/([.!?])\s*$/g, '$1...') // Add pause at end of final sentences
+      .replace(/:\s*/g, ': ') // Pause after colons for explanation
+      .replace(/;\s*/g, '; ') // Pause after semicolons
+      .replace(/,\s*and\s+/g, ', and ') // Natural "and" conjunction pauses
+      .replace(/,\s*but\s+/g, ', but ') // Natural "but" conjunction pauses
+      .replace(/,\s*or\s+/g, ', or ') // Natural "or" conjunction pauses
+      .replace(/,\s*so\s+/g, ', so ') // Natural "so" conjunction pauses
+      // Clean up excessive punctuation
+      .replace(/[.]{3,}/g, '...') // Normalize ellipses
+      .replace(/[.]{2}/g, '...') // Convert double dots to ellipses
+      .replace(/[?]{2,}/g, '?') // Single question marks
+      .replace(/[!]{2,}/g, '!') // Single exclamation marks
+      // Ensure proper spacing for natural speech rhythm
+      .replace(/\s*[.]\s*/g, '. ') // Proper period spacing
+      .replace(/\s*[,]\s*/g, ', ') // Proper comma spacing
+      .replace(/\s*[?]\s*/g, '? ') // Proper question spacing
       .replace(/\s*[!]\s*/g, '! ') // Proper exclamation spacing
-      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .replace(/\s*[...]\s*/g, '... ') // Proper ellipses spacing
+      .replace(/\s+/g, ' ') // Clean up multiple spaces
       .trim();
 
     // ENHANCED voice selection for natural human-like speech
@@ -229,9 +243,9 @@ class EnhancedTTSService {
     // Create utterance
     this.currentUtterance = new SpeechSynthesisUtterance(cleanText);
     this.currentUtterance.lang = language === 'he' ? 'he-IL' : 'en-US';
-    this.currentUtterance.rate = Math.min((options.speed || 1.0) * 1.1, 1.8); // Natural human speech pace
-    this.currentUtterance.pitch = options.pitch || 0.9; // Slightly lower pitch for more natural male voice
-    this.currentUtterance.volume = options.volume || 0.8;
+    this.currentUtterance.rate = Math.min((options.speed || 1.0) * 0.95, 1.5); // Even slower, more deliberate teaching pace
+    this.currentUtterance.pitch = options.pitch || 0.85; // Lower pitch for warm, authoritative teacher voice
+    this.currentUtterance.volume = options.volume || 0.75; // Softer volume for comfortable listening
 
     if (selectedVoice) {
       this.currentUtterance.voice = selectedVoice;
