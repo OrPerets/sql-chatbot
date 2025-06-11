@@ -228,6 +228,9 @@ const Chat = ({
   const [autoPlaySpeech, setAutoPlaySpeech] = useState(true);
   // Add sidebar visibility state
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  
+  // Add ref to store current message immediately during streaming
+  const currentAssistantMessageRef = useRef<string>("");
 
   const router = useRouter();
 
@@ -523,9 +526,9 @@ const loadChatMessages = (chatId: string) => {
 
   // textCreated - create new assistant message
   const handleTextCreated = () => {
-    setIsDone(false)
-    setIsThinking(false); // Stop thinking when assistant starts responding
     appendMessage("assistant", "");
+    // Reset the ref for the new message
+    currentAssistantMessageRef.current = "";
   };
 
   // textDelta - append text to last assistant message
@@ -580,18 +583,24 @@ const loadChatMessages = (chatId: string) => {
     console.log('📝 lastAssistantMessage:', lastAssistantMessage ? lastAssistantMessage.substring(0, 50) + '...' : 'EMPTY');
     console.log('🔊 autoPlaySpeech:', autoPlaySpeech);
     console.log('🎵 speechText current:', speechText ? speechText.substring(0, 50) + '...' : 'EMPTY');
+    console.log('📋 Messages array length:', messages.length);
+    console.log('📋 Messages array:', messages.map(m => `${m.role}: ${m.text.substring(0, 30)}...`));
+    console.log('🎯 Current message from ref:', currentAssistantMessageRef.current ? currentAssistantMessageRef.current.substring(0, 50) + '...' : 'EMPTY');
     
     setInputDisabled(false);
     setIsThinking(false); // Stop thinking when run is completed
     
-    // Now that streaming is complete, trigger speech with the complete message
-    if (lastAssistantMessage && autoPlaySpeech) {
-      console.log('🎵 Message streaming complete - triggering speech for:', lastAssistantMessage.substring(0, 50) + '...');
-      setSpeechText(lastAssistantMessage);
+    // Use the ref which should have the current message text
+    const messageToSpeak = currentAssistantMessageRef.current;
+    
+    if (messageToSpeak && autoPlaySpeech) {
+      console.log('🎵 Speech trigger using ref:', messageToSpeak.substring(0, 50) + '...');
+      setSpeechText(messageToSpeak);
     } else {
       console.log('❌ Speech not triggered because:', {
-        hasMessage: !!lastAssistantMessage,
-        autoPlayEnabled: autoPlaySpeech
+        hasMessage: !!messageToSpeak,
+        autoPlayEnabled: autoPlaySpeech,
+        refContent: currentAssistantMessageRef.current ? 'HAS_CONTENT' : 'EMPTY'
       });
     }
   };
@@ -629,9 +638,13 @@ const loadChatMessages = (chatId: string) => {
     
     // Backup mechanism: if we have a message and auto-play is enabled, trigger speech
     // This is in case handleRunCompleted never gets called
-    if (lastAssistantMessage && autoPlaySpeech) {
-      console.log('🔄 Backup speech trigger from endStreamResponse:', lastAssistantMessage.substring(0, 50) + '...');
-      setSpeechText(lastAssistantMessage);
+    const latestAssistantMessage = messages.length > 0 && messages[messages.length - 1]?.role === 'assistant' 
+      ? messages[messages.length - 1].text 
+      : null;
+      
+    if (latestAssistantMessage && autoPlaySpeech) {
+      console.log('🔄 Backup speech trigger from endStreamResponse:', latestAssistantMessage.substring(0, 50) + '...');
+      setSpeechText(latestAssistantMessage);
     }
   };
 
@@ -698,6 +711,8 @@ const loadChatMessages = (chatId: string) => {
       if (lastMessage.role === 'assistant') {
         console.log('Updating last assistant message via appendToLastMessage:', updatedLastMessage.text);
         setLastAssistantMessage(updatedLastMessage.text);
+        // Also update the ref immediately for handleRunCompleted access
+        currentAssistantMessageRef.current = updatedLastMessage.text;
         // Don't update speechText here - it will be updated when message is complete
       }
       
