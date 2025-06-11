@@ -328,7 +328,7 @@ const Michael3D: React.FC<Michael3DProps> = ({
   const [avatarState, setAvatarState] = useState<AvatarState>('idle');
   const [isTalking, setIsTalking] = useState(false);
   const [isSpeechEnabled, setIsSpeechEnabled] = useState(true);
-  const [speechRate, setSpeechRate] = useState(1.2); // Start with faster default speed
+  const [speechRate, setSpeechRate] = useState(1.5); // Ultra-fast default speed for instant response
   const [showSettings, setShowSettings] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [animationTime, setAnimationTime] = useState(0);
@@ -373,7 +373,7 @@ const Michael3D: React.FC<Michael3DProps> = ({
     const detectedLanguage = hasHebrew ? 'he-IL' : 'en-US';
 
     utteranceRef.current = new SpeechSynthesisUtterance(finalText);
-    utteranceRef.current.rate = Math.min(speechRate * 1.4, 2.0); // Even faster speech rate with higher max limit
+    utteranceRef.current.rate = Math.min(speechRate * 1.6, 2.5); // Maximum speed! 1.5 * 1.6 = 2.4x (ultra-fast)
     utteranceRef.current.pitch = 1.0; // Normal pitch for clearer speech
     utteranceRef.current.volume = 0.9; // Slightly louder
     utteranceRef.current.lang = detectedLanguage;
@@ -486,7 +486,7 @@ const Michael3D: React.FC<Michael3DProps> = ({
         if (text && !isPlayingRef.current) {
           speak(text);
         }
-      }, 10); // Lightning-fast response - reduced to 10ms for instant speech
+      }, 0); // INSTANT response - 0ms delay for perfect text-audio synchronization
       
       return () => clearTimeout(timer);
     }
@@ -615,7 +615,7 @@ const Michael3D: React.FC<Michael3DProps> = ({
                 <input
                   type="range"
                   min="0.5"
-                  max="2"
+                  max="2.5"
                   step="0.1"
                   value={speechRate}
                   onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
