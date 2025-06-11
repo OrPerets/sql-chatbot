@@ -87,11 +87,78 @@ class EnhancedTTSService {
   private currentAudio: HTMLAudioElement | null = null;
   private speechSynthesis: SpeechSynthesis | null = null;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
+  private audioPermissionGranted = false;
+  private audioPermissionCallbacks: Array<(granted: boolean) => void> = [];
 
   constructor() {
     if (typeof window !== 'undefined') {
       this.speechSynthesis = window.speechSynthesis;
+      this.initializeAudioPermission();
     }
+  }
+
+  // Initialize audio permission detection
+  private async initializeAudioPermission(): Promise<void> {
+    try {
+      // Try to create a silent audio element to test autoplay permission
+      const testAudio = new Audio();
+      testAudio.volume = 0;
+      testAudio.muted = true;
+      
+      // Create a tiny silent audio file (data URL)
+      testAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+      
+      try {
+        await testAudio.play();
+        this.audioPermissionGranted = true;
+        console.log('Audio permission: Granted');
+      } catch (error) {
+        this.audioPermissionGranted = false;
+        console.log('Audio permission: Blocked (requires user interaction)');
+      }
+    } catch (error) {
+      console.warn('Could not test audio permission:', error);
+    }
+  }
+
+  // Request audio permission through user interaction
+  async requestAudioPermission(): Promise<boolean> {
+    if (this.audioPermissionGranted) return true;
+
+    try {
+      // Try to play a silent audio to get permission
+      const testAudio = new Audio();
+      testAudio.volume = 0;
+      testAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+      
+      await testAudio.play();
+      this.audioPermissionGranted = true;
+      
+      // Notify all waiting callbacks
+      this.audioPermissionCallbacks.forEach(callback => callback(true));
+      this.audioPermissionCallbacks = [];
+      
+      return true;
+    } catch (error) {
+      console.warn('Audio permission request failed:', error);
+      return false;
+    }
+  }
+
+  // Check if audio permission is granted
+  hasAudioPermission(): boolean {
+    return this.audioPermissionGranted;
+  }
+
+  // Wait for audio permission
+  waitForAudioPermission(): Promise<boolean> {
+    if (this.audioPermissionGranted) {
+      return Promise.resolve(true);
+    }
+
+    return new Promise((resolve) => {
+      this.audioPermissionCallbacks.push(resolve);
+    });
   }
 
   // Get cache key for audio
@@ -294,6 +361,19 @@ class EnhancedTTSService {
       // Stop any current speech
       this.stop();
 
+      // Check audio permission first
+      if (!this.audioPermissionGranted) {
+        console.log('Audio permission not granted, attempting to request...');
+        const granted = await this.requestAudioPermission();
+        if (!granted) {
+          // Audio is blocked - provide helpful error
+          const audioError = new Error('AUDIO_PERMISSION_REQUIRED');
+          audioError.message = 'Audio requires user interaction. Please click the sound button to enable audio.';
+          options.onError?.(audioError);
+          return;
+        }
+      }
+
       // Try OpenAI TTS first if enabled and available
       if (options.useOpenAI !== false) {
         try {
@@ -312,7 +392,19 @@ class EnhancedTTSService {
           this.currentAudio.volume = options.volume || 0.8;
           this.currentAudio.playbackRate = options.speed || 1.0;
           
-          await this.currentAudio.play();
+          try {
+            await this.currentAudio.play();
+          } catch (playError) {
+            // If play fails due to autoplay policy, inform user
+            if (playError instanceof Error && playError.name === 'NotAllowedError') {
+              this.audioPermissionGranted = false;
+              const audioError = new Error('AUDIO_AUTOPLAY_BLOCKED');
+              audioError.message = 'Audio was blocked by browser. Click the sound button to enable audio.';
+              options.onError?.(audioError);
+              return;
+            }
+            throw playError;
+          }
           
           return new Promise((resolve, reject) => {
             if (!this.currentAudio) return reject(new Error('No audio'));
