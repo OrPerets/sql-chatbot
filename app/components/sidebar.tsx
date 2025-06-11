@@ -15,9 +15,10 @@ type SidebarProps = {
   handleLogout: () => void;
   onNewChat: () => void;
   currentUser: string;
+  onToggleSidebar?: () => void;
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, handleLogout, onNewChat, currentUser }) => {
+const Sidebar: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, handleLogout, onNewChat, currentUser, onToggleSidebar }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
 
@@ -32,27 +33,41 @@ const Sidebar: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, handleLog
   return (
     <div className={styles.sidebar}>
       <div className={styles.header}>
-        <h2 className={styles.sidebarTitle}>שיחות קודמות</h2>
-        {/* User Icon with first letter of currentUser */}
-        <div className={styles.userIconWrapper}>
-          <div
-            className={styles.userIcon}
-            title="User Menu"
-            onClick={toggleMenu}
-            aria-label="User Icon"
-          >
-            {currentUser.charAt(0).toUpperCase()}
-          </div>
-          {isMenuOpen && (
-            <div className={styles.dropdownMenu}>
-              <button onClick={onNewChat} className={styles.menuItem}>
-                שיחה חדשה
-              </button>
-              <button onClick={handleLogout} className={styles.menuItem}>
-                התנתק
-              </button>
+            <div
+              className={styles.userIcon}
+              title="User Menu"
+              onClick={toggleMenu}
+              aria-label="User Icon"
+            >
+              {currentUser.charAt(0).toUpperCase()}
             </div>
+        <h2 className={styles.sidebarTitle}>שיחות קודמות</h2>
+        <div className={styles.headerButtons}>
+          {/* Close Button */}
+          {onToggleSidebar && (
+            <button
+              className={styles.closeButton}
+              onClick={onToggleSidebar}
+              title="סגור צד"
+              aria-label="Close Sidebar"
+            >
+              ×
+            </button>
           )}
+          {/* User Icon with first letter of currentUser */}
+          <div className={styles.userIconWrapper}>
+            
+            {isMenuOpen && (
+              <div className={styles.dropdownMenu}>
+                <button onClick={onNewChat} className={styles.menuItem}>
+                  שיחה חדשה
+                </button>
+                <button onClick={handleLogout} className={styles.menuItem}>
+                  התנתק
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <ul className={styles.sidebarList}>
