@@ -1,40 +1,81 @@
-# OpenAI Assistants API Quickstart
+# SQL Chatbot with Animated AI Assistant "Michael"
 
-A quick-start template using the OpenAI [Assistants API](https://platform.openai.com/docs/assistants/overview) with [Next.js](https://nextjs.org/docs).
-<br/>
-<br/>
-![OpenAI Assistants API Quickstart](https://github.com/openai/openai-assistants-quickstart/assets/27232/755e85e9-3ea4-421f-b202-3b0c435ea270)
+An AI-powered SQL teaching assistant built with Next.js and OpenAI Assistants API, featuring a fully **animated, emotionally responsive character** that brings learning to life.
 
-## Quickstart Setup
+## 🎭 **New Feature: Animated Michael Avatar**
 
-### 1. Clone repo
+Michael now features a **live animated avatar** that responds dynamically to different states and interactions, creating an engaging and personable learning experience.
 
-```shell
-git clone https://github.com/openai/openai-assistants-quickstart.git
-cd openai-assistants-quickstart
+### ✨ **Avatar Features**
+
+- **🎪 Emotional States**: Dynamic animations for idle, thinking, talking, and listening
+- **🌟 Visual Effects**: Breathing halos, energy rings, and state-specific indicators  
+- **🎙️ Speech Synchronization**: Mouth movements and expressions sync with speech
+- **👂 Interactive Feedback**: Visual responses to user input and voice interaction
+- **📱 Responsive Design**: Three size variants (small, medium, large) for different layouts
+- **⚡ Performance Optimized**: Efficient Lottie animations with smooth transitions
+
+### 🎛️ **Avatar States**
+
+1. **Idle State** - Gentle breathing, blinking, and floating animations
+2. **Listening State** - Attentive eyes with pulsing effects and sound wave indicators  
+3. **Thinking State** - Thoughtful expressions with rotating energy rings
+4. **Talking State** - Animated mouth movements with expressive gestures
+
+### 🎨 **Implementation**
+
+```tsx
+import AnimatedMichael from './components/animated-michael';
+
+<AnimatedMichael
+  text="Hello! I'm here to help you learn SQL!"
+  autoPlay={true}
+  isListening={false}
+  size="large"
+  onSpeechStart={() => console.log('Michael started speaking')}
+  onSpeechEnd={() => console.log('Michael finished speaking')}
+/>
 ```
 
-### 2. Set your [OpenAI API key](https://platform.openai.com/api-keys)
+## 🚀 **Quick Start**
 
-```shell
-export OPENAI_API_KEY="sk_..."
-```
+### Prerequisites
+- Node.js 18+ 
+- OpenAI API key
+- Modern browser with Web Speech API support
 
-(or in `.env.example` and rename it to `.env`).
+### Installation
 
-### 3. Install dependencies
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd sql-chatbot
+   ```
 
-```shell
-npm install
-```
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-### 4. Run
+3. **Set up environment variables**
+   Create a `.env.local` file:
+   ```env
+   OPENAI_API_KEY=your_openai_api_key_here
+   ```
 
-```shell
-npm run dev
-```
+4. **Run the development server**
+   ```bash
+   npm run dev
+   ```
 
-### 5. Navigate to [http://localhost:3000](http://localhost:3000).
+5. **Open your browser**
+   Navigate to `http://localhost:3000`
+
+## 🎯 **Demo Pages**
+
+- **Main Application**: `/` - Login and chat interface with animated Michael
+- **Avatar Demo**: `/demo/animated-avatar` - Interactive showcase of all avatar states
+- **Admin Panel**: `/admin` - Management interface for system administrators
 
 ## Deployment
 

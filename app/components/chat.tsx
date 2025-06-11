@@ -14,6 +14,10 @@ import { useRouter } from 'next/navigation';
 import config from "../config";
 import Modal from "./modal";
 import SQLQueryEditorComponent from "./query-vizualizer";
+import ImageUpload from "./image-upload";
+import { fileToBase64 } from "../utils/parseImage";
+import AudioRecorder from "./audio-recorder";
+import MichaelChatAvatar from "./michael-chat-avatar";
 
 export const maxDuration = 50;
 
@@ -27,6 +31,7 @@ type MessageProps = {
   text: string;
   feedback: "like" | "dislike" | null;
   onFeedback?: (feedback: "like" | "dislike" | null) => void;
+  hasImage?: boolean;
 };
 
 // Add these types
@@ -171,7 +176,7 @@ const CodeMessage = ({ text }: { text: string }) => {
   );
 };
 
-const Message = ({ role, text, feedback, onFeedback }: MessageProps) => {
+const Message = ({ role, text, feedback, onFeedback, hasImage }: MessageProps) => {
   switch (role) {
     case "user":
       return <UserMessage text={text} />;
@@ -198,6 +203,10 @@ const Chat = ({
   const [userInput, setUserInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [inputDisabled, setInputDisabled] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imageProcessing, setImageProcessing] = useState(false);
   const [threadId, setThreadId] = useState("");
   const [user, setUser] = useState(null);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
@@ -213,6 +222,11 @@ const Chat = ({
   const [loadingMessages, setLoadingMessages] = useState(false); // Add loading state
   // Add SQL mode state
   const [sqlMode, setSqlMode] = useState<'none' | 'create' | 'insert'>('none');
+  // Add audio and speech state
+  const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
+  const [autoPlaySpeech, setAutoPlaySpeech] = useState(false);
+  // Add sidebar visibility state
+  const [sidebarVisible, setSidebarVisible] = useState(true);
 
   const router = useRouter();
 
@@ -256,6 +270,17 @@ const Chat = ({
       case 'insert': return '#2196F3'; // Blue
       default: return '#757575'; // Gray
     }
+  };
+
+  // Handle audio transcription
+  const handleAudioTranscription = (transcription: string) => {
+    setUserInput(transcription);
+    setEstimatedCost(calculateCost(transcription));
+  };
+
+  // Toggle sidebar visibility
+  const toggleSidebar = () => {
+    setSidebarVisible(prev => !prev);
   };
 
   // automatically scroll to bottom of chat
@@ -332,12 +357,26 @@ const updateUserBalance = async (value) => {
   }, []);
 
   const sendMessage = async (text) => { 
+    setImageProcessing(true);
+    
     // Add SQL tags based on mode
     let messageWithTags = text;
     if (sqlMode === 'create') {
       messageWithTags = `<create_table>${text}`;
     } else if (sqlMode === 'insert') {
       messageWithTags = `<insert_values>${text}`;
+    }
+
+    // Process image if one is selected
+    let imageData = null;
+    if (selectedImage) {
+      try {
+        imageData = await fileToBase64(selectedImage);
+      } catch (error) {
+        console.error("Error converting image to base64:", error);
+        setImageProcessing(false);
+        return;
+      }
     }
 
     // if (currentBalance - estimatedCost < 0) {
@@ -398,14 +437,17 @@ const updateUserBalance = async (value) => {
         method: "POST",
         body: JSON.stringify({
           content: messageWithTags, // Send message with tags to AI
+          imageData: imageData, // Send image data if available
         }),
       }
     );
     const stream = AssistantStream.fromReadableStream(response.body);
     handleReadableStream(stream);
 
-    // Reset SQL mode after sending
+    // Reset SQL mode and image after sending
     setSqlMode('none');
+    setSelectedImage(null);
+    setImageProcessing(false);
 
   };
 
@@ -457,15 +499,22 @@ const loadChatMessages = (chatId: string) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!userInput.trim()) return;
+    if (!userInput.trim() && !selectedImage) return;
+    
+    // Display message with image info if present
+    const displayText = selectedImage 
+      ? `${userInput}${userInput ? '\n' : ''}[תמונה מצורפת: ${selectedImage.name}]`
+      : userInput;
+    
     sendMessage(userInput);
     // Always show the user message in the UI, regardless of balance
     setMessages((prevMessages) => [
       ...prevMessages,
-      { role: "user", text: userInput },
+      { role: "user", text: displayText, hasImage: !!selectedImage },
     ]);
     setUserInput("");
     setInputDisabled(true);
+    setIsThinking(true);
     scrollToBottom();
   };
 
@@ -474,6 +523,7 @@ const loadChatMessages = (chatId: string) => {
   // textCreated - create new assistant message
   const handleTextCreated = () => {
     setIsDone(false)
+    setIsThinking(false); // Stop thinking when assistant starts responding
     appendMessage("assistant", "");
   };
 
@@ -519,12 +569,14 @@ const loadChatMessages = (chatId: string) => {
       })
     );
     setInputDisabled(true);
+    setIsThinking(true); // Set thinking when processing tool calls
     submitActionResult(runId, toolCallOutputs);
   };
 
   // handleRunCompleted - re-enable the input form
   const handleRunCompleted = () => {
     setInputDisabled(false);
+    setIsThinking(false); // Stop thinking when run is completed
   };
 
    // New function to handle message changes
@@ -611,12 +663,25 @@ const loadChatMessages = (chatId: string) => {
         ...lastMessage,
         text: lastMessage.text + text,
       };
+      
+      // Update last assistant message for speech synthesis if it's an assistant message
+      if (lastMessage.role === 'assistant') {
+        console.log('Updating last assistant message via appendToLastMessage:', updatedLastMessage.text);
+        setLastAssistantMessage(updatedLastMessage.text);
+      }
+      
       return [...prevMessages.slice(0, -1), updatedLastMessage];
     });
   };
 
   const appendMessage = (role, text) => {
     setMessages((prevMessages) => [...prevMessages, { role, text }]);
+    
+    // Track last assistant message for speech synthesis
+    if (role === 'assistant') {
+      console.log('Setting last assistant message:', text);
+      setLastAssistantMessage(text);
+    }
   };
 
   const annotateLastMessage = (annotations) => {
@@ -663,9 +728,27 @@ const loadChatMessages = (chatId: string) => {
 
 return (
   <div className={styles.main}>
-    
-    <Sidebar chatSessions={chatSessions} onChatSelect={loadChatMessages} handleLogout={handleLogout} onNewChat={openNewChat} currentUser={currentUser}/>
-    <div className={styles.container}>
+    {sidebarVisible && (
+      <Sidebar 
+        chatSessions={chatSessions} 
+        onChatSelect={loadChatMessages} 
+        handleLogout={handleLogout} 
+        onNewChat={openNewChat} 
+        currentUser={currentUser}
+        onToggleSidebar={toggleSidebar}
+      />
+    )}
+         <div className={`${styles.container} ${!sidebarVisible ? styles.containerFullWidth : ''}`}>
+      {!sidebarVisible && (
+        <button
+          className={styles.openSidebarButton}
+          onClick={toggleSidebar}
+          title="פתח צד"
+          aria-label="Open Sidebar"
+        >
+          ☰
+        </button>
+      )}
       <div className={styles.chatContainer}>
         <div className={styles.messages} style={{direction:"rtl"}}>
           {loadingMessages ? (
@@ -678,6 +761,7 @@ return (
                   role={msg.role}
                   text={msg.text}
                   feedback={msg.feedback}
+                  hasImage={msg.hasImage}
                   onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
                 />
               ))}
@@ -708,42 +792,9 @@ return (
               </div>
             )}
             
-            {/* SQL Mode Button */}
-            <button
-              type="button"
-              onClick={toggleSqlMode}
-              className={styles.sqlModeButton}
-              style={{
-                position: 'absolute',
-                top: '10px',
-                left: '10px',
-                padding: '6px 12px',
-                backgroundColor: getSqlModeColor(),
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                fontSize: '12px',
-                cursor: 'pointer',
-                zIndex: 1000,
-                transition: 'background-color 0.2s ease'
-              }}
-              title="לחץ כדי לעבור בין מצבי CREATE TABLE ו-INSERT VALUES"
-            >
-              {getSqlModeLabel()}
-            </button>
-
             {/* SQL Mode Indicator in textarea */}
             {sqlMode !== 'none' && (
-              <div style={{
-                position: 'absolute',
-                top: '15px',
-                right: '20px',
-                color: getSqlModeColor(),
-                fontSize: '12px',
-                fontWeight: 'bold',
-                zIndex: 999,
-                pointerEvents: 'none'
-              }}>
+              <div className={styles.sqlModeIndicator}>
                 מצב {sqlMode === 'create' ? 'CREATE TABLE' : 'INSERT VALUES'} פעיל
               </div>
             )}
@@ -768,46 +819,125 @@ return (
               }}
               placeholder={sqlMode !== 'none' ? `מצב ${getSqlModeLabel()} פעיל - הקלד את השאילתה שלך...` : "הקלד כאן..."}
               style={{
-                height: sqlMode !== 'none' ? "80px" : "55px", // Increase height when SQL mode is active
-                minHeight: sqlMode !== 'none' ? "80px" : "55px", // Increase minimum height as well
-                resize: "none",
-                overflowY: "hidden",
-                paddingTop: sqlMode !== 'none' ? '35px' : '15px', // Add top padding when SQL mode is active
-                paddingRight: sqlMode !== 'none' ? '220px' : '20px' // Add right padding for the indicator
+                paddingTop: sqlMode !== 'none' ? '35px' : '16px',
+                paddingRight: '20px',
+                paddingBottom: '16px',
+                paddingLeft: '50px'
               }}
             />
+            
+            {/* Send Button */}
+            <button
+              type="submit"
+              className={styles.sendButton}
+              disabled={inputDisabled || imageProcessing || (!userInput.trim() && !selectedImage)}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M15 18V6M9 12l6-6 6 6" transform="rotate(90 12 12)" />
+              </svg>
+            </button>
+
+            {/* Action Buttons Row */}
+            <div className={styles.actionButtons}>
+              {/* Audio Recorder */}
+              <AudioRecorder
+                onTranscription={handleAudioTranscription}
+                disabled={inputDisabled || imageProcessing}
+                onRecordingStateChange={setIsRecording}
+              />
+
+              {/* Attachment Button */}
+              <button
+                type="button"
+                className={styles.actionButton}
+                onClick={() => document.getElementById('imageInput')?.click()}
+                disabled={inputDisabled || imageProcessing}
+                title="Attach image"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.49"/>
+                </svg>
+                {selectedImage && <span className={styles.attachmentDot}></span>}
+              </button>
+
+              {/* CREATE/INSERT Mode Button */}
+              <button
+                type="button"
+                className={`${styles.actionButton} ${sqlMode !== 'none' ? styles.actionButtonActive : ''}`}
+                onClick={toggleSqlMode}
+                title="לחץ כדי לעבור בין מצבי CREATE TABLE ו-INSERT VALUES"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 3v18M3 12h18"/>
+                </svg>
+                <span className={styles.actionButtonText}>
+                  {sqlMode === 'create' ? 'CREATE' : sqlMode === 'insert' ? 'INSERT' : 'SQL'}
+                </span>
+              </button>
+            </div>
+
+            {/* Hidden file input */}
+            <input
+              id="imageInput"
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) setSelectedImage(file);
+              }}
+              style={{ display: 'none' }}
+              disabled={inputDisabled || imageProcessing}
+            />
+
+            {/* Image Preview */}
+            {selectedImage && (
+              <div className={styles.imagePreview}>
+                <img 
+                  src={URL.createObjectURL(selectedImage)} 
+                  alt="Preview" 
+                  className={styles.previewImage}
+                />
+                <button
+                  type="button"
+                  onClick={() => setSelectedImage(null)}
+                  className={styles.removeImageButton}
+                  disabled={inputDisabled || imageProcessing}
+                >
+                  ×
+                </button>
+              </div>
+            )}
           </div>
-          <button // Button is now *outside* the inputContainer
-            type="submit"
-            className={styles.button}
-            disabled={inputDisabled}
-            style={{
-              width: "40px",
-              height: "40px", // Fixed height (adjust as needed)
-              // marginTop: "0.5%",
-              // Consider adding other positioning styles as necessary, e.g.,
-              position: "relative", // Or "relative" depending on your layout
-              bottom: 10, // Example position
-              left: "50px",
-              right: "10px",  // Example position
-            }}
-          >
-            	<svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="20"
-    height="20"
-    viewBox="0 4 28 25"
-    fill="none"
-    stroke="white"
-    strokeWidth="4"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={styles.arrowIcon}
-  >
-    <path d="M15 30V9M8 12l7-7 7 7" />
-    </svg>
-    
-          </button>
         </form>
       </div>
       {/* <button
@@ -826,11 +956,39 @@ return (
     
     <div className={styles.rightColumn}>
       <div className={styles.avatarSection}>
-        <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "100px", height: "100px"}}/>
-        {/* Moved user info below the avatar */}
+        <MichaelChatAvatar
+          text={lastAssistantMessage}
+          autoPlay={autoPlaySpeech}
+          size="medium"
+          isListening={isRecording}
+          isThinking={isThinking}
+        />
+        
+        {/* User info below the avatar */}
         <div className={styles.userInfo}>
           <div className={styles.nickname}>
-            היי {currentUser}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', }}>
+              <span>היי {currentUser}</span>
+              <button
+                className={`${styles.audioToggle} ${autoPlaySpeech ? styles.audioToggleOn : styles.audioToggleOff}`}
+                onClick={() => setAutoPlaySpeech(!autoPlaySpeech)}
+                title={autoPlaySpeech ? "השבת קול אוטומטי" : "הפעל קול אוטומטי"}
+              >
+                {autoPlaySpeech ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                    <line x1="17" y1="9" x2="23" y2="15"></line>
+                  </svg>
+                )}
+              </button>
+            </div>
             {isTokenBalanceVisible && (
             <div>
               יתרה נוכחית: ₪{currentBalance}
