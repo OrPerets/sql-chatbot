@@ -19,7 +19,7 @@ const TalkingAvatar: React.FC<TalkingAvatarProps> = ({
 }) => {
   const [isTalking, setIsTalking] = useState(false);
   const [isSpeechEnabled, setIsSpeechEnabled] = useState(true);
-  const [speechRate, setSpeechRate] = useState(1);
+  const [speechRate, setSpeechRate] = useState(1.3); // Faster but still clear speech rate
   const [showSettings, setShowSettings] = useState(false);
   
   console.log('TalkingAvatar rendered with props:', { text, autoPlay, isTalking });

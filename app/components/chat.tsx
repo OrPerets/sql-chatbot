@@ -228,6 +228,7 @@ const Chat = ({
   const [autoPlaySpeech, setAutoPlaySpeech] = useState(true);
   // Add sidebar visibility state
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [feedbackStatus, setFeedbackStatus] = useState<{[key: number]: 'saving' | 'saved' | 'error'}>({});
   
   // Add ref to store current message immediately during streaming
   const currentAssistantMessageRef = useRef<string>("");
@@ -748,25 +749,91 @@ const loadChatMessages = (chatId: string) => {
       })
       return [...prevMessages.slice(0, -1), updatedLastMessage];
     });
+          
+    }
+
+  const handleFeedback = async (newFeedback: "like" | "dislike" | null, index: number) => {
+    console.log('🔄 Feedback triggered:', { feedback: newFeedback, messageIndex: index });
     
-  }
+    try {
+      // Set saving status
+      setFeedbackStatus(prev => ({ ...prev, [index]: 'saving' }));
+      
+      // Update the message state properly instead of direct mutation
+      setMessages(prevMessages => {
+        const updatedMessages = [...prevMessages];
+        updatedMessages[index] = {
+          ...updatedMessages[index],
+          feedback: newFeedback
+        };
+        return updatedMessages;
+      });
 
-  const handleFeedback = (isLike, index) => {
-    const message = messages[index];
-    message.feedback = isLike;
+      const message = messages[index];
+      console.log('📤 Sending feedback to server:', {
+        chatId: currentChatId,
+        userId: JSON.parse(localStorage.getItem("currentUser"))["email"],
+        message: message.text.substring(0, 50) + '...',
+        feedback: newFeedback
+      });
+      
+      // Send feedback to server
+      const response = await fetch(`${SERVER_BASE}/saveFeedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          "chatId": currentChatId,
+          "userId": JSON.parse(localStorage.getItem("currentUser"))["email"],
+          "message": message.text,
+          "feedback": newFeedback,
+          "timestamp": new Date().toISOString()
+        }),
+      });
 
-    fetch(`${SERVER_BASE}/saveFeedback`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        "chatId": currentChatId,
-        "userId": JSON.parse(localStorage.getItem("currentUser"))["email"],
-        "message": message.text,
-        "feedback": message.feedback
-      }),
-    }); 
+      if (!response.ok) {
+        throw new Error(`Failed to save feedback: ${response.status}`);
+      }
+
+      console.log('✅ Feedback saved successfully:', { feedback: newFeedback, messageIndex: index });
+      setFeedbackStatus(prev => ({ ...prev, [index]: 'saved' }));
+      
+      // Clear saved status after 2 seconds
+      setTimeout(() => {
+        setFeedbackStatus(prev => {
+          const updated = { ...prev };
+          delete updated[index];
+          return updated;
+        });
+      }, 2000);
+      
+    } catch (error) {
+      console.error('❌ Error saving feedback:', error);
+      setFeedbackStatus(prev => ({ ...prev, [index]: 'error' }));
+      
+      // Revert the state change if save failed
+      setMessages(prevMessages => {
+        const updatedMessages = [...prevMessages];
+        updatedMessages[index] = {
+          ...updatedMessages[index],
+          feedback: messages[index].feedback // Revert to original feedback
+        };
+        return updatedMessages;
+      });
+      
+      // Clear error status after 3 seconds
+      setTimeout(() => {
+        setFeedbackStatus(prev => {
+          const updated = { ...prev };
+          delete updated[index];
+          return updated;
+        });
+      }, 3000);
+      
+      // You could also show a toast notification here
+      alert('Failed to save feedback. Please try again.');
+    }
   }
 
   const openNewChat = () => {
@@ -804,14 +871,33 @@ return (
           ) : (
             <>
               {messages.map((msg, index) => (
-                <Message
-                  key={index}
-                  role={msg.role}
-                  text={msg.text}
-                  feedback={msg.feedback}
-                  hasImage={msg.hasImage}
-                  onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
-                />
+                <div key={index} style={{ position: 'relative' }}>
+                  <Message
+                    role={msg.role}
+                    text={msg.text}
+                    feedback={msg.feedback}
+                    hasImage={msg.hasImage}
+                    onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
+                  />
+                  {/* Feedback Status Indicator */}
+                  {feedbackStatus[index] && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      padding: '4px 8px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      backgroundColor: feedbackStatus[index] === 'saving' ? '#fbbf24' : 
+                                     feedbackStatus[index] === 'saved' ? '#10b981' : '#ef4444',
+                      color: 'white',
+                      zIndex: 1000
+                    }}>
+                      {feedbackStatus[index] === 'saving' ? '💾 Saving...' : 
+                       feedbackStatus[index] === 'saved' ? '✅ Saved' : '❌ Error'}
+                    </div>
+                  )}
+                </div>
               ))}
               {inputDisabled && (
                 <div className={styles.assistantMessage}>
