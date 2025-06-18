@@ -455,8 +455,8 @@ const MichaelChatAvatar: React.FC<MichaelChatAvatarProps> = ({
     } else {
       // Turning on sound - request audio permission
       try {
-        console.log('🔊 User clicked sound toggle - requesting permission');
-        const hasPermission = await enhancedTTS.requestAudioPermission();
+        console.log('🔊 User clicked sound toggle - testing audio capability');
+        const hasPermission = await enhancedTTS.testAudioPlayback();
         if (hasPermission) {
           setIsSpeechEnabled(true);
           setAudioError(null);

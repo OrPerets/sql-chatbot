@@ -94,7 +94,6 @@ const Test3DAvatarPage = () => {
           <h2 style={{ color: '#666', marginBottom: '20px' }}>Full Avatar with TTS</h2>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
             <MichaelChatAvatar
-              useSimpleAvatar={true}
               size="large"
             />
           </div>
