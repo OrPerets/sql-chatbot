@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import styles from "./chat.module.css";
 import { AssistantStream } from "openai/lib/AssistantStream";
 import Markdown from "react-markdown";
@@ -17,7 +17,8 @@ import SQLQueryEditorComponent from "./query-vizualizer";
 import ImageUpload from "./image-upload";
 import { fileToBase64 } from "../utils/parseImage";
 import AudioRecorder from "./audio-recorder";
-import MichaelChatAvatar from "./michael-chat-avatar";
+import { MichaelAvatarDirect } from "./MichaelAvatarDirect";
+import { simpleTTS } from "../utils/simpleTTS";
 
 export const maxDuration = 50;
 
@@ -288,6 +289,9 @@ const Chat = ({
     setSidebarVisible(prev => !prev);
   };
 
+  // Debounced speech function - only speaks after text has stopped changing
+  // Speech is now handled by the avatar component, no need for separate debounced speech
+
   // automatically scroll to bottom of chat
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollToBottom = () => {
@@ -360,6 +364,45 @@ const updateUserBalance = async (value) => {
     };
     createThread();
   }, []);
+
+  // Cleanup speech on unmount
+  useEffect(() => {
+    return () => {
+      simpleTTS.stop();
+    };
+  }, []);
+
+  // Watch for when assistant message is complete and trigger speech
+  useEffect(() => {
+    const messageId = lastAssistantMessage?.substring(0, 50) || "";
+    
+    console.log('👀 Watching lastAssistantMessage change:', {
+      isDone,
+      autoPlaySpeech,
+      lastAssistantMessageLength: lastAssistantMessage?.length || 0,
+      lastAssistantMessage: lastAssistantMessage?.substring(0, 50) + '...',
+      shouldSpeak,
+      isAssistantMessageComplete,
+      messageId,
+      lastSpokenMessageId,
+      messageAlreadySpoken: lastSpokenMessageId === messageId
+    });
+    
+    // Trigger speech when we have a complete assistant message and streaming is done
+    // BUT only if we haven't already spoken this message
+    if (isDone && autoPlaySpeech && lastAssistantMessage && lastAssistantMessage.length > 0 && !shouldSpeak && lastSpokenMessageId !== messageId) {
+      console.log('🎤 useEffect detected NEW complete assistant message - enabling speech!');
+      setLastSpokenMessageId(messageId); // Mark this message as spoken
+      setIsAssistantMessageComplete(true);
+      setShouldSpeak(true);
+      
+      // Auto-disable after timeout
+      setTimeout(() => {
+        console.log('🔄 Auto-disabling shouldSpeak from useEffect');
+        setShouldSpeak(false);
+      }, 5000);
+    }
+  }, [lastAssistantMessage, isDone, autoPlaySpeech, shouldSpeak, lastSpokenMessageId]);
 
   const sendMessage = async (text) => { 
     setImageProcessing(true);
@@ -471,6 +514,12 @@ const updateUserBalance = async (value) => {
   // Add a function to load messages for a specific chat
 const loadChatMessages = (chatId: string) => {
   setLoadingMessages(true); // Set loading to true before fetching
+  // Reset speech state when loading existing chat
+  setLastAssistantMessage("");
+  setLastSpokenMessageId("");
+  setShouldSpeak(false);
+  setIsAssistantMessageComplete(false);
+  
   fetch(`${SERVER_BASE}/chat-sessions/${chatId}/messages`, {
     method: 'GET',
     headers: {
@@ -710,7 +759,6 @@ const loadChatMessages = (chatId: string) => {
       
       // Update last assistant message for display only - don't trigger speech yet
       if (lastMessage.role === 'assistant') {
-        console.log('Updating last assistant message via appendToLastMessage:', updatedLastMessage.text);
         setLastAssistantMessage(updatedLastMessage.text);
         // Also update the ref immediately for handleRunCompleted access
         currentAssistantMessageRef.current = updatedLastMessage.text;
@@ -726,7 +774,6 @@ const loadChatMessages = (chatId: string) => {
     
     // Track last assistant message for speech synthesis
     if (role === 'assistant') {
-      console.log('Setting last assistant message:', text);
       setLastAssistantMessage(text);
       // For new complete messages, also set speech text
       setSpeechText(text);
@@ -839,6 +886,10 @@ const loadChatMessages = (chatId: string) => {
   const openNewChat = () => {
     setCurrentChatId(null);
     setMessages([]);
+    setLastAssistantMessage("");
+    setLastSpokenMessageId(""); // Reset spoken message tracking
+    setShouldSpeak(false);
+    setIsAssistantMessageComplete(false);
   }
 
 return (
@@ -1094,8 +1145,15 @@ return (
           text={speechText}
           autoPlay={autoPlaySpeech}
           size="medium"
-          isListening={isRecording}
-          isThinking={isThinking}
+          onSpeakingStart={() => {
+            console.log('🎤 Michael started speaking');
+            setShouldSpeak(true);
+          }}
+          onSpeakingEnd={() => {
+            console.log('🎤 Michael finished speaking');
+            setShouldSpeak(false);
+            setIsAssistantMessageComplete(false);
+          }}
         />
         
         {/* User info below the avatar */}

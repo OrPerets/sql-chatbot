@@ -178,20 +178,21 @@ class EnhancedTTSService {
   private selectVoice(language: 'en' | 'he', options: TTSOptions): string {
     const { voice, characterStyle } = options;
     
-    // If specific voice requested and available, use it
-    if (voice && AVAILABLE_VOICES.some(v => v.id === voice && v.language.includes(language))) {
-      return voice;
+    // For Hebrew text, always use Nova (best Hebrew pronunciation)
+    if (language === 'he') {
+      console.log('🇮🇱 Hebrew text detected - forcing nova voice for optimal pronunciation');
+      return 'nova';
     }
 
-    // Auto-select based on character style and language
-    if (language === 'he') {
-      return 'nova'; // Nova handles Hebrew well
+    // If specific voice requested and available for English, use it
+    if (voice && AVAILABLE_VOICES.some(v => v.id === voice && v.language.includes(language))) {
+      return voice;
     }
 
     // For English, choose based on character style
     switch (characterStyle) {
       case 'university_ta':
-        return 'echo'; // Friendly male TA voice
+        return 'echo'; // Deep male TA voice for Michael
       case 'professional':
         return 'onyx'; // Professional male voice
       case 'casual':
@@ -208,28 +209,53 @@ class EnhancedTTSService {
     const language = this.detectLanguage(text);
     const selectedVoice = this.selectVoice(language, options);
     
-    const response = await fetch('/api/audio/tts', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        text,
-        voice: selectedVoice,
-        speed: options.speed || 1.0,
-        format: 'mp3',
-        enhance_prosody: options.enhanceProsody !== false,
-        character_style: options.characterStyle || 'university_ta'
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`TTS API error: ${response.status}`);
+    // Create request key for client-side deduplication
+    const requestKey = `${text}_${selectedVoice}_${options.speed || 1.0}_${options.enhanceProsody !== false}_${options.characterStyle || 'university_ta'}`;
+    
+    // Check if same request is already pending
+    if (this.pendingRequests.has(requestKey)) {
+      console.log('🔄 Client-side: Duplicate TTS request detected - reusing pending promise');
+      return await this.pendingRequests.get(requestKey)!;
     }
+    
+    console.log(`🎤 Generating OpenAI TTS: voice=${selectedVoice}, language=${language}`);
+    
+    // Create the promise and store it
+    const requestPromise = (async (): Promise<string> => {
+      try {
+        const response = await fetch('/api/audio/tts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            text,
+            voice: selectedVoice,
+            speed: options.speed || 1.0,
+            format: 'mp3',
+            enhance_prosody: options.enhanceProsody !== false,
+            character_style: options.characterStyle || 'university_ta'
+          }),
+        });
 
-    // Convert response to blob URL
-    const audioBlob = await response.blob();
-    return URL.createObjectURL(audioBlob);
+        if (!response.ok) {
+          throw new Error(`TTS API error: ${response.status}`);
+        }
+
+        // Convert response to blob URL
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        console.log(`✅ OpenAI TTS audio generated: ${audioBlob.size} bytes`);
+        return audioUrl;
+      } finally {
+        // Clean up pending request
+        this.pendingRequests.delete(requestKey);
+      }
+    })();
+    
+    // Store the promise
+    this.pendingRequests.set(requestKey, requestPromise);
+    return await requestPromise;
   }
 
   // Fallback to browser speech synthesis
@@ -548,6 +574,9 @@ class EnhancedTTSService {
 
   // Stop current speech
   stop(): void {
+    console.log('🛑 EnhancedTTS.stop() called');
+    this.releaseLock('stop() called');
+    
     if (this.currentAudio) {
       this.currentAudio.pause();
       this.currentAudio.currentTime = 0;
@@ -561,12 +590,35 @@ class EnhancedTTSService {
     this.currentUtterance = null;
   }
 
+  // Force unlock the global speech lock
+  private releaseLock(reason: string): void {
+    console.log(`🔓 EnhancedTTS: Releasing global lock - ${reason}`);
+    
+    // Clear safety timeout
+    if (this.globalTimeout) {
+      clearTimeout(this.globalTimeout);
+      this.globalTimeout = null;
+    }
+    
+    // Reset global flags
+    this.isCurrentlySpeaking = false;
+    this.globalSpeechLock = false;
+  }
+
+  // Public method to force unlock if stuck
+  forceUnlock(): void {
+    console.log('⚡ EnhancedTTS: FORCE UNLOCK called');
+    this.releaseLock('manual force unlock');
+    this.stop();
+  }
+
   // Check if currently speaking
   isSpeaking(): boolean {
-    return !!(
-      (this.currentAudio && !this.currentAudio.paused) ||
-      (this.speechSynthesis && this.speechSynthesis.speaking)
-    );
+    const audioSpeaking = !!(this.currentAudio && !this.currentAudio.paused);
+    const synthSpeaking = !!(this.speechSynthesis && this.speechSynthesis.speaking);
+    const globallyLocked = this.globalSpeechLock || this.isCurrentlySpeaking;
+    
+    return audioSpeaking || synthSpeaking || globallyLocked;
   }
 
   // Get available voices

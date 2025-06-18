@@ -1,0 +1,173 @@
+.avatarContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  max-width: 300px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.avatarFace {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.emoji {
+  font-size: 4rem;
+  animation: pulse 2s ease-in-out infinite;
+  user-select: none;
+}
+
+.status {
+  color: white;
+  font-size: 1.125rem;
+  font-weight: 600;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+  min-width: 100px;
+}
+
+.enableButton {
+  background: rgba(255, 255, 255, 0.9);
+  color: #667eea;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 25px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.enableButton:hover {
+  background: white;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.testButtons {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.testButton {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 0.75rem 1.25rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.testButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.testButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* Speaking animation */
+.avatarContainer:has(.emoji:contains('🗣️')) .emoji {
+  animation: speaking 0.8s ease-in-out infinite;
+}
+
+@keyframes speaking {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.05) rotate(-2deg);
+  }
+  75% {
+    transform: scale(1.05) rotate(2deg);
+  }
+}
+
+/* Listening animation */
+.avatarContainer:has(.emoji:contains('👂')) .emoji {
+  animation: listening 1.5s ease-in-out infinite;
+}
+
+@keyframes listening {
+  0%, 100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.02);
+    filter: brightness(1.2);
+  }
+}
+
+/* Thinking animation */
+.avatarContainer:has(.emoji:contains('🤔')) .emoji {
+  animation: thinking 2s ease-in-out infinite;
+}
+
+@keyframes thinking {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  33% {
+    transform: scale(0.98) rotate(-1deg);
+  }
+  66% {
+    transform: scale(1.02) rotate(1deg);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+  .avatarContainer {
+    padding: 1.5rem;
+    max-width: 250px;
+  }
+  
+  .emoji {
+    font-size: 3rem;
+  }
+  
+  .status {
+    font-size: 1rem;
+  }
+  
+  .testButtons {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .testButton {
+    width: 100%;
+  }
+} 
