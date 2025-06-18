@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useRef, useEffect, useState } from 'react';
-import { TalkingHead } from '../lib/talkinghead/talkinghead.mjs';
 
 interface MichaelAvatarCoreProps {
   state: 'idle' | 'speaking' | 'listening' | 'thinking';
@@ -48,8 +47,11 @@ export const MichaelAvatarCore: React.FC<MichaelAvatarCoreProps> = ({
       // Clear any existing content
       avatarRef.current.innerHTML = '';
 
+      // Import TalkingHead dynamically to avoid TypeScript issues
+      const { TalkingHead } = await import('../lib/talkinghead/talkinghead.mjs');
+      
       // Create TalkingHead instance
-      const head = new TalkingHead(avatarRef.current, {
+      const head = new (TalkingHead as any)(avatarRef.current, {
         ttsEndpoint: '', // We'll handle TTS separately
         cameraView: 'upper',
       });
@@ -59,16 +61,12 @@ export const MichaelAvatarCore: React.FC<MichaelAvatarCoreProps> = ({
       // Load avatar (trying multiple fallbacks like the working example)
       try {
         // First try: local avatar
-        await head.showAvatar({
-          url: '/avatars/michael.glb',
-          body: 'M',
-          avatarMood: 'neutral'
-        });
+        await head.showAvatar({ url: '/avatars/michael.glb' });
         console.log('Local Michael avatar loaded successfully!');
       } catch (localError) {
         console.warn('Local avatar failed, trying default...', localError);
-        // Fallback: use default avatar
-        await head.showAvatar();
+        // Fallback: use default avatar (minimal required object)
+        await head.showAvatar({ url: '' });
         console.log('Default avatar loaded successfully!');
       }
 
