@@ -5,6 +5,9 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Global request deduplication to prevent multiple identical TTS calls
+const activeRequests = new Map<string, Promise<NextResponse>>();
+
 // Voice configurations for different contexts
 const VOICE_PROFILES = {
   'nova': {
@@ -103,8 +106,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Detect language
-    const hasHebrew = /[\u0590-\u05FF]/.test(text);
+    // Create request fingerprint for deduplication
+    const requestKey = `${text}_${voice}_${speed}_${format}_${enhance_prosody}_${character_style}`;
+    
+    // Check if identical request is already processing
+    if (activeRequests.has(requestKey)) {
+      console.log('🔄 Duplicate TTS request detected - returning existing promise');
+      return await activeRequests.get(requestKey)!;
+    }
+
+    // Create and store the processing promise
+    const processingPromise = (async (): Promise<NextResponse> => {
+      try {
+        // Detect language
+        const hasHebrew = /[\u0590-\u05FF]/.test(text);
     
     // Clean and enhance text for better speech with natural pauses
     let processedText = text
@@ -128,48 +143,67 @@ export async function POST(request: NextRequest) {
         .replace(/\b(this is|this shows)\b/gi, 'here we have');
     }
 
-    // Apply SSML enhancements if requested
-    if (enhance_prosody) {
-      processedText = enhanceTextWithSSML(processedText, {
-        addPauses: true,
-        emphasizeImportant: true,
-        adjustPacing: hasHebrew // Slower for Hebrew
-      });
-    }
+        // Apply SSML enhancements if requested
+        if (enhance_prosody) {
+          processedText = enhanceTextWithSSML(processedText, {
+            addPauses: true,
+            emphasizeImportant: true,
+            adjustPacing: hasHebrew // Slower for Hebrew
+          });
+        }
 
-    // Select appropriate voice based on language and preference
-    let selectedVoice = voice;
-    if (hasHebrew && ['nova', 'shimmer'].includes(voice)) {
-      // Keep nova/shimmer for Hebrew as they handle it well
-      selectedVoice = voice;
-    } else if (!hasHebrew && character_style === 'university_ta') {
-      // For English Michael, prefer male voices
-      selectedVoice = ['echo', 'onyx'].includes(voice) ? voice : 'echo';
-    }
+        // Select appropriate voice based on language and preference
+        let selectedVoice = voice;
+        if (hasHebrew) {
+          // For Hebrew text, use voices that handle Hebrew well
+          // Nova is excellent for Hebrew pronunciation
+          selectedVoice = 'nova';
+          console.log('🇮🇱 Hebrew detected - using nova voice for best Hebrew pronunciation');
+        } else if (!hasHebrew && character_style === 'university_ta') {
+          // For English Michael, prefer male voices
+          selectedVoice = ['echo', 'onyx'].includes(voice) ? voice : 'echo';
+          console.log('🇺🇸 English detected - using male voice for Michael character');
+        }
 
-    console.log(`Generating TTS with voice: ${selectedVoice} for text: ${processedText.substring(0, 100)}...`);
+        console.log(`Generating TTS with voice: ${selectedVoice} for text: ${processedText.substring(0, 100)}...`);
 
-    // Generate speech using OpenAI TTS
-    const mp3 = await openai.audio.speech.create({
-      model: 'tts-1-hd', // Use the high-quality model
-      voice: selectedVoice as any,
-      input: processedText,
-      speed: Math.max(0.25, Math.min(4.0, speed)), // Clamp speed between 0.25 and 4.0
-      response_format: format as any,
-    });
+        // Generate speech using OpenAI TTS
+        const mp3 = await openai.audio.speech.create({
+          model: 'tts-1-hd', // Use the high-quality model
+          voice: selectedVoice as any,
+          input: processedText,
+          speed: Math.max(0.25, Math.min(4.0, speed)), // Clamp speed between 0.25 and 4.0
+          response_format: format as any,
+        });
 
-    // Convert the response to a buffer
-    const buffer = Buffer.from(await mp3.arrayBuffer());
+        // Convert the response to a buffer
+        const buffer = Buffer.from(await mp3.arrayBuffer());
 
-    // Return audio with appropriate headers
-    return new NextResponse(buffer, {
-      status: 200,
-      headers: {
-        'Content-Type': format === 'mp3' ? 'audio/mpeg' : 'audio/wav',
-        'Content-Length': buffer.length.toString(),
-        'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
-      },
-    });
+        // Return audio with appropriate headers
+        return new NextResponse(buffer, {
+          status: 200,
+          headers: {
+            'Content-Type': format === 'mp3' ? 'audio/mpeg' : 'audio/wav',
+            'Content-Length': buffer.length.toString(),
+            'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+          },
+        });
+
+      } catch (error) {
+        console.error('TTS generation error:', error);
+        return NextResponse.json(
+          { error: 'Failed to generate speech' },
+          { status: 500 }
+        );
+      } finally {
+        // Clean up active request
+        activeRequests.delete(requestKey);
+      }
+    })();
+
+    // Store the promise and return it
+    activeRequests.set(requestKey, processingPromise);
+    return await processingPromise;
 
   } catch (error) {
     console.error('TTS generation error:', error);
