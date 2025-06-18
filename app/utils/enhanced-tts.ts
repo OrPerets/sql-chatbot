@@ -87,80 +87,42 @@ class EnhancedTTSService {
   private currentAudio: HTMLAudioElement | null = null;
   private speechSynthesis: SpeechSynthesis | null = null;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
-  private userHasInteracted = false;
-  private audioPermissionCallbacks: Array<(granted: boolean) => void> = [];
+  private audioUnlocked = false;
+  private isCurrentlySpeaking = false;
+  private globalSpeechLock = false;
+  private globalTimeout: NodeJS.Timeout | null = null;
+  private pendingRequests = new Map<string, Promise<string>>();
 
   constructor() {
     if (typeof window !== 'undefined') {
       this.speechSynthesis = window.speechSynthesis;
-      this.setupUserInteractionDetection();
     }
   }
 
-  // Setup user interaction detection
-  private setupUserInteractionDetection(): void {
-    const detectInteraction = () => {
-      this.userHasInteracted = true;
-      console.log('User interaction detected - audio permission likely available');
-      
-      // Notify all waiting callbacks
-      this.audioPermissionCallbacks.forEach(callback => callback(true));
-      this.audioPermissionCallbacks = [];
-      
-      // Remove listeners after first interaction
-      document.removeEventListener('click', detectInteraction);
-      document.removeEventListener('touchstart', detectInteraction);
-      document.removeEventListener('keydown', detectInteraction);
-    };
-
-    // Listen for any user interaction
-    document.addEventListener('click', detectInteraction);
-    document.addEventListener('touchstart', detectInteraction);
-    document.addEventListener('keydown', detectInteraction);
-  }
-
-  // Request audio permission through user interaction
-  async requestAudioPermission(): Promise<boolean> {
-    if (this.userHasInteracted) return true;
-
-    // Try to enable audio permission by attempting real audio playback
+  // Test audio playback with user gesture
+  async testAudioPlayback(): Promise<boolean> {
     try {
-      // Create a very short, quiet test audio
+      console.log('🎵 Testing audio playback capability...');
+      
+      // Create a silent audio element to test autoplay
       const testAudio = new Audio();
-      testAudio.volume = 0.01; // Very quiet but not muted
-      testAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+      testAudio.src = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQ4AAAA='; // Silent 1 second WAV
+      testAudio.volume = 0.01; // Almost silent
       
       const playPromise = testAudio.play();
-      await playPromise;
+      if (playPromise !== undefined) {
+        await playPromise;
+        console.log('✅ Audio playback test successful!');
+        this.audioUnlocked = true;
+        return true;
+      }
       
-      this.userHasInteracted = true;
-      console.log('Audio permission granted through test playback');
-      
-      // Notify all waiting callbacks
-      this.audioPermissionCallbacks.forEach(callback => callback(true));
-      this.audioPermissionCallbacks = [];
-      
-      return true;
+      return false;
     } catch (error) {
-      console.log('Audio permission request failed - user interaction required:', error);
+      console.warn('⚠️ Audio playback test failed:', error);
+      this.audioUnlocked = false;
       return false;
     }
-  }
-
-  // Check if audio permission is likely granted
-  hasAudioPermission(): boolean {
-    return this.userHasInteracted;
-  }
-
-  // Wait for audio permission
-  waitForAudioPermission(): Promise<boolean> {
-    if (this.userHasInteracted) {
-      return Promise.resolve(true);
-    }
-
-    return new Promise((resolve) => {
-      this.audioPermissionCallbacks.push(resolve);
-    });
   }
 
   // Get cache key for audio
@@ -266,82 +228,41 @@ class EnhancedTTSService {
 
     const language = this.detectLanguage(text);
     
-    // Clean text for natural, teacher-like speech with comprehension focus
+    // Clean text for browser TTS
     const cleanText = text
-      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold markdown
-      .replace(/\*(.*?)\*/g, '$1') // Remove italic markdown
-      .replace(/```[\s\S]*?```/g, '. Here is some code... ') // Natural pause before code explanation
-      .replace(/`([^`]+)`/g, '$1') // Remove inline code backticks
-      .replace(/[😊😀😃😄😁😆😅🤣😂🙂🙃😉😇🥰😍🤩😘😗😚😙😋😛😜🤪😝🤑🤗🤭🤫🤔🤐🤨😐😑😶😏😒🙄😬🤥😌😔😪🤤😴😷🤒🤕🤢🤮🤧🥵🥶🥴😵🤯🤠🥳😎🤓🧐🚀⚡💡🎯🎓✨👍👎👏🔧🛠️📝📊💻⭐🎉🔥💪🏆📈🎪]/g, '') // Remove emojis
-      // Natural sentence flow and pauses for teaching
-      .replace(/\n\n+/g, '... ') // Double newlines become thoughtful pauses
-      .replace(/\n+/g, '. ') // Single newlines become sentence breaks
-      .replace(/([.!?])\s*([A-Z])/g, '$1... $2') // Add thoughtful pause after sentences
-      .replace(/([.!?])\s*$/g, '$1...') // Add pause at end of final sentences
-      .replace(/:\s*/g, ': ') // Pause after colons for explanation
-      .replace(/;\s*/g, '; ') // Pause after semicolons
-      .replace(/,\s*and\s+/g, ', and ') // Natural "and" conjunction pauses
-      .replace(/,\s*but\s+/g, ', but ') // Natural "but" conjunction pauses
-      .replace(/,\s*or\s+/g, ', or ') // Natural "or" conjunction pauses
-      .replace(/,\s*so\s+/g, ', so ') // Natural "so" conjunction pauses
-      // Clean up excessive punctuation
-      .replace(/[.]{3,}/g, '...') // Normalize ellipses
-      .replace(/[.]{2}/g, '...') // Convert double dots to ellipses
-      .replace(/[?]{2,}/g, '?') // Single question marks
-      .replace(/[!]{2,}/g, '!') // Single exclamation marks
-      // Ensure proper spacing for natural speech rhythm
-      .replace(/\s*[.]\s*/g, '. ') // Proper period spacing
-      .replace(/\s*[,]\s*/g, ', ') // Proper comma spacing
-      .replace(/\s*[?]\s*/g, '? ') // Proper question spacing
-      .replace(/\s*[!]\s*/g, '! ') // Proper exclamation spacing
-      .replace(/\s*[...]\s*/g, '... ') // Proper ellipses spacing
-      .replace(/\s+/g, ' ') // Clean up multiple spaces
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/```[\s\S]*?```/g, ' code block ')
+      .replace(/😊|😀|😃|😄|😁|😆|😅|🤣|😂|🙂|🙃|😉|😇|🥰|😍|🤩|😘|😗|😚|😙|😋|😛|😜|🤪|😝|🤑|🤗|🤭|🤫|🤔|🤐|🤨|😐|😑|😶|😏|😒|🙄|😬|🤥|😌|😔|😪|🤤|😴|😷|🤒|🤕|🤢|🤮|🤧|🥵|🥶|🥴|😵|🤯|🤠|🥳|😎|🤓|🧐|🚀|⚡|💡|🎯|🎓|✨|👍|👎|👏|🔧|🛠️|📝|📊|💻|⭐|🎉|🔥|💪|🏆|📈|🎪/g, '')
+      .replace(/\s+/g, ' ')
       .trim();
-
-    // ENHANCED voice selection for natural human-like speech
-    const voices = this.speechSynthesis.getVoices();
-    let selectedVoice = null;
-    
-    if (language === 'he') {
-      // Prioritize high-quality Hebrew voices
-      selectedVoice = voices.find(voice => 
-        (voice.lang.includes('he') || voice.lang.includes('iw')) &&
-        (voice.name.toLowerCase().includes('carmit') || 
-         voice.name.toLowerCase().includes('hebrew') ||
-         voice.localService === true) // Prefer local/system voices for better quality
-      ) || voices.find(voice => voice.lang.includes('he') || voice.lang.includes('iw'));
-    } else {
-      // Prioritize natural English male voices for university TA character
-      selectedVoice = voices.find(voice => {
-        const name = voice.name.toLowerCase();
-        const isEnglish = voice.lang.startsWith('en');
-        const isLocal = voice.localService === true;
-        const isMale = name.includes('male') || name.includes('alex') || 
-                      name.includes('daniel') || name.includes('thomas') ||
-                      name.includes('arthur') || name.includes('gordon');
-        return isEnglish && (isLocal || isMale);
-      });
-      
-      // Fallback to any good English voice
-      if (!selectedVoice) {
-        selectedVoice = voices.find(voice => 
-          voice.lang.startsWith('en') && voice.localService === true
-        ) || voices.find(voice => voice.lang.startsWith('en'));
-      }
-    }
-    
-    // Final fallback to first available voice
-    if (!selectedVoice) {
-      selectedVoice = voices.find(voice => voice.lang.startsWith(language === 'he' ? 'he' : 'en')) || voices[0];
-    }
 
     // Create utterance
     this.currentUtterance = new SpeechSynthesisUtterance(cleanText);
     this.currentUtterance.lang = language === 'he' ? 'he-IL' : 'en-US';
-    this.currentUtterance.rate = Math.min((options.speed || 1.0) * 0.95, 1.5); // Even slower, more deliberate teaching pace
-    this.currentUtterance.pitch = options.pitch || 0.85; // Lower pitch for warm, authoritative teacher voice
-    this.currentUtterance.volume = options.volume || 0.75; // Softer volume for comfortable listening
+    this.currentUtterance.rate = (options.speed || 1.0) * 0.9;
+    this.currentUtterance.pitch = options.pitch || 0.95;
+    this.currentUtterance.volume = options.volume || 0.9;
 
+    // Select browser voice
+    const voices = this.speechSynthesis.getVoices();
+    let selectedVoice = null;
+    
+    if (language === 'he') {
+      selectedVoice = voices.find(voice => 
+        voice.lang.includes('he') || voice.lang.includes('iw') ||
+        voice.name.toLowerCase().includes('carmit') || 
+        voice.name.toLowerCase().includes('hebrew')
+      );
+    } else {
+      // Prefer male voices for university TA character
+      selectedVoice = voices.find(voice => {
+        const name = voice.name.toLowerCase();
+        return name.includes('alex') || name.includes('daniel') || 
+               name.includes('thomas') || name.includes('male');
+      });
+    }
+    
     if (selectedVoice) {
       this.currentUtterance.voice = selectedVoice;
     }
@@ -352,26 +273,9 @@ class EnhancedTTSService {
         return;
       }
 
-      this.currentUtterance.onstart = () => {
-        // Call onStart only if it wasn't already called (for fallback scenarios)
-        if (options.onStart) {
-          options.onStart();
-        }
-        console.log('Browser speech synthesis started');
-      };
-
-      this.currentUtterance.onend = () => {
-        options.onEnd?.();
-        resolve();
-      };
+      this.currentUtterance.onend = () => resolve();
+      this.currentUtterance.onerror = (event) => reject(new Error(`Speech error: ${event.error}`));
       
-      this.currentUtterance.onerror = (event) => {
-        const err = new Error(`Speech error: ${event.error}`);
-        options.onError?.(err);
-        reject(err);
-      };
-      
-      // Start speech immediately
       this.speechSynthesis!.speak(this.currentUtterance);
     });
   }
@@ -380,14 +284,37 @@ class EnhancedTTSService {
   async speak(text: string, options: TTSOptions = {}): Promise<void> {
     if (!text.trim()) return;
 
-    // Call onStart callback IMMEDIATELY for instant visual feedback
-    options.onStart?.();
-
+    const callId = Math.random().toString(36).substring(2, 8);
+    console.log(`🗣️ [${callId}] EnhancedTTS.speak() called with: "${text.substring(0, 50)}..."`);
+    
+    // GLOBAL LOCK - Only one speech at a time EVER
+    if (this.globalSpeechLock || this.isCurrentlySpeaking) {
+      console.log(`🚫 [${callId}] GLOBAL SPEECH LOCK: Rejecting speech request - already speaking`, {
+        globalSpeechLock: this.globalSpeechLock,
+        isCurrentlySpeaking: this.isCurrentlySpeaking,
+        currentAudio: !!this.currentAudio,
+        audioPlaying: this.currentAudio ? !this.currentAudio.paused : false
+      });
+      return;
+    }
+    
+    // Set global lock immediately
+    this.globalSpeechLock = true;
+    this.isCurrentlySpeaking = true;
+    console.log(`🔒 [${callId}] Global lock acquired`);
+    
+    // Safety timeout - force unlock after 30 seconds
+    this.globalTimeout = setTimeout(() => {
+      console.log(`⏰ [${callId}] SAFETY TIMEOUT: Force unlocking TTS after 30 seconds`);
+      this.releaseLock('safety timeout');
+      this.stop();
+    }, 30000);
+    
     const cacheKey = this.getCacheKey(text, options);
     
     try {
-      // Stop any current speech
-      this.stop();
+      // Call onStart callback
+      options.onStart?.();
 
       // Try OpenAI TTS first if enabled and available
       if (options.useOpenAI !== false) {
@@ -395,177 +322,86 @@ class EnhancedTTSService {
           let audioUrl = this.audioCache.get(cacheKey);
           
           if (!audioUrl) {
-            console.log('🎵 Generating new OpenAI TTS audio...');
             audioUrl = await this.generateOpenAITTS(text, options);
             this.audioCache.set(cacheKey, audioUrl);
-            console.log('✅ Audio generated successfully');
-          } else {
-            console.log('📦 Using cached OpenAI TTS audio');
           }
 
-          // Create audio element with comprehensive event handling
+          // Play audio with proper error handling
+          console.log(`🔊 [${callId}] Creating new Audio element with URL:`, audioUrl.substring(0, 50) + '...');
           this.currentAudio = new Audio(audioUrl);
-          this.currentAudio.volume = options.volume || 0.8;
+          this.currentAudio.volume = options.volume || 0.9;
           this.currentAudio.playbackRate = options.speed || 1.0;
-          this.currentAudio.preload = 'auto'; // Ensure audio is preloaded
+          console.log(`🎛️ [${callId}] Audio element configured:`, {
+            volume: this.currentAudio.volume,
+            playbackRate: this.currentAudio.playbackRate,
+            src: this.currentAudio.src.substring(0, 50) + '...'
+          });
           
-          // Add comprehensive event listeners BEFORE playing
-          this.currentAudio.addEventListener('loadstart', () => console.log('🔄 Audio loading started'));
-          this.currentAudio.addEventListener('loadeddata', () => console.log('📊 Audio data loaded'));
-          this.currentAudio.addEventListener('canplay', () => console.log('▶️ Audio can start playing'));
-          this.currentAudio.addEventListener('playing', () => console.log('🎵 Audio is now playing'));
-          this.currentAudio.addEventListener('pause', () => console.log('⏸️ Audio was paused'));
-          this.currentAudio.addEventListener('ended', () => console.log('🏁 Audio playback ended normally'));
-          this.currentAudio.addEventListener('error', (e) => console.error('❌ Audio error event:', e));
-          this.currentAudio.addEventListener('abort', () => console.log('🛑 Audio playback was aborted'));
-          this.currentAudio.addEventListener('suspend', () => console.log('⏸️ Audio loading was suspended'));
-          this.currentAudio.addEventListener('stalled', () => console.log('⚠️ Audio loading stalled'));
-          
-          // Wait for audio to be ready before playing
-          const waitForAudioReady = () => {
-            return new Promise<void>((resolve, reject) => {
-              if (this.currentAudio!.readyState >= 3) { // HAVE_FUTURE_DATA or better
-                console.log('✅ Audio is ready to play');
-                resolve();
-                return;
-              }
-              
-              const onCanPlay = () => {
-                console.log('🎬 Audio can play event fired');
-                this.currentAudio!.removeEventListener('canplay', onCanPlay);
-                this.currentAudio!.removeEventListener('error', onError);
-                resolve();
-              };
-              
-              const onError = (e: any) => {
-                console.error('❌ Audio loading error:', e);
-                this.currentAudio!.removeEventListener('canplay', onCanPlay);
-                this.currentAudio!.removeEventListener('error', onError);
-                reject(new Error('Audio failed to load'));
-              };
-              
-              this.currentAudio!.addEventListener('canplay', onCanPlay);
-              this.currentAudio!.addEventListener('error', onError);
-              
-              // Force load
-              this.currentAudio!.load();
-            });
-          };
-          
-          // Try to play with detailed error catching
-          try {
-            console.log('🚀 Attempting to play audio...');
-            console.log('📍 User has interacted:', this.userHasInteracted);
-            console.log('📍 Audio duration:', this.currentAudio.duration);
-            console.log('📍 Audio ready state:', this.currentAudio.readyState);
-            
-            // Wait for audio to be ready
-            await waitForAudioReady();
-            
-            const playPromise = this.currentAudio.play();
-            console.log('📋 Play promise created');
-            
-            await playPromise;
-            console.log('✅ Audio playback started successfully');
-            
-            // Mark that we successfully played audio
-            this.userHasInteracted = true;
-            
-          } catch (playError) {
-            console.error('💥 Audio play failed with error:', playError);
-            console.error('💥 Error name:', playError instanceof Error ? playError.name : 'Unknown');
-            console.error('💥 Error message:', playError instanceof Error ? playError.message : 'Unknown');
-            
-            // If play fails due to autoplay policy, inform user
-            if (playError instanceof Error && 
-                (playError.name === 'NotAllowedError' || 
-                 playError.message.includes('play() request was interrupted') ||
-                 playError.message.includes('user didn\'t interact') ||
-                 playError.message.includes('autoplay policy'))) {
-              
-              console.log('🚫 Autoplay blocked - user interaction required');
-              this.userHasInteracted = false;
-              const audioError = new Error('AUDIO_AUTOPLAY_BLOCKED');
-              audioError.message = 'Audio was blocked by browser. Click the sound button to enable audio.';
-              options.onError?.(audioError);
-              return;
-            }
-            throw playError;
-          }
-          
-          return new Promise((resolve, reject) => {
+          // Set up event handlers before playing
+          return new Promise(async (resolve, reject) => {
             if (!this.currentAudio) return reject(new Error('No audio'));
             
-            // Set up promise event handlers
-            const handleEnded = () => {
-              console.log('🎯 Audio ended - cleaning up');
-              cleanup();
+            this.currentAudio.onended = () => {
+              console.log(`🤐 [${callId}] OpenAI TTS audio ended`);
+              this.releaseLock('audio ended');
               options.onEnd?.();
               resolve();
             };
             
-            const handleError = (error: any) => {
-              console.error('🔥 Audio playback error during promise:', error);
-              cleanup();
-              const err = new Error('Audio playback error during playback');
+            this.currentAudio.onerror = (error) => {
+              console.error(`❌ [${callId}] OpenAI TTS audio error:`, error);
+              this.releaseLock('audio error');
+              const err = new Error('Audio playback error');
               options.onError?.(err);
               reject(err);
             };
             
-            const handlePause = () => {
-              console.log('⚠️ Audio was paused unexpectedly during playback');
-              // Don't reject immediately - might be user pausing
+            this.currentAudio.oncanplaythrough = () => {
+              console.log('✅ OpenAI TTS audio ready to play');
             };
             
-            const handleAbort = () => {
-              console.log('🛑 Audio was aborted during playback');
-              cleanup();
-              const err = new Error('Audio playback was aborted');
-              options.onError?.(err);
-              reject(err);
+            this.currentAudio.onloadstart = () => {
+              console.log('🔄 OpenAI TTS audio loading...');
             };
             
-            const cleanup = () => {
-              if (this.currentAudio) {
-                this.currentAudio.removeEventListener('ended', handleEnded);
-                this.currentAudio.removeEventListener('error', handleError);
-                this.currentAudio.removeEventListener('pause', handlePause);
-                this.currentAudio.removeEventListener('abort', handleAbort);
+            this.currentAudio.onplay = () => {
+              console.log(`▶️ [${callId}] OpenAI TTS audio started playing`);
+            };
+            
+            try {
+              console.log(`🎵 [${callId}] Starting OpenAI TTS audio playback...`);
+              const playPromise = this.currentAudio.play();
+              
+              if (playPromise !== undefined) {
+                await playPromise;
+                console.log(`✅ [${callId}] OpenAI TTS audio playback started successfully`);
               }
-            };
-            
-            // Add event listeners
-            this.currentAudio.addEventListener('ended', handleEnded);
-            this.currentAudio.addEventListener('error', handleError);
-            this.currentAudio.addEventListener('pause', handlePause);
-            this.currentAudio.addEventListener('abort', handleAbort);
-            
-            // Also add a timeout as safety net
-            const timeout = setTimeout(() => {
-              console.log('⏰ Audio playback timeout reached');
-              cleanup();
-              const err = new Error('Audio playback timeout');
-              options.onError?.(err);
-              reject(err);
-            }, 30000); // 30 second timeout
-            
-            // Clear timeout when audio ends
-            this.currentAudio.addEventListener('ended', () => clearTimeout(timeout));
+            } catch (playError) {
+              console.error(`❌ [${callId}] OpenAI TTS playback failed:`, playError);
+              this.releaseLock('playback error');
+              // If autoplay fails, throw error to fallback to browser TTS
+              throw new Error(`Audio autoplay blocked: ${playError.message}`);
+            }
           });
           
         } catch (openaiError) {
-          console.warn('⚠️ OpenAI TTS failed, falling back to browser TTS:', openaiError);
-          // Fall through to browser TTS
+          console.warn('OpenAI TTS failed, falling back to browser TTS:', openaiError);
+          // Re-throw autoplay errors
+          if (openaiError.message && openaiError.message.includes('autoplay')) {
+            throw openaiError;
+          }
         }
       }
 
-      // Use browser TTS as fallback (onStart already called above)
+      // Fallback to browser TTS
       console.log('🔄 Using browser TTS fallback');
-      await this.generateBrowserTTS(text, { ...options, onStart: undefined }); // Don't call onStart again
+      await this.generateBrowserTTS(text, options);
+      this.releaseLock('browser TTS completed');
       options.onEnd?.();
       
     } catch (error) {
-      console.error('💀 All TTS methods failed:', error);
+      console.error('All TTS methods failed:', error);
+      this.releaseLock('TTS error');
       const err = error instanceof Error ? error : new Error('TTS failed');
       options.onError?.(err);
       throw err;

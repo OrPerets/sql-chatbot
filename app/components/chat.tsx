@@ -225,14 +225,29 @@ const Chat = ({
   const [sqlMode, setSqlMode] = useState<'none' | 'create' | 'insert'>('none');
   // Add audio and speech state
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
-  const [speechText, setSpeechText] = useState<string>(""); // Separate state for speech
   const [autoPlaySpeech, setAutoPlaySpeech] = useState(true);
   // Add sidebar visibility state
   const [sidebarVisible, setSidebarVisible] = useState(true);
-  const [feedbackStatus, setFeedbackStatus] = useState<{[key: number]: 'saving' | 'saved' | 'error'}>({});
-  
-  // Add ref to store current message immediately during streaming
-  const currentAssistantMessageRef = useRef<string>("");
+  // Add speech timeout for debouncing
+  // Add state to track when assistant message is complete and ready for speech
+  const [isAssistantMessageComplete, setIsAssistantMessageComplete] = useState(false);
+  const [shouldSpeak, setShouldSpeak] = useState(false);
+  const [lastSpokenMessageId, setLastSpokenMessageId] = useState<string>("");
+
+  // Memoized avatar state calculation to prevent multiple renders
+  const avatarState = useMemo(() => {
+    const currentState = isThinking ? 'thinking' : isRecording ? 'listening' : (shouldSpeak && autoPlaySpeech && isAssistantMessageComplete) ? 'speaking' : 'idle';
+    console.log('🎭 Avatar state calculation:', {
+      isThinking,
+      isRecording,
+      shouldSpeak,
+      autoPlaySpeech,
+      isAssistantMessageComplete,
+      calculatedState: currentState,
+      textLength: lastAssistantMessage?.length || 0
+    });
+    return currentState;
+  }, [isThinking, isRecording, shouldSpeak, autoPlaySpeech, isAssistantMessageComplete, lastAssistantMessage?.length]);
 
   const router = useRouter();
 
@@ -576,9 +591,9 @@ const loadChatMessages = (chatId: string) => {
 
   // textCreated - create new assistant message
   const handleTextCreated = () => {
+    setIsDone(false)
+    setIsThinking(false); // Stop thinking when assistant starts responding
     appendMessage("assistant", "");
-    // Reset the ref for the new message
-    currentAssistantMessageRef.current = "";
   };
 
   // textDelta - append text to last assistant message
@@ -629,30 +644,8 @@ const loadChatMessages = (chatId: string) => {
 
   // handleRunCompleted - re-enable the input form
   const handleRunCompleted = () => {
-    console.log('🏁 handleRunCompleted called!');
-    console.log('📝 lastAssistantMessage:', lastAssistantMessage ? lastAssistantMessage.substring(0, 50) + '...' : 'EMPTY');
-    console.log('🔊 autoPlaySpeech:', autoPlaySpeech);
-    console.log('🎵 speechText current:', speechText ? speechText.substring(0, 50) + '...' : 'EMPTY');
-    console.log('📋 Messages array length:', messages.length);
-    console.log('📋 Messages array:', messages.map(m => `${m.role}: ${m.text.substring(0, 30)}...`));
-    console.log('🎯 Current message from ref:', currentAssistantMessageRef.current ? currentAssistantMessageRef.current.substring(0, 50) + '...' : 'EMPTY');
-    
     setInputDisabled(false);
     setIsThinking(false); // Stop thinking when run is completed
-    
-    // Use the ref which should have the current message text
-    const messageToSpeak = currentAssistantMessageRef.current;
-    
-    if (messageToSpeak && autoPlaySpeech) {
-      console.log('🎵 Speech trigger using ref:', messageToSpeak.substring(0, 50) + '...');
-      setSpeechText(messageToSpeak);
-    } else {
-      console.log('❌ Speech not triggered because:', {
-        hasMessage: !!messageToSpeak,
-        autoPlayEnabled: autoPlaySpeech,
-        refContent: currentAssistantMessageRef.current ? 'HAS_CONTENT' : 'EMPTY'
-      });
-    }
   };
 
    // New function to handle message changes
@@ -682,20 +675,9 @@ const loadChatMessages = (chatId: string) => {
 
 
   const endStreamResponse = () => {
-    console.log('🔚 endStreamResponse called!');
     setInputDisabled(false);
     setIsThinking(false);
-    
-    // Backup mechanism: if we have a message and auto-play is enabled, trigger speech
-    // This is in case handleRunCompleted never gets called
-    const latestAssistantMessage = messages.length > 0 && messages[messages.length - 1]?.role === 'assistant' 
-      ? messages[messages.length - 1].text 
-      : null;
-      
-    if (latestAssistantMessage && autoPlaySpeech) {
-      console.log('🔄 Backup speech trigger from endStreamResponse:', latestAssistantMessage.substring(0, 50) + '...');
-      setSpeechText(latestAssistantMessage);
-    }
+    setIsDone(true);
   };
 
   useEffect(() => {
@@ -733,13 +715,9 @@ const loadChatMessages = (chatId: string) => {
 
     // events without helpers yet (e.g. requires_action and run.done)
     stream.on("event", (event) => {
-      console.log('🎪 Stream event received:', event.event, event);
       if (event.event === "thread.run.requires_action")
         handleRequiresAction(event);
-      if (event.event === "thread.run.completed") {
-        console.log('🎯 Received thread.run.completed event!');
-        handleRunCompleted();
-      }
+      if (event.event === "thread.run.completed") handleRunCompleted();
     });
   };
 
@@ -757,12 +735,9 @@ const loadChatMessages = (chatId: string) => {
         text: lastMessage.text + text,
       };
       
-      // Update last assistant message for display only - don't trigger speech yet
+      // Update last assistant message for speech synthesis if it's an assistant message
       if (lastMessage.role === 'assistant') {
         setLastAssistantMessage(updatedLastMessage.text);
-        // Also update the ref immediately for handleRunCompleted access
-        currentAssistantMessageRef.current = updatedLastMessage.text;
-        // Don't update speechText here - it will be updated when message is complete
       }
       
       return [...prevMessages.slice(0, -1), updatedLastMessage];
@@ -775,8 +750,6 @@ const loadChatMessages = (chatId: string) => {
     // Track last assistant message for speech synthesis
     if (role === 'assistant') {
       setLastAssistantMessage(text);
-      // For new complete messages, also set speech text
-      setSpeechText(text);
     }
   };
 
@@ -796,91 +769,25 @@ const loadChatMessages = (chatId: string) => {
       })
       return [...prevMessages.slice(0, -1), updatedLastMessage];
     });
-          
-    }
-
-  const handleFeedback = async (newFeedback: "like" | "dislike" | null, index: number) => {
-    console.log('🔄 Feedback triggered:', { feedback: newFeedback, messageIndex: index });
     
-    try {
-      // Set saving status
-      setFeedbackStatus(prev => ({ ...prev, [index]: 'saving' }));
-      
-      // Update the message state properly instead of direct mutation
-      setMessages(prevMessages => {
-        const updatedMessages = [...prevMessages];
-        updatedMessages[index] = {
-          ...updatedMessages[index],
-          feedback: newFeedback
-        };
-        return updatedMessages;
-      });
+  }
 
-      const message = messages[index];
-      console.log('📤 Sending feedback to server:', {
-        chatId: currentChatId,
-        userId: JSON.parse(localStorage.getItem("currentUser"))["email"],
-        message: message.text.substring(0, 50) + '...',
-        feedback: newFeedback
-      });
-      
-      // Send feedback to server
-      const response = await fetch(`${SERVER_BASE}/saveFeedback`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          "chatId": currentChatId,
-          "userId": JSON.parse(localStorage.getItem("currentUser"))["email"],
-          "message": message.text,
-          "feedback": newFeedback,
-          "timestamp": new Date().toISOString()
-        }),
-      });
+  const handleFeedback = (isLike, index) => {
+    const message = messages[index];
+    message.feedback = isLike;
 
-      if (!response.ok) {
-        throw new Error(`Failed to save feedback: ${response.status}`);
-      }
-
-      console.log('✅ Feedback saved successfully:', { feedback: newFeedback, messageIndex: index });
-      setFeedbackStatus(prev => ({ ...prev, [index]: 'saved' }));
-      
-      // Clear saved status after 2 seconds
-      setTimeout(() => {
-        setFeedbackStatus(prev => {
-          const updated = { ...prev };
-          delete updated[index];
-          return updated;
-        });
-      }, 2000);
-      
-    } catch (error) {
-      console.error('❌ Error saving feedback:', error);
-      setFeedbackStatus(prev => ({ ...prev, [index]: 'error' }));
-      
-      // Revert the state change if save failed
-      setMessages(prevMessages => {
-        const updatedMessages = [...prevMessages];
-        updatedMessages[index] = {
-          ...updatedMessages[index],
-          feedback: messages[index].feedback // Revert to original feedback
-        };
-        return updatedMessages;
-      });
-      
-      // Clear error status after 3 seconds
-      setTimeout(() => {
-        setFeedbackStatus(prev => {
-          const updated = { ...prev };
-          delete updated[index];
-          return updated;
-        });
-      }, 3000);
-      
-      // You could also show a toast notification here
-      alert('Failed to save feedback. Please try again.');
-    }
+    fetch(`${SERVER_BASE}/saveFeedback`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        "chatId": currentChatId,
+        "userId": JSON.parse(localStorage.getItem("currentUser"))["email"],
+        "message": message.text,
+        "feedback": message.feedback
+      }),
+    }); 
   }
 
   const openNewChat = () => {
@@ -922,33 +829,14 @@ return (
           ) : (
             <>
               {messages.map((msg, index) => (
-                <div key={index} style={{ position: 'relative' }}>
-                  <Message
-                    role={msg.role}
-                    text={msg.text}
-                    feedback={msg.feedback}
-                    hasImage={msg.hasImage}
-                    onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
-                  />
-                  {/* Feedback Status Indicator */}
-                  {feedbackStatus[index] && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '8px',
-                      right: '8px',
-                      padding: '4px 8px',
-                      borderRadius: '12px',
-                      fontSize: '12px',
-                      backgroundColor: feedbackStatus[index] === 'saving' ? '#fbbf24' : 
-                                     feedbackStatus[index] === 'saved' ? '#10b981' : '#ef4444',
-                      color: 'white',
-                      zIndex: 1000
-                    }}>
-                      {feedbackStatus[index] === 'saving' ? '💾 Saving...' : 
-                       feedbackStatus[index] === 'saved' ? '✅ Saved' : '❌ Error'}
-                    </div>
-                  )}
-                </div>
+                <Message
+                  key={index}
+                  role={msg.role}
+                  text={msg.text}
+                  feedback={msg.feedback}
+                  hasImage={msg.hasImage}
+                  onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
+                />
               ))}
               {inputDisabled && (
                 <div className={styles.assistantMessage}>
@@ -1141,9 +1029,9 @@ return (
     
     <div className={styles.rightColumn}>
       <div className={styles.avatarSection}>
-        <MichaelChatAvatar
-          text={speechText}
-          autoPlay={autoPlaySpeech}
+        <MichaelAvatarDirect
+          text={lastAssistantMessage}
+          state={avatarState}
           size="medium"
           onSpeakingStart={() => {
             console.log('🎤 Michael started speaking');
@@ -1157,12 +1045,30 @@ return (
         />
         
         {/* User info below the avatar */}
-        {/* <div className={styles.userInfo}>
-         
-        </div> */}
-        <div className={styles.nickname}>
+        <div className={styles.userInfo}>
+          <div className={styles.nickname}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px', }}>
               <span>היי {currentUser}</span>
+              <button
+                className={`${styles.audioToggle} ${autoPlaySpeech ? styles.audioToggleOn : styles.audioToggleOff}`}
+                onClick={() => setAutoPlaySpeech(!autoPlaySpeech)}
+                title={autoPlaySpeech ? "השבת קול אוטומטי" : "הפעל קול אוטומטי"}
+              >
+                {autoPlaySpeech ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                    <line x1="17" y1="9" x2="23" y2="15"></line>
+                  </svg>
+                )}
+              </button>
+
             </div>
             {isTokenBalanceVisible && (
             <div>
@@ -1170,6 +1076,7 @@ return (
             </div>
           )}
           </div>
+        </div>
       </div>
     </div>
     <Modal isOpen={showModal} onClose={toggleModal}>

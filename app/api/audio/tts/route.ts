@@ -51,11 +51,10 @@ function enhanceTextWithSSML(text: string, options: {
   let enhancedText = text;
   
   if (options.addPauses) {
-    // Add natural pauses after punctuation - shorter pause for questions
+    // Add natural pauses after punctuation
     enhancedText = enhancedText
-      .replace(/([.!])\s+/g, '$1 <break time="0.4s"/> ') // Normal pause for periods and exclamations
-      .replace(/([?])\s+/g, '$1 <break time="0.2s"/> ') // Shorter pause for questions
-      .replace(/([,;:])\s+/g, '$1 <break time="0.25s"/> '); // Brief pause for other punctuation
+      .replace(/([.!?])\s+/g, '$1 <break time="0.5s"/> ')
+      .replace(/([,;:])\s+/g, '$1 <break time="0.3s"/> ');
   }
   
   if (options.emphasizeImportant) {
@@ -121,27 +120,32 @@ export async function POST(request: NextRequest) {
         // Detect language
         const hasHebrew = /[\u0590-\u05FF]/.test(text);
     
-    // Clean and enhance text for better speech with natural pauses
-    let processedText = text
-      .replace(/\*\*(.*?)\*\*/g, '$1')
-      .replace(/\*(.*?)\*/g, '$1')
-      .replace(/```[\s\S]*?```/g, ' [code block] ')
-      // Handle emojis with brief pause
-      .replace(/😊|😀|😃|😄|😁|😆|😅|🤣|😂|🙂|🙃|😉|😇|🥰|😍|🤩|😘|😗|😚|😙|😋|😛|😜|🤪|😝|🤑|🤗|🤭|🤫|🤔|🤐|🤨|😐|😑|😶|😏|😒|🙄|😬|🤥|😌|😔|😪|🤤|😴|😷|🤒|🤕|🤢|🤮|🤧|🥵|🥶|🥴|😵|🤯|🤠|🥳|😎|🤓|🧐|🚀|⚡|💡|🎯|🎓|✨|👍|👎|👏|🔧|🛠️|📝|📊|💻|⭐|🎉|🔥|💪|🏆|📈|🎪/g, ' <break time="0.2s"/> ') // Brief pause where emojis were
-      // Handle line breaks with natural pauses
-      .replace(/\n\n+/g, ' <break time="0.4s"/> ') // Longer pause for paragraph breaks
-      .replace(/\n/g, ' <break time="0.2s"/> ') // Brief pause for line breaks
-      .replace(/\s+/g, ' ')
-      .trim();
+        // Clean and enhance text for better speech
+        let processedText = text
+          .replace(/\*\*(.*?)\*\*/g, '$1')
+          .replace(/\*(.*?)\*/g, '$1')
+          .replace(/```[\s\S]*?```/g, ' [code block] ')
+          .replace(/😊|😀|😃|😄|😁|😆|😅|🤣|😂|🙂|🙃|😉|😇|🥰|😍|🤩|😘|😗|😚|😙|😋|😛|😜|🤪|😝|🤑|🤗|🤭|🤫|🤔|🤐|🤨|😐|😑|😶|😏|😒|🙄|😬|🤥|😌|😔|😪|🤤|😴|😷|🤒|🤕|🤢|🤮|🤧|🥵|🥶|🥴|😵|🤯|🤠|🥳|😎|🤓|🧐|🚀|⚡|💡|🎯|🎓|✨|👍|👎|👏|🔧|🛠️|📝|📊|💻|⭐|🎉|🔥|💪|🏆|📈|🎪/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
 
-    // Apply character-specific enhancements
-    if (character_style === 'university_ta') {
-      // Make it sound more like a friendly TA (removed "Alright" prefix for direct speech)
-      processedText = processedText
-        .replace(/\b(let me|let's)\b/gi, 'let\'s')
-        .replace(/\b(you see|you can see)\b/gi, 'you\'ll notice')
-        .replace(/\b(this is|this shows)\b/gi, 'here we have');
-    }
+        // Apply character-specific enhancements
+        if (character_style === 'university_ta') {
+          if (hasHebrew) {
+            // Hebrew text - no English prefix, just clean Hebrew enhancements
+            processedText = processedText
+              .replace(/\bהנה\b/g, 'הנה,') // Add pause after "here"
+              .replace(/\bטוב\b/g, 'טוב,') // Add pause after "good"
+              .replace(/\bאז\b/g, 'אז,'); // Add pause after "so"
+          } else {
+            // English text - make it sound more like a friendly TA
+            processedText = processedText
+              .replace(/^/, 'Alright, ')  // Add friendly opening
+              .replace(/\b(let me|let's)\b/gi, 'let\'s')
+              .replace(/\b(you see|you can see)\b/gi, 'you\'ll notice')
+              .replace(/\b(this is|this shows)\b/gi, 'here we have');
+          }
+        }
 
         // Apply SSML enhancements if requested
         if (enhance_prosody) {
