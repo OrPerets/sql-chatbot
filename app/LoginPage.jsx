@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, Loader } from 'lucide-react';
+import { User, Lock, Loader, Shield, UserCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import config from './config';
 import styles from './login.module.css';
@@ -19,6 +19,7 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingUsers, setIsFetchingUsers] = useState(true);
   const [status, setStatus] = useState("");
+  const [loginMode, setLoginMode] = useState('user'); // 'user' or 'admin'
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -113,18 +114,40 @@ const LoginPage = () => {
     setError('');
 
     const user = users.find(item => item.email === email);
+    
+    // Check if this is admin login mode
+    if (loginMode === 'admin') {
+      const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il"];
+      
+      if (!adminEmails.includes(email)) {
+        setError('אין לך הרשאת מנהל');
+        setTimeout(() => setError(''), 3000);
+        setIsLoading(false);
+        return;
+      }
 
-    // First check if user exists and password matches their stored password
-    if (user && password === user.password) {
-      getCoinsBalance(user.email);
-      storeUserInfo(user);
-      router.push('/entities/basic-chat');
-    } else if (password === "shenkar") {
-      // Only check for default password if normal login failed
-      setChangePassword(true);
+      // For admin login, check password and redirect to admin
+      if (user && password === user.password) {
+        storeUserInfo(user);
+        router.push('/admin');
+      } else if (password === "shenkar") {
+        setChangePassword(true);
+      } else {
+        setError('סיסמת מנהל שגויה');
+        setTimeout(() => setError(''), 3000);
+      }
     } else {
-      setError('Wrong Password or Email');
-      setTimeout(() => setError(''), 3000);
+      // Regular user login flow
+      if (user && password === user.password) {
+        getCoinsBalance(user.email);
+        storeUserInfo(user);
+        router.push('/entities/basic-chat');
+      } else if (password === "shenkar") {
+        setChangePassword(true);
+      } else {
+        setError('Wrong Password or Email');
+        setTimeout(() => setError(''), 3000);
+      }
     }
 
     setIsLoading(false);
@@ -154,7 +177,12 @@ const LoginPage = () => {
           });
           if (response.ok) {
             storeUserInfo(user);
-            router.push('/entities/questionnaire');
+            // Redirect based on login mode
+            if (loginMode === 'admin') {
+              router.push('/admin');
+            } else {
+              router.push('/entities/questionnaire');
+            }
           } else {
             setError('Failed to update password');
           }
@@ -208,6 +236,27 @@ const LoginPage = () => {
       </div>
       <div className={styles.loginCard}>
         <h2 className={styles.title}>התחברות</h2>
+        
+        {/* Login Mode Selection */}
+        <div className={styles.loginModeContainer}>
+          <button 
+            type="button"
+            className={`${styles.loginModeButton} ${loginMode === 'user' ? styles.loginModeActive : ''}`}
+            onClick={() => setLoginMode('user')}
+          >
+            <UserCheck size={18} />
+            כניסת משתמש
+          </button>
+          <button 
+            type="button"
+            className={`${styles.loginModeButton} ${loginMode === 'admin' ? styles.loginModeActive : ''}`}
+            onClick={() => setLoginMode('admin')}
+          >
+            <Shield size={18} />
+            כניסת מנהל
+          </button>
+        </div>
+
         {!changePassword ? (
           <form className={styles.form} onSubmit={handleLogin}>
             <div className={styles.inputGroup}>
@@ -235,18 +284,9 @@ const LoginPage = () => {
               />
             </div>
             <button type="submit" className={styles.button} disabled={isLoading}>
-              {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'אישור'}
+              {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 
+                loginMode === 'admin' ? 'כניסה כמנהל' : 'אישור'}
             </button>
-            {isAdmin && (
-              <button 
-              type="button" 
-              className={styles.adminButton}
-              onClick={() => router.push('/admin')}
-            >
-              כניסת מנהל מערכת
-            </button>
-            )}
-            
           </form>
         ) : (
           <form className={styles.form} onSubmit={handleChangePassword}>

@@ -19,6 +19,592 @@
   }
 }
 
+/* Exercise Functionality Styles */
+.exerciseButtons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+  padding: 8px 0;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.exerciseButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(145deg, #4f46e5 0%, #6366f1 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 4px 12px rgba(79, 70, 229, 0.3),
+    0 2px 6px rgba(79, 70, 229, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.exerciseButton:hover:not(:disabled) {
+  background: linear-gradient(145deg, #4338ca 0%, #5b21b6 100%);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 20px rgba(79, 70, 229, 0.4),
+    0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.exerciseButton:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 
+    0 2px 8px rgba(79, 70, 229, 0.3),
+    0 1px 4px rgba(79, 70, 229, 0.2);
+}
+
+.exerciseButton:disabled {
+  background: linear-gradient(145deg, #9ca3af 0%, #6b7280 100%);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.exerciseButtonActive {
+  background: linear-gradient(145deg, #10b981 0%, #059669 100%);
+  animation: pulseGreen 2s infinite;
+}
+
+@keyframes pulseGreen {
+  0%, 100% {
+    box-shadow: 
+      0 4px 12px rgba(16, 185, 129, 0.3),
+      0 2px 6px rgba(16, 185, 129, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 8px 20px rgba(16, 185, 129, 0.5),
+      0 4px 12px rgba(16, 185, 129, 0.4);
+  }
+}
+
+.solutionButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(145deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 4px 12px rgba(245, 158, 11, 0.3),
+    0 2px 6px rgba(245, 158, 11, 0.2);
+  animation: slideInFromRight 0.3s ease-out;
+}
+
+.solutionButton:hover {
+  background: linear-gradient(145deg, #d97706 0%, #b45309 100%);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 20px rgba(245, 158, 11, 0.4),
+    0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.exerciseButtonText {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  white-space: nowrap;
+}
+
+.pointsDisplay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: linear-gradient(145deg, #059669 0%, #047857 100%);
+  color: white;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 
+    0 4px 12px rgba(5, 150, 105, 0.25),
+    0 2px 6px rgba(5, 150, 105, 0.15);
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.pointsDisplay svg {
+  flex-shrink: 0;
+}
+
+@keyframes fadeInUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.pointsAnimation {
+  position: absolute;
+  top: -40px;
+  right: 20px;
+  background: linear-gradient(145deg, #10b981 0%, #059669 100%);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 16px;
+  font-weight: bold;
+  box-shadow: 
+    0 8px 20px rgba(16, 185, 129, 0.4),
+    0 4px 12px rgba(16, 185, 129, 0.3);
+  animation: pointsPopUp 3s ease-out forwards;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+@keyframes pointsPopUp {
+  0% {
+    transform: translateY(0) scale(0.8);
+    opacity: 0;
+  }
+  20% {
+    transform: translateY(-10px) scale(1.1);
+    opacity: 1;
+  }
+  40% {
+    transform: translateY(-15px) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-25px) scale(0.9);
+    opacity: 0;
+  }
+}
+
+/* Exercise mode indicator for input field */
+.inputContainer.exerciseMode {
+  border: 2px solid #4f46e5;
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(79, 70, 229, 0.05) 0%, rgba(99, 102, 241, 0.02) 100%);
+}
+
+.inputContainer.exerciseMode::before {
+  content: "🎓 מצב תרגול פעיל";
+  position: absolute;
+  top: -8px;
+  left: 16px;
+  background: linear-gradient(145deg, #4f46e5 0%, #6366f1 100%);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 10;
+}
+
+/* Exercise Action Button Styling */
+.exerciseActionButton {
+  background: linear-gradient(145deg, #4f46e5 0%, #6366f1 100%) !important;
+  color: white !important;
+}
+
+.exerciseActionButton:hover:not(:disabled) {
+  background: linear-gradient(145deg, #4338ca 0%, #5b21b6 100%) !important;
+}
+
+/* Exercise Modal Styles */
+.exerciseModal {
+  background: linear-gradient(145deg, #ffffff 0%, #fafbfc 100%);
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 750px;
+  width: 100%;
+  direction: rtl;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  box-shadow: 
+    0 25px 50px rgba(0, 0, 0, 0.15),
+    0 8px 16px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(10px);
+  position: relative;
+}
+
+.exerciseCloseButton {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%);
+  color: #64748b;
+  font-size: 24px;
+  font-weight: 300;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  z-index: 10;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.exerciseCloseButton:hover {
+  background: linear-gradient(145deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 
+    0 8px 20px rgba(239, 68, 68, 0.25),
+    0 4px 12px rgba(239, 68, 68, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.exerciseCloseButton:active {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 
+    0 4px 12px rgba(239, 68, 68, 0.3),
+    0 2px 6px rgba(239, 68, 68, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.exerciseHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 20px;
+  position: relative;
+}
+
+.exerciseHeader::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  border-radius: 2px;
+}
+
+.exerciseHeader h2 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 26px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.pointsIndicator {
+  background: linear-gradient(145deg, #059669 0%, #047857 100%);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.exerciseContent {
+  direction: rtl;
+}
+
+.exerciseDifficulty {
+  background: linear-gradient(145deg, #f3f4f6 0%, #e5e7eb 100%);
+  padding: 8px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #4b5563;
+  text-align: center;
+}
+
+.exerciseQuestion {
+  background: linear-gradient(145deg, #fef3c7 0%, #fef7cd 100%);
+  border: 2px solid #f59e0b;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #92400e;
+  font-weight: 500;
+  box-shadow: 
+    0 4px 12px rgba(245, 158, 11, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  position: relative;
+}
+
+.exerciseTextarea {
+  width: 100%;
+  padding: 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 14px;
+  font-family: 'Courier New', monospace;
+  margin-bottom: 16px;
+  resize: vertical;
+  min-height: 120px;
+  background: linear-gradient(145deg, #ffffff 0%, #fafbfc 100%);
+  transition: all 0.3s ease;
+}
+
+.exerciseTextarea:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.exerciseSqlEditor {
+  width: 100%;
+  height: 200px;
+  margin-bottom: 20px;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.06),
+    0 1px 4px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  position: relative;
+}
+
+.exerciseSqlEditor:focus-within {
+  border-color: #3b82f6;
+  box-shadow: 
+    0 0 0 4px rgba(59, 130, 246, 0.12),
+    0 8px 24px rgba(59, 130, 246, 0.15),
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  transform: translateY(-1px);
+}
+
+.sqlHelperButtons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 0 8px;
+}
+
+.sqlHelperButton {
+  background: linear-gradient(145deg, #475569 0%, #334155 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 
+    0 3px 8px rgba(71, 85, 105, 0.25),
+    0 1px 3px rgba(71, 85, 105, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.sqlHelperButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  transition: left 0.6s ease;
+}
+
+.sqlHelperButton:hover {
+  background: linear-gradient(145deg, #334155 0%, #1e293b 100%);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 6px 16px rgba(71, 85, 105, 0.35),
+    0 2px 8px rgba(71, 85, 105, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.sqlHelperButton:hover::before {
+  left: 100%;
+}
+
+.sqlHelperButton:active {
+  transform: translateY(-1px);
+  box-shadow: 
+    0 3px 10px rgba(71, 85, 105, 0.3),
+    0 1px 4px rgba(71, 85, 105, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.exerciseActions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-bottom: 20px;
+  padding: 0 16px;
+}
+
+.submitExerciseButton {
+  background: linear-gradient(145deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 6px 20px rgba(16, 185, 129, 0.25),
+    0 2px 8px rgba(16, 185, 129, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  letter-spacing: 0.25px;
+  position: relative;
+  overflow: hidden;
+}
+
+.submitExerciseButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.6s ease;
+}
+
+.submitExerciseButton:hover:not(:disabled) {
+  background: linear-gradient(145deg, #047857 0%, #065f46 100%);
+  transform: translateY(-3px);
+  box-shadow: 
+    0 10px 28px rgba(16, 185, 129, 0.35),
+    0 4px 12px rgba(16, 185, 129, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.submitExerciseButton:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.submitExerciseButton:active:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 
+    0 4px 16px rgba(16, 185, 129, 0.3),
+    0 2px 8px rgba(16, 185, 129, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.submitExerciseButton:disabled {
+  background: linear-gradient(145deg, #9ca3af 0%, #6b7280 100%);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 
+    0 2px 8px rgba(156, 163, 175, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  opacity: 0.7;
+}
+
+.showSolutionButton {
+  background: linear-gradient(145deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 6px 20px rgba(245, 158, 11, 0.25),
+    0 2px 8px rgba(245, 158, 11, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  letter-spacing: 0.25px;
+  position: relative;
+  overflow: hidden;
+}
+
+.showSolutionButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.6s ease;
+}
+
+.showSolutionButton:hover {
+  background: linear-gradient(145deg, #d97706 0%, #b45309 100%);
+  transform: translateY(-3px);
+  box-shadow: 
+    0 10px 28px rgba(245, 158, 11, 0.35),
+    0 4px 12px rgba(245, 158, 11, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.showSolutionButton:hover::before {
+  left: 100%;
+}
+
+.showSolutionButton:active {
+  transform: translateY(-1px);
+  box-shadow: 
+    0 4px 16px rgba(245, 158, 11, 0.3),
+    0 2px 8px rgba(245, 158, 11, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.exerciseFeedback {
+  background: linear-gradient(145deg, #fef2f2 0%, #fdf2f8 100%);
+  border: 1px solid #f87171;
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: #dc2626;
+  font-size: 14px;
+  text-align: center;
+  font-weight: 500;
+}
+
 .input {
   flex-grow: 1;
   padding: 14px 50px 14px 20px;
@@ -916,6 +1502,7 @@
   animation: fadeInDown 0.7s cubic-bezier(0.4, 0, 0.2, 1); /* Enhanced animation */
   position: relative;
   overflow: hidden;
+  height: 150%;
 }
 
 .avatarSection:hover {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MichaelAvatarDirect } from '../components/MichaelAvatarDirect';
+import MichaelAvatarDirect from '../components/MichaelAvatarDirect';
 
 export default function TestDirectMichael() {
   const [state, setState] = useState<'idle' | 'speaking' | 'listening' | 'thinking'>('idle');
