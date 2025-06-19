@@ -560,7 +560,7 @@ const updateUserBalance = async (value) => {
     });
 
     // Progressive speech: Start speaking when we have enough content (instead of waiting for completion)
-    if (autoPlaySpeech && lastAssistantMessage && lastAssistantMessage.length > 50 && !hasStartedSpeaking && lastSpokenMessageId !== messageId) {
+    if (autoPlaySpeech && lastAssistantMessage && lastAssistantMessage.length > 20 && !hasStartedSpeaking && lastSpokenMessageId !== messageId) {
       console.log('🎤 PROGRESSIVE: Starting speech early with partial text');
       setLastSpokenMessageId(messageId);
       setHasStartedSpeaking(true);

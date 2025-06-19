@@ -428,7 +428,7 @@ class EnhancedTTSService {
         this.resetProgressiveState();
         this.currentOptions?.onEnd?.();
       }
-    }, 500); // Wait 500ms for more content
+    }, 100); // Wait just 100ms for more content
   }
 
   // Reset progressive state
@@ -503,21 +503,25 @@ class EnhancedTTSService {
   // Helper method to play audio URL
   private async playAudioUrl(audioUrl: string, options: TTSOptions): Promise<void> {
     return new Promise((resolve, reject) => {
+      const startTime = performance.now();
       this.currentAudio = new Audio(audioUrl);
       this.currentAudio.volume = options.volume || 0.9;
-      
+
       this.currentAudio.onended = () => {
-        console.log('🎵 Enhanced TTS: Audio playback completed');
+        const endTime = performance.now();
+        console.log(
+          `🎵 Enhanced TTS: Audio playback completed in ${Math.round(endTime - startTime)}ms`
+        );
         this.currentAudio = null;
         resolve();
       };
-      
+
       this.currentAudio.onerror = (error) => {
         console.error('❌ Enhanced TTS: Audio playback error:', error);
         this.currentAudio = null;
         reject(new Error('Audio playback failed'));
       };
-      
+
       this.currentAudio.play().catch(reject);
     });
   }
@@ -607,6 +611,7 @@ export async function speakWithMichael(
   options: TTSOptions = {}
 ): Promise<void> {
   const defaultOptions: TTSOptions = {
+    voice: 'onyx',
     useOpenAI: true,
     characterStyle: 'university_ta',
     enhanceProsody: true,
