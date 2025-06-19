@@ -42,33 +42,44 @@ const VOICE_PROFILES = {
   }
 };
 
-// Add SSML processing for enhanced prosody
+// Add SSML processing for enhanced prosody and human-like speech
 function enhanceTextWithSSML(text: string, options: {
   addPauses?: boolean;
   emphasizeImportant?: boolean;
   adjustPacing?: boolean;
+  humanize?: boolean;
+  naturalPauses?: boolean;
+  emotionalIntonation?: boolean;
+  characterStyle?: string;
 } = {}) {
   let enhancedText = text;
   
+  // Minimal humanization - reduce initial pause
+  if (options.humanize && options.naturalPauses) {
+    const isComplexResponse = text.length > 200;
+    if (isComplexResponse) {
+      enhancedText = `<break time="50ms"/>${enhancedText}`;
+    }
+  }
+  
+  // Minimal pauses - reduce break times significantly
   if (options.addPauses) {
-    // Add natural pauses after punctuation
     enhancedText = enhancedText
-      .replace(/([.!?])\s+/g, '$1 <break time="0.5s"/> ')
-      .replace(/([,;:])\s+/g, '$1 <break time="0.3s"/> ');
+      .replace(/([.!?])\s+/g, '$1<break time="150ms"/> ')
+      .replace(/([,;:])\s+/g, '$1<break time="50ms"/> ');
   }
   
+  // Minimal emphasis - only for very important terms
   if (options.emphasizeImportant) {
-    // Emphasize SQL keywords and important terms
     enhancedText = enhancedText
-      .replace(/\b(SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|CREATE|TABLE|DATABASE|JOIN|GROUP BY|ORDER BY)\b/gi, '<emphasis level="moderate">$1</emphasis>')
-      .replace(/\b(error|warning|important|note|tip)\b/gi, '<emphasis level="strong">$1</emphasis>');
+      .replace(/\b(error|warning|important)\b/gi, '<emphasis level="moderate">$1</emphasis>');
   }
   
+  // Simple pacing - just slow down if too complex
   if (options.adjustPacing) {
-    // Slow down complex technical explanations
-    const hasComplexTerms = /\b(relationship|foreign key|primary key|normalization|optimization|index)\b/i.test(text);
-    if (hasComplexTerms) {
-      enhancedText = `<prosody rate="0.9">${enhancedText}</prosody>`;
+    const hasVeryComplexTerms = /\b(normalization|optimization|algorithm|implementation)\b/i.test(text);
+    if (hasVeryComplexTerms) {
+      enhancedText = `<prosody rate="0.95">${enhancedText}</prosody>`;
     }
   }
   
@@ -91,11 +102,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { 
       text, 
-      voice = 'nova', 
-      speed = 1.0, 
+      voice = 'onyx',  // Keep the warmer male voice
+      speed = 1.0,     // Back to normal speed for clarity
       format = 'mp3',
       enhance_prosody = true,
-      character_style = 'university_ta'
+      character_style = 'university_ta',
+      humanize = true,           // Keep but simplified
+      natural_pauses = true,     // Keep but minimal
+      emotional_intonation = false // Disable to avoid complexity
     } = body;
 
     if (!text) {
@@ -106,7 +120,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create request fingerprint for deduplication
-    const requestKey = `${text}_${voice}_${speed}_${format}_${enhance_prosody}_${character_style}`;
+    const requestKey = `${text}_${voice}_${speed}_${format}_${enhance_prosody}_${character_style}_${humanize}_${natural_pauses}_${emotional_intonation}`;
     
     // Check if identical request is already processing
     if (activeRequests.has(requestKey)) {
@@ -120,7 +134,7 @@ export async function POST(request: NextRequest) {
         // Detect language
         const hasHebrew = /[\u0590-\u05FF]/.test(text);
     
-        // Clean and enhance text for better speech
+        // Simplified text cleaning - remove problematic enhancements
         let processedText = text
           .replace(/\*\*(.*?)\*\*/g, '$1')
           .replace(/\*(.*?)\*/g, '$1')
@@ -129,54 +143,57 @@ export async function POST(request: NextRequest) {
           .replace(/\s+/g, ' ')
           .trim();
 
-        // Apply character-specific enhancements
-        if (character_style === 'university_ta') {
+        // Minimal character-specific processing - no random additions
+        if (character_style === 'university_ta' && humanize) {
           if (hasHebrew) {
-            // Hebrew text - no English prefix, just clean Hebrew enhancements
+            // Simple Hebrew enhancements - no prefixes
             processedText = processedText
-              .replace(/\bהנה\b/g, 'הנה,') // Add pause after "here"
-              .replace(/\bטוב\b/g, 'טוב,') // Add pause after "good"
-              .replace(/\bאז\b/g, 'אז,'); // Add pause after "so"
+              .replace(/\bSQL\b/g, 'אס קיו אל'); // Hebrew pronunciation
           } else {
-            // English text - make it sound more like a friendly TA
+            // Simple English enhancements - no random openings
             processedText = processedText
-              .replace(/^/, 'Alright, ')  // Add friendly opening
-              .replace(/\b(let me|let's)\b/gi, 'let\'s')
-              .replace(/\b(you see|you can see)\b/gi, 'you\'ll notice')
-              .replace(/\b(this is|this shows)\b/gi, 'here we have');
+              .replace(/\bSQL\b/g, 'S-Q-L'); // Spell out for clarity
           }
         }
 
-        // Apply SSML enhancements if requested
+        // Apply minimal SSML for basic clarity improvements
         if (enhance_prosody) {
           processedText = enhanceTextWithSSML(processedText, {
-            addPauses: true,
-            emphasizeImportant: true,
-            adjustPacing: hasHebrew // Slower for Hebrew
+            addPauses: true,        // Only basic pauses
+            emphasizeImportant: false, // Disable to avoid issues
+            adjustPacing: false,    // Disable complex pacing
+            humanize: false,        // Disable complex humanization
+            naturalPauses: natural_pauses && processedText.length > 100,
+            emotionalIntonation: false, // Already disabled above
+            characterStyle: character_style
           });
         }
 
-        // Select appropriate voice based on language and preference
+        // Enhanced voice selection with humanization preferences
         let selectedVoice = voice;
         if (hasHebrew) {
           // For Hebrew text, use voices that handle Hebrew well
-          // Nova is excellent for Hebrew pronunciation
           selectedVoice = 'nova';
           console.log('🇮🇱 Hebrew detected - using nova voice for best Hebrew pronunciation');
         } else if (!hasHebrew && character_style === 'university_ta') {
-          // For English Michael, prefer male voices
-          selectedVoice = ['echo', 'onyx'].includes(voice) ? voice : 'echo';
-          console.log('🇺🇸 English detected - using male voice for Michael character');
+          // For English Michael, prefer warmer male voices when humanized
+          if (humanize) {
+            selectedVoice = ['onyx', 'echo', 'fable'].includes(voice) ? voice : 'onyx';
+            console.log('🎓 English TA mode with humanization - using warm male voice:', selectedVoice);
+          } else {
+            selectedVoice = ['echo', 'onyx'].includes(voice) ? voice : 'echo';
+            console.log('🎓 English TA mode - using professional male voice:', selectedVoice);
+          }
         }
 
-        console.log(`Generating TTS with voice: ${selectedVoice} for text: ${processedText.substring(0, 100)}...`);
+        console.log(`Generating humanized TTS with voice: ${selectedVoice} for text: ${processedText.substring(0, 100)}...`);
 
-        // Generate speech using OpenAI TTS
+        // Generate speech using OpenAI TTS with optimized parameters for clear speech
         const mp3 = await openai.audio.speech.create({
-          model: 'tts-1-hd', // Use the high-quality model
+          model: 'tts-1-hd', // Always use the high-quality model for best results
           voice: selectedVoice as any,
           input: processedText,
-          speed: Math.max(0.25, Math.min(4.0, speed)), // Clamp speed between 0.25 and 4.0
+          speed: Math.max(0.8, Math.min(1.2, speed)), // More reasonable speed range for clarity
           response_format: format as any,
         });
 
@@ -200,7 +217,7 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       } finally {
-        // Clean up active request
+        // Clean up the request tracking
         activeRequests.delete(requestKey);
       }
     })();

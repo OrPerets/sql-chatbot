@@ -40,30 +40,44 @@ export const simpleTTS = {
 
     console.log('🗣️ SimpleTTS: Clean text:', cleanText.substring(0, 50) + '...');
 
-    // Create the utterance
+    // Create the utterance with enhanced human-like settings
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = 'he-IL';
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
+    utterance.rate = 0.85;  // Slightly slower for more natural, friendly pace
+    utterance.pitch = 1.1;  // Slightly higher pitch for more engaging tone
+    utterance.volume = 0.9; // Slightly lower volume for more natural feel
 
-    // Find a Hebrew voice
+    // Find a Hebrew voice with preference for more natural ones
     const voices = speechSynthesis.getVoices();
     console.log('🎤 SimpleTTS: Available voices:', voices.length);
 
     if (voices.length > 0) {
+      // Look for better Hebrew voices in order of preference
       const hebrewVoice = voices.find(voice => 
-        voice.lang.includes('he') || 
-        voice.lang.includes('iw') ||
-        voice.name.toLowerCase().includes('carmit') || 
+        voice.name.toLowerCase().includes('carmit')
+      ) || voices.find(voice => 
+        voice.lang.includes('he') || voice.lang.includes('iw')
+      ) || voices.find(voice => 
         voice.name.toLowerCase().includes('hebrew')
       );
 
       if (hebrewVoice) {
         utterance.voice = hebrewVoice;
-        console.log('🗣️ SimpleTTS: Using Hebrew voice:', hebrewVoice.name, hebrewVoice.lang);
+        console.log('🗣️ SimpleTTS: Using enhanced Hebrew voice:', hebrewVoice.name, hebrewVoice.lang);
       } else {
-        console.log('⚠️ SimpleTTS: No Hebrew voice found, using default');
+        // Fallback to best available voice
+        const betterVoice = voices.find(voice => 
+          voice.name.toLowerCase().includes('alex') ||
+          voice.name.toLowerCase().includes('daniel') ||
+          voice.name.toLowerCase().includes('natural')
+        );
+        if (betterVoice) {
+          utterance.voice = betterVoice;
+          utterance.lang = 'en-US'; // Switch to English for better voice
+          console.log('🗣️ SimpleTTS: Using fallback enhanced voice:', betterVoice.name);
+        } else {
+          console.log('⚠️ SimpleTTS: No enhanced voice found, using default');
+        }
       }
     }
 

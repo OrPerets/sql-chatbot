@@ -17,7 +17,7 @@ import SQLQueryEditorComponent from "./query-vizualizer";
 import ImageUpload from "./image-upload";
 import { fileToBase64 } from "../utils/parseImage";
 import AudioRecorder from "./audio-recorder";
-import { MichaelAvatarDirect } from "./MichaelAvatarDirect";
+import MichaelAvatarDirect from "./MichaelAvatarDirect";
 import { simpleTTS } from "../utils/simpleTTS";
 
 export const maxDuration = 50;
@@ -234,20 +234,46 @@ const Chat = ({
   const [shouldSpeak, setShouldSpeak] = useState(false);
   const [lastSpokenMessageId, setLastSpokenMessageId] = useState<string>("");
 
+  // Add state for progressive speech
+  const [streamingText, setStreamingText] = useState<string>("");
+  const [hasStartedSpeaking, setHasStartedSpeaking] = useState(false);
+  const streamingTextRef = useRef<string>("");
+  const progressiveSpeechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // State for user typing detection
+  const [isUserTyping, setIsUserTyping] = useState(false);
+  const userTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Exercise-related state
+  const [currentExercise, setCurrentExercise] = useState(null);
+  const [userPoints, setUserPoints] = useState(0);
+  const [isExerciseMode, setIsExerciseMode] = useState(false);
+  const [showSolutionButton, setShowSolutionButton] = useState(false);
+  const [pointsAnimation, setPointsAnimation] = useState(null);
+  const [exerciseAttempts, setExerciseAttempts] = useState(0);
+  const [showExerciseModal, setShowExerciseModal] = useState(false);
+  const [exerciseAnswer, setExerciseAnswer] = useState("");
+
   // Memoized avatar state calculation to prevent multiple renders
   const avatarState = useMemo(() => {
-    const currentState = isThinking ? 'thinking' : isRecording ? 'listening' : (shouldSpeak && autoPlaySpeech && isAssistantMessageComplete) ? 'speaking' : 'idle';
+    // Priority order: thinking > listening > speaking > userWriting > idle
+    const currentState = isThinking ? 'thinking' 
+                        : isRecording ? 'listening' 
+                        : (shouldSpeak && autoPlaySpeech && isAssistantMessageComplete) ? 'speaking' 
+                        : isUserTyping ? 'userWriting'
+                        : 'idle';
     console.log('🎭 Avatar state calculation:', {
       isThinking,
       isRecording,
       shouldSpeak,
       autoPlaySpeech,
       isAssistantMessageComplete,
+      isUserTyping,
       calculatedState: currentState,
       textLength: lastAssistantMessage?.length || 0
     });
     return currentState;
-  }, [isThinking, isRecording, shouldSpeak, autoPlaySpeech, isAssistantMessageComplete, lastAssistantMessage?.length]);
+  }, [isThinking, isRecording, shouldSpeak, autoPlaySpeech, isAssistantMessageComplete, isUserTyping, lastAssistantMessage?.length]);
 
   const router = useRouter();
 
@@ -298,6 +324,133 @@ const Chat = ({
     setUserInput(transcription);
     setEstimatedCost(calculateCost(transcription));
   };
+
+  // Handle user typing detection
+  const handleUserTyping = () => {
+    console.log('✍️ User is typing...');
+    
+    // Set typing state to true
+    setIsUserTyping(true);
+    
+    // Clear existing timeout
+    if (userTypingTimeoutRef.current) {
+      clearTimeout(userTypingTimeoutRef.current);
+    }
+    
+    // Set timeout to detect when user stops typing (after 2 seconds of inactivity)
+    userTypingTimeoutRef.current = setTimeout(() => {
+      console.log('✋ User stopped typing');
+      setIsUserTyping(false);
+    }, 2000);
+  };
+
+  // Exercise-related functions
+  const startExercise = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem("currentUser"));
+      const response = await fetch(`${SERVER_BASE}/getRandomExercise/${user.email}`);
+      const exercise = await response.json();
+      
+      setCurrentExercise(exercise);
+      setIsExerciseMode(true);
+      setShowSolutionButton(false);
+      setExerciseAttempts(0);
+      setExerciseAnswer("");
+      setShowExerciseModal(true);
+      
+
+    } catch (error) {
+      console.error('Error starting exercise:', error);
+      appendMessage("assistant", "❌ שגיאה בטעינת התרגול. נסה שוב מאוחר יותר.");
+    }
+  };
+
+  const submitExerciseAnswer = async () => {
+    if (!currentExercise || !exerciseAnswer.trim()) return;
+
+    try {
+      const user = JSON.parse(localStorage.getItem("currentUser"));
+      const response = await fetch(`${SERVER_BASE}/submitExerciseAnswer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.email,
+          exerciseId: currentExercise.id,
+          answerText: exerciseAnswer
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.correct) {
+        // Success - show points animation and close modal
+        setUserPoints(result.totalPoints);
+        setPointsAnimation(result.pointsAwarded);
+        setIsExerciseMode(false);
+        setCurrentExercise(null);
+        setShowExerciseModal(false);
+        setExerciseAnswer("");
+        setExerciseAttempts(0);
+        setShowSolutionButton(false);
+        
+        // Hide animation after 3 seconds
+        setTimeout(() => setPointsAnimation(null), 3000);
+        
+        // Show success message in chat without triggering TTS
+        appendMessage("assistant", `✅ ${result.feedback}`);
+      } else {
+        // Incorrect answer - show in modal
+        setExerciseAttempts(result.failedAttempts || 1);
+        if (result.showSolution) {
+          setShowSolutionButton(true);
+        }
+        // Don't close modal, show feedback within modal
+      }
+    } catch (error) {
+      console.error('Error submitting exercise answer:', error);
+    }
+  };
+
+  const showSolution = async () => {
+    if (!currentExercise) return;
+
+    try {
+      const response = await fetch(`${SERVER_BASE}/getExerciseSolution/${currentExercise.id}`);
+      const result = await response.json();
+      
+      // Show solution in modal, then close modal and add to chat
+      setIsExerciseMode(false);
+      setCurrentExercise(null);
+      setShowSolutionButton(false);
+      setShowExerciseModal(false);
+      setExerciseAnswer("");
+      
+      const solutionMessage = `💡 **פתרון לתרגול**\n\n\`\`\`sql\n${result.solution}\n\`\`\`\n\nתוכל לנסות תרגול חדש!`;
+      appendMessage("assistant", solutionMessage);
+    } catch (error) {
+      console.error('Error getting solution:', error);
+    }
+  };
+
+  // Load user points on component mount
+  useEffect(() => {
+    const loadUserPoints = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem("currentUser"));
+        if (user) {
+          const response = await fetch(`${SERVER_BASE}/getUserPoints/${user.email}`);
+          const userPointsData = await response.json();
+          setUserPoints(userPointsData.points || 0);
+        }
+      } catch (error) {
+        console.error('Error loading user points:', error);
+      }
+    };
+
+    loadUserPoints();
+  }, []);
 
   // Toggle sidebar visibility
   const toggleSidebar = () => {
@@ -380,14 +533,19 @@ const updateUserBalance = async (value) => {
     createThread();
   }, []);
 
-  // Cleanup speech on unmount
+  // Cleanup speech and typing detection on unmount
   useEffect(() => {
     return () => {
       simpleTTS.stop();
+      
+      // Clear typing detection timeout
+      if (userTypingTimeoutRef.current) {
+        clearTimeout(userTypingTimeoutRef.current);
+      }
     };
   }, []);
 
-  // Watch for when assistant message is complete and trigger speech
+  // Modified useEffect for progressive speech
   useEffect(() => {
     const messageId = lastAssistantMessage?.substring(0, 50) || "";
     
@@ -397,27 +555,33 @@ const updateUserBalance = async (value) => {
       lastAssistantMessageLength: lastAssistantMessage?.length || 0,
       lastAssistantMessage: lastAssistantMessage?.substring(0, 50) + '...',
       shouldSpeak,
-      isAssistantMessageComplete,
-      messageId,
-      lastSpokenMessageId,
-      messageAlreadySpoken: lastSpokenMessageId === messageId
+      hasStartedSpeaking,
+      streamingTextLength: streamingText?.length || 0
     });
-    
-    // Trigger speech when we have a complete assistant message and streaming is done
-    // BUT only if we haven't already spoken this message
-    if (isDone && autoPlaySpeech && lastAssistantMessage && lastAssistantMessage.length > 0 && !shouldSpeak && lastSpokenMessageId !== messageId) {
-      console.log('🎤 useEffect detected NEW complete assistant message - enabling speech!');
-      setLastSpokenMessageId(messageId); // Mark this message as spoken
-      setIsAssistantMessageComplete(true);
+
+    // Progressive speech: Start speaking when we have enough content (instead of waiting for completion)
+    if (autoPlaySpeech && lastAssistantMessage && lastAssistantMessage.length > 50 && !hasStartedSpeaking && lastSpokenMessageId !== messageId) {
+      console.log('🎤 PROGRESSIVE: Starting speech early with partial text');
+      setLastSpokenMessageId(messageId);
+      setHasStartedSpeaking(true);
       setShouldSpeak(true);
-      
-      // Auto-disable after timeout
-      setTimeout(() => {
-        console.log('🔄 Auto-disabling shouldSpeak from useEffect');
-        setShouldSpeak(false);
-      }, 5000);
+      setIsAssistantMessageComplete(true);
     }
-  }, [lastAssistantMessage, isDone, autoPlaySpeech, shouldSpeak, lastSpokenMessageId]);
+    
+    // Handle completion of streaming
+    if (isDone && hasStartedSpeaking) {
+      console.log('✅ PROGRESSIVE: Message streaming completed, speech already in progress');
+      // We don't need to trigger new speech since it's already started
+    }
+    
+    // Reset for new messages
+    if (!lastAssistantMessage || lastAssistantMessage.length === 0) {
+      console.log('🔄 PROGRESSIVE: Resetting speech state for new message');
+      setHasStartedSpeaking(false);
+      setShouldSpeak(false);
+    }
+
+  }, [lastAssistantMessage, isDone, autoPlaySpeech, shouldSpeak, lastSpokenMessageId, hasStartedSpeaking]);
 
   const sendMessage = async (text) => { 
     setImageProcessing(true);
@@ -570,10 +734,23 @@ const loadChatMessages = (chatId: string) => {
     e.preventDefault();
     if (!userInput.trim() && !selectedImage) return;
     
+    // Clear typing state when user submits message
+    if (userTypingTimeoutRef.current) {
+      clearTimeout(userTypingTimeoutRef.current);
+    }
+    setIsUserTyping(false);
+    console.log('📤 User submitted message, clearing typing state');
+    
     // Display message with image info if present
     const displayText = selectedImage 
       ? `${userInput}${userInput ? '\n' : ''}[תמונה מצורפת: ${selectedImage.name}]`
       : userInput;
+    
+    // Check if we're in exercise mode (but exercises are now handled in modal)
+    if (isExerciseMode && currentExercise) {
+      // In exercise mode, regular chat is disabled
+      return;
+    }
     
     sendMessage(userInput);
     // Always show the user message in the UI, regardless of balance
@@ -591,16 +768,32 @@ const loadChatMessages = (chatId: string) => {
 
   // textCreated - create new assistant message
   const handleTextCreated = () => {
-    setIsDone(false)
+    setIsDone(false);
     setIsThinking(false); // Stop thinking when assistant starts responding
+    setHasStartedSpeaking(false); // Reset for new message
+    streamingTextRef.current = "";
+    setStreamingText("");
+    
+    // Clear any pending progressive speech
+    if (progressiveSpeechTimeoutRef.current) {
+      clearTimeout(progressiveSpeechTimeoutRef.current);
+      progressiveSpeechTimeoutRef.current = null;
+    }
+    
     appendMessage("assistant", "");
   };
 
   // textDelta - append text to last assistant message
   const handleTextDelta = (delta) => {
     if (delta.value != null) {
-      appendToLastMessage(delta.value);
-    };
+      const text = delta.value;
+      
+      // Update streaming text for progressive speech
+      streamingTextRef.current += text;
+      setStreamingText(streamingTextRef.current);
+      
+      appendToLastMessage(text);
+    }
     if (delta.annotations != null) {
       annotateLastMessage(delta.annotations);
     }
@@ -678,6 +871,12 @@ const loadChatMessages = (chatId: string) => {
     setInputDisabled(false);
     setIsThinking(false);
     setIsDone(true);
+    
+    // Clear progressive speech timeout when stream ends
+    if (progressiveSpeechTimeoutRef.current) {
+      clearTimeout(progressiveSpeechTimeoutRef.current);
+      progressiveSpeechTimeoutRef.current = null;
+    }
   };
 
   useEffect(() => {
@@ -797,6 +996,15 @@ const loadChatMessages = (chatId: string) => {
     setLastSpokenMessageId(""); // Reset spoken message tracking
     setShouldSpeak(false);
     setIsAssistantMessageComplete(false);
+    setHasStartedSpeaking(false); // Reset progressive speech state
+    setStreamingText("");
+    streamingTextRef.current = "";
+    
+    // Clear any pending progressive speech
+    if (progressiveSpeechTimeoutRef.current) {
+      clearTimeout(progressiveSpeechTimeoutRef.current);
+      progressiveSpeechTimeoutRef.current = null;
+    }
   }
 
 return (
@@ -857,7 +1065,7 @@ return (
           style={{direction:"rtl"}}
           className={`${styles.inputForm} ${styles.clearfix}`}
         >
-          <div className={styles.inputContainer}>
+          <div className={`${styles.inputContainer} ${isExerciseMode ? styles.exerciseMode : ''}`}>
             {/* Added for query cost estimation: Shows estimated cost while typing */}
             {userInput && isTokenBalanceVisible && (
               <div className={styles.costPopup}>
@@ -880,6 +1088,9 @@ return (
                 setEstimatedCost(calculateCost(e.target.value));
                 e.target.style.height = 'auto';
                 e.target.style.height = e.target.scrollHeight + 'px';
+                
+                // Detect user typing for avatar state
+                handleUserTyping();
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && e.shiftKey) {
@@ -890,7 +1101,13 @@ return (
                   handleSubmit(e);
                 }
               }}
-              placeholder={sqlMode !== 'none' ? `מצב ${getSqlModeLabel()} פעיל - הקלד את השאילתה שלך...` : "הקלד כאן..."}
+              placeholder={
+                isExerciseMode 
+                  ? "הקלד את תשובת ה-SQL שלך כאן..." 
+                  : sqlMode !== 'none' 
+                    ? `מצב ${getSqlModeLabel()} פעיל - הקלד את השאילתה שלך...` 
+                    : "הקלד כאן..."
+              }
               style={{
                 paddingTop: sqlMode !== 'none' ? '35px' : '16px',
                 paddingRight: '20px',
@@ -977,7 +1194,33 @@ return (
                   {sqlMode === 'create' ? 'CREATE' : sqlMode === 'insert' ? 'INSERT' : 'SQL'}
                 </span>
               </button>
+
+              {/* Exercise Button */}
+              <button
+                type="button"
+                className={`${styles.actionButton} ${styles.exerciseActionButton} ${isExerciseMode ? styles.actionButtonActive : ''}`}
+                onClick={startExercise}
+                disabled={inputDisabled}
+                title="קבל תרגול SQL חדש"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+                <span className={styles.actionButtonText}>תרגול</span>
+              </button>
             </div>
+
+
 
             {/* Hidden file input */}
             <input
@@ -1033,6 +1276,8 @@ return (
           text={lastAssistantMessage}
           state={avatarState}
           size="medium"
+          progressiveMode={true}
+          isStreaming={!isDone}
           onSpeakingStart={() => {
             console.log('🎤 Michael started speaking');
             setShouldSpeak(true);
@@ -1041,6 +1286,7 @@ return (
             console.log('🎤 Michael finished speaking');
             setShouldSpeak(false);
             setIsAssistantMessageComplete(false);
+            setHasStartedSpeaking(false);
           }}
         />
         
@@ -1079,9 +1325,151 @@ return (
         </div>
       </div>
     </div>
+    {/* Exercise Modal */}
+    <Modal isOpen={showExerciseModal} onClose={() => {
+      setShowExerciseModal(false);
+      setIsExerciseMode(false);
+      setCurrentExercise(null);
+      setExerciseAnswer("");
+      setShowSolutionButton(false);
+    }}>
+      <div className={styles.exerciseModal}>
+        <button
+          className={styles.exerciseCloseButton}
+          onClick={() => {
+            setShowExerciseModal(false);
+            setIsExerciseMode(false);
+            setCurrentExercise(null);
+            setExerciseAnswer("");
+            setShowSolutionButton(false);
+          }}
+          title="סגור תרגול"
+        >
+          ×
+        </button>
+        <div className={styles.exerciseHeader}>
+          <h2>🎓 תרגול SQL</h2>
+          {userPoints > 0 && (
+            <div className={styles.pointsIndicator}>
+              {userPoints} נקודות
+            </div>
+          )}
+        </div>
+        
+        {currentExercise && (
+          <>
+            <div className={styles.exerciseContent}>
+              <div className={styles.exerciseDifficulty}>
+                דרגת קושי: {currentExercise.difficulty === 'easy' ? 'קל' : currentExercise.difficulty === 'medium' ? 'בינוני' : 'קשה'} 
+                ({currentExercise.points} נקודות)
+              </div>
+              
+              <div className={styles.exerciseQuestion}>
+                {currentExercise.question}
+              </div>
+              
+              <div className={styles.exerciseSqlEditor}>
+                <textarea
+                  className={styles.exerciseTextarea}
+                  value={exerciseAnswer}
+                  onChange={(e) => setExerciseAnswer(e.target.value)}
+                  placeholder="הקלד את שאילתת ה-SQL שלך כאן..."
+                  rows={8}
+                  style={{
+                    fontFamily: 'Courier New, monospace',
+                    fontSize: '14px',
+                    width: '100%',
+                    height: '100%',
+                    border: 'none',
+                    outline: 'none',
+                    resize: 'none',
+                    padding: '10px',
+                    background: 'transparent',
+                    color: '#374151'
+                  }}
+                />
+              </div>
+              
+              {/* SQL Helper Buttons */}
+              <div className={styles.sqlHelperButtons}>
+                <button
+                  type="button"
+                  className={styles.sqlHelperButton}
+                  onClick={() => setExerciseAnswer(prev => prev + '\nSELECT * FROM ')}
+                >
+                  SELECT
+                </button>
+                <button
+                  type="button"
+                  className={styles.sqlHelperButton}
+                  onClick={() => setExerciseAnswer(prev => prev + '\nWHERE ')}
+                >
+                  WHERE
+                </button>
+                <button
+                  type="button"
+                  className={styles.sqlHelperButton}
+                  onClick={() => setExerciseAnswer(prev => prev + '\nGROUP BY ')}
+                >
+                  GROUP BY
+                </button>
+                <button
+                  type="button"
+                  className={styles.sqlHelperButton}
+                  onClick={() => setExerciseAnswer(prev => prev + '\nORDER BY ')}
+                >
+                  ORDER BY
+                </button>
+                <button
+                  type="button"
+                  className={styles.sqlHelperButton}
+                  onClick={() => setExerciseAnswer(prev => prev + '\nJOIN ')}
+                >
+                  JOIN
+                </button>
+              </div>
+              
+              <div className={styles.exerciseActions}>
+                <button
+                  className={styles.submitExerciseButton}
+                  onClick={submitExerciseAnswer}
+                  disabled={!exerciseAnswer.trim()}
+                >
+                  שלח תשובה
+                </button>
+                
+                {showSolutionButton && (
+                  <button
+                    className={styles.showSolutionButton}
+                    onClick={showSolution}
+                  >
+                    הצג פתרון
+                  </button>
+                )}
+              </div>
+              
+              {exerciseAttempts > 0 && (
+                <div className={styles.exerciseFeedback}>
+                  כמעט! נסה לבדוק אם שכחת משהו בשאילתה.
+                  {exerciseAttempts >= 2 && " אתה יכול לראות את הפתרון בכפתור למעלה."}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </Modal>
+
     <Modal isOpen={showModal} onClose={toggleModal}>
         <SQLQueryEditorComponent toggleModal={toggleModal} />
       </Modal>
+
+    {/* Points Animation */}
+    {pointsAnimation && (
+      <div className={styles.pointsAnimation}>
+        +{pointsAnimation} 🎉
+      </div>
+    )}
   </div>
 );
 };

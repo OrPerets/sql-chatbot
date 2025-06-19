@@ -317,6 +317,10 @@ class TalkingHead {
       });
     })
 
+    // Initialize animation loop properties
+    this.isRunning = false;
+    this.animationId = null;
+
     // Dynamically pick up all the property names that we need in the code
     const names = new Set();
     Object.values(this.poseTemplates).forEach( x => {
@@ -3856,10 +3860,20 @@ class TalkingHead {
   */
   start() {
     if ( this.armature && this.isRunning === false ) {
-      this.audioCtx.resume();
+      // Try to resume audio context, but don't let it block animation
+      try {
+        if (this.audioCtx && this.audioCtx.state === 'suspended') {
+          this.audioCtx.resume().catch(err => {
+            console.warn('Audio context resume failed (this is normal for some browsers):', err);
+          });
+        }
+      } catch (err) {
+        console.warn('Audio context access failed (this is normal for some browsers):', err);
+      }
+      
       this.animTimeLast = performance.now();
       this.isRunning = true;
-      requestAnimationFrame( this.animate.bind(this) );
+      this.animationId = requestAnimationFrame( this.animate.bind(this) );
     }
   }
 
@@ -3868,7 +3882,21 @@ class TalkingHead {
   */
   stop() {
     this.isRunning = false;
-    this.audioCtx.suspend();
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = null;
+    }
+    
+    // Try to suspend audio context, but don't let it block stopping
+    try {
+      if (this.audioCtx && this.audioCtx.state !== 'closed') {
+        this.audioCtx.suspend().catch(err => {
+          console.warn('Audio context suspend failed (this is normal for some browsers):', err);
+        });
+      }
+    } catch (err) {
+      console.warn('Audio context access failed during stop (this is normal for some browsers):', err);
+    }
   }
 
   /**

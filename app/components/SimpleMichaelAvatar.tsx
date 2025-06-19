@@ -149,15 +149,18 @@ export const SimpleMichaelAvatar: React.FC<SimpleMichaelAvatarProps> = ({
       setIsSpeaking(true);
       onSpeakingStart?.();
       
-      // Use enhanced OpenAI TTS service
+      // Use simplified OpenAI TTS service for clear speech
       const ttsOptions: TTSOptions = {
-        voice: 'echo', // Deep male voice perfect for Michael
-        speed: 0.95,
+        voice: 'onyx', // Warm male voice that's clear and friendly
+        speed: 1.0,    // Normal speed for better clarity
         useOpenAI: true,
         characterStyle: 'university_ta',
         enhanceProsody: true,
+        humanize: true,           // Keep but simplified in backend
+        naturalPauses: true,      // Only for very long responses
+        emotionalIntonation: false, // Disabled to avoid complexity
         onStart: () => {
-          console.log('🎤 Michael: Starting to speak...');
+          console.log('🎤 Michael: Starting clear speech...');
         },
         onEnd: () => {
           console.log('🤐 Michael: Finished speaking');
