@@ -254,7 +254,7 @@ const Chat = ({
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [exerciseAnswer, setExerciseAnswer] = useState("");
 
-  // Memoized avatar state calculation to prevent multiple renders
+  // Enhanced avatar state calculation for optimized speech timing
   const avatarState = useMemo(() => {
     // Priority order: thinking > listening > speaking > userWriting > idle
     const currentState = isThinking ? 'thinking' 
@@ -262,7 +262,7 @@ const Chat = ({
                         : (shouldSpeak && autoPlaySpeech && isAssistantMessageComplete) ? 'speaking' 
                         : isUserTyping ? 'userWriting'
                         : 'idle';
-    console.log('🎭 Avatar state calculation:', {
+    console.log('🎭 OPTIMIZED Avatar state calculation:', {
       isThinking,
       isRecording,
       shouldSpeak,
@@ -270,7 +270,8 @@ const Chat = ({
       isAssistantMessageComplete,
       isUserTyping,
       calculatedState: currentState,
-      textLength: lastAssistantMessage?.length || 0
+      textLength: lastAssistantMessage?.length || 0,
+      fastSpeechMode: 'enabled' // NEW: Indicating fast speech mode is active
     });
     return currentState;
   }, [isThinking, isRecording, shouldSpeak, autoPlaySpeech, isAssistantMessageComplete, isUserTyping, lastAssistantMessage?.length]);
@@ -785,17 +786,23 @@ const loadChatMessages = (chatId: string) => {
 
   // textDelta - append text to last assistant message
   const handleTextDelta = (delta) => {
-    if (delta.value != null) {
-      const text = delta.value;
+    setLastAssistantMessage("");
+    appendToLastMessage(delta.value);
+    scrollToBottom();
+    
+    // Enhanced progressive speech logic for immediate response
+    if (autoPlaySpeech && !hasStartedSpeaking) {
+      const currentText = streamingTextRef.current + delta.value;
+      streamingTextRef.current = currentText;
       
-      // Update streaming text for progressive speech
-      streamingTextRef.current += text;
-      setStreamingText(streamingTextRef.current);
-      
-      appendToLastMessage(text);
-    }
-    if (delta.annotations != null) {
-      annotateLastMessage(delta.annotations);
+      // **LIGHTNING-FAST SPEECH THRESHOLD**
+      // Start speech immediately with minimal text for instant response
+      if (currentText.length >= 8) { // Ultra-aggressive threshold for instant speech
+        console.log('⚡ LIGHTNING SPEECH: Starting speech with ultra-minimal text (8+ chars) for instant response');
+        setHasStartedSpeaking(true);
+        setShouldSpeak(true);
+        setIsAssistantMessageComplete(false); // Will be set to true when streaming completes
+      }
     }
   };
 
@@ -838,7 +845,22 @@ const loadChatMessages = (chatId: string) => {
   // handleRunCompleted - re-enable the input form
   const handleRunCompleted = () => {
     setInputDisabled(false);
-    setIsThinking(false); // Stop thinking when run is completed
+    setIsThinking(false);
+    setIsDone(true);
+    console.log("⚡ OPTIMIZED: Run completed - enabling immediate speech response");
+    
+    // Enable immediate speech response when run completes
+    if (autoPlaySpeech) {
+      console.log('🎤 FAST RESPONSE: Assistant response complete - ready for immediate speech');
+      setIsAssistantMessageComplete(true);
+      
+      // If we haven't started speaking yet, start immediately
+      if (!hasStartedSpeaking && lastAssistantMessage) {
+        console.log('⚡ INSTANT SPEECH: Triggering immediate speech response');
+        setShouldSpeak(true);
+        setHasStartedSpeaking(true);
+      }
+    }
   };
 
    // New function to handle message changes
@@ -934,9 +956,20 @@ const loadChatMessages = (chatId: string) => {
         text: lastMessage.text + text,
       };
       
-      // Update last assistant message for speech synthesis if it's an assistant message
+      // Update last assistant message for IMMEDIATE speech synthesis
       if (lastMessage.role === 'assistant') {
-        setLastAssistantMessage(updatedLastMessage.text);
+        const newText = updatedLastMessage.text;
+        setLastAssistantMessage(newText);
+        
+        // **ULTRA-IMMEDIATE SPEECH TRIGGER**
+        // Start speech with just 10-12 characters for lightning-fast response
+        if (autoPlaySpeech && !hasStartedSpeaking && newText.length >= 10) {
+          // Start speech as soon as we have ANY meaningful text
+          console.log('⚡ ULTRA-FAST SPEECH: Starting speech with minimal text (10+ chars) for instant response');
+          streamingTextRef.current = newText;
+          setHasStartedSpeaking(true);
+          setShouldSpeak(true);
+        }
       }
       
       return [...prevMessages.slice(0, -1), updatedLastMessage];
@@ -1218,6 +1251,28 @@ return (
                 </svg>
                 <span className={styles.actionButtonText}>תרגול</span>
               </button>
+
+              {/* Exam Button */}
+              <Link href="/exam" className={`${styles.actionButton} ${styles.examActionButton}`} title="כניסה לבחינה">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14,2 14,8 20,8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10,9 9,9 8,9"/>
+                </svg>
+                <span className={styles.actionButtonText}>בחינה</span>
+              </Link>
             </div>
 
 

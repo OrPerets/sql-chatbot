@@ -15,6 +15,9 @@ export interface TTSOptions {
   onStart?: () => void;
   onEnd?: () => void;
   onError?: (error: Error) => void;
+  // New options for reducing latency
+  preload?: boolean; // Start generating audio immediately when text is available
+  lowLatency?: boolean; // Use faster settings for quicker response
 }
 
 export interface TTSVoice {
@@ -111,9 +114,74 @@ class EnhancedTTSService {
   private progressiveTimeout: NodeJS.Timeout | null = null;
   private currentOptions: TTSOptions | null = null;
 
+  // New properties for latency optimization
+  private preloadRequests = new Map<string, Promise<string>>();
+  private latencyLogger = {
+    startTime: 0,
+    apiTime: 0,
+    playbackTime: 0,
+    totalTime: 0
+  };
+
   constructor() {
     if (typeof window !== 'undefined') {
       this.speechSynthesis = window.speechSynthesis;
+      // **WARM-UP: Initialize audio system immediately**
+      this.warmUpAudioSystem();
+    }
+  }
+
+  // **NEW: WARM-UP AUDIO SYSTEM FOR INSTANT RESPONSE**
+  private async warmUpAudioSystem(): Promise<void> {
+    try {
+      console.log('🔥 WARM-UP: Initializing audio system for instant response...');
+      
+      // 1. Test audio playback capability immediately
+      setTimeout(() => {
+        this.testAudioPlayback().then(success => {
+          if (success) {
+            console.log('✅ WARM-UP: Audio system ready for instant speech');
+          }
+        });
+      }, 100);
+
+      // 2. Pre-warm TTS with a very short, silent phrase
+      setTimeout(() => {
+        this.prewarmTTS();
+      }, 500);
+
+    } catch (error) {
+      console.warn('⚠️ WARM-UP: Audio warm-up failed, will retry on first use:', error);
+    }
+  }
+
+  // **NEW: PRE-WARM TTS API FOR FASTER FIRST RESPONSE**
+  private async prewarmTTS(): Promise<void> {
+    try {
+      console.log('🚀 PREWARM: Warming up TTS API for instant response...');
+      
+      // Generate a very short, quiet test phrase to warm up the TTS API
+      const warmupText = '.'; // Minimal text
+      const warmupOptions: TTSOptions = {
+        voice: 'onyx',
+        speed: 1.1,
+        volume: 0.01, // Almost silent
+        lowLatency: true,
+        useOpenAI: true
+      };
+
+      // Create the request but don't wait for it to complete
+      // This warms up the API connection and caching
+      this.generateOpenAITTS(warmupText, warmupOptions)
+        .then(() => {
+          console.log('✅ PREWARM: TTS API warmed up successfully');
+        })
+        .catch((error) => {
+          console.log('ℹ️ PREWARM: TTS warmup completed (expected for minimal text)');
+        });
+
+    } catch (error) {
+      console.log('ℹ️ PREWARM: TTS warmup skipped, will rely on first-use initialization');
     }
   }
 
@@ -154,13 +222,13 @@ class EnhancedTTSService {
     return hasHebrew ? 'he' : 'en';
   }
 
-  // Select best voice based on language and preferences
+  // Enhanced voice selection with better defaults for human-like speech
   private selectVoice(language: 'en' | 'he', options: TTSOptions): string {
-    const { voice, characterStyle, humanize } = options;
+    const { voice, characterStyle, humanize, lowLatency } = options;
     
     // For Hebrew text, always use Nova (best Hebrew pronunciation)
     if (language === 'he') {
-      console.log('🇮🇱 Hebrew text detected - forcing nova voice for optimal pronunciation');
+      console.log('🇮🇱 Hebrew text detected - using nova voice for optimal pronunciation');
       return 'nova';
     }
 
@@ -169,9 +237,11 @@ class EnhancedTTSService {
       return voice;
     }
 
-    // For English, choose based on character style with enhanced human voice selection
+    // Optimized voice selection for human-like speech
     switch (characterStyle) {
       case 'university_ta':
+        // For low latency mode, prefer onyx (warmest and clearest)
+        if (lowLatency) return 'onyx';
         // For humanized TA, prefer Onyx (warmer) over Echo (more authoritative)
         return humanize !== false ? 'onyx' : 'echo';
       case 'professional':
@@ -181,29 +251,63 @@ class EnhancedTTSService {
       case 'technical':
         return 'alloy'; // Clear and balanced
       default:
-        return 'onyx'; // Default to warmest male voice
+        return 'onyx'; // Default to warmest male voice - perfect for Michael
     }
   }
 
-  // Generate speech using OpenAI TTS
+  // **ULTRA-LOW LATENCY SPEECH TRIGGER**
+  // Optimized for immediate speech response with minimal delay
+  private shouldStartSpeech(text: string, options: TTSOptions): boolean {
+    const trimmedText = text.trim();
+    
+    // Ultra-aggressive thresholds for immediate response
+    if (options.lowLatency) {
+      // Start speaking after just 8-12 characters in low-latency mode
+      return trimmedText.length >= 8;
+    }
+    
+    if (options.preload) {
+      // Start speaking after 12-15 characters in preload mode
+      return trimmedText.length >= 12;
+    }
+    
+    // **REDUCED THRESHOLD FOR IMMEDIATE SPEECH**
+    // Previous: 20-30 characters, New: 15-20 characters
+    return trimmedText.length >= 15;
+  }
+
+  // Optimized OpenAI TTS generation with latency tracking
   private async generateOpenAITTS(text: string, options: TTSOptions): Promise<string> {
+    const startTime = performance.now();
+    this.latencyLogger.startTime = startTime;
+    
     const language = this.detectLanguage(text);
     const selectedVoice = this.selectVoice(language, options);
     
-    // Create request key for client-side deduplication
-    const requestKey = `${text}_${selectedVoice}_${options.speed || 1.0}_${options.enhanceProsody !== false}_${options.characterStyle || 'university_ta'}`;
+    // Create optimized request key for caching
+    const requestKey = `${text}_${selectedVoice}_${options.speed || 1.1}_${options.lowLatency ? 'fast' : 'normal'}`;
+    
+    // Check cache first for instant response
+    if (this.audioCache.has(requestKey)) {
+      console.log('🚀 INSTANT: Using cached audio for immediate playback');
+      this.latencyLogger.apiTime = 0;
+      this.latencyLogger.totalTime = performance.now() - startTime;
+      return this.audioCache.get(requestKey)!;
+    }
     
     // Check if same request is already pending
     if (this.pendingRequests.has(requestKey)) {
-      console.log('🔄 Client-side: Duplicate TTS request detected - reusing pending promise');
+      console.log('🔄 FAST: Reusing pending TTS request');
       return await this.pendingRequests.get(requestKey)!;
     }
     
-    console.log(`🎤 Generating OpenAI TTS: voice=${selectedVoice}, language=${language}`);
+    console.log(`🎤 OPTIMIZED TTS: voice=${selectedVoice}, language=${language}, lowLatency=${options.lowLatency}`);
     
     // Create the promise and store it
     const requestPromise = (async (): Promise<string> => {
       try {
+        const apiStartTime = performance.now();
+        
         const response = await fetch('/api/audio/tts', {
           method: 'POST',
           headers: {
@@ -212,21 +316,38 @@ class EnhancedTTSService {
           body: JSON.stringify({
             text,
             voice: selectedVoice,
-            speed: options.speed || 1.0,
+            // Optimized settings for human-like speech with onyx voice
+            speed: options.lowLatency ? 1.2 : (options.speed || 1.1), // Slightly faster for natural flow
             format: 'mp3',
-            enhance_prosody: options.enhanceProsody !== false,
-            character_style: options.characterStyle || 'university_ta'
+            enhance_prosody: !options.lowLatency, // Skip complex processing in low latency mode
+            character_style: options.characterStyle || 'university_ta',
+            humanize: options.humanize !== false,
+            natural_pauses: false, // Disable to reduce processing time
+            emotional_intonation: false, // Disable complex features for lower latency
+            low_latency: options.lowLatency || false
           }),
         });
+
+        this.latencyLogger.apiTime = performance.now() - apiStartTime;
 
         if (!response.ok) {
           throw new Error(`TTS API error: ${response.status}`);
         }
 
-        // Convert response to blob URL
-        const audioBlob = await response.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
-        console.log(`✅ OpenAI TTS audio generated: ${audioBlob.size} bytes`);
+        // **FIXED: Handle JSON response with embedded audio URL**
+        const jsonResponse = await response.json();
+        if (!jsonResponse.success || !jsonResponse.audioUrl) {
+          throw new Error('Invalid TTS API response format');
+        }
+        
+        const audioUrl = jsonResponse.audioUrl;
+        
+        // Cache the result for future use
+        this.audioCache.set(requestKey, audioUrl);
+        
+        this.latencyLogger.totalTime = performance.now() - startTime;
+        console.log(`⚡ OPTIMIZED TTS generated in ${this.latencyLogger.apiTime.toFixed(0)}ms API + ${(this.latencyLogger.totalTime - this.latencyLogger.apiTime).toFixed(0)}ms processing. Quality: ${jsonResponse.metadata?.quality || 'HD'}`);
+        
         return audioUrl;
       } finally {
         // Clean up pending request
@@ -299,11 +420,15 @@ class EnhancedTTSService {
     });
   }
 
-  // Enhanced speak method with progressive support
+  // Enhanced speak method with latency optimization
   async speak(text: string, options: TTSOptions = {}): Promise<void> {
-    console.log('🎤 Enhanced TTS speak called:', {
+    const speakStartTime = performance.now();
+    
+    console.log('🎤 ENHANCED TTS speak called:', {
       textLength: text?.length || 0,
       progressiveMode: options.progressiveMode,
+      lowLatency: options.lowLatency,
+      preload: options.preload,
       isCurrentlySpeaking: this.isCurrentlySpeaking,
       preview: text?.substring(0, 100) + '...'
     });
@@ -313,13 +438,33 @@ class EnhancedTTSService {
       return;
     }
 
+    // Set optimized defaults for Michael's voice
+    const optimizedOptions: TTSOptions = {
+      voice: 'onyx', // Warm, confident male voice
+      speed: 1.1, // Slightly faster for natural conversation flow
+      volume: 0.9,
+      useOpenAI: true,
+      characterStyle: 'university_ta',
+      enhanceProsody: false, // Disable for faster processing
+      humanize: true,
+      naturalPauses: false, // Disable for lower latency
+      emotionalIntonation: false, // Disable for faster response
+      lowLatency: true, // Enable low latency mode
+      ...options // Override with provided options
+    };
+
     // Handle progressive mode
-    if (options.progressiveMode) {
-      return this.handleProgressiveSpeech(text, options);
+    if (optimizedOptions.progressiveMode) {
+      return this.handleProgressiveSpeech(text, optimizedOptions);
     }
 
-    // Standard mode - existing implementation
-    return this.handleStandardSpeech(text, options);
+    // Handle preload mode (start generation immediately)
+    if (optimizedOptions.preload) {
+      return this.handlePreloadSpeech(text, optimizedOptions);
+    }
+
+    // Standard mode with latency optimization
+    return this.handleStandardSpeech(text, optimizedOptions);
   }
 
   // New method for progressive speech handling
@@ -336,9 +481,9 @@ class EnhancedTTSService {
     this.currentOptions = options;
     this.progressiveMode = true;
 
-    // If we're not currently speaking and have enough text, start speaking
-    if (!this.isCurrentlySpeaking && text.length > 50) {
-      console.log('🎤 PROGRESSIVE TTS: Starting initial speech');
+    // **IMMEDIATE SPEECH TRIGGER - Use our new optimized threshold**
+    if (!this.isCurrentlySpeaking && this.shouldStartSpeech(text, options)) {
+      console.log('🎤 PROGRESSIVE TTS: Starting immediate speech with optimized threshold');
       await this.speakProgressiveChunk(text, options);
     }
     // If we're already speaking, the current speech will check for more content when it ends
@@ -444,81 +589,159 @@ class EnhancedTTSService {
     }
   }
 
-  // Standard speech handling (existing implementation)
-  private async handleStandardSpeech(text: string, options: TTSOptions): Promise<void> {
-    // ... existing speak implementation ...
+  // New method for preload speech (parallel audio generation)
+  private async handlePreloadSpeech(text: string, options: TTSOptions): Promise<void> {
+    console.log('🚀 PRELOAD: Starting parallel audio generation');
+    
     // Ensure progressive state is reset
     this.resetProgressiveState();
 
-    // Apply global speech lock
-    if (this.globalSpeechLock) {
-      console.log('🔒 Enhanced TTS: Global speech lock active, rejecting new request');
-      throw new Error('Speech lock active - another speech operation in progress');
-    }
-
-    // Check if already speaking
+    // Stop any current speech immediately
     if (this.isCurrentlySpeaking) {
-      console.log('🔄 Enhanced TTS: Already speaking, stopping current speech');
       this.stop();
-      // Wait briefly for cleanup
-      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    // Set global speech lock
-    this.globalSpeechLock = true;
-    
-    // Set timeout to automatically release lock (safety mechanism)
-    this.globalTimeout = setTimeout(() => {
-      console.log('⏰ Enhanced TTS: Auto-releasing speech lock after timeout');
-      this.globalSpeechLock = false;
-    }, 30000); // 30 second timeout
+    try {
+      this.isCurrentlySpeaking = true;
+      options.onStart?.();
+      
+      // Start audio generation immediately (parallel processing)
+      if (options.useOpenAI !== false) {
+        console.log('⚡ PRELOAD: Generating OpenAI TTS in parallel');
+        const audioUrl = await this.generateOpenAITTS(text, options);
+        
+        // Play immediately when ready
+        await this.playAudioUrl(audioUrl, options);
+      } else {
+        console.log('🎯 PRELOAD: Using browser TTS fallback');
+        await this.generateBrowserTTS(text, options);
+      }
+      
+    } catch (error) {
+      console.error('❌ PRELOAD TTS: Speech failed:', error);
+      options.onError?.(error instanceof Error ? error : new Error(String(error)));
+    } finally {
+      this.isCurrentlySpeaking = false;
+      options.onEnd?.();
+      
+      // Log performance metrics
+      const totalTime = performance.now() - this.latencyLogger.startTime;
+      console.log(`📊 PRELOAD Performance: Total=${totalTime.toFixed(0)}ms, API=${this.latencyLogger.apiTime.toFixed(0)}ms, Playback=${(totalTime - this.latencyLogger.apiTime).toFixed(0)}ms`);
+    }
+  }
+
+  // Optimized standard speech handling
+  private async handleStandardSpeech(text: string, options: TTSOptions): Promise<void> {
+    // Ensure progressive state is reset
+    this.resetProgressiveState();
+
+    // Quick check - if already speaking, stop immediately (no delays)
+    if (this.isCurrentlySpeaking) {
+      console.log('🔄 OPTIMIZED: Interrupting current speech for immediate response');
+      this.stop();
+    }
 
     try {
       this.isCurrentlySpeaking = true;
       options.onStart?.();
       
       if (options.useOpenAI !== false) {
-        console.log('🎯 Enhanced TTS: Using OpenAI TTS for high-quality speech');
+        console.log('⚡ OPTIMIZED: Using low-latency OpenAI TTS');
         const audioUrl = await this.generateOpenAITTS(text, options);
         await this.playAudioUrl(audioUrl, options);
       } else {
-        console.log('🎯 Enhanced TTS: Using browser TTS fallback');
+        console.log('🎯 OPTIMIZED: Using browser TTS fallback');
         await this.generateBrowserTTS(text, options);
       }
       
     } catch (error) {
-      console.error('❌ Enhanced TTS: Speech failed:', error);
+      console.error('❌ OPTIMIZED TTS: Speech failed:', error);
       options.onError?.(error instanceof Error ? error : new Error(String(error)));
     } finally {
       this.isCurrentlySpeaking = false;
-      this.globalSpeechLock = false;
-      if (this.globalTimeout) {
-        clearTimeout(this.globalTimeout);
-        this.globalTimeout = null;
-      }
       options.onEnd?.();
     }
   }
 
-  // Helper method to play audio URL
+  // Enhanced audio playback with latency tracking and error handling
   private async playAudioUrl(audioUrl: string, options: TTSOptions): Promise<void> {
+    const playbackStartTime = performance.now();
+    
     return new Promise((resolve, reject) => {
-      this.currentAudio = new Audio(audioUrl);
+      // **ENHANCED ERROR HANDLING FOR AUDIO COMPATIBILITY**
+      this.currentAudio = new Audio();
       this.currentAudio.volume = options.volume || 0.9;
       
+      // Preload the audio for faster playback
+      this.currentAudio.preload = 'auto';
+      
+             // **COMPREHENSIVE ERROR HANDLING**
+       this.currentAudio.onerror = (error) => {
+         console.error('❌ AUDIO ERROR: Failed to load audio:', error);
+         console.log('🔧 AUDIO DEBUG: Audio URL format:', audioUrl.substring(0, 50) + '...');
+         console.log('🔧 AUDIO DEBUG: URL length:', audioUrl.length);
+         console.log('🔧 AUDIO DEBUG: Is data URL:', audioUrl.startsWith('data:'));
+         console.log('🔧 AUDIO DEBUG: MIME type:', audioUrl.match(/data:([^;]+)/)?.[1] || 'unknown');
+        
+                 // Try fallback to browser TTS if audio fails to load
+         console.log('🔄 FALLBACK: Attempting browser TTS as backup');
+         
+         // Get the text from progressive state or try to extract from error context
+         let fallbackText = this.streamingText || '';
+         if (!fallbackText && options.progressiveMode) {
+           // Try to get text from the current chunk being processed
+           fallbackText = 'Sorry, there was an audio issue. Let me try again with a different voice.';
+         }
+         
+         this.generateBrowserTTS(fallbackText, options)
+           .then(() => resolve())
+           .catch((fallbackError) => {
+             console.error('❌ FALLBACK FAILED: Both OpenAI and browser TTS failed:', fallbackError);
+             // Just resolve to avoid blocking the UI
+             console.log('⚠️ GRACEFUL FALLBACK: Continuing without audio');
+             resolve();
+           });
+      };
+      
+      this.currentAudio.onloadeddata = () => {
+        console.log('🎵 AUDIO SUCCESS: Audio preloaded and ready for immediate playback');
+      };
+      
       this.currentAudio.onended = () => {
-        console.log('🎵 Enhanced TTS: Audio playback completed');
+        const playbackTime = performance.now() - playbackStartTime;
+        console.log(`🎵 OPTIMIZED: Audio playback completed in ${playbackTime.toFixed(0)}ms`);
         this.currentAudio = null;
         resolve();
       };
       
-      this.currentAudio.onerror = (error) => {
-        console.error('❌ Enhanced TTS: Audio playback error:', error);
-        this.currentAudio = null;
-        reject(new Error('Audio playback failed'));
-      };
-      
-      this.currentAudio.play().catch(reject);
+      // **SAFE AUDIO LOADING WITH ERROR RECOVERY**
+      try {
+        // Set the source after all event handlers are in place
+        this.currentAudio.src = audioUrl;
+        
+        // Attempt to play with error handling
+        const playPromise = this.currentAudio.play();
+        if (playPromise !== undefined) {
+                     playPromise.catch((playError) => {
+             console.error('❌ PLAY ERROR: Audio play failed:', playError);
+             // Try browser TTS fallback with graceful handling
+             let fallbackText = this.streamingText || '';
+             if (!fallbackText) {
+               fallbackText = 'Audio playback issue detected.';
+             }
+             
+             this.generateBrowserTTS(fallbackText, options)
+               .then(() => resolve())
+               .catch(() => {
+                 console.log('⚠️ GRACEFUL FALLBACK: Continuing without audio playback');
+                 resolve();
+               });
+           });
+        }
+      } catch (sourceError) {
+        console.error('❌ SOURCE ERROR: Failed to set audio source:', sourceError);
+        reject(sourceError);
+      }
     });
   }
 
@@ -590,6 +813,13 @@ class EnhancedTTSService {
     this.audioCache.clear();
   }
 
+  // **NEW: PUBLIC METHOD TO TRIGGER WARM-UP ON USER INTERACTION**
+  async warmUpForUser(): Promise<void> {
+    console.log('🎯 USER WARM-UP: Preparing audio system for immediate use...');
+    await this.testAudioPlayback();
+    await this.prewarmTTS();
+  }
+
   // Add background ambiance (optional enhancement)
   async addBackgroundAmbiance(type: 'classroom' | 'library' | 'office' = 'classroom'): Promise<void> {
     // This could be enhanced to add subtle background sounds
@@ -601,17 +831,23 @@ class EnhancedTTSService {
 // Export singleton instance
 export const enhancedTTS = new EnhancedTTSService();
 
-// Utility function for easy usage
+// Utility function for easy usage with Michael's optimized settings
 export async function speakWithMichael(
   text: string, 
   options: TTSOptions = {}
 ): Promise<void> {
   const defaultOptions: TTSOptions = {
+    voice: 'onyx', // Warm, confident male voice - perfect for Michael
+    speed: 1.1, // Optimized for natural conversation flow
+    volume: 0.9,
     useOpenAI: true,
     characterStyle: 'university_ta',
-    enhanceProsody: true,
-    speed: 1.0,
-    volume: 0.9,
+    enhanceProsody: false, // Disabled for faster processing
+    humanize: true, // Keep for warmth
+    naturalPauses: false, // Disabled for lower latency
+    emotionalIntonation: false, // Disabled for faster response
+    lowLatency: true, // Enable low-latency mode by default
+    preload: false, // Can be enabled for specific use cases
     ...options
   };
   

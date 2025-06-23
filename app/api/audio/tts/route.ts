@@ -102,14 +102,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { 
       text, 
-      voice = 'onyx',  // Keep the warmer male voice
-      speed = 1.0,     // Back to normal speed for clarity
+      voice = 'onyx',  // Default to the warm, confident male voice for Michael
+      speed = 1.1,     // Optimized speed for natural conversation flow
       format = 'mp3',
-      enhance_prosody = true,
+      enhance_prosody = false, // Disabled by default for lower latency
       character_style = 'university_ta',
-      humanize = true,           // Keep but simplified
-      natural_pauses = true,     // Keep but minimal
-      emotional_intonation = false // Disable to avoid complexity
+      humanize = true,
+      natural_pauses = false,     // Disabled for lower latency
+      emotional_intonation = false, // Disabled for lower latency
+      low_latency = false  // New parameter for low-latency mode
     } = body;
 
     if (!text) {
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create request fingerprint for deduplication
-    const requestKey = `${text}_${voice}_${speed}_${format}_${enhance_prosody}_${character_style}_${humanize}_${natural_pauses}_${emotional_intonation}`;
+    const requestKey = `${text}_${voice}_${speed}_${format}_${low_latency ? 'fast' : 'normal'}_${character_style}_${humanize}`;
     
     // Check if identical request is already processing
     if (activeRequests.has(requestKey)) {
@@ -131,103 +132,152 @@ export async function POST(request: NextRequest) {
     // Create and store the processing promise
     const processingPromise = (async (): Promise<NextResponse> => {
       try {
+        const startTime = performance.now();
+        
         // Detect language
         const hasHebrew = /[\u0590-\u05FF]/.test(text);
     
-        // Simplified text cleaning - remove problematic enhancements
-        let processedText = text
-          .replace(/\*\*(.*?)\*\*/g, '$1')
-          .replace(/\*(.*?)\*/g, '$1')
-          .replace(/```[\s\S]*?```/g, ' [code block] ')
-          .replace(/😊|😀|😃|😄|😁|😆|😅|🤣|😂|🙂|🙃|😉|😇|🥰|😍|🤩|😘|😗|😚|😙|😋|😛|😜|🤪|😝|🤑|🤗|🤭|🤫|🤔|🤐|🤨|😐|😑|😶|😏|😒|🙄|😬|🤥|😌|😔|😪|🤤|😴|😷|🤒|🤕|🤢|🤮|🤧|🥵|🥶|🥴|😵|🤯|🤠|🥳|😎|🤓|🧐|🚀|⚡|💡|🎯|🎓|✨|👍|👎|👏|🔧|🛠️|📝|📊|💻|⭐|🎉|🔥|💪|🏆|📈|🎪/g, '')
-          .replace(/\s+/g, ' ')
-          .trim();
+        // Optimized text cleaning for low-latency mode
+        let processedText = text;
+        
+        if (!low_latency) {
+          // Only apply complex processing in normal mode
+          processedText = text
+            .replace(/\*\*(.*?)\*\*/g, '$1')
+            .replace(/\*(.*?)\*/g, '$1')
+            .replace(/```[\s\S]*?```/g, ' [code block] ')
+            .replace(/😊|😀|😃|😄|😁|😆|😅|🤣|😂|🙂|🙃|😉|😇|🥰|😍|🤩|😘|😗|😚|😙|😋|😛|😜|🤪|😝|🤑|🤗|🤭|🤫|🤔|🤐|🤨|😐|😑|😶|😏|😒|🙄|😬|🤥|😌|😔|😪|🤤|😴|😷|🤒|🤕|🤢|🤮|🤧|🥵|🥶|🥴|😵|🤯|🤠|🥳|😎|🤓|🧐|🚀|⚡|💡|🎯|🎓|✨|👍|👎|👏|🔧|🛠️|📝|📊|💻|⭐|🎉|🔥|💪|🏆|📈|🎪/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+        } else {
+          // Fast mode: minimal processing
+          processedText = text
+            .replace(/\s+/g, ' ')
+            .trim();
+        }
 
-        // Minimal character-specific processing - no random additions
-        if (character_style === 'university_ta' && humanize) {
+        // Simplified character-specific processing for low latency
+        if (character_style === 'university_ta' && humanize && !low_latency) {
           if (hasHebrew) {
-            // Simple Hebrew enhancements - no prefixes
-            processedText = processedText
-              .replace(/\bSQL\b/g, 'אס קיו אל'); // Hebrew pronunciation
+            processedText = processedText.replace(/\bSQL\b/g, 'אס קיו אל');
           } else {
-            // Simple English enhancements - no random openings
-            processedText = processedText
-              .replace(/\bSQL\b/g, 'S-Q-L'); // Spell out for clarity
+            processedText = processedText.replace(/\bSQL\b/g, 'S-Q-L');
           }
         }
 
-        // Apply minimal SSML for basic clarity improvements
-        if (enhance_prosody) {
+        // Apply minimal SSML only if not in low-latency mode
+        if (enhance_prosody && !low_latency) {
           processedText = enhanceTextWithSSML(processedText, {
-            addPauses: true,        // Only basic pauses
-            emphasizeImportant: false, // Disable to avoid issues
-            adjustPacing: false,    // Disable complex pacing
-            humanize: false,        // Disable complex humanization
-            naturalPauses: natural_pauses && processedText.length > 100,
-            emotionalIntonation: false, // Already disabled above
+            addPauses: false,        // Disabled for speed
+            emphasizeImportant: false,
+            adjustPacing: false,
+            humanize: false,
+            naturalPauses: false,
+            emotionalIntonation: false,
             characterStyle: character_style
           });
         }
 
-        // Enhanced voice selection with humanization preferences
+        // Enhanced voice selection with optimization for human-like speech
         let selectedVoice = voice;
         if (hasHebrew) {
-          // For Hebrew text, use voices that handle Hebrew well
           selectedVoice = 'nova';
           console.log('🇮🇱 Hebrew detected - using nova voice for best Hebrew pronunciation');
         } else if (!hasHebrew && character_style === 'university_ta') {
-          // For English Michael, prefer warmer male voices when humanized
-          if (humanize) {
+          // Optimized for Michael's character
+          if (low_latency) {
+            selectedVoice = 'onyx'; // Always use onyx in low-latency mode
+            console.log('⚡ Low-latency mode - using onyx voice for optimal speed and warmth');
+          } else if (humanize) {
             selectedVoice = ['onyx', 'echo', 'fable'].includes(voice) ? voice : 'onyx';
-            console.log('🎓 English TA mode with humanization - using warm male voice:', selectedVoice);
+            console.log('🎓 English TA mode with humanization - using warm voice:', selectedVoice);
           } else {
             selectedVoice = ['echo', 'onyx'].includes(voice) ? voice : 'echo';
-            console.log('🎓 English TA mode - using professional male voice:', selectedVoice);
+            console.log('🎓 English TA mode - using professional voice:', selectedVoice);
           }
         }
 
-        console.log(`Generating humanized TTS with voice: ${selectedVoice} for text: ${processedText.substring(0, 100)}...`);
+        // Optimized speed settings for natural human-like speech
+        let finalSpeed = speed;
+        if (low_latency) {
+          // Slightly faster for low-latency mode but still natural
+          finalSpeed = Math.min(speed * 1.05, 1.15);
+          console.log('⚡ Low-latency mode - speed:', finalSpeed);
+        } else if (humanize) {
+          // Perfect speed for human-like conversation
+          finalSpeed = Math.max(speed * 0.95, 1.0);
+          console.log('🎭 Humanized mode - speed:', finalSpeed);
+        }
 
-        // Generate speech using OpenAI TTS with optimized parameters for clear speech
-        const mp3 = await openai.audio.speech.create({
-          model: 'tts-1-hd', // Always use the high-quality model for best results
+        // **BROWSER-COMPATIBLE AUDIO SETTINGS**
+        // Always use MP3 for maximum browser compatibility
+        const responseFormat = 'mp3';  // MP3 is universally supported in browsers
+
+        console.log(`🎵 Generating TTS with OpenAI:`, {
+          voice: selectedVoice,
+          speed: finalSpeed,
+          format: responseFormat,
+          mode: low_latency ? 'low-latency' : 'standard',
+          text_length: processedText.length
+        });
+
+        // **HIGH-QUALITY TTS GENERATION**
+        const mp3Response = await openai.audio.speech.create({
+          model: 'tts-1-hd',  // Use HD model for better clarity and reduced artifacts
           voice: selectedVoice as any,
           input: processedText,
-          speed: Math.max(0.8, Math.min(1.2, speed)), // More reasonable speed range for clarity
-          response_format: format as any,
+          speed: finalSpeed,
+          response_format: responseFormat as any,
         });
 
-        // Convert the response to a buffer
-        const buffer = Buffer.from(await mp3.arrayBuffer());
+        const audioBuffer = Buffer.from(await mp3Response.arrayBuffer());
+        const audioBase64 = audioBuffer.toString('base64');
+        const audioUrl = `data:audio/${responseFormat};base64,${audioBase64}`;
 
-        // Return audio with appropriate headers
-        return new NextResponse(buffer, {
-          status: 200,
-          headers: {
-            'Content-Type': format === 'mp3' ? 'audio/mpeg' : 'audio/wav',
-            'Content-Length': buffer.length.toString(),
-            'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
-          },
+        const endTime = performance.now();
+        const processingTime = Math.round(endTime - startTime);
+        
+        console.log(`✅ TTS generated successfully in ${processingTime}ms`, {
+          voice: selectedVoice,
+          speed: finalSpeed,
+          format: responseFormat,
+          size: `${Math.round(audioBuffer.length / 1024)}KB`,
+          quality: 'HD'
         });
 
-      } catch (error) {
-        console.error('TTS generation error:', error);
-        return NextResponse.json(
-          { error: 'Failed to generate speech' },
-          { status: 500 }
-        );
+        // **OPTIMIZED RESPONSE WITH QUALITY HEADERS**
+        const response = NextResponse.json({
+          success: true,
+          audioUrl,
+          metadata: {
+            voice: selectedVoice,
+            speed: finalSpeed,
+            format: responseFormat,
+            size: audioBuffer.length,
+            processingTime,
+            textLength: processedText.length,
+            mode: low_latency ? 'low-latency' : 'standard',
+            quality: 'HD'
+          }
+        });
+
+        // Add headers for better audio caching and quality
+        response.headers.set('Cache-Control', 'public, max-age=3600');
+        response.headers.set('Content-Type', 'application/json');
+        
+        return response;
       } finally {
-        // Clean up the request tracking
+        // Clean up the active request
         activeRequests.delete(requestKey);
       }
     })();
 
-    // Store the promise and return it
+    // Store the promise
     activeRequests.set(requestKey, processingPromise);
     return await processingPromise;
 
   } catch (error) {
-    console.error('TTS generation error:', error);
+    console.error('TTS API error:', error);
     return NextResponse.json(
       { error: 'Failed to generate speech' },
       { status: 500 }

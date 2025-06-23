@@ -232,6 +232,22 @@
   background: linear-gradient(145deg, #4338ca 0%, #5b21b6 100%) !important;
 }
 
+/* Exam Action Button Styling */
+.examActionButton {
+  background: linear-gradient(145deg, #dc2626 0%, #b91c1c 100%) !important;
+  color: white !important;
+  text-decoration: none !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.examActionButton:hover:not(:disabled) {
+  background: linear-gradient(145deg, #b91c1c 0%, #991b1b 100%) !important;
+  color: white !important;
+  text-decoration: none !important;
+}
+
 /* Exercise Modal Styles */
 .exerciseModal {
   background: linear-gradient(145deg, #ffffff 0%, #fafbfc 100%);

@@ -1,0 +1,865 @@
+/* EL AL-Inspired Modern Exam Page Styles - Enhanced for 13-15" laptops */
+.examContainer {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #131137 0%, #2c5aa0 25%, #4a90e2 75%, #87ceeb 100%);
+  direction: rtl;
+  font-family: 'Segoe UI', 'Tahoma', 'Arial', sans-serif;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.examContainer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+  pointer-events: none;
+}
+
+/* Header - Compacted */
+.header {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 6px 24px rgba(19, 17, 55, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.headerContent {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem; /* Reduced from 2rem 2.5rem */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.headerLeft {
+  text-align: right;
+}
+
+.title {
+  font-size: 1.9rem; /* Reduced from 2.2rem (~86%) */
+  font-weight: 700;
+  color: #131137;
+  margin: 0 0 0.3rem 0; /* Reduced margin */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.subtitle {
+  font-size: 0.95rem; /* Reduced from 1.1rem (~86%) */
+  color: #6b7280;
+  margin: 0;
+  font-weight: 500;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem; /* Reduced from 1.5rem */
+  direction: ltr;
+}
+
+.userInfo {
+  color: #374151;
+  font-weight: 600;
+  padding: 0.6rem 1.2rem; /* Reduced padding */
+  background: rgba(19, 17, 55, 0.1);
+  border-radius: 20px; /* Reduced from 25px */
+  border: 1px solid rgba(19, 17, 55, 0.2);
+  font-size: 0.9rem; /* Reduced font size */
+}
+
+.logoutButton {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem; /* Reduced padding */
+  border-radius: 20px; /* Reduced from 25px */
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+  font-size: 0.9rem; /* Added font size reduction */
+}
+
+.logoutButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+}
+
+/* Main Content - Optimized for smaller screens */
+.mainContent {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem; /* Further reduced for compactness */
+  position: relative;
+  z-index: 1;
+}
+
+/* Common Styles - Optimized for better proportion */
+.pageTitle {
+  font-size: 1.5rem; /* Further reduced for better balance */
+  font-weight: 700; /* Slightly lighter for better hierarchy */
+  color: #131137; /* Consistent with design system */
+  text-align: center;
+  margin: 0 0 1.5rem 0; /* More compact margin */
+  text-shadow: 0 1px 3px rgba(19, 17, 55, 0.2); /* Softer shadow */
+}
+
+/* Exam Header Styles - Optimized and Compact */
+.examHeader {
+  text-align: center;
+  margin-bottom: 1.5rem; /* Further reduced for compactness */
+  padding: 1.2rem 1rem; /* More compact padding */
+  background: transparent;
+}
+
+.examTitle {
+  font-size: 1.4rem; /* Further reduced for better proportion */
+  font-weight: 700;
+  background: linear-gradient(135deg, #131137 0%, #2c5aa0 50%, #4a90e2 100%);
+  color: white;
+  margin: 0 0 0.8rem 0; /* Reduced margin between title and date */
+  letter-spacing: -0.3px; /* Slightly tighter */
+  line-height: 1.3; /* Improved line height */
+  text-align: center;
+  padding: 0.6rem 1.2rem; /* More balanced padding */
+  border-radius: 30px; /* More compact rounded corners */
+  box-shadow: 0 3px 12px rgba(19, 17, 55, 0.25); /* Softer shadow */
+  display: inline-block;
+  max-width: 90%; /* Ensure it doesn't get too wide */
+}
+
+.examDate {
+  font-size: 1rem; /* Further reduced for better balance */
+  font-weight: 600; /* Slightly lighter weight */
+  color: #b87900; /* Slightly darker gold for better contrast */
+  margin: 0;
+  padding: 0.5rem 1.2rem; /* More compact padding */
+  background: rgba(251, 191, 36, 0.12); /* Lighter background */
+  border-radius: 25px; /* More compact rounded corners */
+  border: 1px solid rgba(251, 191, 36, 0.25); /* Thinner border */
+  display: inline-block;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.15); /* Softer shadow */
+}
+
+.sectionTitle {
+  font-size: 1.4rem; /* Reduced from 1.6rem (~87%) */
+  font-weight: 700;
+  color: #131137;
+  margin: 0 0 1.2rem 0; /* Reduced margin */
+  display: flex;
+  align-items: center;
+  gap: 0.6rem; /* Reduced gap */
+}
+
+.sectionTitle::before {
+  content: '';
+  width: 5px; /* Reduced from 6px */
+  height: 26px; /* Reduced from 30px */
+  background: #2c5aa0;
+  border-radius: 3px;
+}
+
+.continueButton {
+  display: block;
+  margin: 2.5rem auto 0; /* Reduced from 3rem */
+  padding: 1rem 2.5rem; /* Reduced padding */
+  background: linear-gradient(135deg, #131137 0%, #2c5aa0 50%, #4a90e2 100%);
+  color: white;
+  border: none;
+  border-radius: 40px; /* Reduced from 50px */
+  font-size: 1.05rem; /* Reduced from 1.2rem (~87%) */
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 25px rgba(19, 17, 55, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+.continueButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.continueButton:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 35px rgba(19, 17, 55, 0.5);
+}
+
+.continueButton:hover::before {
+  left: 100%;
+}
+
+/* Instructions Container - Enhanced for smaller screens */
+.instructionsContainer {
+  background: rgba(255, 255, 255, 0.92); /* Slightly lighter */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px; /* Reduced from 24px */
+  padding: 2rem; /* Reduced from 2.5rem */
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  position: relative;
+  max-height: 96vh; /* Added max height */
+  overflow-y: auto;
+}
+
+.instructionsContainer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px; /* Reduced from 4px */
+  background: linear-gradient(90deg, #131137 0%, #2c5aa0 50%, #4a90e2 100%);
+  border-radius: 20px 20px 0 0;
+  z-index: 1;
+}
+
+.instructionsContent {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* 2-column layout: left (rules) and right (exam info) */
+  gap: 2rem; /* Space between columns */
+  align-items: start; /* Align items to top */
+}
+
+/* Enhanced layout for exam info - Right Column */
+.examInfo {
+  background: linear-gradient(135deg, rgba(19, 17, 55, 0.03) 0%, rgba(74, 144, 226, 0.05) 100%); /* Lighter gradient */
+  border-radius: 16px; /* Reduced from 20px */
+  padding: 1.5rem; /* Reduced from 2rem */
+  border: 1px solid rgba(19, 17, 55, 0.08);
+  position: relative;
+  overflow: hidden;
+  order: 2; /* Place on the right */
+}
+
+.examInfo::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px; /* Reduced from 4px */
+  background: linear-gradient(90deg, #131137 0%, #2c5aa0 50%, #4a90e2 100%);
+  border-radius: 16px 16px 0 0;
+}
+
+.examDetails {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem; /* Reduced gap */
+}
+
+.detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem; /* Reduced from 1.25rem */
+  background: rgba(255, 255, 255, 0.6); /* Lighter background */
+  border-radius: 12px; /* Reduced from 16px */
+  border: 1px solid rgba(19, 17, 55, 0.06);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.detail::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 3px; /* Reduced from 4px */
+  height: 100%;
+  background: linear-gradient(135deg, #2c5aa0 0%, #4a90e2 100%);
+  transition: width 0.3s ease;
+}
+
+.detail:hover {
+  transform: translateX(-3px);
+  box-shadow: 0 6px 20px rgba(19, 17, 55, 0.1);
+}
+
+.detailLabel {
+  font-weight: 600;
+  color: #131137;
+  font-size: 0.95rem; /* Reduced font size */
+}
+
+.detailValue {
+  font-weight: 700;
+  color: #2c5aa0;
+  text-align: left;
+  font-size: 0.9rem; /* Reduced font size */
+}
+
+/* Rules Section - Left Column */
+.rulesSection,
+.tipsSection {
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.03) 0%, rgba(19, 17, 55, 0.05) 100%); /* Lighter gradient */
+  border-radius: 16px; /* Reduced from 20px */
+  padding: 1.5rem; /* Reduced from 2rem */
+  border: 1px solid rgba(74, 144, 226, 0.08);
+  position: relative;
+  overflow: hidden;
+  order: 1; /* Place on the left */
+}
+
+.rulesSection::before,
+.tipsSection::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px; /* Reduced from 4px */
+  background: linear-gradient(90deg, #4a90e2 0%, #2c5aa0 50%, #131137 100%);
+  border-radius: 16px 16px 0 0;
+}
+
+.rulesList,
+.tipsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr; /* Single column within the left column */
+  gap: 0.8rem; /* Reduced gap */
+}
+
+.rulesList li,
+.tipsList li {
+  padding: 0.9rem 1rem 0.9rem 2.2rem; /* Reduced padding */
+  background: rgba(255, 255, 255, 0.6); /* Lighter background */
+  border-radius: 10px; /* Reduced from 12px */
+  border: 1px solid rgba(74, 144, 226, 0.1);
+  position: relative;
+  transition: all 0.3s ease;
+  font-size: 0.9rem; /* Reduced font size */
+  line-height: 1.4; /* Tighter line height */
+}
+
+.rulesList li::before,
+.tipsList li::before {
+  content: '✓';
+  position: absolute;
+  right: 0.8rem; /* Adjusted position */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px; /* Reduced size */
+  height: 18px; /* Reduced size */
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem; /* Reduced font size */
+  font-weight: 700;
+  color: white;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.rulesList li:hover,
+.tipsList li:hover {
+  transform: translateX(-3px);
+  box-shadow: 0 6px 20px rgba(74, 144, 226, 0.15);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* Database Container - Compacted */
+.databaseContainer {
+  background: rgba(255, 255, 255, 0.92); /* Slightly lighter */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px; /* Reduced from 24px */
+  padding: 2rem; /* Reduced from 2.5rem */
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  position: relative;
+  max-height: 96vh; /* Added max height */
+  overflow-y: auto;
+}
+
+.databaseContainer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px; /* Reduced from 4px */
+  background: linear-gradient(90deg, #131137 0%, #2c5aa0 50%, #4a90e2 100%);
+  border-radius: 20px 20px 0 0;
+  z-index: 1;
+}
+
+.tablesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.2rem; /* Reduced gap */
+  margin-top: 1.5rem; /* Reduced margin */
+}
+
+.tableCard {
+  background: rgba(255, 255, 255, 0.7); /* Lighter background */
+  border-radius: 14px; /* Reduced from 16px */
+  padding: 1.2rem; /* Reduced from 1.5rem */
+  border: 1px solid rgba(19, 17, 55, 0.1);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.tableCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px; /* Reduced from 4px */
+  background: linear-gradient(90deg, #2c5aa0 0%, #4a90e2 100%);
+  border-radius: 14px 14px 0 0;
+}
+
+.tableCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(19, 17, 55, 0.15);
+}
+
+.tableName {
+  font-size: 1.1rem; /* Reduced from 1.25rem (~88%) */
+  font-weight: 700;
+  color: #131137;
+  margin-bottom: 0.8rem; /* Reduced margin */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* Reduced gap */
+  position: relative;
+  padding-right: 1.5rem; /* Reduced padding */
+}
+
+.tableName::before {
+  content: '📊';
+  font-size: 1rem; /* Reduced size */
+}
+
+.tableSchema {
+  display: grid;
+  gap: 0.6rem; /* Reduced gap */
+}
+
+.column {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0.8rem; /* Reduced padding */
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px; /* Reduced from 10px */
+  border: 1px solid rgba(19, 17, 55, 0.05);
+}
+
+.columnName {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #2c5aa0;
+  font-size: 0.85rem; /* Reduced font size */
+}
+
+.columnType {
+  font-size: 0.8rem; /* Reduced from 0.85rem */
+  color: #6b7280;
+}
+
+/* DB Notes - Compacted */
+.dbNotes {
+  margin-top: 1.5rem; /* Reduced margin */
+  padding: 1.2rem; /* Reduced padding */
+  background: rgba(251, 191, 36, 0.08);
+  border-radius: 12px; /* Reduced from 16px */
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.dbNotes .sectionTitle {
+  color: #bc8700;
+  font-size: 1.2rem; /* Reduced font size */
+}
+
+.notesList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.notesList li {
+  padding: 0.6rem 0; /* Reduced padding */
+  color: #92400e;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem; /* Reduced gap */
+  font-size: 0.9rem; /* Reduced font size */
+}
+
+.notesList li::before {
+  content: '💡';
+  font-size: 0.9rem; /* Reduced size */
+  flex-shrink: 0;
+}
+
+/* Student Verification Container - Enhanced with hover effects */
+.studentVerificationContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 1.5rem; /* Reduced padding */
+}
+
+.verificationCard {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px; /* Reduced from 24px */
+  padding: 2rem; /* Reduced from 2.5rem */
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  max-width: 480px; /* Reduced from 520px */
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.verificationCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px; /* Reduced from 4px */
+  background: linear-gradient(90deg, #131137 0%, #2c5aa0 50%, #4a90e2 100%);
+  border-radius: 20px 20px 0 0;
+  z-index: 1;
+}
+
+.idInputSection {
+  margin-bottom: 1.5rem; /* Reduced margin */
+}
+
+.inputLabel {
+  display: block;
+  margin-bottom: 0.8rem; /* Reduced margin */
+  font-weight: 600;
+  color: #131137;
+  font-size: 0.95rem; /* Reduced font size */
+}
+
+.idInput {
+  width: 100%;
+  padding: 1rem; /* Reduced padding */
+  border: 2px solid rgba(19, 17, 55, 0.1);
+  border-radius: 12px; /* Reduced from 16px */
+  font-size: 1rem; /* Reduced font size */
+  background: rgba(255, 255, 255, 0.9);
+  transition: all 0.3s ease;
+  direction: ltr;
+  text-align: center;
+}
+
+.idInput:focus {
+  outline: none;
+  border-color: #2c5aa0;
+  box-shadow: 0 0 0 3px rgba(44, 90, 160, 0.1);
+  background: rgba(255, 255, 255, 1);
+  transform: translateY(-1px);
+}
+
+/* Enhanced button styles with hover effects */
+.verifyButton {
+  width: 100%;
+  padding: 1rem 2rem; /* Reduced padding */
+  background: linear-gradient(135deg, #131137 0%, #2c5aa0 50%, #4a90e2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px; /* Reduced from 16px */
+  font-size: 1rem; /* Reduced font size */
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(19, 17, 55, 0.3);
+}
+
+.verifyButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.verifyButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(19, 17, 55, 0.4);
+}
+
+.verifyButton:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.verifyButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 4px 10px rgba(19, 17, 55, 0.2);
+}
+
+.helpText {
+  margin-top: 1.2rem; /* Reduced margin */
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.85rem; /* Reduced font size */
+}
+
+.helpText p {
+  margin: 0.3rem 0; /* Reduced margin */
+}
+
+/* Student info section - Enhanced */
+.studentInfo {
+  display: flex;
+  align-items: center;
+  gap: 1rem; /* Reduced gap */
+  padding: 1.2rem; /* Reduced padding */
+  background: rgba(74, 144, 226, 0.05);
+  border-radius: 12px; /* Reduced from 16px */
+  border: 1px solid rgba(74, 144, 226, 0.1);
+  margin-bottom: 1.5rem; /* Reduced margin */
+}
+
+.studentAvatar {
+  width: 48px; /* Reduced from 60px */
+  height: 48px; /* Reduced from 60px */
+  background: linear-gradient(135deg, #131137 0%, #2c5aa0 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem; /* Reduced size */
+  color: white;
+  flex-shrink: 0;
+}
+
+.studentDetails {
+  flex: 1;
+}
+
+.studentName {
+  font-size: 1.1rem; /* Reduced font size */
+  font-weight: 700;
+  color: #131137;
+  margin-bottom: 0.3rem; /* Reduced margin */
+}
+
+.studentId {
+  font-size: 0.9rem; /* Reduced font size */
+  color: #6b7280;
+  font-family: 'Courier New', monospace;
+}
+
+.confirmationMessage {
+  text-align: center;
+  margin-bottom: 1.5rem; /* Reduced margin */
+}
+
+.confirmationMessage p {
+  margin: 0.6rem 0; /* Reduced margin */
+  font-size: 0.95rem; /* Reduced font size */
+}
+
+.warningText {
+  color: #ef4444;
+  font-weight: 600;
+  font-size: 0.85rem; /* Reduced font size */
+}
+
+.verificationActions {
+  display: flex;
+  gap: 1rem; /* Reduced gap */
+  flex-direction: column;
+}
+
+/* Enhanced confirm button with hover effect */
+.confirmButton {
+  padding: 1rem 2rem; /* Reduced padding */
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 12px; /* Reduced from 16px */
+  font-size: 1rem; /* Reduced font size */
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+}
+
+.confirmButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.confirmButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+}
+
+.confirmButton:hover::before {
+  left: 100%;
+}
+
+/* Enhanced back button with hover effect */
+.backButton {
+  padding: 0.8rem 1.5rem; /* Reduced padding */
+  background: rgba(107, 114, 128, 0.1);
+  color: #374151;
+  border: 1px solid rgba(107, 114, 128, 0.3);
+  border-radius: 12px; /* Reduced from 16px */
+  font-size: 0.9rem; /* Reduced font size */
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.backButton:hover {
+  background: rgba(107, 114, 128, 0.15);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(107, 114, 128, 0.2);
+}
+
+.studentVerificationContainer .errorMessage {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  padding: 0.8rem; /* Reduced padding */
+  border-radius: 8px; /* Reduced from 12px */
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  margin-top: 0.8rem; /* Reduced margin */
+  text-align: center;
+  font-size: 0.9rem; /* Reduced font size */
+}
+
+/* Enhanced responsive design for smaller screens */
+@media (max-width: 768px) {
+  .mainContent {
+    padding: 1.5rem 1rem; /* Further reduced for mobile */
+  }
+
+  .instructionsContainer,
+  .databaseContainer,
+  .verificationCard {
+    padding: 1.5rem; /* Reduced mobile padding */
+  }
+
+  .headerContent {
+    padding: 1rem 1.5rem;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .headerRight {
+    order: -1;
+  }
+
+  .pageTitle {
+    font-size: 1.4rem; /* Further reduced for mobile */
+  }
+
+  .tablesGrid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .examDetails {
+    grid-template-columns: 1fr;
+  }
+
+  .verificationCard {
+    max-width: 100%;
+    margin: 1rem;
+  }
+
+  .studentInfo {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .verificationActions {
+    gap: 0.8rem;
+  }
+
+  .confirmButton,
+  .backButton {
+    padding: 0.8rem 1.5rem;
+    font-size: 0.9rem;
+  }
+
+  /* Stack sections vertically on mobile */
+  .instructionsContent {
+    grid-template-columns: 1fr; /* Single column layout on mobile */
+    gap: 1.5rem; /* Reduced gap for mobile */
+  }
+  
+  /* Reset order for mobile - exam info first, then rules */
+  .examInfo {
+    order: 1;
+  }
+  
+  .rulesSection {
+    order: 2;
+  }
+  
+  /* Single column rules on mobile */
+  .rulesList,
+  .tipsList {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Enhanced desktop optimization (1024px+) */
+@media (min-width: 1024px) {
+  /* 2-column layout is already defined in main .instructionsContent */
+  .instructionsContent {
+    grid-template-columns: 1fr 1fr; /* Maintain 2-column layout */
+  }
+  
+  /* Keep single column layout within each section for better readability */
+  .rulesList,
+  .tipsList {
+    grid-template-columns: 1fr; /* Single column for better readability in narrow space */
+  }
+} 

@@ -102,6 +102,12 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
       setIsLoading(true);
       setError(null);
 
+      // **🔥 EARLY AUDIO WARM-UP: Prepare TTS system while avatar loads**
+      console.log('🔥 EARLY WARM-UP: Preparing audio system during avatar initialization...');
+      enhancedTTS.warmUpForUser().catch(err => 
+        console.log('ℹ️ Audio warm-up during avatar init:', err)
+      );
+
       console.log('🔧 Initializing Michael avatar with direct approach...');
 
       // Clear container
@@ -419,31 +425,32 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
     speakingInProgress.current = true;
     
     try {
-      console.log('🎤 Starting OpenAI TTS speech process...');
+      console.log('🎤 Starting OPTIMIZED TTS speech process...');
       setIsSpeaking(true);
       lastSpokenTextRef.current = text;
       onSpeakingStart?.();
       
-      // For OpenAI TTS, we don't need the audio context manager
-      // since we're using HTML5 Audio element, not speechSynthesis
-      console.log('🎧 Using OpenAI TTS - bypassing audio context manager...');
+      console.log('🎧 Using ENHANCED TTS with low-latency optimizations...');
       
-      // Use enhanced TTS with progressive mode support
+      // Use enhanced TTS with optimized settings for Michael's voice
       const ttsOptions: TTSOptions = {
-        voice: 'onyx', // Warm male voice that's clear and friendly
-        speed: 1.1,    // Slightly faster for more natural flow
+        voice: 'onyx', // Warm, confident male voice - perfect for Michael
+        speed: 1.1,    // Slightly faster for natural conversation flow
+        volume: 0.9,   // Optimal volume level
         useOpenAI: true,
         characterStyle: 'university_ta',
-        enhanceProsody: false,    // Disable to reduce pauses
-        humanize: false,          // Disable to reduce thinking pauses
-        naturalPauses: false,     // Disable to reduce sentence breaks
-        emotionalIntonation: false, // Disabled to avoid complexity
-        progressiveMode: progressiveMode, // Enable progressive speech if requested
+        enhanceProsody: false,    // Disabled for faster processing
+        humanize: true,           // Keep for warmth but optimized
+        naturalPauses: false,     // Disabled for lower latency
+        emotionalIntonation: false, // Disabled for faster response
+        progressiveMode: progressiveMode, // Enable if streaming
+        lowLatency: true,         // NEW: Enable low-latency mode
+        preload: !progressiveMode, // NEW: Use preload for standard mode
         onStart: () => {
-          console.log('🎤 Michael: Starting TTS speech...');
+          console.log('🎤 Michael: ENHANCED TTS speech started');
         },
         onEnd: () => {
-          console.log('🤐 Michael: TTS speech ended');
+          console.log('🤐 Michael: ENHANCED TTS speech ended');
           setIsSpeaking(false);
           speakingInProgress.current = false;
           // Clear speaking animations when speech ends
@@ -455,30 +462,22 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
           setCurrentlySpeakingText('');
         },
         onError: (error) => {
-          console.error('❌ Michael TTS Error:', error);
+          console.error('❌ Michael ENHANCED TTS Error:', error);
           setIsSpeaking(false);
           speakingInProgress.current = false;
-          // Clear speaking animations on error
-          if (speakingAnimationRef.current) {
-            clearInterval(speakingAnimationRef.current);
-            speakingAnimationRef.current = null;
-          }
           onSpeakingEnd?.();
           setCurrentlySpeakingText('');
-          onError?.(error.message);
         }
       };
 
       await enhancedTTS.speak(text, ttsOptions);
       
-    } catch (err) {
-      console.error('💥 Failed to speak with OpenAI TTS:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Speech failed';
+    } catch (error) {
+      console.error('💥 Enhanced TTS failed:', error);
       setIsSpeaking(false);
       speakingInProgress.current = false;
       onSpeakingEnd?.();
       setCurrentlySpeakingText('');
-      onError?.(errorMessage);
     }
   };
 
@@ -1688,13 +1687,16 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
       style={{
         ...getSizeStyle(),
         position: 'relative',
-        borderRadius: '12px',
+        borderRadius: '16px',
         overflow: 'hidden',
-        background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+        background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 30%, #e2e8f0 70%, #cbd5e1 100%)',
+        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 4px 20px rgba(0, 0, 0, 0.04)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         height: '100%',
+        marginTop: "-5%",
+        border: '1px solid rgba(255, 255, 255, 0.8)',
       }}
     >
       {/* 3D Avatar Container */}
@@ -1704,6 +1706,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
           width: '100%',
           height: '100%',
           position: 'absolute',
+          marginTop: "-3%",
           top: 0,
           left: 0,
         }}
@@ -1736,90 +1739,114 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
 
 
 
-      {/* Speaking Indicator */}
+      {/* 🎨 ELEGANT SPEAKING INDICATOR - Gradient Green Button */}
       {isSpeaking && audioUnlocked && (
         <div
           style={{
             position: 'absolute',
-            bottom: '10px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(76, 175, 80, 0.95)',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: '20px',
-            fontSize: '14px',
-            fontWeight: '600',
+            top: '15px',
+            right: '45px',
+            width: '42px',
+            height: '42px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #4CAF50 0%, #45A049 30%, #388E3C 70%, #2E7D32 100%)',
             zIndex: 10,
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            animation: 'speakingPulse 1s ease-in-out infinite',
-            boxShadow: '0 2px 12px rgba(76, 175, 80, 0.4)',
+            justifyContent: 'center',
+            animation: 'speakingPulse 1.2s ease-in-out infinite',
+            boxShadow: '0 4px 20px rgba(76, 175, 80, 0.5), 0 0 0 3px rgba(76, 175, 80, 0.2), inset 0 2px 4px rgba(255, 255, 255, 0.3)',
+            border: '2px solid rgba(255, 255, 255, 0.4)',
+            backdropFilter: 'blur(10px)',
           }}
         >
-          <div
-            style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: 'white',
-              animation: 'speakingBlink 0.5s ease-in-out infinite',
-            }}
-          />
-         מדבר...
+          {/* Animated sound waves inside the button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+            <div
+              style={{
+                width: '3px',
+                height: '8px',
+                borderRadius: '2px',
+                background: 'rgba(255, 255, 255, 0.95)',
+                animation: 'soundWave1 0.8s ease-in-out infinite',
+                boxShadow: '0 0 6px rgba(255, 255, 255, 0.8)',
+              }}
+            />
+            <div
+              style={{
+                width: '3px',
+                height: '16px',
+                borderRadius: '2px',
+                background: 'rgba(255, 255, 255, 0.95)',
+                animation: 'soundWave2 0.8s ease-in-out infinite 0.1s',
+                boxShadow: '0 0 6px rgba(255, 255, 255, 0.8)',
+              }}
+            />
+            <div
+              style={{
+                width: '3px',
+                height: '12px',
+                borderRadius: '2px',
+                background: 'rgba(255, 255, 255, 0.95)',
+                animation: 'soundWave3 0.8s ease-in-out infinite 0.2s',
+                boxShadow: '0 0 6px rgba(255, 255, 255, 0.8)',
+              }}
+            />
+          </div>
         </div>
       )}
 
-      {/* Thinking Indicator */}
+      {/* 🎨 ELEGANT THINKING INDICATOR - Gradient Purple Button */}
       {isThinking && state === 'thinking' && (
         <div
           style={{
             position: 'absolute',
-            top: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(156, 163, 175, 0.95)',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: '20px',
-            fontSize: '14px',
-            fontWeight: '600',
+            top: '15px',
+            right: '45px',
+            width: '42px',
+            height: '42px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #9C27B0 0%, #8E24AA 30%, #7B1FA2 70%, #4A148C 100%)',
             zIndex: 10,
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            animation: 'thinkingGlow 2s ease-in-out infinite',
-            boxShadow: '0 2px 12px rgba(156, 163, 175, 0.4)',
+            justifyContent: 'center',
+            animation: 'thinkingPulse 2s ease-in-out infinite',
+            boxShadow: '0 4px 20px rgba(156, 39, 176, 0.5), 0 0 0 3px rgba(156, 39, 176, 0.2), inset 0 2px 4px rgba(255, 255, 255, 0.3)',
+            border: '2px solid rgba(255, 255, 255, 0.4)',
+            backdropFilter: 'blur(10px)',
           }}
         >
-          חושב
-          <div style={{ display: 'flex', gap: '2px' }}>
+          {/* Animated thinking dots with elegant spacing */}
+          <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
             <div
               style={{
-                width: '4px',
-                height: '4px',
+                width: '5px',
+                height: '5px',
                 borderRadius: '50%',
-                background: 'white',
-                animation: 'thinkingDot1 1.5s ease-in-out infinite',
+                background: 'rgba(255, 255, 255, 0.95)',
+                animation: 'thinkingDot1 1.8s ease-in-out infinite',
+                boxShadow: '0 0 8px rgba(255, 255, 255, 0.8)',
               }}
             />
             <div
               style={{
-                width: '4px',
-                height: '4px',
+                width: '5px',
+                height: '5px',
                 borderRadius: '50%',
-                background: 'white',
-                animation: 'thinkingDot2 1.5s ease-in-out infinite',
+                background: 'rgba(255, 255, 255, 0.95)',
+                animation: 'thinkingDot2 1.8s ease-in-out infinite',
+                boxShadow: '0 0 8px rgba(255, 255, 255, 0.8)',
               }}
             />
             <div
               style={{
-                width: '4px',
-                height: '4px',
+                width: '5px',
+                height: '5px',
                 borderRadius: '50%',
-                background: 'white',
-                animation: 'thinkingDot3 1.5s ease-in-out infinite',
+                background: 'rgba(255, 255, 255, 0.95)',
+                animation: 'thinkingDot3 1.8s ease-in-out infinite',
+                boxShadow: '0 0 8px rgba(255, 255, 255, 0.8)',
               }}
             />
           </div>
@@ -1904,65 +1931,103 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
 
 
 
-      {/* Add CSS animations */}
+      {/* 🎨 ELEGANT CSS ANIMATIONS FOR GRADIENT BUTTONS */}
       <style jsx>{`
         @keyframes speakingPulse {
           0%, 100% { 
             opacity: 1; 
-            transform: translateX(-50%) scale(1);
+            transform: scale(1);
+            box-shadow: 0 4px 20px rgba(76, 175, 80, 0.5), 0 0 0 3px rgba(76, 175, 80, 0.2), inset 0 2px 4px rgba(255, 255, 255, 0.3);
           }
           50% { 
-            opacity: 0.8; 
-            transform: translateX(-50%) scale(1.05);
+            opacity: 0.9; 
+            transform: scale(1.1);
+            box-shadow: 0 8px 30px rgba(76, 175, 80, 0.7), 0 0 0 6px rgba(76, 175, 80, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.4);
           }
         }
         
-        @keyframes speakingBlink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.2; }
-        }
-        
-        @keyframes thinkingGlow {
+        @keyframes thinkingPulse {
           0%, 100% { 
             opacity: 1; 
-            box-shadow: 0 2px 12px rgba(156, 163, 175, 0.4);
+            transform: scale(1);
+            box-shadow: 0 4px 20px rgba(156, 39, 176, 0.5), 0 0 0 3px rgba(156, 39, 176, 0.2), inset 0 2px 4px rgba(255, 255, 255, 0.3);
           }
           50% { 
-            opacity: 0.85; 
-            box-shadow: 0 4px 20px rgba(156, 163, 175, 0.6);
+            opacity: 0.9; 
+            transform: scale(1.05);
+            box-shadow: 0 8px 30px rgba(156, 39, 176, 0.7), 0 0 0 6px rgba(156, 39, 176, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+          }
+        }
+        
+        @keyframes soundWave1 {
+          0%, 100% {
+            height: 8px;
+            opacity: 0.6;
+          }
+          50% {
+            height: 16px;
+            opacity: 1;
+          }
+        }
+        
+        @keyframes soundWave2 {
+          0%, 100% {
+            height: 16px;
+            opacity: 0.8;
+          }
+          50% {
+            height: 22px;
+            opacity: 1;
+          }
+        }
+        
+        @keyframes soundWave3 {
+          0%, 100% {
+            height: 12px;
+            opacity: 0.7;
+          }
+          50% {
+            height: 18px;
+            opacity: 1;
           }
         }
         
         @keyframes thinkingDot1 {
           0%, 80%, 100% {
-            opacity: 0.3;
+            opacity: 0.4;
             transform: scale(0.8);
+            box-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
           }
-          40% {
+          20% {
             opacity: 1;
-            transform: scale(1.2);
+            transform: scale(1.3);
+            box-shadow: 0 0 12px rgba(255, 255, 255, 1);
           }
         }
         
         @keyframes thinkingDot2 {
           0%, 80%, 100% {
-            opacity: 0.3;
+            opacity: 0.4;
             transform: scale(0.8);
+            box-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
           }
-          60% {
+          40% {
             opacity: 1;
-            transform: scale(1.2);
+            transform: scale(1.3);
+            box-shadow: 0 0 12px rgba(255, 255, 255, 1);
           }
         }
         
         @keyframes thinkingDot3 {
           0%, 80%, 100% {
-            opacity: 0.3;
+            opacity: 0.4;
             transform: scale(0.8);
+            box-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
           }
-          80% {
+          60% {
             opacity: 1;
-            transform: scale(1.2);
+            transform: scale(1.3);
+            box-shadow: 0 0 12px rgba(255, 255, 255, 1);
           }
         }
         
