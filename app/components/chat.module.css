@@ -875,6 +875,16 @@
   transform: translateY(0) scale(0.98);
 }
 
+.playMessageButton {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+.playMessageButton:hover {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  border-color: rgba(59, 130, 246, 0.5) !important;
+}
+
 .positive {
   background-color: rgba(76, 175, 80, 0.1) !important;
   border-color: rgba(76, 175, 80, 0.3) !important;

@@ -219,11 +219,11 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
                   head.playGesture('namaste', 2, false, 1000);
                   console.log('✅ Delayed gesture test successful');
                 }
-              }, 3000);
+              }, 1000);
             } catch (gestureError) {
               console.error('❌ Gesture test failed:', gestureError);
             }
-          }, 2000); // Wait 2 seconds for avatar to fully initialize
+          }, 1000); // Wait 2 seconds for avatar to fully initialize
         } catch (gestureError) {
           console.error('❌ Gesture test setup failed:', gestureError);
         }
@@ -431,19 +431,19 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
       // Use enhanced TTS with progressive mode support
       const ttsOptions: TTSOptions = {
         voice: 'onyx', // Warm male voice that's clear and friendly
-        speed: 1.1,    // Slightly faster for more natural flow
+        speed: 0.95,   // Increased from 0.9 for better conversational pace
         useOpenAI: true,
         characterStyle: 'university_ta',
-        enhanceProsody: false,    // Disable to reduce pauses
-        humanize: false,          // Disable to reduce thinking pauses
-        naturalPauses: false,     // Disable to reduce sentence breaks
-        emotionalIntonation: false, // Disabled to avoid complexity
+        enhanceProsody: true,    // Re-enabled for better speech rhythm
+        humanize: true,          // Enable natural human-like variations
+        naturalPauses: true,     // Enable thoughtful pauses between sentences
+        emotionalIntonation: false, // Keep disabled for clarity
         progressiveMode: progressiveMode, // Enable progressive speech if requested
         onStart: () => {
-          console.log('🎤 Michael: Starting TTS speech...');
+          console.log('🎤 Michael: Starting natural TTS speech...');
         },
         onEnd: () => {
-          console.log('🤐 Michael: TTS speech ended');
+          console.log('🤐 Michael: TTS speech ended naturally');
           setIsSpeaking(false);
           speakingInProgress.current = false;
           // Clear speaking animations when speech ends
@@ -1767,7 +1767,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
               animation: 'speakingBlink 0.5s ease-in-out infinite',
             }}
           />
-         מדבר...
+          {/* Removed text: מדבר... */}
         </div>
       )}
 
@@ -1793,7 +1793,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
             boxShadow: '0 2px 12px rgba(156, 163, 175, 0.4)',
           }}
         >
-          חושב
+          {/* Removed text: חושב */}
           <div style={{ display: 'flex', gap: '2px' }}>
             <div
               style={{

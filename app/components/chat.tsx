@@ -19,6 +19,8 @@ import { fileToBase64 } from "../utils/parseImage";
 import AudioRecorder from "./audio-recorder";
 import MichaelAvatarDirect from "./MichaelAvatarDirect";
 import { simpleTTS } from "../utils/simpleTTS";
+import { enhancedTTS } from "@/app/utils/enhanced-tts";
+import OpenAI from "openai";
 
 export const maxDuration = 50;
 
@@ -45,12 +47,14 @@ type ChatSession = {
 const UserMessage = ({ text }: { text: string }) => {
   return <div className={styles.userMessage}>{text}</div>;
 };
-const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedback: "like" | "dislike" | null; onFeedback?: (feedback: "like" | "dislike" | null) => void }) => {
+const AssistantMessage = ({ text, feedback, onFeedback, autoPlaySpeech, onPlayMessage }: { text: string; feedback: "like" | "dislike" | null; onFeedback?: (feedback: "like" | "dislike" | null) => void; autoPlaySpeech?: boolean; onPlayMessage?: () => void }) => {
   const [activeFeedback, setActiveFeedback] = useState(feedback);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [showPlayTooltip, setShowPlayTooltip] = useState(false);  // Separate state for play button tooltip
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [copied, setCopied] = useState(false);  // Tooltip state
   const [copiedText, setCopiedText] =  useState("העתק שאילתה")
+  const [playTooltipText, setPlayTooltipText] = useState("השמע הודעה זו");
 
 
   const handleLike = () => {
@@ -63,6 +67,23 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
     const newFeedback = activeFeedback === "dislike" ? null : "dislike"; // Toggle dislike
     setActiveFeedback(newFeedback);
     onFeedback && onFeedback(newFeedback);
+  };
+
+  const handlePlayMessage = () => {
+    console.log('🔊 handlePlayMessage called', {
+      onPlayMessage: !!onPlayMessage,
+      text: text?.substring(0, 50) + '...',
+      autoPlaySpeech
+    });
+    if (onPlayMessage) {
+      onPlayMessage();
+      setPlayTooltipText("משמיע...");
+      setTimeout(() => {
+        setPlayTooltipText("השמע הודעה זו");
+      }, 1500);
+    } else {
+      console.error('❌ onPlayMessage callback is not defined!');
+    }
   };
 
   const copyToClipboard = (textToCopy) => {
@@ -133,6 +154,25 @@ const copyQueryToClipboard = (text) => {
       <Markdown>{text}</Markdown>
       {/* <Markdown components={renderers} >{text}</Markdown> */}
       <div className={styles.feedbackButtons}>
+        {!autoPlaySpeech && (
+          <button
+            onClick={handlePlayMessage}
+            className={`${styles.feedbackButton} ${styles.playMessageButton}`}
+            onMouseEnter={() => setShowPlayTooltip(true)}
+            onMouseLeave={() => setShowPlayTooltip(false)}
+            style={{
+              marginLeft: "5px"
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+            {showPlayTooltip && (
+              <div className={styles.tooltip}>{playTooltipText}</div>
+            )}
+          </button>
+        )}
         <button
           onClick={handleLike}
           className={`${styles.feedbackButton} ${activeFeedback === "like" ? styles.positive : ""}`}
@@ -177,12 +217,12 @@ const CodeMessage = ({ text }: { text: string }) => {
   );
 };
 
-const Message = ({ role, text, feedback, onFeedback, hasImage }: MessageProps) => {
+const Message = ({ role, text, feedback, onFeedback, hasImage, autoPlaySpeech, onPlayMessage }: MessageProps & { autoPlaySpeech?: boolean; onPlayMessage?: () => void }) => {
   switch (role) {
     case "user":
       return <UserMessage text={text} />;
     case "assistant":
-      return <AssistantMessage text={text} feedback={feedback} onFeedback={onFeedback} />;
+      return <AssistantMessage text={text} feedback={feedback} onFeedback={onFeedback} autoPlaySpeech={autoPlaySpeech} onPlayMessage={onPlayMessage} />;
     case "code":
       return <CodeMessage text={text} />;
     default:
@@ -239,6 +279,9 @@ const Chat = ({
   const [hasStartedSpeaking, setHasStartedSpeaking] = useState(false);
   const streamingTextRef = useRef<string>("");
   const progressiveSpeechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Add state for manual speech playback
+  const [isManualSpeech, setIsManualSpeech] = useState(false);
 
   // State for user typing detection
   const [isUserTyping, setIsUserTyping] = useState(false);
@@ -259,7 +302,7 @@ const Chat = ({
     // Priority order: thinking > listening > speaking > userWriting > idle
     const currentState = isThinking ? 'thinking' 
                         : isRecording ? 'listening' 
-                        : (shouldSpeak && autoPlaySpeech && isAssistantMessageComplete) ? 'speaking' 
+                        : (shouldSpeak && isAssistantMessageComplete) ? 'speaking'  // Removed autoPlaySpeech check
                         : isUserTyping ? 'userWriting'
                         : 'idle';
     console.log('🎭 Avatar state calculation:', {
@@ -273,7 +316,7 @@ const Chat = ({
       textLength: lastAssistantMessage?.length || 0
     });
     return currentState;
-  }, [isThinking, isRecording, shouldSpeak, autoPlaySpeech, isAssistantMessageComplete, isUserTyping, lastAssistantMessage?.length]);
+  }, [isThinking, isRecording, shouldSpeak, isAssistantMessageComplete, isUserTyping, lastAssistantMessage?.length]);  // Removed autoPlaySpeech from dependencies
 
   const router = useRouter();
 
@@ -556,8 +599,15 @@ const updateUserBalance = async (value) => {
       lastAssistantMessage: lastAssistantMessage?.substring(0, 50) + '...',
       shouldSpeak,
       hasStartedSpeaking,
-      streamingTextLength: streamingText?.length || 0
+      streamingTextLength: streamingText?.length || 0,
+      isManualSpeech
     });
+
+    // Handle manual speech playback (when clicking play button)
+    if (isManualSpeech && shouldSpeak && lastAssistantMessage) {
+      console.log('🎤 MANUAL: Triggering manual speech playback');
+      return; // Let the avatar component handle the speech
+    }
 
     // Progressive speech: Start speaking when we have enough content (instead of waiting for completion)
     if (autoPlaySpeech && lastAssistantMessage && lastAssistantMessage.length > 50 && !hasStartedSpeaking && lastSpokenMessageId !== messageId) {
@@ -581,7 +631,7 @@ const updateUserBalance = async (value) => {
       setShouldSpeak(false);
     }
 
-  }, [lastAssistantMessage, isDone, autoPlaySpeech, shouldSpeak, lastSpokenMessageId, hasStartedSpeaking]);
+  }, [lastAssistantMessage, isDone, autoPlaySpeech, shouldSpeak, lastSpokenMessageId, hasStartedSpeaking, isManualSpeech]);
 
   const sendMessage = async (text) => { 
     setImageProcessing(true);
@@ -1044,6 +1094,30 @@ return (
                   feedback={msg.feedback}
                   hasImage={msg.hasImage}
                   onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
+                  autoPlaySpeech={msg.role === 'assistant' ? autoPlaySpeech : undefined}
+                  onPlayMessage={msg.role === 'assistant' ? () => {
+                    console.log('🎤 Playing individual message:', msg.text.substring(0, 50) + '...');
+                    // Stop any current speech
+                    enhancedTTS.stop();
+                    // Reset speech states first
+                    setShouldSpeak(false);
+                    setIsAssistantMessageComplete(false);
+                    setHasStartedSpeaking(false);
+                    
+                    // Use setTimeout to ensure state changes are processed
+                    setTimeout(() => {
+                      // Set the text to the avatar for speaking
+                      setLastAssistantMessage(msg.text);
+                      setShouldSpeak(true);
+                      setIsAssistantMessageComplete(true);
+                      setHasStartedSpeaking(true);
+                      setIsManualSpeech(true);  // Mark as manual speech
+                      // Clear thinking state
+                      setIsThinking(false);
+                      // Force avatar to speaking state by temporarily setting a speaking message ID
+                      setLastSpokenMessageId(Date.now().toString());  // Use unique ID to force re-trigger
+                    }, 100);
+                  } : undefined}
                 />
               ))}
               {inputDisabled && (
@@ -1146,6 +1220,31 @@ return (
                 onRecordingStateChange={setIsRecording}
               />
 
+
+              {/* Exercise Button */}
+              <button
+                type="button"
+                className={`${styles.actionButton} ${styles.exerciseActionButton} ${isExerciseMode ? styles.actionButtonActive : ''}`}
+                onClick={startExercise}
+                disabled={inputDisabled}
+                title="קבל תרגול SQL חדש"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+                {/* <span className={styles.actionButtonText}>תרגול</span> */}
+              </button>
+
               {/* Attachment Button */}
               <button
                 type="button"
@@ -1195,29 +1294,6 @@ return (
                 </span>
               </button>
 
-              {/* Exercise Button */}
-              <button
-                type="button"
-                className={`${styles.actionButton} ${styles.exerciseActionButton} ${isExerciseMode ? styles.actionButtonActive : ''}`}
-                onClick={startExercise}
-                disabled={inputDisabled}
-                title="קבל תרגול SQL חדש"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                </svg>
-                <span className={styles.actionButtonText}>תרגול</span>
-              </button>
             </div>
 
 
@@ -1287,6 +1363,7 @@ return (
             setShouldSpeak(false);
             setIsAssistantMessageComplete(false);
             setHasStartedSpeaking(false);
+            setIsManualSpeech(false);  // Reset manual speech flag
           }}
         />
         

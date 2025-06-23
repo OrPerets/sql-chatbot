@@ -103,6 +103,7 @@ class EnhancedTTSService {
   private globalSpeechLock = false;
   private globalTimeout: NodeJS.Timeout | null = null;
   private pendingRequests = new Map<string, Promise<string>>();
+  private isGeneratingAudio = false; // New flag to prevent concurrent TTS generation
 
   // Progressive speech state
   private progressiveMode = false;
@@ -336,99 +337,119 @@ class EnhancedTTSService {
     this.currentOptions = options;
     this.progressiveMode = true;
 
-    // If we're not currently speaking and have enough text, start speaking
-    if (!this.isCurrentlySpeaking && text.length > 50) {
-      console.log('🎤 PROGRESSIVE TTS: Starting initial speech');
-      await this.speakProgressiveChunk(text, options);
+    // Debounce rapid updates to prevent echo
+    if (this.progressiveTimeout) {
+      clearTimeout(this.progressiveTimeout);
     }
-    // If we're already speaking, the current speech will check for more content when it ends
+
+    // Wait a bit to accumulate more text before speaking
+    this.progressiveTimeout = setTimeout(async () => {
+      // If we're not currently speaking and have enough new text, start speaking
+      if (!this.isCurrentlySpeaking && text.length > this.lastSpokenPosition + 30) {
+        console.log('🎤 PROGRESSIVE TTS: Starting/continuing speech');
+        await this.speakProgressiveChunk();
+      }
+    }, 300); // Wait 300ms to accumulate text
   }
 
   // New method to speak progressive chunks
-  private async speakProgressiveChunk(text: string, options: TTSOptions): Promise<void> {
-    if (this.isCurrentlySpeaking) {
-      console.log('🚫 PROGRESSIVE TTS: Already speaking, skipping chunk');
-      return;
-    }
-
-    // Calculate what to speak (either all text if first time, or new content)
-    let textToSpeak = text;
-    
-    // For subsequent chunks, only speak the new content
-    if (this.lastSpokenPosition > 0 && text.length > this.lastSpokenPosition) {
-      textToSpeak = text.substring(this.lastSpokenPosition);
-      console.log('🔄 PROGRESSIVE TTS: Speaking new chunk:', {
-        from: this.lastSpokenPosition,
-        to: text.length,
-        chunkLength: textToSpeak.length,
-        preview: textToSpeak.substring(0, 50) + '...'
+  private async speakProgressiveChunk(): Promise<void> {
+    if (this.isCurrentlySpeaking || !this.currentOptions || this.isGeneratingAudio) {
+      console.log('🚫 PROGRESSIVE TTS: Already speaking/generating or no options, skipping chunk', {
+        isCurrentlySpeaking: this.isCurrentlySpeaking,
+        isGeneratingAudio: this.isGeneratingAudio,
+        hasOptions: !!this.currentOptions
       });
-    }
-
-    if (!textToSpeak.trim()) {
-      console.log('❌ PROGRESSIVE TTS: No new content to speak');
       return;
     }
+
+    // Calculate what to speak
+    let textToSpeak = '';
+    const fullText = this.streamingText;
+    
+    if (this.lastSpokenPosition === 0) {
+      // First chunk - speak everything we have so far
+      textToSpeak = fullText;
+    } else if (fullText.length > this.lastSpokenPosition) {
+      // Subsequent chunks - only speak new content
+      textToSpeak = fullText.substring(this.lastSpokenPosition);
+    }
+
+    // Ensure we have meaningful content to speak (not just a few characters)
+    if (!textToSpeak.trim() || textToSpeak.trim().length < 10) {
+      console.log('❌ PROGRESSIVE TTS: Not enough new content to speak');
+      // Check again later
+      this.scheduleNextProgressiveCheck();
+      return;
+    }
+
+    console.log('🔄 PROGRESSIVE TTS: Speaking chunk:', {
+      from: this.lastSpokenPosition,
+      to: fullText.length,
+      chunkLength: textToSpeak.length,
+      preview: textToSpeak.substring(0, 50) + '...'
+    });
 
     try {
       this.isCurrentlySpeaking = true;
-      options.onStart?.();
+      this.isGeneratingAudio = true;
+      this.currentOptions.onStart?.();
 
       // Generate and play audio for this chunk
-      const audioUrl = await this.generateOpenAITTS(textToSpeak, options);
+      const audioUrl = await this.generateOpenAITTS(textToSpeak, this.currentOptions);
+      
+      // Update position BEFORE playing to prevent duplicate processing
+      const spokenUpTo = fullText.length;
+      
+      // Mark generation as complete but still speaking
+      this.isGeneratingAudio = false;
+      
       await this.playAudioUrl(audioUrl, {
-        ...options,
+        ...this.currentOptions,
         onEnd: () => {
-          console.log('🎤 PROGRESSIVE TTS: Chunk completed');
+          console.log('🎤 PROGRESSIVE TTS: Chunk completed, updating position');
           this.isCurrentlySpeaking = false;
-          this.lastSpokenPosition = text.length;
+          this.lastSpokenPosition = spokenUpTo;
           
           // Check if there's more content to speak
-          this.checkForMoreContent();
-          
-          // Only call onEnd if we're completely done
-          if (!this.progressiveMode || this.streamingText === text) {
-            options.onEnd?.();
+          if (this.progressiveMode && this.streamingText.length > spokenUpTo) {
+            console.log('🔄 PROGRESSIVE TTS: More content available, scheduling next chunk');
+            this.scheduleNextProgressiveCheck();
+          } else if (!this.progressiveMode || this.streamingText === fullText) {
+            console.log('✅ PROGRESSIVE TTS: All content spoken or progressive mode ended');
+            this.currentOptions.onEnd?.();
+            this.resetProgressiveState();
           }
         },
         onError: (error) => {
           console.error('❌ PROGRESSIVE TTS: Chunk error:', error);
           this.isCurrentlySpeaking = false;
+          this.isGeneratingAudio = false;
           this.resetProgressiveState();
-          options.onError?.(error);
+          this.currentOptions.onError?.(error instanceof Error ? error : new Error(String(error)));
         }
       });
 
     } catch (error) {
       console.error('❌ PROGRESSIVE TTS: Error in progressive chunk:', error);
       this.isCurrentlySpeaking = false;
+      this.isGeneratingAudio = false;
       this.resetProgressiveState();
-      options.onError?.(error instanceof Error ? error : new Error(String(error)));
+      this.currentOptions?.onError?.(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
-  // Check if there's more content to speak
-  private checkForMoreContent(): void {
-    if (!this.progressiveMode || !this.currentOptions) {
-      return;
-    }
-
-    // Clear any existing timeout
+  // Helper to schedule next progressive check
+  private scheduleNextProgressiveCheck(): void {
     if (this.progressiveTimeout) {
       clearTimeout(this.progressiveTimeout);
     }
-
-    // Wait a bit and check if more content has arrived
+    
     this.progressiveTimeout = setTimeout(() => {
-      if (this.streamingText.length > this.lastSpokenPosition) {
-        console.log('🔄 PROGRESSIVE TTS: More content available, continuing speech');
-        this.speakProgressiveChunk(this.streamingText, this.currentOptions!);
-      } else {
-        console.log('✅ PROGRESSIVE TTS: No more content, speech complete');
-        this.resetProgressiveState();
-        this.currentOptions?.onEnd?.();
+      if (this.progressiveMode && !this.isCurrentlySpeaking) {
+        this.speakProgressiveChunk();
       }
-    }, 500); // Wait 500ms for more content
+    }, 500);
   }
 
   // Reset progressive state
@@ -437,6 +458,7 @@ class EnhancedTTSService {
     this.streamingText = '';
     this.lastSpokenPosition = 0;
     this.currentOptions = null;
+    this.isGeneratingAudio = false;
     
     if (this.progressiveTimeout) {
       clearTimeout(this.progressiveTimeout);
@@ -506,19 +528,50 @@ class EnhancedTTSService {
       this.currentAudio = new Audio(audioUrl);
       this.currentAudio.volume = options.volume || 0.9;
       
+      // Add slight delay before starting to ensure audio is loaded
+      this.currentAudio.preload = 'auto';
+      
+      // Track audio loading state
+      let audioLoaded = false;
+      let playbackStarted = false;
+      
+      this.currentAudio.onloadedmetadata = () => {
+        console.log('🎵 Enhanced TTS: Audio metadata loaded, duration:', this.currentAudio?.duration);
+        audioLoaded = true;
+      };
+      
+      this.currentAudio.oncanplaythrough = () => {
+        console.log('🎵 Enhanced TTS: Audio can play through without interruption');
+        if (!playbackStarted) {
+          playbackStarted = true;
+          // Start playback with a slight delay to ensure smooth start
+          setTimeout(() => {
+            this.currentAudio?.play().catch((err) => {
+              console.error('❌ Enhanced TTS: Play failed:', err);
+              reject(err);
+            });
+          }, 50);
+        }
+      };
+      
       this.currentAudio.onended = () => {
-        console.log('🎵 Enhanced TTS: Audio playback completed');
-        this.currentAudio = null;
-        resolve();
+        console.log('🎵 Enhanced TTS: Audio playback completed naturally');
+        // Add a small delay before cleanup to ensure the last bit of audio is heard
+        setTimeout(() => {
+          this.currentAudio = null;
+          resolve();
+        }, 100);
       };
       
-      this.currentAudio.onerror = (error) => {
-        console.error('❌ Enhanced TTS: Audio playback error:', error);
-        this.currentAudio = null;
-        reject(new Error('Audio playback failed'));
+      // Handle potential interruptions
+      this.currentAudio.onpause = () => {
+        if (!this.currentAudio?.ended) {
+          console.warn('⚠️ Enhanced TTS: Audio was paused unexpectedly');
+        }
       };
       
-      this.currentAudio.play().catch(reject);
+      // Load the audio
+      this.currentAudio.load();
     });
   }
 
@@ -610,8 +663,10 @@ export async function speakWithMichael(
     useOpenAI: true,
     characterStyle: 'university_ta',
     enhanceProsody: true,
-    speed: 1.0,
+    speed: 0.95,  // Increased from 0.9 for better conversational pace
     volume: 0.9,
+    humanize: true,  // Enable human-like speech by default
+    naturalPauses: true,  // Enable natural pauses by default
     ...options
   };
   

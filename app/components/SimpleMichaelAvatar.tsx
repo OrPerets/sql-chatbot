@@ -152,18 +152,18 @@ export const SimpleMichaelAvatar: React.FC<SimpleMichaelAvatarProps> = ({
       // Use simplified OpenAI TTS service for clear speech
       const ttsOptions: TTSOptions = {
         voice: 'onyx', // Warm male voice that's clear and friendly
-        speed: 1.0,    // Normal speed for better clarity
+        speed: 0.95,   // Increased from 0.9 for better conversational pace
         useOpenAI: true,
         characterStyle: 'university_ta',
         enhanceProsody: true,
-        humanize: true,           // Keep but simplified in backend
-        naturalPauses: true,      // Only for very long responses
-        emotionalIntonation: false, // Disabled to avoid complexity
+        humanize: true,           // Enable natural human-like speech
+        naturalPauses: true,      // Enable thoughtful pauses for all responses
+        emotionalIntonation: false, // Keep disabled for clarity
         onStart: () => {
-          console.log('🎤 Michael: Starting clear speech...');
+          console.log('🎤 Michael: Starting natural, clear speech...');
         },
         onEnd: () => {
-          console.log('🤐 Michael: Finished speaking');
+          console.log('🤐 Michael: Finished speaking naturally');
           setIsSpeaking(false);
           onSpeakingEnd?.();
         },
@@ -397,13 +397,18 @@ export const SimpleMichaelAvatar: React.FC<SimpleMichaelAvatarProps> = ({
             fontSize: '12px',
             fontWeight: '500',
             zIndex: 5,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: '24px',
+            minHeight: '24px',
           }}
         >
-          {state === 'speaking' && isSpeaking && '🗣️ מדבר'}
-          {state === 'speaking' && !isSpeaking && '⏳ מכין דיבור'}
-          {state === 'listening' && '👂 מקשיב'}
-          {state === 'thinking' && '🤔 חושב'}
-          {state === 'idle' && '😊 מוכן'}
+          {state === 'speaking' && isSpeaking && '🗣️'}
+          {state === 'speaking' && !isSpeaking && '⏳'}
+          {state === 'listening' && '👂'}
+          {state === 'thinking' && '🤔'}
+          {state === 'idle' && '😊'}
         </div>
       )}
 

@@ -54,31 +54,55 @@ function enhanceTextWithSSML(text: string, options: {
 } = {}) {
   let enhancedText = text;
   
-  // Minimal humanization - reduce initial pause
+  // Enhanced humanization with natural conversation flow
   if (options.humanize && options.naturalPauses) {
     const isComplexResponse = text.length > 200;
+    const isQuestion = text.includes('?');
+    const isExclamation = text.includes('!');
+    
+    // Add a thoughtful pause at the beginning for complex responses
     if (isComplexResponse) {
-      enhancedText = `<break time="50ms"/>${enhancedText}`;
+      enhancedText = `<break time="200ms"/>${enhancedText}`;
+    } else if (isQuestion) {
+      // Slight pause before questions for natural flow
+      enhancedText = `<break time="100ms"/>${enhancedText}`;
+    }
+    
+    // Add natural breathing pauses at strategic points
+    if (text.length > 150) {
+      // Find natural breaking points (after complete thoughts)
+      enhancedText = enhancedText
+        .replace(/(\. )(?=[A-Z])/g, '$1<break time="400ms"/>')  // Longer pause between sentences
+        .replace(/(, )(?=and |but |or |so |because )/gi, '$1<break time="200ms"/>');  // Natural clause pauses
     }
   }
   
-  // Minimal pauses - reduce break times significantly
+  // Natural pauses between punctuation marks for better rhythm
   if (options.addPauses) {
     enhancedText = enhancedText
-      .replace(/([.!?])\s+/g, '$1<break time="150ms"/> ')
-      .replace(/([,;:])\s+/g, '$1<break time="50ms"/> ');
+      .replace(/([.!?])\s+/g, '$1<break time="350ms"/> ')  // Increased from 150ms for natural sentence breaks
+      .replace(/([,;:])\s+/g, '$1<break time="200ms"/> ')  // Increased from 50ms for natural flow
+      .replace(/(—|–)\s*/g, '<break time="250ms"/>$1<break time="250ms"/> ')  // Em/en dash pauses
+      .replace(/\.\.\./g, '<break time="400ms"/>');  // Ellipsis for thinking pause
   }
   
-  // Minimal emphasis - only for very important terms
+  // Subtle emphasis only for very important terms
   if (options.emphasizeImportant) {
     enhancedText = enhancedText
-      .replace(/\b(error|warning|important)\b/gi, '<emphasis level="moderate">$1</emphasis>');
+      .replace(/\b(error|warning|important|note|remember)\b/gi, '<emphasis level="moderate">$1</emphasis>')
+      .replace(/\b(SELECT|FROM|WHERE|JOIN|INSERT|UPDATE|DELETE)\b/g, '<emphasis level="reduced">$1</emphasis>');  // Gentle emphasis on SQL keywords
   }
   
-  // Simple pacing - just slow down if too complex
+  // Dynamic pacing based on content complexity
   if (options.adjustPacing) {
-    const hasVeryComplexTerms = /\b(normalization|optimization|algorithm|implementation)\b/i.test(text);
-    if (hasVeryComplexTerms) {
+    const hasComplexTerms = /\b(normalization|optimization|algorithm|implementation|database|query)\b/i.test(text);
+    const hasCode = /\b(SELECT|FROM|WHERE|CREATE|TABLE)\b/i.test(text);
+    
+    if (hasComplexTerms || hasCode) {
+      // Slow down slightly for technical content
+      enhancedText = `<prosody rate="0.92">${enhancedText}</prosody>`;
+    } else if (options.characterStyle === 'university_ta') {
+      // Natural teaching pace - slightly slower than normal
       enhancedText = `<prosody rate="0.95">${enhancedText}</prosody>`;
     }
   }
@@ -103,12 +127,12 @@ export async function POST(request: NextRequest) {
     const { 
       text, 
       voice = 'onyx',  // Keep the warmer male voice
-      speed = 1.0,     // Back to normal speed for clarity
+      speed = 0.95,    // Increased from 0.9 for better conversational pace
       format = 'mp3',
       enhance_prosody = true,
       character_style = 'university_ta',
-      humanize = true,           // Keep but simplified
-      natural_pauses = true,     // Keep but minimal
+      humanize = true,           // Keep but enhanced
+      natural_pauses = true,     // Keep with better implementation
       emotional_intonation = false // Disable to avoid complexity
     } = body;
 
@@ -158,12 +182,15 @@ export async function POST(request: NextRequest) {
 
         // Apply minimal SSML for basic clarity improvements
         if (enhance_prosody) {
+          // For progressive mode, avoid adding breaks that might cause early cutoff
+          const isProgressiveMode = processedText.includes('...') || processedText.length < 100;
+          
           processedText = enhanceTextWithSSML(processedText, {
-            addPauses: true,        // Only basic pauses
-            emphasizeImportant: false, // Disable to avoid issues
-            adjustPacing: false,    // Disable complex pacing
-            humanize: false,        // Disable complex humanization
-            naturalPauses: natural_pauses && processedText.length > 100,
+            addPauses: !isProgressiveMode,  // Only add pauses for complete messages
+            emphasizeImportant: true, // Re-enabled with subtle emphasis
+            adjustPacing: true,     // Re-enabled with dynamic pacing
+            humanize: humanize && !isProgressiveMode,  // Humanize only complete messages
+            naturalPauses: natural_pauses && processedText.length > 50 && !isProgressiveMode,
             emotionalIntonation: false, // Already disabled above
             characterStyle: character_style
           });
@@ -193,7 +220,7 @@ export async function POST(request: NextRequest) {
           model: 'tts-1-hd', // Always use the high-quality model for best results
           voice: selectedVoice as any,
           input: processedText,
-          speed: Math.max(0.8, Math.min(1.2, speed)), // More reasonable speed range for clarity
+          speed: Math.max(0.75, Math.min(1.1, speed)), // Adjusted range for more natural speech (0.75-1.1 instead of 0.8-1.2)
           response_format: format as any,
         });
 
