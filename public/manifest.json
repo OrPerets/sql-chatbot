@@ -1,0 +1,41 @@
+{
+  "name": "Michael - SQL Assistant",
+  "short_name": "Michael",
+  "description": "AI-powered SQL teaching assistant to help you master database queries",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2a8ad8",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "he",
+  "icons": [
+    {
+      "src": "/bot.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/bot.png",
+      "type": "image/png", 
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "screenshots": [
+    {
+      "src": "/bot.png",
+      "type": "image/png",
+      "sizes": "540x720",
+      "form_factor": "narrow"
+    }
+  ]
+} 

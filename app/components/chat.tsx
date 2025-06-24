@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import styles from "./chat.module.css";
+import "./mobile-optimizations.css";
 import { AssistantStream } from "openai/lib/AssistantStream";
 import Markdown from "react-markdown";
 // @ts-expect-error - no types for this yet
@@ -267,7 +268,14 @@ const Chat = ({
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
   const [autoPlaySpeech, setAutoPlaySpeech] = useState(true);
   // Add sidebar visibility state
-  const [sidebarVisible, setSidebarVisible] = useState(true);
+  // Check if we're on mobile to default sidebar to closed
+  const [sidebarVisible, setSidebarVisible] = useState(() => {
+    // Default to closed on mobile devices
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 768; // Open on desktop (>=768px), closed on mobile (<768px)
+    }
+    return true; // Default to open during SSR
+  });
   // Add speech timeout for debouncing
   // Add state to track when assistant message is complete and ready for speech
   const [isAssistantMessageComplete, setIsAssistantMessageComplete] = useState(false);
@@ -539,6 +547,24 @@ useEffect(() => {
 
   loadChatSessions();
 }, []);
+
+  // Handle window resize for responsive sidebar behavior
+  useEffect(() => {
+    const handleResize = () => {
+      const isMobile = window.innerWidth < 768;
+      // Auto-close sidebar on mobile, auto-open on desktop
+      setSidebarVisible(!isMobile);
+    };
+
+    // Set initial state based on current window size
+    handleResize();
+
+    // Add resize listener
+    window.addEventListener('resize', handleResize);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
 const updateUserBalance = async (value) => {
   const response = await fetch(UPDATE_BALANCE, {
