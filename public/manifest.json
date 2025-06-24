@@ -11,6 +11,18 @@
   "lang": "he",
   "icons": [
     {
+      "src": "/icon-72.png",
+      "type": "image/png",
+      "sizes": "72x72",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-144.png",
+      "type": "image/png",
+      "sizes": "144x144",
+      "purpose": "any"
+    },
+    {
       "src": "/icon-192.png",
       "type": "image/png",
       "sizes": "192x192",
@@ -38,9 +50,9 @@
   "categories": ["education", "productivity"],
   "screenshots": [
     {
-      "src": "/bot.png",
+      "src": "/icon-512.png",
       "type": "image/png",
-      "sizes": "540x720",
+      "sizes": "512x512",
       "form_factor": "narrow"
     }
   ]
