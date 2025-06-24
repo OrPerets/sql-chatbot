@@ -1,9 +1,11 @@
 // Service Worker for Michael - SQL Assistant PWA
-const CACHE_NAME = 'michael-sql-assistant-v1';
+const CACHE_NAME = 'michael-sql-assistant-v2';
 const urlsToCache = [
   '/',
   '/bot.png',
   '/logo.png',
+  '/icon-192.png',
+  '/icon-512.png',
   '/manifest.json',
   '/static/css/',
   '/static/js/',
