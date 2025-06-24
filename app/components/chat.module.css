@@ -863,6 +863,8 @@
   justify-content: center;
   backdrop-filter: blur(8px);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .feedbackButton:hover {
@@ -1592,6 +1594,8 @@
   box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
   transition: all 0.2s ease-in-out;
   z-index: 10;
+  touch-action: manipulation; /* Improve touch responsiveness */
+  -webkit-tap-highlight-color: transparent; /* Remove iOS tap highlight */
 }
 
 .sendButton:disabled {
@@ -1636,6 +1640,8 @@
   transition: all 0.2s ease-in-out;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   position: relative;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .actionButton:hover:not(:disabled) {
@@ -1871,37 +1877,209 @@
   }
 }
 
+/* Mobile-optimized styling for small screens (< 768px) */
 @media (max-width: 768px) {
+  .main {
+    height: 100vh;
+    overflow: hidden;
+  }
+
   .container {
     width: 100%;
+    height: 100vh;
   }
   
   .rightColumn {
     display: none; /* Hide avatar section on mobile */
   }
   
-  .messages {
-    width: 100%;
-    padding: 16px 12px;
+  .chatContainer {
+    margin: 4px;
+    border-radius: 16px;
+    height: calc(100vh - 8px);
   }
   
-  .chatContainer {
-    margin: 8px;
-    border-radius: 20px;
+  .messages {
+    width: 100%;
+    padding: 12px 8px;
+    gap: 4px; /* Reduced gap between messages */
   }
   
   .userMessage,
   .assistantMessage,
   .codeMessage {
-    max-width: 95%;
-    padding: 16px 18px;
-    border-radius: 20px;
+    max-width: 88%; /* More space for message content */
+    padding: 12px 16px; /* Reduced padding for mobile */
+    margin: 4px 0; /* Reduced margin */
+    border-radius: 16px; /* Smaller border radius */
+    font-size: 14px; /* Smaller font size for mobile */
+    line-height: 1.4; /* Tighter line height */
+  }
+  
+  .assistantMessage img {
+    max-width: 100%;
+    margin: 8px 0;
+    border-radius: 10px;
   }
   
   .inputContainer {
-    border-radius: 20px;
-    padding: 16px;
-    gap: 12px;
+    border-radius: 16px;
+    padding: 12px;
+    gap: 8px;
+  }
+  
+  .input,
+  .textarea {
+    padding: 10px 40px 10px 16px; /* Reduced padding */
+    font-size: 14px; /* Smaller font size */
+    min-height: 40px; /* Reduced minimum height */
+    max-height: 120px; /* Reduced max height */
+    border-radius: 14px;
+  }
+  
+  .sendButton {
+    width: 36px;
+    height: 36px;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  
+  .actionButtons {
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+  }
+  
+  .actionButton {
+    padding: 8px 12px;
+    font-size: 12px;
+    min-width: auto;
+    border-radius: 12px;
+  }
+  
+  .feedbackButtons {
+    gap: 2px;
+    margin-top: 6px;
+  }
+  
+  .feedbackButton {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+  }
+  
+  .tooltip {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+  
+  .openSidebarButton {
+    top: 12px;
+    left: 12px;
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+  
+  /* Exercise modal mobile optimization */
+  .exerciseModal {
+    margin: 8px;
+    max-height: calc(100vh - 16px);
+    border-radius: 16px;
+  }
+  
+  .exerciseTextarea {
+    font-size: 13px;
+    min-height: 100px;
+  }
+  
+  .sqlHelperButtons {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  
+  .sqlHelperButton {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+}
+
+/* Portrait mobile phones (< 480px) */
+@media (max-width: 480px) {
+  .chatContainer {
+    margin: 2px;
+    border-radius: 12px;
+  }
+  
+  .messages {
+    padding: 8px 6px;
+  }
+  
+  .userMessage,
+  .assistantMessage,
+  .codeMessage {
+    max-width: 92%;
+    padding: 10px 14px;
+    font-size: 13px;
+    border-radius: 14px;
+  }
+  
+  .input,
+  .textarea {
+    padding: 8px 36px 8px 14px;
+    font-size: 13px;
+    min-height: 36px;
+    border-radius: 12px;
+  }
+  
+  .sendButton {
+    width: 32px;
+    height: 32px;
+    right: 6px;
+  }
+  
+  .actionButton {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  
+  .feedbackButton {
+    width: 26px;
+    height: 26px;
+  }
+}
+
+/* Landscape mobile phones */
+@media (max-width: 768px) and (orientation: landscape) {
+  .main {
+    height: 100vh;
+  }
+  
+  .chatContainer {
+    height: calc(100vh - 6px);
+    margin: 3px;
+  }
+  
+  .messages {
+    padding: 8px 12px;
+  }
+  
+  .inputContainer {
+    padding: 8px;
+  }
+  
+  .userMessage,
+  .assistantMessage,
+  .codeMessage {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+  
+  .input,
+  .textarea {
+    min-height: 36px;
+    max-height: 80px; /* Reduced for landscape */
   }
 }
 
