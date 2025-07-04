@@ -1253,7 +1253,7 @@ return (
               </button>
 
               {/* Exam Button */}
-              <Link href="/exam" className={`${styles.actionButton} ${styles.examActionButton}`} title="כניסה לבחינה">
+              <Link href="/exam" className={`${styles.actionButton} ${styles.examActionButton}`} title="כניסה לעבודה">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="16"
@@ -1271,7 +1271,7 @@ return (
                   <line x1="16" y1="17" x2="8" y2="17"/>
                   <polyline points="10,9 9,9 8,9"/>
                 </svg>
-                <span className={styles.actionButtonText}>בחינה</span>
+                <span className={styles.actionButtonText}>עבודה</span>
               </Link>
             </div>
 

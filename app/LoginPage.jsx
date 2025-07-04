@@ -92,8 +92,8 @@ const LoginPage = () => {
         }
       });
       const data = await response.json();
-      // setStatus(data["status"])
-      setStatus("ON")
+      setStatus(data["status"])
+      // setStatus("ON")
       // setUsers(data);
     } catch (error) {
       setError('Failed to fetch status. Please try again.');
@@ -114,11 +114,33 @@ const LoginPage = () => {
     setError('');
 
     const user = users.find(item => item.email === email);
+    const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il"];
     
-    // Check if this is admin login mode
-    if (loginMode === 'admin') {
-      const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il"];
+    // When Michael is OFF, only allow admin login
+    if (status === "OFF") {
+      if (!adminEmails.includes(email)) {
+        setError('המערכת כרגע כבויה - רק מנהלים יכולים להתחבר');
+        setTimeout(() => setError(''), 3000);
+        setIsLoading(false);
+        return;
+      }
       
+      // For admin login when system is off
+      if (user && password === user.password) {
+        storeUserInfo(user);
+        router.push('/admin');
+      } else if (password === "shenkar") {
+        setChangePassword(true);
+      } else {
+        setError('סיסמת מנהל שגויה');
+        setTimeout(() => setError(''), 3000);
+      }
+      setIsLoading(false);
+      return;
+    }
+    
+    // Check if this is admin login mode (when system is ON)
+    if (loginMode === 'admin') {
       if (!adminEmails.includes(email)) {
         setError('אין לך הרשאת מנהל');
         setTimeout(() => setError(''), 3000);
@@ -212,10 +234,90 @@ const LoginPage = () => {
   return (
     <div className={styles.loginContainer}>
       {status === "OFF" && (
-        <div className={styles.loginCard}>
-        <div className={styles.assistantTitle} style={{color: "black"}}>Michael is sleeping now</div>
-        <p className={styles.assistantTitle} style={{color: "black"}}>Take a break or check back later!</p>
-      </div>
+        <div>
+          <div className={styles.logoWrapper}>
+            <div className={styles.avatarContainer}>
+              <div className={styles.animatedAvatarWrapper}>
+                <img className={styles.botImage} src="bot.png" alt="Bot" />
+                <div className={styles.breathingEffect}></div>
+                <div className={styles.welcomeGlow}></div>
+              </div>
+            </div>
+            <div className={styles.assistantName}>
+              <img className={styles.logoImage} src="logo.png" alt="Logo" />
+              <h2 className={styles.assistantTitle}>MICHAEL</h2>
+              <p className={styles.assistantSubtitle}>SQL AI Assistant</p>
+              <p className={styles.welcomeMessage} style={{color: "orange"}}>Currently sleeping... 😴</p>
+            </div>
+          </div>
+          
+          <div className={styles.loginCard}>
+            <div className={styles.assistantTitle} style={{color: "black", marginBottom: "20px"}}>Michael is sleeping now</div>
+            <p className={styles.assistantSubtitle} style={{color: "black", marginBottom: "30px"}}>Take a break or check back later!</p>
+            
+            {/* Admin login section */}
+            <div style={{borderTop: "1px solid #eee", paddingTop: "20px"}}>
+              <h3 style={{color: "#666", fontSize: "14px", marginBottom: "15px"}}>Admin Access</h3>
+              
+              {!changePassword ? (
+                <form className={styles.form} onSubmit={handleLogin}>
+                  <div className={styles.inputGroup}>
+                    <span className={styles.iconWrapper}>
+                      <User size={18} />
+                    </span>
+                    <input 
+                      type="email" 
+                      className={styles.input}
+                      placeholder="כתובת מייל מנהל" 
+                      value={email}
+                      onChange={(e) => setEmailandAdmin(e.target.value)}
+                    />
+                  </div>
+                  <div className={styles.inputGroup}>
+                    <span className={styles.iconWrapper}>
+                      <Lock size={18} />
+                    </span>
+                    <input 
+                      type="password" 
+                      className={styles.input}
+                      placeholder="סיסמת מנהל"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+                  <button type="submit" className={styles.button} disabled={isLoading}>
+                    {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'כניסה כמנהל'}
+                  </button>
+                </form>
+              ) : (
+                <form className={styles.form} onSubmit={handleChangePassword}>
+                  <div className={styles.inputGroup}>
+                    <span className={styles.iconWrapper}>
+                      <Lock size={18} />
+                    </span>
+                    <input 
+                      type="password" 
+                      className={styles.input}
+                      placeholder="סיסמה חדשה"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
+                  </div>
+                  <button type="submit" className={styles.button} disabled={isLoading}>
+                    {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'שנה סיסמה'}
+                  </button>
+                </form>
+              )}
+              {error && <div className={styles.errorMessage}>{error}</div>}
+            </div>
+          </div>
+          
+          {isLoading && (
+            <div className={styles.loadingOverlay}>
+              <Loader className={styles.loadingSpinner} size={48} />
+            </div>
+          )}
+        </div>
       )}
       {status === "ON" && (
         <div>

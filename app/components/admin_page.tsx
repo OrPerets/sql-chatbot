@@ -231,6 +231,21 @@ const AdminPage: React.FC = () => {
              </div>
            </div>
          </div>
+         
+         <div className={styles.controlCard}>
+           <div className={styles.controlHeader}>
+             <BarChart3 size={20} />
+             <span>ניהול שאלות</span>
+           </div>
+           <div className={styles.questionManagement}>
+             <button
+               onClick={() => router.push('/admin/questions')}
+               className={styles.questionsButton}
+             >
+               אישור שאלות בחינה
+             </button>
+           </div>
+         </div>
        </div>
 
        {successMessage && <div className={styles.successMessage}>{successMessage}</div>}

@@ -346,7 +346,7 @@
 
 .rulesList li,
 .tipsList li {
-  padding: 0.9rem 1rem 0.9rem 2.2rem; /* Reduced padding */
+  padding: 0.9rem 3.5rem 0.9rem 3rem; /* Increased right padding from 2.2rem to 3rem */
   background: rgba(255, 255, 255, 0.6); /* Lighter background */
   border-radius: 10px; /* Reduced from 12px */
   border: 1px solid rgba(74, 144, 226, 0.1);
@@ -360,17 +360,17 @@
 .tipsList li::before {
   content: '✓';
   position: absolute;
-  right: 0.8rem; /* Adjusted position */
+  right: 1.4rem; /* Increased spacing from 1rem to 1.4rem */
   top: 50%;
   transform: translateY(-50%);
-  width: 18px; /* Reduced size */
-  height: 18px; /* Reduced size */
+  width: 20px; /* Slightly increased size from 18px to 20px */
+  height: 20px; /* Slightly increased size from 18px to 20px */
   background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.7rem; /* Reduced font size */
+  font-size: 0.75rem; /* Slightly increased font size */
   font-weight: 700;
   color: white;
   box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
@@ -381,6 +381,97 @@
   transform: translateX(-3px);
   box-shadow: 0 6px 20px rgba(74, 144, 226, 0.15);
   background: rgba(255, 255, 255, 0.8);
+}
+
+/* Scenario Header Styles */
+.scenarioHeader {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 25px;
+  padding: 2rem;
+  box-shadow: 0 15px 35px rgba(19, 17, 55, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  overflow: hidden;
+  animation: slideInFromBottom 0.8s ease-out;
+  margin-bottom: 2rem;
+}
+
+.scenarioTitle {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #131137;
+  text-align: center;
+  margin: 0 0 2rem 0;
+  background: linear-gradient(135deg, #131137 0%, #2c5aa0 50%, #4a90e2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.scenarioDescription {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #374151;
+}
+
+.scenarioColumns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.scenarioColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.scenarioColumn p {
+  margin: 0;
+  padding: 1rem;
+  background: rgba(248, 250, 252, 0.8);
+  border-radius: 12px;
+  border-left: 4px solid #2c5aa0;
+  transition: all 0.3s ease;
+}
+
+.scenarioColumn p:hover {
+  background: rgba(236, 254, 255, 0.9);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(19, 17, 55, 0.1);
+}
+
+.scenarioColumn strong {
+  color: #131137;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.scenarioColumn ul {
+  margin: 0;
+  padding: 1rem 1rem 1rem 2rem;
+  background: rgba(248, 250, 252, 0.8);
+  border-radius: 12px;
+  border-left: 4px solid #2c5aa0;
+  list-style: none;
+}
+
+.scenarioColumn ul li {
+  position: relative;
+  padding: 0.4rem 0;
+  color: #374151;
+  font-weight: 500;
+}
+
+.scenarioColumn ul li::before {
+  content: '•';
+  color: #2c5aa0;
+  font-weight: bold;
+  position: absolute;
+  right: -1rem;
 }
 
 /* Database Container - Compacted */
@@ -449,7 +540,7 @@
   margin-bottom: 0.8rem; /* Reduced margin */
   display: flex;
   align-items: center;
-  gap: 0.5rem; /* Reduced gap */
+  gap: 1rem; /* Increased gap from 0.8rem to 1rem for even better spacing */
   position: relative;
   padding-right: 1.5rem; /* Reduced padding */
 }
@@ -457,6 +548,7 @@
 .tableName::before {
   content: '📊';
   font-size: 1rem; /* Reduced size */
+  margin-left: 0.4rem; /* Increased margin from 0.2rem to 0.4rem */
 }
 
 .tableSchema {
@@ -511,7 +603,7 @@
   color: #92400e;
   display: flex;
   align-items: center;
-  gap: 0.6rem; /* Reduced gap */
+  gap: 1rem; /* Increased gap from 0.8rem to 1rem for better spacing */
   font-size: 0.9rem; /* Reduced font size */
 }
 
@@ -519,6 +611,7 @@
   content: '💡';
   font-size: 0.9rem; /* Reduced size */
   flex-shrink: 0;
+  margin-left: 0.4rem; /* Increased margin from 0.2rem to 0.4rem */
 }
 
 /* Student Verification Container - Enhanced with hover effects */
@@ -773,6 +866,124 @@
   font-size: 0.9rem; /* Reduced font size */
 }
 
+/* Loading Styles - Consistent with Exam Layout */
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #131137 0%, #2c5aa0 25%, #4a90e2 75%, #87ceeb 100%);
+  position: relative;
+  padding: 2rem;
+}
+
+.loadingContainer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+  pointer-events: none;
+}
+
+.loadingSpinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  border-top: 4px solid #ffffff;
+  border-radius: 50%;
+  animation: loadingSpinAnimation 1s linear infinite;
+  margin-bottom: 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.loadingText {
+  color: #ffffff;
+  font-size: 1.2rem;
+  font-weight: 600;
+  text-align: center;
+  direction: rtl;
+  font-family: 'Segoe UI', 'Tahoma', 'Arial', sans-serif;
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes loadingSpinAnimation {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error Container - Consistent with Exam Layout */
+.errorContainer {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #131137 0%, #2c5aa0 25%, #4a90e2 75%, #87ceeb 100%);
+  position: relative;
+  padding: 2rem;
+}
+
+.errorContainer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+  pointer-events: none;
+}
+
+.errorMessage {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: #dc2626;
+  padding: 2rem;
+  border-radius: 20px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  margin-bottom: 1.5rem;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 600;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
+  position: relative;
+  z-index: 1;
+  max-width: 480px;
+  width: 100%;
+}
+
+.retryButton {
+  background: linear-gradient(135deg, #131137 0%, #2c5aa0 50%, #4a90e2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 20px rgba(19, 17, 55, 0.3);
+  position: relative;
+  z-index: 1;
+}
+
+.retryButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(19, 17, 55, 0.4);
+}
+
 /* Enhanced responsive design for smaller screens */
 @media (max-width: 768px) {
   .mainContent {
@@ -781,8 +992,18 @@
 
   .instructionsContainer,
   .databaseContainer,
-  .verificationCard {
+  .verificationCard,
+  .scenarioHeader {
     padding: 1.5rem; /* Reduced mobile padding */
+  }
+
+  .scenarioColumns {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .scenarioTitle {
+    font-size: 1.4rem;
   }
 
   .headerContent {

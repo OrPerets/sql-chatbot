@@ -150,6 +150,32 @@
   border-color: #cbd5e0;
 }
 
+/* Question Management */
+.questionManagement {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.questionsButton {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  color: white;
+  border: none;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.questionsButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+}
+
 /* Legacy styles - keeping for backward compatibility if needed */
 
 .toggle {
