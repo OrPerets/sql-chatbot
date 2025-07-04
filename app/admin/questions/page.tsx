@@ -230,7 +230,7 @@ const QuestionApprovalPage: React.FC = () => {
           let question = '';
           let solution = '';
           let keywords = [];
-          let points = difficulty === 'easy' ? 5 : difficulty === 'medium' ? 10 : 15;
+          let points = difficulty === 'easy' ? 6 : difficulty === 'medium' ? 8 : 10;
 
           for (const line of lines) {
             if (line.startsWith('שאלה:')) {
