@@ -76,7 +76,7 @@ export async function POST(request) {
     let responseContent = '';
     if (assistantMessage.content && assistantMessage.content.length > 0) {
       const textContent = assistantMessage.content.find(content => content.type === 'text');
-      if (textContent) {
+      if (textContent && textContent.type === 'text') {
         responseContent = textContent.text.value;
       }
     }
