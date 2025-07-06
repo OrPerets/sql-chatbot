@@ -109,7 +109,7 @@ const AdminPage: React.FC = () => {
    const user = JSON.parse(storedUser);
   
    // For now using a placeholder check -needs to check if keeping it in a list version or a db version
-   const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com"," roeizer@shenkar.ac.il"];
+   const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il"];
    const isAdmin = adminEmails.includes(user.email);
   
    if (!isAdmin) {

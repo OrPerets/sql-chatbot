@@ -318,6 +318,68 @@ const QuestionApprovalPage: React.FC = () => {
       .trim();
   };
 
+  const handleFixPoints = async () => {
+    if (!confirm('האם אתה בטוח שברצונך לתקן את הנקודות של כל השאלות? (קל=6, בינוני=8, קשה=10)')) {
+      return;
+    }
+
+    setIsCleaningUp(true);
+    let updatedCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (const question of questions) {
+        const correctPoints = question.difficulty === 'easy' ? 6 : 
+                             question.difficulty === 'medium' ? 8 : 10;
+        
+        // Only update if points are incorrect
+        if (question.points !== correctPoints) {
+          try {
+            const response = await fetch(`${SERVER_BASE}/api/questions/${question.id}`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                question: question.question,
+                difficulty: question.difficulty,
+                solution_example: question.solution_example,
+                points: correctPoints
+              }),
+            });
+
+            if (response.ok) {
+              updatedCount++;
+            } else {
+              errorCount++;
+              console.error(`Failed to update question ${question.id}`);
+            }
+          } catch (err) {
+            errorCount++;
+            console.error(`Error updating question ${question.id}:`, err);
+          }
+        }
+      }
+
+      // Refresh the questions list
+      await fetchQuestions();
+      
+      if (updatedCount > 0) {
+        setSuccessMessage(`עודכנו ${updatedCount} שאלות עם נקודות נכונות${errorCount > 0 ? ` (${errorCount} שאלות נכשלו)` : ''}`);
+      } else {
+        setSuccessMessage('כל השאלות כבר עם נקודות נכונות');
+      }
+      setTimeout(() => setSuccessMessage(''), 5000);
+      
+    } catch (err) {
+      console.error('Error during points fix:', err);
+      setError('שגיאה בתיקון הנקודות');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
+
   const handleCleanupQuestions = async () => {
     if (!confirm('האם אתה בטוח שברצונך להסיר פרטי טבלאות מכל השאלות? פעולה זו תשנה את כל השאלות במערכת.')) {
       return;
@@ -576,6 +638,14 @@ const QuestionApprovalPage: React.FC = () => {
           >
             <Plus size={20} />
             {isGeneratingQuestions ? 'מייקל יצירת שאלות...' : 'יצירת שאלות עם מייקל'}
+          </button>
+          <button 
+            onClick={handleFixPoints}
+            disabled={isCleaningUp || questions.length === 0}
+            className={styles.cleanupButton}
+          >
+            <Sparkles size={20} />
+            {isCleaningUp ? 'מתקן...' : 'תקן נקודות'}
           </button>
           <button 
             onClick={handleCleanupQuestions}

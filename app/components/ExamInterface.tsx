@@ -502,6 +502,60 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
     };
   }, []);
 
+  // EXAM SECURITY: Block copy/paste operations at document level
+  useEffect(() => {
+    const blockClipboardOperations = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log(`${e.type} operation blocked for exam security`);
+    };
+
+    const blockKeyboardShortcuts = (e: KeyboardEvent) => {
+      // Block common clipboard shortcuts
+      if ((e.ctrlKey || e.metaKey) && (
+        e.key === 'c' || e.key === 'C' ||  // Copy
+        e.key === 'v' || e.key === 'V' ||  // Paste
+        e.key === 'x' || e.key === 'X' ||  // Cut
+        e.key === 'a' || e.key === 'A'     // Select All
+      )) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log(`Keyboard shortcut ${e.key} blocked for exam security`);
+      }
+      
+      // Block F12 (Developer Tools), Ctrl+Shift+I, Ctrl+U (View Source)
+      if (e.key === 'F12' || 
+          ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'I') ||
+          ((e.ctrlKey || e.metaKey) && e.key === 'u')) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Developer tools access blocked for exam security');
+      }
+    };
+
+    const blockContextMenu = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('Context menu blocked for exam security');
+    };
+
+    // Add event listeners to document
+    document.addEventListener('copy', blockClipboardOperations);
+    document.addEventListener('paste', blockClipboardOperations);
+    document.addEventListener('cut', blockClipboardOperations);
+    document.addEventListener('keydown', blockKeyboardShortcuts);
+    document.addEventListener('contextmenu', blockContextMenu);
+
+    // Cleanup function
+    return () => {
+      document.removeEventListener('copy', blockClipboardOperations);
+      document.removeEventListener('paste', blockClipboardOperations);
+      document.removeEventListener('cut', blockClipboardOperations);
+      document.removeEventListener('keydown', blockKeyboardShortcuts);
+      document.removeEventListener('contextmenu', blockContextMenu);
+    };
+  }, []); // Run once on mount
+
   const completeExam = async () => {
     try {
       // Get final results
@@ -639,6 +693,13 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
           </span>
         </div>
 
+        <div className={styles.studentIdSection}>
+          <div className={styles.studentIdDisplay}>
+            <span className={styles.studentIdLabel}>ת.ז:</span>
+            <span className={styles.studentIdValue}>{user.id}</span>
+          </div>
+        </div>
+
         <div className={styles.timerSection}>
           <div className={styles.timerControls}>
             {timerVisible && (
@@ -682,6 +743,8 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
 
               {/* Answer Section */}
               <div className={styles.answerSection}>
+                {/* Security Notice */}
+               
                 <label className={styles.answerLabel}>
                   התשובה שלך ב-SQL:
                 </label>
@@ -698,6 +761,56 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
                       const style = document.createElement('style');
                       style.innerHTML = `.monaco-editor .margin { padding-left: 2.5em !important; }`;
                       document.head.appendChild(style);
+
+                      // EXAM SECURITY: Disable copy/paste functionality
+                      // Override keyboard shortcuts for copy/paste/cut
+                      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyC, () => {
+                        // Block Ctrl+C (copy)
+                        console.log('Copy action blocked for exam security');
+                      });
+                      
+                      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV, () => {
+                        // Block Ctrl+V (paste)
+                        console.log('Paste action blocked for exam security');
+                      });
+                      
+                      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyX, () => {
+                        // Block Ctrl+X (cut)
+                        console.log('Cut action blocked for exam security');
+                      });
+
+                      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyA, () => {
+                        // Block Ctrl+A (select all) to prevent mass copying
+                        console.log('Select all action blocked for exam security');
+                      });
+
+                      // Block right-click context menu with copy/paste options
+                      const editorElement = editor.getDomNode();
+                      if (editorElement) {
+                        editorElement.addEventListener('contextmenu', (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        });
+
+                        // Block clipboard events at the DOM level
+                        editorElement.addEventListener('copy', (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('Copy event blocked for exam security');
+                        });
+
+                        editorElement.addEventListener('paste', (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('Paste event blocked for exam security');
+                        });
+
+                        editorElement.addEventListener('cut', (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('Cut event blocked for exam security');
+                        });
+                      }
                     }}
                     options={{
                       readOnly: isSubmitting,
@@ -742,6 +855,15 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
                       codeActions: {
                         enabled: false,
                       },
+                      // EXAM SECURITY: Additional clipboard restrictions
+                      find: {
+                        addExtraSpaceOnTop: false,
+                        autoFindInSelection: 'never',
+                        seedSearchStringFromSelection: 'never',
+                      },
+                      // Disable selections that could enable copying
+                      selectionHighlight: false,
+                      occurrencesHighlight: false,
                     }}
                   />
                   {containsAlgebraQuestion(currentQuestion.question) && (
