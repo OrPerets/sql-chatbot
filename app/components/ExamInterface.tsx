@@ -522,6 +522,20 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
         e.stopPropagation();
         console.log(`Keyboard shortcut ${e.key} blocked for exam security`);
       }
+
+      // Block Shift+Insert (another common paste shortcut)
+      if (e.shiftKey && e.key === 'Insert') {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Shift+Insert paste blocked for exam security');
+      }
+
+      // Block Ctrl+Insert (copy) and Shift+Delete (cut) - less common but possible
+      if ((e.ctrlKey && e.key === 'Insert') || (e.shiftKey && e.key === 'Delete')) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log(`Insert/Delete clipboard operation blocked for exam security`);
+      }
       
       // Block F12 (Developer Tools), Ctrl+Shift+I, Ctrl+U (View Source)
       if (e.key === 'F12' || 
@@ -539,12 +553,32 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
       console.log('Context menu blocked for exam security');
     };
 
+    const blockDragDrop = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('Drag and drop blocked for exam security');
+    };
+
+    const blockMiddleClick = (e: MouseEvent) => {
+      if (e.button === 1) { // Middle mouse button
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Middle-click paste blocked for exam security');
+      }
+    };
+
     // Add event listeners to document
     document.addEventListener('copy', blockClipboardOperations);
     document.addEventListener('paste', blockClipboardOperations);
     document.addEventListener('cut', blockClipboardOperations);
     document.addEventListener('keydown', blockKeyboardShortcuts);
     document.addEventListener('contextmenu', blockContextMenu);
+    document.addEventListener('drop', blockDragDrop);
+    document.addEventListener('dragover', blockDragDrop);
+    document.addEventListener('dragenter', blockDragDrop);
+    document.addEventListener('mousedown', blockMiddleClick);
+    document.addEventListener('mouseup', blockMiddleClick);
+    document.addEventListener('click', blockMiddleClick);
 
     // Cleanup function
     return () => {
@@ -553,6 +587,12 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
       document.removeEventListener('cut', blockClipboardOperations);
       document.removeEventListener('keydown', blockKeyboardShortcuts);
       document.removeEventListener('contextmenu', blockContextMenu);
+      document.removeEventListener('drop', blockDragDrop);
+      document.removeEventListener('dragover', blockDragDrop);
+      document.removeEventListener('dragenter', blockDragDrop);
+      document.removeEventListener('mousedown', blockMiddleClick);
+      document.removeEventListener('mouseup', blockMiddleClick);
+      document.removeEventListener('click', blockMiddleClick);
     };
   }, []); // Run once on mount
 
@@ -784,6 +824,23 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
                         console.log('Select all action blocked for exam security');
                       });
 
+                      // Block Shift+Insert (common paste shortcut)
+                      editor.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Insert, () => {
+                        // Block Shift+Insert (paste)
+                        console.log('Shift+Insert paste blocked for exam security');
+                      });
+
+                      // Block Ctrl+Insert (copy) and Shift+Delete (cut)
+                      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Insert, () => {
+                        // Block Ctrl+Insert (copy)
+                        console.log('Ctrl+Insert copy blocked for exam security');
+                      });
+
+                      editor.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Delete, () => {
+                        // Block Shift+Delete (cut)
+                        console.log('Shift+Delete cut blocked for exam security');
+                      });
+
                       // Block right-click context menu with copy/paste options
                       const editorElement = editor.getDomNode();
                       if (editorElement) {
@@ -809,6 +866,18 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
                           e.preventDefault();
                           e.stopPropagation();
                           console.log('Cut event blocked for exam security');
+                        });
+
+                        // Add additional keydown listener for Insert/Delete key combinations
+                        editorElement.addEventListener('keydown', (e) => {
+                          // Block all Insert and Delete key combinations
+                          if ((e.shiftKey && e.key === 'Insert') || 
+                              (e.ctrlKey && e.key === 'Insert') || 
+                              (e.shiftKey && e.key === 'Delete')) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log(`${e.key} clipboard operation blocked in editor for exam security`);
+                          }
                         });
                       }
                     }}
