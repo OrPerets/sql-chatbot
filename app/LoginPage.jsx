@@ -114,7 +114,7 @@ const LoginPage = () => {
     setError('');
 
     const user = users.find(item => item.email === email);
-    const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il"];
+    const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il", "r_admin@gmail.com"];
     
     // When Michael is OFF, only allow admin login
     if (status === "OFF") {
