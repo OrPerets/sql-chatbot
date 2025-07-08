@@ -48,7 +48,7 @@ const QuestionApprovalPage: React.FC = () => {
     }
 
     const user = JSON.parse(storedUser);
-    const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il"];
+    const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il", "r_admin@gmail.com"];
     const isAdmin = adminEmails.includes(user.email);
     
     if (!isAdmin) {
