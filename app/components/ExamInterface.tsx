@@ -94,6 +94,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
   const [timerVisible, setTimerVisible] = useState(true);
   const [showScenarioModal, setShowScenarioModal] = useState(false);
   const [extraTimePercentage, setExtraTimePercentage] = useState(0);
+  const [extraTimeLoaded, setExtraTimeLoaded] = useState(false);
   
   // Typing speed tracking
   const [typingStartTime, setTypingStartTime] = useState<Date | null>(null);
@@ -483,11 +484,11 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
 
   // Load first question only after extraTimePercentage is fetched
   useEffect(() => {
-    if (!firstQuestionLoadedRef.current && extraTimePercentage !== undefined) {
+    if (!firstQuestionLoadedRef.current && extraTimeLoaded) {
       loadQuestion(0);
       firstQuestionLoadedRef.current = true;
     }
-  }, [extraTimePercentage, loadQuestion]);
+  }, [extraTimeLoaded, loadQuestion]);
 
   // Fetch extra time for student
   useEffect(() => {
@@ -500,9 +501,10 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
         }
       } catch (error) {
         console.error('Error fetching extra time:', error);
+      } finally {
+        setExtraTimeLoaded(true);
       }
     };
-
     fetchExtraTime();
   }, [user.id]);
 
@@ -835,6 +837,15 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
             </div>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (!extraTimeLoaded) {
+    return (
+      <div className={styles.loadingContainer}>
+        <div className={styles.loadingSpinner}></div>
+        <p className={styles.loadingText}>טוען זמן נוסף...</p>
       </div>
     );
   }

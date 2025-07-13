@@ -195,15 +195,41 @@ const InstructionsPage = ({ onContinue }: { onContinue: () => void }) => {
 };
 
 // Database schema description component
-const DatabaseDescription = ({ onContinue }: { onContinue: () => void }) => {
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes = 300 seconds
+const DatabaseDescription = ({ onContinue, user }: { onContinue: () => void, user: any }) => {
+  const [extraTimePercentage, setExtraTimePercentage] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [timerActive, setTimerActive] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!timerActive) return;
+    const fetchExtraTime = async () => {
+      try {
+        const response = await fetch(`/api/exam/extraTime/${user.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setExtraTimePercentage(data.percentage || 0);
+          const scenarioTime = Math.round(300 * (1 + (data.percentage || 0) / 100));
+          setTimeLeft(scenarioTime);
+        } else {
+          setExtraTimePercentage(0);
+          setTimeLeft(300);
+        }
+      } catch (error) {
+        setExtraTimePercentage(0);
+        setTimeLeft(300);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchExtraTime();
+  }, [user.id]);
 
+  useEffect(() => {
+    if (!timerActive || loading || timeLeft === null) return;
+    if (timeLeft <= 0) return;
     const timer = setInterval(() => {
       setTimeLeft((prevTime) => {
+        if (prevTime === null) return null;
         if (prevTime <= 1) {
           setTimerActive(false);
           onContinue(); // Automatically proceed to exam
@@ -212,11 +238,11 @@ const DatabaseDescription = ({ onContinue }: { onContinue: () => void }) => {
         return prevTime - 1;
       });
     }, 1000);
-
     return () => clearInterval(timer);
-  }, [timerActive, onContinue]);
+  }, [timerActive, onContinue, loading, timeLeft]);
 
-  const formatTime = (seconds: number) => {
+  const formatTime = (seconds: number | null) => {
+    if (seconds === null) return '--:--';
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
@@ -226,6 +252,15 @@ const DatabaseDescription = ({ onContinue }: { onContinue: () => void }) => {
     setTimerActive(false);
     onContinue();
   };
+
+  if (loading || timeLeft === null) {
+    return (
+      <div className={styles.loadingContainer}>
+        <div className={styles.loadingSpinner}></div>
+        <p className={styles.loadingText}>טוען זמן נוסף...</p>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.databaseContainer}>
@@ -692,8 +727,8 @@ const ExamPage = () => {
           <InstructionsPage onContinue={() => setCurrentStep('database')} />
         )}
         
-        {currentStep === 'database' && (
-          <DatabaseDescription onContinue={startExam} />
+        {currentStep === 'database' && verifiedStudent && (
+          <DatabaseDescription onContinue={startExam} user={verifiedStudent} />
         )}
         
         {currentStep === 'exam' && examSession && verifiedStudent && (
