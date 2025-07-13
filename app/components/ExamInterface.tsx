@@ -92,6 +92,8 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
   const [examResults, setExamResults] = useState(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [timerVisible, setTimerVisible] = useState(true);
+  const [showScenarioModal, setShowScenarioModal] = useState(false);
+  const [extraTimePercentage, setExtraTimePercentage] = useState(0);
   
   // Typing speed tracking
   const [typingStartTime, setTypingStartTime] = useState<Date | null>(null);
@@ -212,6 +214,15 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
         </button>
       </div>
       
+      {/* Scenario Button */}
+      <button 
+        className={styles.scenarioButton}
+        onClick={() => setShowScenarioModal(true)}
+        title="צפה בתרחיש המלא"
+      >
+        תרחיש
+      </button>
+      
       {sidebarVisible && (
         <div className={styles.sidebarContent}>
           {databaseSchema.map((table, index) => (
@@ -246,6 +257,128 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
       )}
     </div>
   );
+
+  // Scenario Modal Component
+  const ScenarioModal = () => {
+    if (!showScenarioModal) return null;
+
+    const handleClose = () => setShowScenarioModal(false);
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+
+    return (
+      <div className={styles.modalOverlay} onClick={handleClose}>
+        <div className={styles.modalContent} onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
+          <div className={styles.modalHeader}>
+            <h2 className={styles.modalTitle}>תרחיש: מערכת ניהול חיל האוויר הישראלי</h2>
+            <button className={styles.modalClose} onClick={handleClose}>
+              ❌
+            </button>
+          </div>
+          
+          <div className={styles.modalBody}>
+            <div className={styles.scenarioContent}>
+              <div className={styles.scenarioDescription}>
+                <div className={styles.scenarioColumns}>
+                  <div className={styles.scenarioColumn}>
+                    <p>
+                      <strong>היסטוריה והקמה:</strong><br />
+                      חיל האוויר הישראלי הוקם ביום 28 במאי 1948, יום לאחר הכרזת העצמאות, כאשר הטייסת הראשונה הורכבה מ-9 מטוסי אביה צ'כיים.
+                    </p>
+                    
+                    <p>
+                      <strong>התפתחות לאורך השנים:</strong><br />
+                      מאז ועד היום, חיל האוויר התפתח להיות אחד הכוחות האוויריים המתקדמים והיעילים בעולם.
+                    </p>
+                    
+                    <p>
+                      <strong>השתתפות במלחמות:</strong><br />
+                      במשך עשרות השנים, חיל האוויר השתתף במלחמות ישראל:
+                      <br />• מלחמת העצמאות (1948)
+                      <br />• מלחמת ששת הימים (1967)
+                      <br />• מלחמת יום הכיפורים (1973)
+                      <br />• מלחמת לבנון הראשונה (1982)
+                      <br />• מבצעים מודרניים: "חומת מגן" (2002), "עמוד ענן" (2012)
+                    </p>
+                    
+                    <p>
+                      <strong>פיתוח טכנולוגי:</strong><br />
+                      החל משנת 1976, חיל האוויר החל לקלוט את מטוסי ה-F-16 הראשונים, מה שהפך אותו לחיל האוויר הראשון מחוץ לארה"ב שהפעיל מטוס זה.
+                    </p>
+                    
+                    <p>
+                      בשנת 2016, ישראל הפכה למדינה הראשונה מחוץ לארה"ב שקיבלה את מטוסי ה-F-35 המתקדמים.
+                    </p>
+                  </div>
+                  
+                  <div className={styles.scenarioColumn}>
+                    <p>
+                      <strong>מצב נוכחי:</strong><br />
+                      כיום, חיל האוויר מונה כ-34,000 איש, המפעילים מעל 460 כלי טיס מסוגים שונים, הפרוסים על פני 8 בסיסים עיקריים ברחבי הארץ.
+                    </p>
+                    
+                    <p>
+                      <strong>תחומי אחריות:</strong><br />
+                      החיל אחראי על הגנה אווירית, תקיפות אסטרטגיות, סיוע קרוב, חילוץ והצלה, ומשימות מודיעין אוויריות.
+                    </p>
+                    
+                    <p>
+                      <strong>מערכת מסד הנתונים:</strong><br />
+                      מערכת מסד הנתונים של חיל האוויר פותחה בשנת 1995 ועברה שדרוגים משמעותיים בשנים 2005, 2012, ו-2020.
+                    </p>
+                    
+                    <p>
+                      <strong>תחומי פעילות המערכת:</strong>
+                    </p>
+                    <ul>
+                      <li>תכנון משימות ותפעול מבצעי</li>
+                      <li>ניהול משאבי אנוש (טייסים, טכנאים, קצינים)</li>
+                      <li>מעקב אחר מצב כלי הטיס ותחזוקתם</li>
+                      <li>ניהול מלאי כלי נשק ותחמושת</li>
+                      <li>תכנון אימונים וקורסים</li>
+                      <li>ניתוח ביצועים ויעילות תפעולית</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              
+              <div className={styles.modalTablesGrid}>
+                {databaseSchema.map((table, index) => (
+                  <div key={index} className={styles.modalTableCard}>
+                    <h3 className={styles.modalTableName}>{table.name} ({table.nameHe})</h3>
+                    <div className={styles.modalTableSchema}>
+                      {table.columns.map((column, colIndex) => (
+                        <div key={colIndex} className={styles.modalColumn}>
+                          <span className={styles.modalColumnName}>{column.name}</span>
+                          <span className={styles.modalColumnType}>{column.type}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className={styles.modalDbNotes}>
+                <h3 className={styles.modalSectionTitle}>יחסים בין הטבלאות</h3>
+                <ul className={styles.modalNotesList}>
+                  <li>כל בסיס מכיל מספר טייסות (יחס 1:N)</li>
+                  <li>כל טייס משרת בטייסת אחת ובבסיס אחד (יחס 1:1)</li>
+                  <li>כל כלי טיס משויך לטייסת אחת (יחס 1:1)</li>
+                  <li>כלי נשק מאוחסנים בבסיסים שונים (יחס N:1)</li>
+                  <li>כל משימה כוללת טייסת, טייס וכלי טיס ספציפיים - יחסי N:1 בין משימות לטייסת/טייס/כלי טיס</li>
+                  <li>כל כלי טיס עובר תחזוקות מרובות (יחס 1:N)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // Determine difficulty and time limit based on question index
   const getDifficultyForQuestion = (questionIndex: number) => {
@@ -304,7 +437,9 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
     
     try {
       const questionDifficulty = getDifficultyForQuestion(questionIndex);
-      const timeLimit = EXAM_STRUCTURE[questionDifficulty].timePerQuestion;
+      const baseTimeLimit = EXAM_STRUCTURE[questionDifficulty].timePerQuestion;
+      const factor = 1 + (extraTimePercentage / 100);
+      const timeLimit = Math.round(baseTimeLimit * factor);
       
       // Generate browser fingerprint for security validation
       const browserFingerprint = generateBrowserFingerprint();
@@ -346,14 +481,30 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
     }
   }, [examSession.examId, user.id]);
 
-  // Load first question on mount
+  // Load first question only after extraTimePercentage is fetched
   useEffect(() => {
-    console.log('ExamInterface mounted, loading first question');
-    if (!firstQuestionLoadedRef.current) {
+    if (!firstQuestionLoadedRef.current && extraTimePercentage !== undefined) {
       loadQuestion(0);
       firstQuestionLoadedRef.current = true;
     }
-  }, []); // Only run once on mount
+  }, [extraTimePercentage, loadQuestion]);
+
+  // Fetch extra time for student
+  useEffect(() => {
+    const fetchExtraTime = async () => {
+      try {
+        const response = await fetch(`/api/exam/extraTime/${user.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setExtraTimePercentage(data.percentage || 0);
+        }
+      } catch (error) {
+        console.error('Error fetching extra time:', error);
+      }
+    };
+
+    fetchExtraTime();
+  }, [user.id]);
 
   // Handle typing events for speed tracking
   const handleTyping = useCallback((value: string) => {
@@ -752,6 +903,11 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
                 </div>
                 <div className={styles.timerText}>
                   {formatTime(timeElapsed)} / {formatTime(maxTime)}
+                  {extraTimePercentage > 0 && (
+                    <div className={styles.extraTimeIndicator}>
+                      +{extraTimePercentage}% זמן נוסף
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -975,6 +1131,9 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
           )}
         </div>
       </div>
+      
+      {/* Scenario Modal */}
+      <ScenarioModal />
     </div>
   );
 };

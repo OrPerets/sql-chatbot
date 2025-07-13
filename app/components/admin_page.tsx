@@ -22,6 +22,9 @@ const AdminPage: React.FC = () => {
  const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(true);
  const [isStatuseVisible, setIsStatusVisible] = useState(true);
  const [successMessage, setSuccessMessage] = useState('');
+ const [selectedFile, setSelectedFile] = useState<File | null>(null);
+ const [isUploading, setIsUploading] = useState(false);
+ const [uploadResult, setUploadResult] = useState<any>(null);
 
  // Fetch initial token visibility state
  useEffect(() => {
@@ -138,6 +141,48 @@ const AdminPage: React.FC = () => {
    router.push('/');
  };
 
+ const handleUploadExtraTime = async () => {
+   if (!selectedFile) return;
+
+   setIsUploading(true);
+   setUploadResult(null);
+
+   try {
+     const formData = new FormData();
+     formData.append('file', selectedFile);
+
+     const response = await fetch('/api/admin/uploadExtraTime', {
+       method: 'POST',
+       body: formData,
+     });
+
+     const result = await response.json();
+
+     if (!response.ok) {
+       setUploadResult({
+         success: false,
+         message: result.error || 'שגיאה בהעלאת הקובץ',
+         details: result.details
+       });
+     } else {
+       setUploadResult({
+         success: true,
+         message: result.message,
+         summary: result.summary
+       });
+       setSelectedFile(null);
+     }
+   } catch (error) {
+     console.error('Error uploading extra time:', error);
+     setUploadResult({
+       success: false,
+       message: 'שגיאה בהעלאת הקובץ'
+     });
+   } finally {
+     setIsUploading(false);
+   }
+ };
+
  return error ? (
    <div className={styles.adminContainer}>
      <div className={styles.errorMessage}>{error}</div>
@@ -244,6 +289,72 @@ const AdminPage: React.FC = () => {
              >
                אישור שאלות בחינה
              </button>
+           </div>
+         </div>
+
+         <div className={styles.controlCard}>
+           <div className={styles.controlHeader}>
+             <BarChart3 size={20} />
+             <span>התאמות זמן בחינה</span>
+           </div>
+           <div className={styles.extraTimeManagement}>
+             <div className={styles.fileUploadSection}>
+               <input
+                 type="file"
+                 accept=".xlsx,.csv"
+                 onChange={(e) => {
+                   const file = e.target.files?.[0];
+                   if (file) {
+                     setSelectedFile(file);
+                   }
+                 }}
+                 className={styles.fileInput}
+                 id="extraTimeFile"
+               />
+               <label htmlFor="extraTimeFile" className={styles.fileInputLabel}>
+                 בחר קובץ Excel/CSV
+               </label>
+               {selectedFile && (
+                 <div className={styles.fileInfo}>
+                   <span>📄 {selectedFile.name}</span>
+                   <span>{(selectedFile.size / 1024).toFixed(1)} KB</span>
+                 </div>
+               )}
+             </div>
+             <button
+               onClick={handleUploadExtraTime}
+               disabled={!selectedFile || isUploading}
+               className={styles.uploadButton}
+             >
+               {isUploading ? 'מעלה...' : 'העלה התאמות זמן'}
+             </button>
+             {uploadResult && (
+               <div className={`${styles.uploadResult} ${uploadResult.success ? styles.success : styles.error}`}>
+                 <div className={styles.uploadResultTitle}>
+                   {uploadResult.success ? '✅ הצלחה' : '❌ שגיאה'}
+                 </div>
+                 <div className={styles.uploadResultMessage}>
+                   {uploadResult.message}
+                 </div>
+                 {uploadResult.summary && (
+                   <div className={styles.uploadSummary}>
+                     <div>סה"כ רשומות: {uploadResult.summary.totalRecords}</div>
+                     <div>נוספו: {uploadResult.summary.inserted}</div>
+                     <div>עודכנו: {uploadResult.summary.updated}</div>
+                     <div>שגיאות: {uploadResult.summary.errors}</div>
+                   </div>
+                 )}
+               </div>
+             )}
+             <div className={styles.uploadInstructions}>
+               <h4>הוראות:</h4>
+               <ul>
+                 <li>הקובץ חייב להכיל עמודות: ID (מספר זהות) ו-PERCENTAGE (אחוז זמן נוסף)</li>
+                 <li>אחוז הזמן הנוסף חייב להיות בין 0 ל-100</li>
+                 <li>במקרה של כפילויות, הרשומה האחרונה תתקבל</li>
+                 <li>תמיכה בקבצי .xlsx ו-.csv</li>
+               </ul>
+             </div>
            </div>
          </div>
        </div>

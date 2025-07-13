@@ -500,6 +500,94 @@
   z-index: 1;
 }
 
+/* Timer Section */
+.timerSection {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.timerContainer {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  padding: 10px;
+  box-shadow: 0 4px 20px rgba(19, 17, 55, 0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.timerCircle {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timerProgress {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.timerSvg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.timerBackground {
+  fill: none;
+  stroke: rgba(19, 17, 55, 0.1);
+  stroke-linecap: round;
+}
+
+.timerFill {
+  fill: none;
+  stroke: #2c5aa0;
+  stroke-linecap: round;
+  transition: stroke-dasharray 1s ease;
+}
+
+.timerText {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: #131137;
+  direction: rtl;
+}
+
+.timerMinutes {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #131137;
+  line-height: 1;
+  margin-bottom: 0.3rem;
+}
+
+.timerLabel {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .tablesGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -1047,6 +1135,25 @@
   .backButton {
     padding: 0.8rem 1.5rem;
     font-size: 0.9rem;
+  }
+
+  .timerSection {
+    top: 80px;
+    right: 15px;
+  }
+
+  .timerContainer {
+    width: 100px;
+    height: 100px;
+    padding: 8px;
+  }
+
+  .timerMinutes {
+    font-size: 1.2rem;
+  }
+
+  .timerLabel {
+    font-size: 0.6rem;
   }
 
   /* Stack sections vertically on mobile */

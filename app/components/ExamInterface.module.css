@@ -151,6 +151,13 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
+.extraTimeIndicator {
+  font-size: 0.75rem;
+  color: #fbbf24;
+  margin-top: 0.25rem;
+  font-weight: 500;
+}
+
 .timer {
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(10px);
@@ -408,6 +415,268 @@
 .notesList li::before {
   content: '💡';
   font-size: 0.7rem; /* Reduced size */
+  flex-shrink: 0;
+}
+
+/* Scenario Button */
+.scenarioButton {
+  background: linear-gradient(135deg, #131137 0%, #2c5aa0 100%);
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(19, 17, 55, 0.3);
+  margin-bottom: 1rem;
+  width: 100%;
+  text-align: center;
+}
+
+.scenarioButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(19, 17, 55, 0.4);
+}
+
+/* Modal Styles */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  overflow: hidden;
+}
+
+.modalContent {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  width: 70vw;
+  max-width: 1200px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  scroll-behavior: auto;
+  isolation: isolate;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background: linear-gradient(135deg, #131137 0%, #2c5aa0 100%);
+  color: white;
+  border-radius: 20px 20px 0 0;
+}
+
+.modalTitle {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.modalClose {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 0.5rem;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.modalClose:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.modalBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+  scroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scroll-snap-type: none;
+  scroll-padding: 0;
+  position: relative;
+  isolation: isolate;
+  will-change: scroll-position;
+}
+
+.scenarioContent {
+  direction: rtl;
+  scroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scenarioDescription {
+  margin-bottom: 2rem;
+  scroll-behavior: auto;
+  will-change: auto;
+}
+
+.scenarioColumns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.scenarioColumn p {
+  margin-bottom: 1rem;
+  line-height: 1.6;
+  color: #374151;
+  scroll-behavior: auto;
+}
+
+.scenarioColumn strong {
+  color: #131137;
+  font-weight: 700;
+}
+
+.scenarioColumn ul {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+}
+
+.scenarioColumn ul li {
+  padding: 0.5rem 0;
+  color: #374151;
+  position: relative;
+  padding-right: 1.5rem;
+}
+
+.scenarioColumn ul li::before {
+  content: '•';
+  color: #2c5aa0;
+  font-weight: bold;
+  position: absolute;
+  right: 0;
+}
+
+.modalTablesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  scroll-behavior: auto;
+}
+
+.modalTableCard {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid rgba(19, 17, 55, 0.1);
+  transition: all 0.3s ease;
+  scroll-behavior: auto;
+  will-change: auto;
+}
+
+.modalTableCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(19, 17, 55, 0.15);
+}
+
+.modalTableName {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #131137;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.modalTableName::before {
+  content: '📊';
+  font-size: 1rem;
+}
+
+.modalTableSchema {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.modalColumn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.8rem;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  border: 1px solid rgba(19, 17, 55, 0.05);
+}
+
+.modalColumnName {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #2c5aa0;
+  font-size: 0.85rem;
+}
+
+.modalColumnType {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.modalDbNotes {
+  background: rgba(251, 191, 36, 0.08);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  scroll-behavior: auto;
+  will-change: auto;
+}
+
+.modalSectionTitle {
+  color: #bc8700;
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.modalNotesList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.modalNotesList li {
+  padding: 0.5rem 0;
+  color: #92400e;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 0.9rem;
+}
+
+.modalNotesList li::before {
+  content: '💡';
+  font-size: 0.9rem;
   flex-shrink: 0;
 }
 
@@ -892,6 +1161,39 @@
 
   .difficultyStats {
     gap: 1rem;
+  }
+
+  /* Modal mobile styles */
+  .modalContent {
+    width: 95vw;
+    max-height: 95vh;
+  }
+
+  .modalHeader {
+    padding: 1rem 1.5rem;
+  }
+
+  .modalTitle {
+    font-size: 1.2rem;
+  }
+
+  .modalBody {
+    padding: 1.5rem;
+  }
+
+  .scenarioColumns {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .modalTablesGrid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .scenarioButton {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
   }
 }
 

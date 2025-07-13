@@ -6,7 +6,8 @@ import styles from "./page.module.css";
 import ExamInterface from "../components/ExamInterface";
 import config from "../config";
 import { generateBrowserFingerprint } from "../utils/browserFingerprint";
-import { ExamSecurity } from "../utils/examSecurity";
+// 1. Remove ExamSecurity import
+// import { ExamSecurity } from "../utils/examSecurity";
 
 const SERVER_BASE = config.serverUrl;
 
@@ -195,8 +196,71 @@ const InstructionsPage = ({ onContinue }: { onContinue: () => void }) => {
 
 // Database schema description component
 const DatabaseDescription = ({ onContinue }: { onContinue: () => void }) => {
+  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes = 300 seconds
+  const [timerActive, setTimerActive] = useState(true);
+
+  useEffect(() => {
+    if (!timerActive) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prevTime) => {
+        if (prevTime <= 1) {
+          setTimerActive(false);
+          onContinue(); // Automatically proceed to exam
+          return 0;
+        }
+        return prevTime - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [timerActive, onContinue]);
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleStartExam = () => {
+    setTimerActive(false);
+    onContinue();
+  };
+
   return (
     <div className={styles.databaseContainer}>
+      {/* Timer Section */}
+      <div className={styles.timerSection}>
+        <div className={styles.timerContainer}>
+          <div className={styles.timerCircle}>
+            <div className={styles.timerProgress}>
+              <svg className={styles.timerSvg} viewBox="0 0 120 120">
+                <circle
+                  className={styles.timerBackground}
+                  cx="60"
+                  cy="60"
+                  r="54"
+                  strokeWidth="8"
+                />
+                <circle
+                  className={styles.timerFill}
+                  cx="60"
+                  cy="60"
+                  r="54"
+                  strokeWidth="8"
+                  strokeDasharray={`${(timeLeft / 300) * 339.292} 339.292`}
+                  transform="rotate(-90 60 60)"
+                />
+              </svg>
+              <div className={styles.timerText}>
+                <span className={styles.timerMinutes}>{formatTime(timeLeft)}</span>
+                <span className={styles.timerLabel}>זמן נותר</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <h2 className={styles.pageTitle}>מסד נתונים לעבודה</h2>
       
       <div className={styles.scenarioHeader}>
@@ -523,7 +587,7 @@ const DatabaseDescription = ({ onContinue }: { onContinue: () => void }) => {
         </ul>
       </div>
 
-      <button onClick={onContinue} className={styles.continueButton}>
+      <button onClick={handleStartExam} className={styles.continueButton}>
         התחל עבודה
       </button>
     </div>
@@ -544,72 +608,25 @@ const ExamPage = () => {
     setIsLoading(false);
   }, []);
 
+  // 2. In handleStudentVerified, bypass all ExamSecurity logic and always proceed to 'instructions'
   const handleStudentVerified = useCallback(async (student) => {
     setVerifiedStudent(student);
     setIsLoading(true);
-    
     try {
-      // Check if student has an active session
-      const sessionCheck = await ExamSecurity.checkForActiveSession(student.id);
-      
-      if (!sessionCheck.allowed && sessionCheck.reason === 'active_session_detected') {
-        // Student has an active session - offer to continue
-        const shouldContinue = window.confirm(
-          `${sessionCheck.message}\n\nלחץ אישור להמשיך את הבחינה הקיימת או ביטול להתחיל מחדש.`
-        );
-        
-        if (shouldContinue && sessionCheck.existingSession) {
-          // Validate access to the existing session
-          const accessValidation = await ExamSecurity.validateExamAccess(student.id);
-          
-          if (accessValidation.allowed) {
-            // Continue existing session
-            setExamSession({
-              examId: sessionCheck.existingSession.examId,
-              ...sessionCheck.existingSession
-            });
-            ExamSecurity.initializeExamSecurity(student.id, sessionCheck.existingSession.examId);
-            setCurrentStep('exam');
-            return;
-          } else {
-            // Access denied - show error and don't allow continuation
-            setError(accessValidation.message || 'הגישה לבחינה הקיימת נחסמה');
-            return;
-          }
-        }
-      }
-      
-      // Check if environment is secure
-      const securityCheck = ExamSecurity.isSecureEnvironment();
-      if (!securityCheck.secure && securityCheck.warnings.length > 0) {
-        const continueAnyway = window.confirm(
-          `אזהרת אבטחה:\n${securityCheck.warnings.join('\n')}\n\nהאם תרצה להמשיך בכל זאת?`
-        );
-        
-        if (!continueAnyway) {
-          setError('הבחינה בוטלה מסיבות אבטחה');
-          return;
-        }
-      }
-      
-      // Proceed to instructions
+      // BYPASS: Always proceed to instructions
       setCurrentStep('instructions');
     } catch (error) {
-      console.error('Error during student verification:', error);
       setError('שגיאה בבדיקת מצב הבחינה. אנא נסה שוב.');
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  // 3. In startExam, remove browserFingerprint and ExamSecurity.initializeExamSecurity
   const startExam = useCallback(async () => {
     if (!verifiedStudent) return;
-    
     setIsLoading(true);
     try {
-      // Generate browser fingerprint for security
-      const browserFingerprint = generateBrowserFingerprint();
-      
       const response = await fetch(`${SERVER_BASE}/exam/start`, {
         method: 'POST',
         headers: {
@@ -620,33 +637,20 @@ const ExamPage = () => {
           studentName: verifiedStudent.name,
           studentEmail: user?.email || `student_${verifiedStudent.id}@exam.local`,
           examTitle: 'בחינת מיומנות SQL',
-          browserFingerprint: browserFingerprint
+          // browserFingerprint: browserFingerprint // DISABLED
         }),
       });
-
       const sessionData = await response.json();
-
       if (!response.ok) {
-        // Handle security-related errors specifically
         if (response.status === 403) {
           setError(sessionData.message || 'הגישה לבחינה נחסמה');
           return;
         }
         throw new Error(sessionData.error || 'Failed to start exam');
       }
-
-      // Check if this is a reconnection to existing session
-      if (sessionData.reconnection) {
-        console.log('Reconnecting to existing exam session');
-      } else {
-        // Initialize security for new session
-        ExamSecurity.initializeExamSecurity(verifiedStudent.id, sessionData.examId);
-      }
-
       setExamSession(sessionData);
       setCurrentStep('exam');
     } catch (error) {
-      console.error('Error starting exam:', error);
       setError('שגיאה בהתחלת העבודה. אנא נסה שוב.');
     } finally {
       setIsLoading(false);

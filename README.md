@@ -165,6 +165,57 @@ The avatar system supports these states:
 
 Add new states by updating the state type and switch statements.
 
+## 📚 Exam Mode Features
+
+### Enhanced Exam Interface
+
+The platform includes a comprehensive exam system with advanced features:
+
+#### 1. Five-Minute Scenario Timer
+- **Automatic countdown**: 5-minute timer starts when scenario page loads
+- **Visual progress**: Circular progress indicator with mm:ss format
+- **Auto-navigation**: Automatically proceeds to Question 1 when timer expires
+- **Manual override**: Students can start early by clicking "Start Exam"
+
+#### 2. Full Scenario Modal
+- **Quick access**: "תרחיש" button above schema panel in questions
+- **Complete context**: Full scenario page content in modal popup
+- **Non-intrusive**: Doesn't affect question timer or exam flow
+- **Responsive design**: Works on desktop and mobile devices
+
+#### 3. Extra Time Accommodations
+- **Admin upload**: Excel/CSV file upload for bulk extra time assignments
+- **Flexible format**: Supports .xlsx and .csv files with ID and PERCENTAGE columns
+- **Validation**: Automatic validation of file format and data integrity
+- **Personalized timing**: Individual time adjustments applied to all question timers
+
+### Admin Features
+
+#### Extra Time Management
+Access the admin panel at `/admin` to manage extra time accommodations:
+
+1. **File Upload**: Upload Excel/CSV files with student accommodations
+2. **Format Requirements**:
+   - Column headers: `ID` (student ID) and `PERCENTAGE` (0-100)
+   - Example: `304993082,25` (25% extra time for student 304993082)
+3. **Validation**: Automatic validation of file format and data ranges
+4. **Results**: Detailed upload summary with success/error counts
+
+#### File Format Example
+```csv
+ID,PERCENTAGE
+304993082,25
+035678622,15
+123456789,30
+987654321,0
+```
+
+### Exam Security Features
+- **Browser fingerprinting**: Prevents session sharing
+- **Copy/paste blocking**: Disabled in SQL editor during exams
+- **Session validation**: Automatic session checks and recovery
+- **Auto-save**: Automatic answer saving every 5 seconds
+
 ## 🔍 Troubleshooting
 
 ### 3D Avatar Not Loading
