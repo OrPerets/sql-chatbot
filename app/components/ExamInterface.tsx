@@ -780,63 +780,8 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
 
   if (examCompleted && examResults) {
     return (
-      <div className={styles.resultsContainer}>
-        <h2 className={styles.resultsTitle}>העבודה הושלמה! 🎉</h2>
-        
-        <div className={styles.scoreContainer}>
-          <div className={styles.scoreCircle}>
-            <span className={styles.scoreText}>
-              {Math.round(examResults.statistics.accuracy)}%
-            </span>
-          </div>
-        </div>
-
-        <div className={styles.statsGrid}>
-          <div className={styles.statCard}>
-            <span className={styles.statLabel}>תשובות נכונות</span>
-            <span className={styles.statValue}>{examResults.statistics.correctAnswers}</span>
-          </div>
-          <div className={styles.statCard}>
-            <span className={styles.statLabel}>סך הכל שאלות</span>
-            <span className={styles.statValue}>{examResults.statistics.totalQuestions}</span>
-          </div>
-          <div className={styles.statCard}>
-            <span className={styles.statLabel}>זמן ממוצע</span>
-            <span className={styles.statValue}>
-              {Math.round(examResults.statistics.averageTimePerQuestion)} שניות
-            </span>
-          </div>
-        </div>
-
-        <div className={styles.difficultyBreakdown}>
-          <h3>שאלות לפי רמת קושי</h3>
-          <div className={styles.difficultyStats}>
-            <div className={styles.difficultyItem}>
-              <span className={styles.difficultyLabel} style={{ color: getDifficultyColor('easy') }}>
-                קל
-              </span>
-              <span className={styles.difficultyCount}>
-                {examResults.statistics.difficultyBreakdown.easy}
-              </span>
-            </div>
-            <div className={styles.difficultyItem}>
-              <span className={styles.difficultyLabel} style={{ color: getDifficultyColor('medium') }}>
-                בינוני
-              </span>
-              <span className={styles.difficultyCount}>
-                {examResults.statistics.difficultyBreakdown.medium}
-              </span>
-            </div>
-            <div className={styles.difficultyItem}>
-              <span className={styles.difficultyLabel} style={{ color: getDifficultyColor('hard') }}>
-                קשה
-              </span>
-              <span className={styles.difficultyCount}>
-                {examResults.statistics.difficultyBreakdown.hard}
-              </span>
-            </div>
-          </div>
-        </div>
+      <div className={styles.resultsContainer} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
+        <h2 className={styles.resultsTitle} style={{ fontSize: '2.5rem', margin: '0', textAlign: 'center' }}>בחינה נשמרה בהצלחה</h2>
       </div>
     );
   }

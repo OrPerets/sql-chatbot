@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, Users, Settings, BarChart3 } from 'lucide-react';
+import { LogOut, Users, Settings, BarChart3, FileText } from 'lucide-react';
 import styles from './admin_page.module.css';
 import config from '../config';
 
@@ -288,6 +288,21 @@ const AdminPage: React.FC = () => {
                className={styles.questionsButton}
              >
                אישור שאלות בחינה
+             </button>
+           </div>
+         </div>
+
+         <div className={styles.controlCard}>
+           <div className={styles.controlHeader}>
+             <FileText size={20} />
+             <span>בדיקה וציונים</span>
+           </div>
+           <div className={styles.examGrading}>
+             <button
+               onClick={() => router.push('/admin/exam-grading')}
+               className={styles.examGradingButton}
+             >
+               בדיקה וציונים - בחינות
              </button>
            </div>
          </div>

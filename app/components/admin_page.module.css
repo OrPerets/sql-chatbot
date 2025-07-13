@@ -176,6 +176,25 @@
   background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
 }
 
+.examGradingButton {
+  background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+  color: white;
+  border: none;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.examGradingButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+}
+
 /* Extra Time Management */
 .extraTimeManagement {
   display: flex;
