@@ -7,6 +7,12 @@ import Editor from '@monaco-editor/react';
 import { generateBrowserFingerprint } from '../utils/browserFingerprint';
 import { ExamSecurity } from '../utils/examSecurity';
 
+declare global {
+  interface Window {
+    html2pdf?: any;
+  }
+}
+
 const SERVER_BASE = config.serverUrl;
 
 interface Question {
@@ -42,8 +48,33 @@ interface ExamInterfaceProps {
 const EXAM_STRUCTURE = {
   easy: { count: 6, timePerQuestion: 6 * 60 }, // 6 minutes in seconds
   medium: { count: 3, timePerQuestion: 9 * 60 }, // 9 minutes in seconds
-  hard: { count: 4, timePerQuestion: 14 * 60 } // 14 minutes in seconds
+  hard: { count: 3, timePerQuestion: 14 * 60 }, // 14 minutes in seconds
+  algebra: { count: 1, timePerQuestion: 12 * 60 } // 12 minutes in seconds
 };
+
+// Question distribution: 1 easy first, then 12 randomized (5 easy, 3 medium, 3 hard, 1 algebra)
+const QUESTION_DISTRIBUTION = [
+  'easy', // First question is always easy
+  // Then 12 randomized questions: 5 easy, 3 medium, 3 hard, 1 algebra
+  ...Array(5).fill('easy'),
+  ...Array(3).fill('medium'),
+  ...Array(3).fill('hard'),
+  ...Array(1).fill('algebra')
+];
+
+// Shuffle the array (Fisher-Yates algorithm)
+const shuffleArray = (array: string[]) => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
+// Create the final question order
+const QUESTION_ORDER = shuffleArray(QUESTION_DISTRIBUTION.slice(1)); // Skip first easy question
+QUESTION_ORDER.unshift('easy'); // Add easy question at the beginning
 
 const ALGEBRA_SYMBOLS = [
   { symbol: 'σ', label: 'Select' },
@@ -105,6 +136,8 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
   const questionStartTimeRef = useRef<Date>(new Date());
   const firstQuestionLoadedRef = useRef(false);
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scenarioModalScrollRef = useRef<number>(0);
+  const modalContentRef = useRef<HTMLDivElement>(null);
 
   // Database schema data - Israeli Air Force Management System
   const databaseSchema = [
@@ -183,7 +216,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
         { name: 'squadron_id', type: 'הטייסת המבצעת (מפתח זר)' },
         { name: 'pilot_id', type: 'הטייס הראשי (מפתח זר)' },
         { name: 'aircraft_id', type: 'כלי הטיס (מפתח זר)' },
-        { name: 'start_date', type: 'תאריך ושעת תחילה' },
+        { name: 'start_date', type: 'תאריך התחלה' },
         { name: 'mission_status', type: 'סטטוס נוכחי' }
       ]
     },
@@ -194,7 +227,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
         { name: 'maintenance_id', type: 'מזהה ייחודי של התחזוקה' },
         { name: 'aircraft_id', type: 'כלי הטיס (מפתח זר)' },
         { name: 'maintenance_type', type: 'סוג התחזוקה' },
-        { name: 'start_date', type: 'תאריך תחילת התחזוקה' },
+        { name: 'start_date', type: 'תאריך התחלה' },
         { name: 'end_date', type: 'תאריך סיום התחזוקה' },
         { name: 'cost', type: 'עלות התחזוקה באלפי ש"ח' }
       ]
@@ -204,26 +237,36 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
   // Schema Sidebar Component
   const SchemaSidebar = () => (
     <div className={styles.schemaSidebar}>
-      <div className={styles.sidebarHeader}>
-        <h3 className={styles.sidebarTitle}>מערכת ניהול חיל האוויר</h3>
-        <button 
-          className={styles.toggleSidebarBtn}
-          onClick={() => setSidebarVisible(!sidebarVisible)}
-          title={sidebarVisible ? 'הסתר סרגל צד' : 'הצג סרגל צד'}
-        >
-          {sidebarVisible ? '←' : '→'}
-        </button>
-      </div>
+        <div className={styles.sidebarHeader}>
+          <h3 className={styles.sidebarTitle}>מערכת ניהול חיל האוויר</h3>
+          <button 
+            className={styles.toggleSidebarBtn}
+            onClick={() => setSidebarVisible(!sidebarVisible)}
+            title={sidebarVisible ? 'הסתר סרגל צד' : 'הצג סרגל צד'}
+          >
+            {sidebarVisible ? '←' : '→'}
+          </button>
+        </div>
       
-      {/* Scenario Button */}
+      {/* Database Button */}
       <button 
         className={styles.scenarioButton}
         onClick={() => setShowScenarioModal(true)}
-        title="צפה בתרחיש המלא"
+        title="פתח / סגור בסיס נתונים"
       >
-        תרחיש
+        בסיס נתונים
       </button>
       
+      {/* PDF Download Button */}
+      <button 
+        className={styles.pdfDownloadButton}
+        onClick={() => downloadScenarioPDF()}
+        title="הורדת קובץ PDF"
+      >
+        להורדת קובץ PDF
+      </button>
+      
+     
       {sidebarVisible && (
         <div className={styles.sidebarContent}>
           {databaseSchema.map((table, index) => (
@@ -235,8 +278,8 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
               <div className={styles.columnsList}>
                 {table.columns.map((column, colIndex) => (
                   <div key={colIndex} className={styles.columnItem}>
-                    <span className={styles.columnName}>{column.name}</span>
                     <span className={styles.columnType}>{column.type}</span>
+                    <span className={styles.columnName}>{column.name}</span>
                   </div>
                 ))}
               </div>
@@ -247,10 +290,13 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
             <h4 className={styles.notesTitle}>יחסים בין הטבלאות:</h4>
             <ul className={styles.notesList}>
               <li>כל בסיס מכיל מספר טייסות (יחס 1:N)</li>
-              <li>כל טייס משרת בטייסת אחת ובבסיס אחד (יחסי N:1)</li>
+              <li>כל טייס משרת בטייסת אחת (יחס N:1)</li>
+              <li>כל טייסת ממוקמת בבסיס אחד (יחס N:1)</li>
               <li>כל כלי טיס משויך לטייסת אחת (יחס N:1)</li>
               <li>כלי נשק מאוחסנים בבסיסים שונים (יחס N:1)</li>
-              <li>כל משימה כוללת טייסת, טייס וכלי טיס ספציפיים (יחסי N:1)</li>
+              <li>כל משימה כוללת טייסת ספציפית (יחס 1:1)</li>
+              <li>כל משימה כוללת טייס ספציפי (יחס 1:1)</li>
+              <li>כל משימה כוללת כלי טיס ספציפי (יחס 1:1)</li>
               <li>כל כלי טיס עובר תחזוקות מרובות (יחס 1:N)</li>
             </ul>
           </div>
@@ -271,9 +317,36 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
       }
     };
 
+    // Handle scroll position restoration and saving
+    useEffect(() => {
+      const modal = modalContentRef.current;
+      if (modal && showScenarioModal) {
+        // Restore scroll position when modal opens (single attempt)
+        if (scenarioModalScrollRef.current > 0) {
+          setTimeout(() => {
+            if (modal) {
+              modal.scrollTop = scenarioModalScrollRef.current;
+            }
+          }, 100);
+        }
+        
+        // Save scroll position when modal closes
+        return () => {
+          if (modal) {
+            scenarioModalScrollRef.current = modal.scrollTop;
+          }
+        };
+      }
+    }, [showScenarioModal]);
+
     return (
       <div className={styles.modalOverlay} onClick={handleClose}>
-        <div className={styles.modalContent} onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
+        <div 
+          ref={modalContentRef}
+          className={styles.modalContent} 
+          onClick={(e) => e.stopPropagation()} 
+          onKeyDown={handleKeyDown}
+        >
           <div className={styles.modalHeader}>
             <h2 className={styles.modalTitle}>תרחיש: מערכת ניהול חיל האוויר הישראלי</h2>
             <button className={styles.modalClose} onClick={handleClose}>
@@ -354,8 +427,8 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
                     <div className={styles.modalTableSchema}>
                       {table.columns.map((column, colIndex) => (
                         <div key={colIndex} className={styles.modalColumn}>
-                          <span className={styles.modalColumnName}>{column.name}</span>
                           <span className={styles.modalColumnType}>{column.type}</span>
+                          <span className={styles.modalColumnName}>{column.name}</span>
                         </div>
                       ))}
                     </div>
@@ -367,10 +440,13 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
                 <h3 className={styles.modalSectionTitle}>יחסים בין הטבלאות</h3>
                 <ul className={styles.modalNotesList}>
                   <li>כל בסיס מכיל מספר טייסות (יחס 1:N)</li>
-                  <li>כל טייס משרת בטייסת אחת ובבסיס אחד (יחס 1:1)</li>
-                  <li>כל כלי טיס משויך לטייסת אחת (יחס 1:1)</li>
+                  <li>כל טייס משרת בטייסת אחת (יחס N:1)</li>
+                  <li>כל טייסת ממוקמת בבסיס אחד (יחס N:1)</li>
+                  <li>כל כלי טיס משויך לטייסת אחת (יחס N:1)</li>
                   <li>כלי נשק מאוחסנים בבסיסים שונים (יחס N:1)</li>
-                  <li>כל משימה כוללת טייסת, טייס וכלי טיס ספציפיים - יחסי N:1 בין משימות לטייסת/טייס/כלי טיס</li>
+                  <li>כל משימה כוללת טייסת ספציפית (יחס 1:1)</li>
+                  <li>כל משימה כוללת טייס ספציפי (יחס 1:1)</li>
+                  <li>כל משימה כוללת כלי טיס ספציפי (יחס 1:1)</li>
                   <li>כל כלי טיס עובר תחזוקות מרובות (יחס 1:N)</li>
                 </ul>
               </div>
@@ -383,13 +459,10 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
 
   // Determine difficulty and time limit based on question index
   const getDifficultyForQuestion = (questionIndex: number) => {
-    if (questionIndex < EXAM_STRUCTURE.easy.count) {
-      return 'easy';
-    } else if (questionIndex < EXAM_STRUCTURE.easy.count + EXAM_STRUCTURE.medium.count) {
-      return 'medium';
-    } else {
-      return 'hard';
+    if (questionIndex >= 0 && questionIndex < QUESTION_ORDER.length) {
+      return QUESTION_ORDER[questionIndex];
     }
+    return 'easy'; // fallback
   };
 
   // Auto-save function
@@ -482,14 +555,6 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
     }
   }, [examSession.examId, user.id]);
 
-  // Load first question only after extraTimePercentage is fetched
-  useEffect(() => {
-    if (!firstQuestionLoadedRef.current && extraTimeLoaded) {
-      loadQuestion(0);
-      firstQuestionLoadedRef.current = true;
-    }
-  }, [extraTimeLoaded, loadQuestion]);
-
   // Fetch extra time for student
   useEffect(() => {
     const fetchExtraTime = async () => {
@@ -498,15 +563,40 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
         if (response.ok) {
           const data = await response.json();
           setExtraTimePercentage(data.percentage || 0);
+        } else {
+          // If request fails, use default 0%
+          setExtraTimePercentage(0);
         }
       } catch (error) {
         console.error('Error fetching extra time:', error);
+        // If fetch fails, use default 0%
+        setExtraTimePercentage(0);
       } finally {
         setExtraTimeLoaded(true);
       }
     };
     fetchExtraTime();
   }, [user.id]);
+
+  // Load first question only after extraTimePercentage is fetched and ready
+  useEffect(() => {
+    if (!firstQuestionLoadedRef.current && extraTimeLoaded) {
+      loadQuestion(0);
+      firstQuestionLoadedRef.current = true;
+    }
+  }, [extraTimeLoaded, loadQuestion]);
+
+  // Update maxTime only when currentQuestion, extraTimeLoaded, and extraTimePercentage are ready
+  useEffect(() => {
+    if (currentQuestion && extraTimeLoaded) {
+      const baseTimeLimit = EXAM_STRUCTURE[difficulty].timePerQuestion;
+      const factor = 1 + (extraTimePercentage / 100);
+      const timeLimit = Math.round(baseTimeLimit * factor);
+      setMaxTime(timeLimit);
+      setTimeElapsed(0); // Reset timer only when question or extra time changes
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentQuestion, extraTimeLoaded, extraTimePercentage, difficulty]);
 
   // Handle typing events for speed tracking
   const handleTyping = useCallback((value: string) => {
@@ -542,6 +632,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
       case 'easy': return '#22c55e';
       case 'medium': return '#f59e0b';
       case 'hard': return '#ef4444';
+      case 'algebra': return '#8b5cf6';
       default: return '#6b7280';
     }
   };
@@ -715,7 +806,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
     const blockMiddleClick = (e: MouseEvent) => {
       if (e.button === 1) { // Middle mouse button
         e.preventDefault();
-        e.stopPropagation();
+        // Don't use stopPropagation to allow scrolling
         console.log('Middle-click paste blocked for exam security');
       }
     };
@@ -729,9 +820,8 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
     document.addEventListener('drop', blockDragDrop);
     document.addEventListener('dragover', blockDragDrop);
     document.addEventListener('dragenter', blockDragDrop);
+    // Only block middle click on mouse down to prevent scroll interference
     document.addEventListener('mousedown', blockMiddleClick);
-    document.addEventListener('mouseup', blockMiddleClick);
-    document.addEventListener('click', blockMiddleClick);
 
     // Cleanup function
     return () => {
@@ -744,8 +834,6 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
       document.removeEventListener('dragover', blockDragDrop);
       document.removeEventListener('dragenter', blockDragDrop);
       document.removeEventListener('mousedown', blockMiddleClick);
-      document.removeEventListener('mouseup', blockMiddleClick);
-      document.removeEventListener('click', blockMiddleClick);
     };
   }, []); // Run once on mount
 
@@ -820,7 +908,39 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
       case 'easy': return 'קל';
       case 'medium': return 'בינוני';
       case 'hard': return 'קשה';
+      case 'algebra': return 'אלגברה יחסית';
       default: return diff;
+    }
+  };
+
+  const downloadScenarioPDF = () => {
+    // Create a link to download the existing DB.pdf file
+    const link = document.createElement('a');
+    link.href = '/DB.pdf'; // Path to the PDF in public folder
+    link.download = 'DB.pdf'; // Name for the downloaded file
+    link.target = '_blank'; // Open in new tab as fallback
+    
+    // Trigger the download
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const downloadScenarioHTML = () => {
+    const modal = modalContentRef.current;
+    if (modal && showScenarioModal) {
+      const html = `<!DOCTYPE html><html lang="he"><head><meta charset='utf-8'><title>תרחיש: מערכת ניהול חיל האוויר הישראלי</title><style>body{font-family:Arial,sans-serif;direction:rtl;background:#f8fafc;margin:0;padding:2em;}h2{color:#131137;}p,li{color:#374151;}ul{padding-right:1.5em;}div{box-sizing:border-box;}@media(max-width:600px){body{padding:0.5em;}}</style></head><body>${modal.innerHTML}</body></html>`;
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'תרחיש_מערכת_ניהול_חיל_האוויר.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } else {
+      alert('יש לפתוח את התרחיש (בסיס נתונים) לפני הורדת HTML.');
     }
   };
 
@@ -861,7 +981,16 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
                   {formatTime(timeElapsed)} / {formatTime(maxTime)}
                   {extraTimePercentage > 0 && (
                     <div className={styles.extraTimeIndicator}>
-                      +{extraTimePercentage}% זמן נוסף
+                      <div className={styles.originalTime}>
+                        <span className={styles.originalTimeLabel}>זמן מקורי:</span>
+                        <span className={styles.originalTimeValue}>
+                          {formatTime(Math.round(EXAM_STRUCTURE[difficulty].timePerQuestion))}
+                        </span>
+                      </div>
+                      <div className={styles.extraTimeDisplay}>
+                        <span className={styles.extraTimeLabel}>+{extraTimePercentage}%</span>
+                        <span className={styles.newTimeLabel}>תוספת זמן</span>
+                      </div>
                     </div>
                   )}
                 </div>

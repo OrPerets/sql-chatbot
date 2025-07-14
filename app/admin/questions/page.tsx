@@ -572,6 +572,7 @@ const QuestionApprovalPage: React.FC = () => {
       case 'easy': return '#48bb78';
       case 'medium': return '#ed8936';
       case 'hard': return '#e53e3e';
+      case 'algebra': return '#8b5cf6';
       default: return '#718096';
     }
   };
@@ -581,6 +582,7 @@ const QuestionApprovalPage: React.FC = () => {
       case 'easy': return 'קל';
       case 'medium': return 'בינוני';
       case 'hard': return 'קשה';
+      case 'algebra': return 'אלגברה יחסית';
       default: return difficulty;
     }
   };

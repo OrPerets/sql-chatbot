@@ -500,42 +500,91 @@
   z-index: 1;
 }
 
-/* Timer Section */
-.timerSection {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 1000;
+/* Scenario Header with Subtitle */
+.scenarioHeader {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.scenarioTitle {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #131137;
+  margin: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.studentInfoSubtitle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: rgba(19, 17, 55, 0.05);
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(19, 17, 55, 0.1);
+  min-width: 200px;
+}
+
+.studentIdSubtitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2c5aa0;
+  direction: ltr;
+  text-align: center;
+}
+
+.extraTimeSubtitle {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #6b7280;
+  text-align: center;
+}
+
+/* Timer Section - Simplified */
+.timerSection {
+  flex: 0 0 auto;
+  display: flex;
   align-items: center;
+  justify-content: center;
 }
 
 .timerContainer {
-  position: relative;
-  width: 120px;
-  height: 120px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 50%;
-  padding: 10px;
-  box-shadow: 0 4px 20px rgba(19, 17, 55, 0.15);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: linear-gradient(135deg, #131137 0%, #2c5aa0 100%);
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 8px 25px rgba(19, 17, 55, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  min-width: 120px;
 }
 
-.timerCircle {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.timerMinutes {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  color: white;
 }
 
-.timerProgress {
-  position: relative;
-  width: 100%;
-  height: 100%;
+.timerLabel {
+  font-size: 0.8rem;
+  font-weight: 500;
+  opacity: 0.9;
+  color: white;
+}
+
+.timerSubtext {
+  font-size: 0.7rem;
+  font-weight: 400;
+  opacity: 0.8;
+  color: white;
+  margin-top: 0.25rem;
+  text-align: center;
 }
 
 .timerSvg {
@@ -566,7 +615,7 @@
   left: 50%;
   transform: translate(-50%, -50%);
   text-align: center;
-  color: #131137;
+  color: white;
   direction: rtl;
 }
 
@@ -574,6 +623,7 @@
   display: block;
   font-size: 1.5rem;
   font-weight: 700;
+  
   color: #131137;
   line-height: 1;
   margin-bottom: 0.3rem;
@@ -1191,3 +1241,40 @@
     grid-template-columns: 1fr; /* Single column for better readability in narrow space */
   }
 } 
+
+.scenarioHeader .timerMinutes, .databaseContainer .timerMinutes, .timerContainer .timerMinutes {
+  color: white !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+} 
+
+.scenarioHeader .timerLabel, .databaseContainer .timerLabel, .timerContainer .timerLabel {
+  color: white !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+} 
+
+/* PDF Button in Database Description */
+.pdfButtonContainer {
+  display: flex;
+  justify-content: center;
+  margin: 1rem 0 2rem 0;
+}
+
+.pdfDownloadButton {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3);
+  text-align: center;
+  min-width: 150px;
+}
+
+.pdfDownloadButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4);
+}

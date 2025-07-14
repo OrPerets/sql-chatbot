@@ -151,11 +151,95 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
+/* Scenario Button */
+.scenarioButton {
+  background: linear-gradient(135deg, #131137 0%, #2c5aa0 100%);
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(19, 17, 55, 0.3);
+  margin-bottom: 0.5rem;
+  width: 45%;
+  text-align: center;
+}
+
+.scenarioButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(19, 17, 55, 0.4);
+}
+
+/* PDF Download Button */
+.pdfDownloadButton {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 12px rgba(5, 150, 105, 0.3);
+  margin-bottom: 1rem;
+  width: 45%;
+  text-align: center;
+}
+
+.pdfDownloadButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(5, 150, 105, 0.4);
+}
+
+/* Enhanced Extra Time Indicator */
 .extraTimeIndicator {
   font-size: 0.75rem;
   color: #fbbf24;
   margin-top: 0.25rem;
   font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  align-items: center;
+}
+
+.originalTime {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  color: #9ca3af;
+  text-decoration: line-through;
+}
+
+.originalTimeLabel {
+  font-weight: 500;
+}
+
+.originalTimeValue {
+  font-weight: 600;
+}
+
+.extraTimeDisplay {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  color: #fbbf24;
+}
+
+.extraTimeLabel {
+  font-weight: 700;
+  color: #f59e0b;
+}
+
+.newTimeLabel {
+  font-weight: 500;
+  color: #fbbf24;
 }
 
 .timer {
@@ -247,8 +331,17 @@
   min-width: 340px;
   max-height: calc(100vh - 100px); /* Reduced from 120px */
   overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: auto; /* Changed from smooth to prevent interference */
   transition: width 0.3s ease;
   position: relative;
+  /* Fix for scroll jumping back to top */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(19, 17, 55, 0.3) rgba(19, 17, 55, 0.1);
+  /* Ensure scroll position is maintained */
+  overscroll-behavior: contain;
+  /* Prevent focus from causing scroll resets */
+  scroll-snap-type: none;
 }
 
 .schemaSidebar::before {
@@ -302,6 +395,26 @@
 
 .sidebarContent {
   padding: 1rem; /* Reduced from 1.5rem */
+}
+
+/* Sidebar scrollbar styling */
+.schemaSidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.schemaSidebar::-webkit-scrollbar-track {
+  background: rgba(19, 17, 55, 0.05);
+  border-radius: 4px;
+}
+
+.schemaSidebar::-webkit-scrollbar-thumb {
+  background: rgba(19, 17, 55, 0.3);
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.schemaSidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(19, 17, 55, 0.5);
 }
 
 .tableCard {
@@ -418,28 +531,6 @@
   flex-shrink: 0;
 }
 
-/* Scenario Button */
-.scenarioButton {
-  background: linear-gradient(135deg, #131137 0%, #2c5aa0 100%);
-  color: white;
-  border: none;
-  padding: 0.6rem 1.2rem;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(19, 17, 55, 0.3);
-  margin-bottom: 1rem;
-  width: 100%;
-  text-align: center;
-}
-
-.scenarioButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(19, 17, 55, 0.4);
-}
-
 /* Modal Styles */
 .modalOverlay {
   position: fixed;
@@ -455,7 +546,7 @@
   justify-content: center;
   z-index: 1000;
   padding: 1rem;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .modalContent {
@@ -468,12 +559,22 @@
   width: 70vw;
   max-width: 1200px;
   max-height: 90vh;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   position: relative;
-  scroll-behavior: auto;
-  isolation: isolate;
+  scroll-behavior: auto; /* Changed from smooth to prevent interference */
+  -webkit-overflow-scrolling: touch;
+  /* Prevent touch interference */
+  touch-action: auto;
+  /* Fix for modal scroll jumping back to top */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(19, 17, 55, 0.3) rgba(19, 17, 55, 0.1);
+  /* Ensure scroll position is maintained */
+  overscroll-behavior: contain;
+  /* Prevent focus from causing scroll resets */
+  scroll-snap-type: none;
 }
 
 .modalHeader {
@@ -515,28 +616,37 @@
 
 .modalBody {
   flex: 1;
-  overflow-y: auto;
   padding: 2rem;
-  scroll-behavior: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  scroll-snap-type: none;
-  scroll-padding: 0;
   position: relative;
-  isolation: isolate;
-  will-change: scroll-position;
+  min-height: 0;
+}
+
+/* Modal scrollbar styling */
+.modalContent::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modalContent::-webkit-scrollbar-track {
+  background: rgba(19, 17, 55, 0.05);
+  border-radius: 4px;
+}
+
+.modalContent::-webkit-scrollbar-thumb {
+  background: rgba(19, 17, 55, 0.3);
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.modalContent::-webkit-scrollbar-thumb:hover {
+  background: rgba(19, 17, 55, 0.5);
 }
 
 .scenarioContent {
   direction: rtl;
-  scroll-behavior: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 .scenarioDescription {
   margin-bottom: 2rem;
-  scroll-behavior: auto;
-  will-change: auto;
 }
 
 .scenarioColumns {
@@ -549,7 +659,6 @@
   margin-bottom: 1rem;
   line-height: 1.6;
   color: #374151;
-  scroll-behavior: auto;
 }
 
 .scenarioColumn strong {
@@ -583,7 +692,6 @@
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
-  scroll-behavior: auto;
 }
 
 .modalTableCard {
@@ -592,8 +700,6 @@
   padding: 1.5rem;
   border: 1px solid rgba(19, 17, 55, 0.1);
   transition: all 0.3s ease;
-  scroll-behavior: auto;
-  will-change: auto;
 }
 
 .modalTableCard:hover {
@@ -648,8 +754,6 @@
   border-radius: 12px;
   padding: 1.5rem;
   border: 1px solid rgba(251, 191, 36, 0.2);
-  scroll-behavior: auto;
-  will-change: auto;
 }
 
 .modalSectionTitle {

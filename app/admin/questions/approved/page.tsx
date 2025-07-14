@@ -24,7 +24,7 @@ const ApprovedQuestionsPage: React.FC = () => {
   const [questions, setQuestions] = useState<ApprovedQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState<'all' | 'easy' | 'medium' | 'hard'>('all');
+  const [filter, setFilter] = useState<'all' | 'easy' | 'medium' | 'hard' | 'algebra'>('all');
   const router = useRouter();
 
   useEffect(() => {
@@ -72,6 +72,7 @@ const ApprovedQuestionsPage: React.FC = () => {
       case 'easy': return '#48bb78';
       case 'medium': return '#ed8936';
       case 'hard': return '#e53e3e';
+      case 'algebra': return '#8b5cf6';
       default: return '#718096';
     }
   };
@@ -81,6 +82,7 @@ const ApprovedQuestionsPage: React.FC = () => {
       case 'easy': return 'קל';
       case 'medium': return 'בינוני';
       case 'hard': return 'קשה';
+      case 'algebra': return 'אלגברה יחסית';
       default: return difficulty;
     }
   };
@@ -220,6 +222,12 @@ const ApprovedQuestionsPage: React.FC = () => {
               </span>
             </div>
             <div className={styles.statCard}>
+              <span className={styles.statLabel}>שאלות אלגברה יחסית</span>
+              <span className={styles.statValue} style={{ color: getDifficultyColor('algebra') }}>
+                {questions.filter(q => q.difficulty === 'algebra').length}
+              </span>
+            </div>
+            <div className={styles.statCard}>
               <span className={styles.statLabel}>סה״כ נקודות</span>
               <span className={styles.statValue} style={{ color: '#805ad5', fontWeight: 'bold' }}>
                 {questions.reduce((total, q) => total + (q.points || 0), 0)}
@@ -264,6 +272,13 @@ const ApprovedQuestionsPage: React.FC = () => {
               style={{ borderColor: getDifficultyColor('hard') }}
             >
               קשה
+            </button>
+            <button 
+              onClick={() => setFilter('algebra')}
+              className={`${styles.filterButton} ${filter === 'algebra' ? styles.activeFilter : ''}`}
+              style={{ borderColor: getDifficultyColor('algebra') }}
+            >
+              אלגברה יחסית
             </button>
           </div>
         </div>
