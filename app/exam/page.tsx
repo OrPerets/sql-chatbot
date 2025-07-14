@@ -14,6 +14,7 @@ const SERVER_BASE = config.serverUrl;
 // Test students list - updated structure with string keys
 const students = {
   "304993082": {"name": "אור פרץ", "id": "304993082"},
+  "315661033": {"name": "נעם ניר", "id": "315661033"},
   "035678622": {"name": "רואי זרחיה", "id": "035678622"},
   "211359807": { "name": "בן מיכאל נועם", "id": "211359807" },
   "314652769": { "name": "בן משה יעל", "id": "314652769" },
