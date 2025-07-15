@@ -333,6 +333,9 @@
   overflow: hidden; /* Remove overflow from main container */
   transition: width 0.3s ease;
   position: relative;
+  /* Prevent layout shifts and improve stability */
+  contain: layout style;
+  flex-shrink: 0;
 }
 
 .schemaSidebar::before {
@@ -392,23 +395,23 @@
 }
 
 .sidebarContent {
-  padding: 1rem; /* Reduced from 1.5rem */
-  flex: 1; /* Take remaining space */
+  padding: 1rem;
+  flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  height: 100%;
+  position: relative;
+  overscroll-behavior-y: contain;
   scroll-behavior: auto;
-  /* Fix for scroll jumping back to top */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(19, 17, 55, 0.3) rgba(19, 17, 55, 0.1);
-  /* Ensure scroll position is maintained */
-  overscroll-behavior: contain;
-  /* Prevent focus from causing scroll resets */
-  scroll-snap-type: none;
+  -webkit-overflow-scrolling: touch;
+  /* Allow tooltips to appear above scroll container */
+  z-index: 1;
 }
 
 /* Sidebar scrollbar styling */
 .sidebarContent::-webkit-scrollbar {
   width: 8px;
+  height: 50%;
 }
 
 .sidebarContent::-webkit-scrollbar-track {
@@ -427,14 +430,16 @@
 }
 
 .tableCard {
-  background: rgba(255, 255, 255, 0.8); /* Lighter background */
-  border-radius: 12px; /* Reduced from 16px */
-  padding: 1rem; /* Reduced from 1.5rem */
-  margin-bottom: 1rem; /* Reduced margin */
-  border: 1px solid rgba(19, 17, 55, 0.06); /* Lighter border */
-  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  padding: 0.5rem;
+  margin-bottom: 0.8rem;
+  border: 1px solid rgba(19, 17, 55, 0.06);
   position: relative;
-  overflow: hidden;
+  overflow: visible; /* Allow tooltip to show */
+  cursor: pointer;
+  /* Gentle hover effect that doesn't break scroll */
+  transition: background-color 0.2s ease;
 }
 
 .tableCard::before {
@@ -449,16 +454,21 @@
 }
 
 .tableCard:hover {
-  transform: translateY(-2px); /* Reduced from -3px */
-  box-shadow: 0 8px 24px rgba(19, 17, 55, 0.1); /* Lighter shadow */
   background: rgba(255, 255, 255, 0.95);
+}
+
+.tableCard:hover .tableTooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
 }
 
 .tableHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.8rem; /* Reduced margin */
+  margin-bottom: 0;
+  position: relative;
 }
 
 .tableName {
@@ -468,40 +478,83 @@
 }
 
 .tableNameHe {
-  font-size: 0.8rem; /* Reduced font size */
+  font-size: 0.8rem;
   color: #6b7280;
 }
 
-.columnsList {
-  display: grid;
-  gap: 0.4rem; /* Reduced gap */
+.expandIcon {
+  font-size: 0.9rem;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
 }
 
-.columnItem {
+.tableCard:hover .expandIcon {
+  opacity: 1;
+}
+
+/* Tooltip Styles */
+.tableTooltip {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%) translateY(10px);
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(19, 17, 55, 0.1);
+  z-index: 1000;
+  min-width: 250px;
+  max-width: 350px;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  direction: rtl;
+}
+
+.tooltipContent h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #131137;
+  text-align: center;
+  border-bottom: 1px solid rgba(19, 17, 55, 0.1);
+  padding-bottom: 0.5rem;
+}
+
+.tooltipColumns {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.tooltipColumn {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 0.7rem; /* Reduced padding */
-  background: rgba(255, 255, 255, 0.7); /* Lighter background */
-  border-radius: 6px; /* Reduced from 8px */
-  border: 1px solid rgba(19, 17, 55, 0.04); /* Lighter border */
+  padding: 0.4rem 0.6rem;
+  background: rgba(248, 250, 252, 0.8);
+  border-radius: 6px;
+  border: 1px solid rgba(19, 17, 55, 0.04);
 }
 
-.columnItem:last-child {
-  margin-bottom: 0;
-}
-
-.columnName {
+.tooltipColumnName {
   font-family: 'Courier New', monospace;
   font-weight: 600;
   color: #2c5aa0;
-  font-size: 0.75rem; /* Reduced font size */
+  font-size: 0.75rem;
 }
 
-.columnType {
-  font-size: 0.7rem; /* Reduced font size */
+.tooltipColumnType {
+  font-size: 0.7rem;
   color: #6b7280;
+  text-align: right;
+  flex: 1;
+  margin-right: 0.5rem;
 }
+
+/* Old column styles removed - now using tooltip system */
 
 /* Sidebar Notes - Compacted */
 .sidebarNotes {

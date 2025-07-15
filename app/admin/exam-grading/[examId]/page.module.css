@@ -228,6 +228,20 @@
   color: #721c24;
 }
 
+.algebra {
+  background: #e2e3f3;
+  color: #4c4c9c;
+}
+
+.points {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #667eea;
+  color: white;
+}
+
 .timeSpent {
   display: flex;
   align-items: center;

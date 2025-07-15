@@ -65,15 +65,28 @@ const ExamGradingPage: React.FC = () => {
   useEffect(() => {
     // Initialize question grades when exam data loads
     if (examData?.answers) {
-      const initialGrades = examData.answers.map(answer => ({
-        questionIndex: answer.questionIndex,
-        score: answer.isCorrect ? 1 : 0,
-        maxScore: 1,
-        feedback: ''
-      }));
+      const initialGrades = examData.answers.map(answer => {
+        const questionPoints = answer.questionDetails?.points || 1; // Use actual points from database
+        return {
+          questionIndex: answer.questionIndex,
+          score: answer.isCorrect ? questionPoints : 0,
+          maxScore: questionPoints,
+          feedback: ''
+        };
+      });
       setQuestionGrades(initialGrades);
-      setMaxScore(examData.answers.length);
-      setTotalScore(examData.answers.filter(a => a.isCorrect).length);
+      
+      // Calculate total max score based on actual question points
+      const totalMaxScore = examData.answers.reduce((sum, answer) => 
+        sum + (answer.questionDetails?.points || 1), 0
+      );
+      setMaxScore(totalMaxScore);
+      
+      // Calculate total score based on correct answers and their points
+      const totalCurrentScore = examData.answers.reduce((sum, answer) => 
+        sum + (answer.isCorrect ? (answer.questionDetails?.points || 1) : 0), 0
+      );
+      setTotalScore(totalCurrentScore);
     }
   }, [examData]);
 
@@ -288,6 +301,7 @@ const ExamGradingPage: React.FC = () => {
         
         {examData.answers.map((answer, index) => {
           const questionGrade = questionGrades.find(g => g.questionIndex === answer.questionIndex);
+          const questionPoints = answer.questionDetails?.points || 1;
           
           return (
             <div key={answer._id} className={styles.questionCard}>
@@ -298,7 +312,12 @@ const ExamGradingPage: React.FC = () => {
                 <div className={styles.questionMeta}>
                   <span className={`${styles.difficulty} ${styles[answer.difficulty]}`}>
                     {answer.difficulty === 'easy' ? 'קל' : 
-                     answer.difficulty === 'medium' ? 'בינוני' : 'קשה'}
+                     answer.difficulty === 'medium' ? 'בינוני' : 
+                     answer.difficulty === 'hard' ? 'קשה' : 
+                     answer.difficulty === 'algebra' ? 'אלגברה' : answer.difficulty}
+                  </span>
+                  <span className={styles.points}>
+                    {questionPoints} נקודות
                   </span>
                   <span className={styles.timeSpent}>
                     <Clock size={14} />
@@ -336,13 +355,13 @@ const ExamGradingPage: React.FC = () => {
                       <input
                         type="number"
                         min="0"
-                        max="1"
+                        max={questionPoints}
                         step="0.1"
                         value={questionGrade?.score || 0}
                         onChange={(e) => handleQuestionGradeChange(answer.questionIndex, 'score', Number(e.target.value))}
                         className={styles.scoreField}
                       />
-                      <span>/ 1</span>
+                      <span>/ {questionPoints}</span>
                     </div>
                     <div className={styles.feedbackInput}>
                       <label>הערות:</label>

@@ -1,11 +1,108 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import styles from './ExamInterface.module.css';
 import config from '../config';
 import Editor from '@monaco-editor/react';
 import { generateBrowserFingerprint } from '../utils/browserFingerprint';
 import { ExamSecurity } from '../utils/examSecurity';
+
+// NUCLEAR OPTION: Database schema outside component to prevent re-renders
+const DATABASE_SCHEMA = [
+  {
+    name: 'AirBases',
+    nameHe: 'בסיסי חיל האוויר',
+    columns: [
+      { name: 'base_id', type: 'מזהה ייחודי של הבסיס' },
+      { name: 'base_name', type: 'שם הבסיס (רמת דוד, חצרים)' },
+      { name: 'base_code', type: 'קוד הבסיס (3 אותיות)' },
+      { name: 'location', type: 'אזור גיאוגרפי' },
+      { name: 'established_year', type: 'שנת הקמה' },
+      { name: 'runways_count', type: 'מספר מסלולי נחיתה' },
+      { name: 'personnel_capacity', type: 'מספר מקסימלי של אנשי צוות' }
+    ]
+  },
+  {
+    name: 'Squadrons',
+    nameHe: 'טייסות',
+    columns: [
+      { name: 'squadron_id', type: 'מזהה ייחודי של הטייסת' },
+      { name: 'squadron_name', type: 'שם הטייסת' },
+      { name: 'squadron_number', type: 'מספר הטייסת' },
+      { name: 'base_id', type: 'בסיס הטייסת (מפתח זר)' },
+      { name: 'aircraft_type', type: 'סוג המטוס העיקרי' },
+      { name: 'established_date', type: 'תאריך הקמת הטייסת' },
+      { name: 'active_status', type: 'האם הטייסת פעילה' }
+    ]
+  },
+  {
+    name: 'Pilots',
+    nameHe: 'טייסים',
+    columns: [
+      { name: 'pilot_id', type: 'מזהה ייחודי של הטייס' },
+      { name: 'first_name', type: 'שם פרטי' },
+      { name: 'last_name', type: 'שם משפחה' },
+      { name: 'rank', type: 'דרגה צבאית' },
+      { name: 'squadron_id', type: 'הטייסת (מפתח זר)' },
+      { name: 'flight_hours', type: 'שעות טיסה מצטברות' },
+      { name: 'specialization', type: 'התמחות' },
+      { name: 'service_start_date', type: 'תאריך תחילת שירות' }
+    ]
+  },
+  {
+    name: 'Aircraft',
+    nameHe: 'כלי טיס',
+    columns: [
+      { name: 'aircraft_id', type: 'מזהה ייחודי של כלי הטיס' },
+      { name: 'aircraft_type', type: 'סוג המטוס (F-16, F-35)' },
+      { name: 'tail_number', type: 'מספר זנב' },
+      { name: 'squadron_id', type: 'הטייסת (מפתח זר)' },
+      { name: 'manufacture_year', type: 'שנת ייצור' },
+      { name: 'last_maintenance', type: 'תאריך תחזוקה אחרונה' },
+      { name: 'flight_hours_total', type: 'שעות טיסה מצטברות' },
+      { name: 'operational_status', type: 'סטטוס תפעולי' }
+    ]
+  },
+  {
+    name: 'Weapons',
+    nameHe: 'כלי נשק ותחמושת',
+    columns: [
+      { name: 'weapon_id', type: 'מזהה ייחודי של כלי הנשק' },
+      { name: 'weapon_name', type: 'שם כלי הנשק' },
+      { name: 'weapon_type', type: 'סוג (טיל, פצצה, תותח)' },
+      { name: 'base_id', type: 'בסיס אחסון (מפתח זר)' },
+      { name: 'quantity_available', type: 'כמות זמינה' },
+      { name: 'unit_cost', type: 'עלות יחידה באלפי ש"ח' },
+      { name: 'minimum_stock', type: 'מלאי מינימום' }
+    ]
+  },
+  {
+    name: 'Missions',
+    nameHe: 'משימות ותפעול',
+    columns: [
+      { name: 'mission_id', type: 'מזהה ייחודי של המשימה' },
+      { name: 'mission_name', type: 'שם המשימה' },
+      { name: 'mission_date', type: 'תאריך המשימה' },
+      { name: 'squadron_id', type: 'הטייסת (מפתח זר)' },
+      { name: 'pilot_id', type: 'הטייס הראשי (מפתח זר)' },
+      { name: 'aircraft_id', type: 'כלי הטיס (מפתח זר)' },
+      { name: 'mission_duration', type: 'משך המשימה בשעות' },
+      { name: 'mission_status', type: 'סטטוס (הושלמה, בביצוע, בוטלה)' }
+    ]
+  },
+  {
+    name: 'Maintenance',
+    nameHe: 'תחזוקה',
+    columns: [
+      { name: 'maintenance_id', type: 'מזהה ייחודי של התחזוקה' },
+      { name: 'aircraft_id', type: 'כלי הטיס (מפתח זר)' },
+      { name: 'maintenance_type', type: 'סוג התחזוקה' },
+      { name: 'start_date', type: 'תאריך התחלה' },
+      { name: 'end_date', type: 'תאריך סיום התחזוקה' },
+      { name: 'cost', type: 'עלות התחזוקה באלפי ש"ח' }
+    ]
+  }
+];
 
 declare global {
   interface Window {
@@ -118,173 +215,121 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
   const scenarioModalScrollRef = useRef<number>(0);
   const modalContentRef = useRef<HTMLDivElement>(null);
 
-  // Database schema data - Israeli Air Force Management System
-  const databaseSchema = [
-    {
-      name: 'AirBases',
-      nameHe: 'בסיסי חיל האוויר',
-      columns: [
-        { name: 'base_id', type: 'מזהה ייחודי של הבסיס' },
-        { name: 'base_name', type: 'שם הבסיס (רמת דוד, חצרים)' },
-        { name: 'base_code', type: 'קוד הבסיס (3 אותיות)' },
-        { name: 'location', type: 'אזור גיאוגרפי' },
-        { name: 'established_year', type: 'שנת הקמה' },
-        { name: 'runways_count', type: 'מספר מסלולי נחיתה' },
-        { name: 'personnel_capacity', type: 'מספר מקסימלי של אנשי צוות' }
-      ]
-    },
-    {
-      name: 'Squadrons',
-      nameHe: 'טייסות',
-      columns: [
-        { name: 'squadron_id', type: 'מזהה ייחודי של הטייסת' },
-        { name: 'squadron_name', type: 'שם הטייסת (טייסת הנץ)' },
-        { name: 'squadron_number', type: 'מספר הטייסת ההיסטורי' },
-        { name: 'base_id', type: 'הבסיס הבית (מפתח זר)' },
-        { name: 'aircraft_type', type: 'סוג כלי הטיס העיקרי' },
-        { name: 'mission_type', type: 'התמחות עיקרית' },
-        { name: 'active_pilots', type: 'מספר הטייסים הפעילים' }
-      ]
-    },
-    {
-      name: 'Pilots',
-      nameHe: 'טייסים',
-      columns: [
-        { name: 'pilot_id', type: 'מזהה ייחודי של הטייס' },
-        { name: 'pilot_name', type: 'שם פרטי ומשפחה' },
-        { name: 'rank', type: 'דרגה צבאית' },
-        { name: 'squadron_id', type: 'הטייסת (מפתח זר)' },
-        { name: 'experience_years', type: 'שנות ניסיון בטיסה' },
-        { name: 'flight_hours', type: 'שעות טיסה מצטברות' },
-        { name: 'salary', type: 'משכורת חודשית' }
-      ]
-    },
-    {
-      name: 'Aircraft',
-      nameHe: 'כלי טיס',
-      columns: [
-        { name: 'aircraft_id', type: 'מזהה ייחודי של כלי הטיס' },
-        { name: 'aircraft_type', type: 'סוג כלי הטיס (F-16I, F-35I)' },
-        { name: 'tail_number', type: 'מספר זנב ייחודי' },
-        { name: 'squadron_id', type: 'הטייסת (מפתח זר)' },
-        { name: 'manufacture_year', type: 'שנת ייצור' },
-        { name: 'flight_hours_total', type: 'שעות טיסה מצטברות' },
-        { name: 'status', type: 'מצב תפעולי נוכחי' }
-      ]
-    },
-    {
-      name: 'Weapons',
-      nameHe: 'כלי נשק ותחמושת',
-      columns: [
-        { name: 'weapon_id', type: 'מזהה ייחודי של כלי הנשק' },
-        { name: 'weapon_name', type: 'שם כלי הנשק (פייתון 5, דרבי)' },
-        { name: 'weapon_type', type: 'קטגוריית כלי הנשק' },
-        { name: 'range_km', type: 'טווח יעיל מרבי בק"מ' },
-        { name: 'cost_per_unit', type: 'עלות ליחידה באלפי ש"ח' },
-        { name: 'stock_quantity', type: 'כמות יחידות במלאי' },
-        { name: 'storage_base_id', type: 'הבסיס בו מאוחסן (מפתח זר)' }
-      ]
-    },
-    {
-      name: 'Missions',
-      nameHe: 'משימות ותפעול',
-      columns: [
-        { name: 'mission_id', type: 'מזהה ייחודי של המשימה' },
-        { name: 'mission_name', type: 'שם המשימה' },
-        { name: 'mission_type', type: 'סוג המשימה' },
-        { name: 'squadron_id', type: 'הטייסת המבצעת (מפתח זר)' },
-        { name: 'pilot_id', type: 'הטייס הראשי (מפתח זר)' },
-        { name: 'aircraft_id', type: 'כלי הטיס (מפתח זר)' },
-        { name: 'start_date', type: 'תאריך התחלה' },
-        { name: 'mission_status', type: 'סטטוס נוכחי' }
-      ]
-    },
-    {
-      name: 'Maintenance',
-      nameHe: 'תחזוקה',
-      columns: [
-        { name: 'maintenance_id', type: 'מזהה ייחודי של התחזוקה' },
-        { name: 'aircraft_id', type: 'כלי הטיס (מפתח זר)' },
-        { name: 'maintenance_type', type: 'סוג התחזוקה' },
-        { name: 'start_date', type: 'תאריך התחלה' },
-        { name: 'end_date', type: 'תאריך סיום התחזוקה' },
-        { name: 'cost', type: 'עלות התחזוקה באלפי ש"ח' }
-      ]
-    }
-  ];
 
-  // Schema Sidebar Component
-  const SchemaSidebar = () => (
-    <div className={styles.schemaSidebar}>
+
+
+    // AGGRESSIVE FIX: Completely isolated sidebar component
+  const SchemaSidebar = memo((props: { 
+    visible: boolean; 
+    onToggle: () => void; 
+    onOpenModal: () => void; 
+  }) => {
+    const [scrollPos, setScrollPos] = useState(0);
+    const contentRef = useRef<HTMLDivElement>(null);
+    
+    // Restore scroll position on re-render
+    useEffect(() => {
+      if (contentRef.current && props.visible) {
+        contentRef.current.scrollTop = scrollPos;
+      }
+    });
+    
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+      setScrollPos(e.currentTarget.scrollTop);
+    };
+
+    const downloadScenarioPDF = () => {
+      const link = document.createElement('a');
+      link.href = '/DB.pdf';
+      link.download = 'Air_Force_Database_Schema.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    return (
+      <div className={styles.schemaSidebar}>
         <div className={styles.sidebarHeader}>
           <h3 className={styles.sidebarTitle}>מערכת ניהול חיל האוויר</h3>
           <button 
             className={styles.toggleSidebarBtn}
-            onClick={() => setSidebarVisible(!sidebarVisible)}
-            title={sidebarVisible ? 'הסתר סרגל צד' : 'הצג סרגל צד'}
+            onClick={props.onToggle}
+            title={props.visible ? 'הסתר סרגל צד' : 'הצג סרגל צד'}
           >
-            {sidebarVisible ? '←' : '→'}
+            {props.visible ? '←' : '→'}
           </button>
         </div>
       
-      {/* Database Button */}
-      <div className={styles.sidebarButtons}>
-        <button 
-          className={styles.scenarioButton}
-          onClick={() => setShowScenarioModal(true)}
-          title="פתח / סגור בסיס נתונים"
-        >
-          בסיס נתונים
-        </button>
-        
-        {/* PDF Download Button */}
-        <button 
-          className={styles.pdfDownloadButton}
-          onClick={() => downloadScenarioPDF()}
-          title="הורדת קובץ PDF"
-        >
-          להורדת קובץ PDF
-        </button>
-      </div>
-      
-     
-      {sidebarVisible && (
-        <div className={styles.sidebarContent}>
-          {databaseSchema.map((table, index) => (
-            <div key={index} className={styles.tableCard}>
-              <div className={styles.tableHeader}>
-                <span className={styles.tableName}>{table.name}</span>
-                <span className={styles.tableNameHe}>({table.nameHe})</span>
-              </div>
-              <div className={styles.columnsList}>
-                {table.columns.map((column, colIndex) => (
-                  <div key={colIndex} className={styles.columnItem}>
-                    <span className={styles.columnType}>{column.type}</span>
-                    <span className={styles.columnName}>{column.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+        {/* Database Button */}
+        <div className={styles.sidebarButtons}>
+          <button 
+            className={styles.scenarioButton}
+            onClick={props.onOpenModal}
+            title="פתח / סגור בסיס נתונים"
+          >
+            בסיס נתונים
+          </button>
           
-          <div className={styles.sidebarNotes}>
-            <h4 className={styles.notesTitle}>יחסים בין הטבלאות:</h4>
-            <ul className={styles.notesList}>
-              <li>כל בסיס מכיל מספר טייסות (יחס 1:N)</li>
-              <li>כל טייס משרת בטייסת אחת (יחס N:1)</li>
-              <li>כל טייסת ממוקמת בבסיס אחד (יחס N:1)</li>
-              <li>כל כלי טיס משויך לטייסת אחת (יחס N:1)</li>
-              <li>כלי נשק מאוחסנים בבסיסים שונים (יחס N:1)</li>
-              <li>כל משימה כוללת טייסת ספציפית (יחס 1:1)</li>
-              <li>כל משימה כוללת טייס ספציפי (יחס 1:1)</li>
-              <li>כל משימה כוללת כלי טיס ספציפי (יחס 1:1)</li>
-              <li>כל כלי טיס עובר תחזוקות מרובות (יחס 1:N)</li>
-            </ul>
-          </div>
+          {/* PDF Download Button */}
+          <button 
+            className={styles.pdfDownloadButton}
+            onClick={downloadScenarioPDF}
+            title="הורדת קובץ PDF"
+          >
+            להורדת קובץ PDF
+          </button>
         </div>
-      )}
-    </div>
-  );
+        
+        {props.visible && (
+          <div 
+            ref={contentRef}
+            className={styles.sidebarContent}
+            onScroll={handleScroll}
+                     >
+            {DATABASE_SCHEMA.map((table, index) => (
+              <div key={index} className={styles.tableCard} title={`לחץ לראות פרטי טבלה: ${table.nameHe}`}>
+                <div className={styles.tableHeader}>
+                  <span className={styles.tableName}>{table.name}</span>
+                  <span className={styles.tableNameHe}>({table.nameHe})</span>
+                  <span className={styles.expandIcon}>👁️</span>
+                </div>
+                
+                {/* Tooltip with column details - shows on hover */}
+                <div className={styles.tableTooltip}>
+                  <div className={styles.tooltipContent}>
+                    <h4>{table.name} - {table.nameHe}</h4>
+                    <div className={styles.tooltipColumns}>
+                      {table.columns.map((column, colIndex) => (
+                        <div key={colIndex} className={styles.tooltipColumn}>
+                          <span className={styles.tooltipColumnName}>{column.name}</span>
+                          <span className={styles.tooltipColumnType}>{column.type}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {/* <div className={styles.sidebarNotes}>
+              <h4 className={styles.notesTitle}>יחסים בין הטבלאות:</h4>
+              <ul className={styles.notesList}>
+                <li>כל בסיס מכיל מספר טייסות (יחס 1:N)</li>
+                <li>כל טייס משרת בטייסת אחת (יחס N:1)</li>
+                <li>כל טייסת ממוקמת בבסיס אחד (יחס N:1)</li>
+                <li>כל כלי טיס משויך לטייסת אחת (יחס N:1)</li>
+                <li>כלי נשק מאוחסנים בבסיסים שונים (יחס N:1)</li>
+                <li>כל משימה כוללת טייסת ספציפית (יחס 1:1)</li>
+                <li>כל משימה כוללת טייס ספציפי (יחס 1:1)</li>
+                <li>כל משימה כוללת כלי טיס ספציפי (יחס 1:1)</li>
+                <li>כל כלי טיס עובר תחזוקות מרובות (יחס 1:N)</li>
+              </ul>
+            </div> */}
+          </div>
+        )}
+      </div>
+    );
+  });
 
   // Scenario Modal Component
   const ScenarioModal = () => {
@@ -319,6 +364,8 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
         };
       }
     }, [showScenarioModal]);
+
+
 
     return (
       <div className={styles.modalOverlay} onClick={handleClose}>
@@ -402,7 +449,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
               </div>
               
               <div className={styles.modalTablesGrid}>
-                {databaseSchema.map((table, index) => (
+                {DATABASE_SCHEMA.map((table, index) => (
                   <div key={index} className={styles.modalTableCard}>
                     <h3 className={styles.modalTableName}>{table.name} ({table.nameHe})</h3>
                     <div className={styles.modalTableSchema}>
@@ -894,18 +941,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
     }
   };
 
-  const downloadScenarioPDF = () => {
-    // Create a link to download the existing DB.pdf file
-    const link = document.createElement('a');
-    link.href = '/DB.pdf'; // Path to the PDF in public folder
-    link.download = 'DB.pdf'; // Name for the downloaded file
-    link.target = '_blank'; // Open in new tab as fallback
-    
-    // Trigger the download
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+
 
   const downloadScenarioHTML = () => {
     const modal = modalContentRef.current;
@@ -990,7 +1026,11 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
 
       {/* Main content with sidebar and question */}
       <div className={styles.examContent}>
-        <SchemaSidebar />
+        <SchemaSidebar 
+          visible={sidebarVisible}
+          onToggle={() => setSidebarVisible(!sidebarVisible)}
+          onOpenModal={() => setShowScenarioModal(true)}
+        />
         
         <div className={styles.mainContent}>
           {/* Question Section */}
