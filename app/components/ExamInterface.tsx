@@ -52,45 +52,25 @@ const EXAM_STRUCTURE = {
   algebra: { count: 1, timePerQuestion: 12 * 60 } // 12 minutes in seconds
 };
 
-// Question distribution: 1 easy first, then 12 randomized (5 easy, 3 medium, 3 hard, 1 algebra)
-const QUESTION_DISTRIBUTION = [
-  'easy', // First question is always easy
-  // Then 12 randomized questions: 5 easy, 3 medium, 3 hard, 1 algebra
-  ...Array(5).fill('easy'),
-  ...Array(3).fill('medium'),
-  ...Array(3).fill('hard'),
-  ...Array(1).fill('algebra')
-];
-
-// Shuffle the array (Fisher-Yates algorithm)
-const shuffleArray = (array: string[]) => {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-};
-
-// Create the final question order
-const QUESTION_ORDER = shuffleArray(QUESTION_DISTRIBUTION.slice(1)); // Skip first easy question
-QUESTION_ORDER.unshift('easy'); // Add easy question at the beginning
+// Frontend no longer handles question ordering - backend manages the sequence:
+// Question 1: Always easy
+// Questions 2-13: Backend shuffles 5 easy, 3 medium, 3 hard, 1 algebra
+// Question 13: Always algebra (handled by backend)
 
 const ALGEBRA_SYMBOLS = [
   { symbol: 'σ', label: 'Select' },
   { symbol: 'π', label: 'Project' },
   { symbol: '∪', label: 'Union' },
+  { symbol: '∩', label: 'Intersection' },
   { symbol: '−', label: 'Difference' },
   { symbol: '×', label: 'Cartesian Product' },
-  { symbol: 'ρ', label: 'Rename' },
-  { symbol: 'Ω', label: 'Intersection' },
   { symbol: '⨝', label: 'Join' },
   { symbol: '÷', label: 'Division' },
+  { symbol: 'ρ', label: 'Rename' },
+  { symbol: 'γ', label: 'Grouping' },
 ];
 
-function containsAlgebraQuestion(text: string) {
-  return text.includes('אלגברה') && text.includes('יחסית');
-}
+
 
 const AlgebraSymbolBar = ({ onInsert }: { onInsert: (symbol: string) => void }) => (
   <div className={styles.algebraBar}>
@@ -457,13 +437,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
     );
   };
 
-  // Determine difficulty and time limit based on question index
-  const getDifficultyForQuestion = (questionIndex: number) => {
-    if (questionIndex >= 0 && questionIndex < QUESTION_ORDER.length) {
-      return QUESTION_ORDER[questionIndex];
-    }
-    return 'easy'; // fallback
-  };
+  // Difficulty is now determined by the backend and received in the response
 
   // Auto-save function
   const autoSaveAnswer = useCallback(async () => {
@@ -510,16 +484,11 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
     setError('');
     
     try {
-      const questionDifficulty = getDifficultyForQuestion(questionIndex);
-      const baseTimeLimit = EXAM_STRUCTURE[questionDifficulty].timePerQuestion;
-      const factor = 1 + (extraTimePercentage / 100);
-      const timeLimit = Math.round(baseTimeLimit * factor);
-      
       // Generate browser fingerprint for security validation
       const browserFingerprint = generateBrowserFingerprint();
       
       // Include student ID and browser fingerprint for security validation
-      const response = await fetch(`${SERVER_BASE}/exam/${examSession.examId}/question/${questionIndex}?studentId=${user.id}&difficulty=${questionDifficulty}&browserFingerprint=${encodeURIComponent(JSON.stringify(browserFingerprint))}`);
+      const response = await fetch(`${SERVER_BASE}/exam/${examSession.examId}/question/${questionIndex}?studentId=${user.id}&browserFingerprint=${encodeURIComponent(JSON.stringify(browserFingerprint))}`);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -534,10 +503,21 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
       }
 
       const data = await response.json();
-      console.log(`Question ${questionIndex} loaded:`, data.question);
+      console.log(`Question ${questionIndex} loaded:`, data.question, `difficulty: ${data.difficulty}`);
       setCurrentQuestion(data.question);
-      setDifficulty(questionDifficulty);
-      setMaxTime(timeLimit);
+      setDifficulty(data.difficulty); // Use the difficulty from server response
+      
+      // Debug logging for algebra questions
+      if (data.difficulty === 'algebra') {
+        console.log('🧮 ALGEBRA QUESTION DETECTED - Algebra buttons should appear!');
+      }
+      
+      // Recalculate time limit with the correct difficulty from server
+      const serverDifficulty = data.difficulty;
+      const serverBaseTimeLimit = EXAM_STRUCTURE[serverDifficulty].timePerQuestion;
+      const factor = 1 + (extraTimePercentage / 100);
+      const serverTimeLimit = Math.round(serverBaseTimeLimit * factor);
+      setMaxTime(serverTimeLimit);
       setQuestionStartTime(new Date());
       questionStartTimeRef.current = new Date();
       setTimeElapsed(0);
@@ -1027,7 +1007,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
                 {/* Security Notice */}
                
                 <label className={styles.answerLabel}>
-                  התשובה שלך ב-SQL:
+                  {difficulty === 'algebra' ? 'התשובה שלך באלגברת יחסים:' : 'התשובה שלך ב-SQL:'}
                 </label>
                 <div className={styles.sqlEditorContainer}>
                   <Editor
@@ -1176,7 +1156,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
                       occurrencesHighlight: false,
                     }}
                   />
-                  {containsAlgebraQuestion(currentQuestion.question) && (
+                  {difficulty === 'algebra' && (
                     <AlgebraSymbolBar onInsert={(symbol) => {
                       // @ts-ignore
                       const monaco: any = window.monaco;

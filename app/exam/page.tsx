@@ -482,7 +482,6 @@ const DatabaseDescription = ({ onContinue, user }: { onContinue: () => void, use
         </div>
       </div>
 
-      {/* ORIGINAL SCENARIO DETAILS - COMMENTED OUT
       <div className={styles.scenarioDescription}>
         <div className={styles.scenarioColumns}>
           <div className={styles.scenarioColumn}>
@@ -551,15 +550,44 @@ const DatabaseDescription = ({ onContinue, user }: { onContinue: () => void, use
           </div>
         </div>
       </div>
-      */}
       
-      {/* ORIGINAL TABLES - COMMENTED OUT FOR EXAM SCREENSHOTS */}
-      {/* <div className={styles.tablesGrid}>
+      <div className={styles.tablesGrid}>
         <div className={styles.tableCard}>
-          <h3 className={styles.tableName}>טבלת AirBases (בסיסי חיל האוויר)</h3> */}
+          <h3 className={styles.tableName}>טבלת AirBases (בסיסי חיל האוויר)</h3>
+          <div className={styles.tableSchema}>
+            <div className={styles.column}>
+              <span className={styles.columnType}>מזהה ייחודי של הבסיס</span>
+              <span className={styles.columnName}>base_id</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>שם הבסיס (רמת דוד, חצרים)</span>
+              <span className={styles.columnName}>base_name</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>קוד הבסיס (3 אותיות)</span>
+              <span className={styles.columnName}>base_code</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>אזור גיאוגרפי</span>
+              <span className={styles.columnName}>location</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>שנת הקמה</span>
+              <span className={styles.columnName}>established_year</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>מספר מסלולי נחיתה</span>
+              <span className={styles.columnName}>runways_count</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>מספר מקסימלי של אנשי צוות</span>
+              <span className={styles.columnName}>personnel_capacity</span>
+            </div>
+          </div>
+        </div>
 
       {/* GENERIC TABLES FOR EXAM SCREENSHOTS */}
-      <div className={styles.tablesGrid}>
+      {/* <div className={styles.tablesGrid}>
         <div className={styles.tableCard}>
           <h3 className={styles.tableName}>טבלה A</h3>
           <div className={styles.tableSchema}>
@@ -602,9 +630,9 @@ const DatabaseDescription = ({ onContinue, user }: { onContinue: () => void, use
               <span className={styles.columnName}>status</span>
             </div>
           </div>
-        </div>
+        </div> */}
 
-        {/* <div className={styles.tableCard}>
+        <div className={styles.tableCard}>
           <h3 className={styles.tableName}>טבלת Pilots (טייסים)</h3>
           <div className={styles.tableSchema}>
             <div className={styles.column}>
@@ -636,9 +664,9 @@ const DatabaseDescription = ({ onContinue, user }: { onContinue: () => void, use
               <span className={styles.columnName}>salary</span>
             </div>
           </div>
-        </div> */}
+        </div>
 
-        {/* <div className={styles.tableCard}>
+        <div className={styles.tableCard}>
           <h3 className={styles.tableName}>טבלת Aircraft (כלי טיס)</h3>
           <div className={styles.tableSchema}>
             <div className={styles.column}>
@@ -670,9 +698,9 @@ const DatabaseDescription = ({ onContinue, user }: { onContinue: () => void, use
               <span className={styles.columnName}>status</span>
             </div>
           </div>
-        </div> */}
+        </div>
 
-        {/* <div className={styles.tableCard}>
+        <div className={styles.tableCard}>
           <h3 className={styles.tableName}>טבלת Weapons (כלי נשק ותחמושת)</h3>
           <div className={styles.tableSchema}>
             <div className={styles.column}>
@@ -772,10 +800,10 @@ const DatabaseDescription = ({ onContinue, user }: { onContinue: () => void, use
               <span className={styles.columnName}>cost</span>
             </div>
           </div>
-        </div> */}
+        </div>
       </div>
 
-      {/* <div className={styles.dbNotes}>
+      <div className={styles.dbNotes}>
         <h3 className={styles.sectionTitle}>יחסים בין הטבלאות</h3>
         <ul className={styles.notesList}>
           <li>כל בסיס מכיל מספר טייסות (יחס 1:N)</li>
@@ -788,7 +816,7 @@ const DatabaseDescription = ({ onContinue, user }: { onContinue: () => void, use
           <li>כל משימה כוללת כלי טיס ספציפי (יחס 1:1)</li>
           <li>כל כלי טיס עובר תחזוקות מרובות (יחס 1:N)</li>
         </ul>
-      </div> */}
+      </div>
 
       <button onClick={handleStartExam} className={styles.continueButton}>
         התחל עבודה
