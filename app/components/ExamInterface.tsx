@@ -61,13 +61,12 @@ const ALGEBRA_SYMBOLS = [
   { symbol: 'σ', label: 'Select' },
   { symbol: 'π', label: 'Project' },
   { symbol: '∪', label: 'Union' },
-  { symbol: '∩', label: 'Intersection' },
   { symbol: '−', label: 'Difference' },
   { symbol: '×', label: 'Cartesian Product' },
+  { symbol: 'ρ', label: 'Rename' },
+  { symbol: 'Ω', label: 'Intersection' },
   { symbol: '⨝', label: 'Join' },
   { symbol: '÷', label: 'Division' },
-  { symbol: 'ρ', label: 'Rename' },
-  { symbol: 'γ', label: 'Grouping' },
 ];
 
 
@@ -229,22 +228,24 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
         </div>
       
       {/* Database Button */}
-      <button 
-        className={styles.scenarioButton}
-        onClick={() => setShowScenarioModal(true)}
-        title="פתח / סגור בסיס נתונים"
-      >
-        בסיס נתונים
-      </button>
-      
-      {/* PDF Download Button */}
-      <button 
-        className={styles.pdfDownloadButton}
-        onClick={() => downloadScenarioPDF()}
-        title="הורדת קובץ PDF"
-      >
-        להורדת קובץ PDF
-      </button>
+      <div className={styles.sidebarButtons}>
+        <button 
+          className={styles.scenarioButton}
+          onClick={() => setShowScenarioModal(true)}
+          title="פתח / סגור בסיס נתונים"
+        >
+          בסיס נתונים
+        </button>
+        
+        {/* PDF Download Button */}
+        <button 
+          className={styles.pdfDownloadButton}
+          onClick={() => downloadScenarioPDF()}
+          title="הורדת קובץ PDF"
+        >
+          להורדת קובץ PDF
+        </button>
+      </div>
       
      
       {sidebarVisible && (
@@ -849,7 +850,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
   if (examCompleted && examResults) {
     return (
       <div className={styles.resultsContainer} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
-        <h2 className={styles.resultsTitle} style={{ fontSize: '2.5rem', margin: '0', textAlign: 'center' }}>בחינה נשמרה בהצלחה</h2>
+        <h2 className={styles.resultsTitle} style={{ fontSize: '2.5rem', margin: '0', textAlign: 'center' }}>העבודה הוגשה ונשמרה בהצלחה</h2>
       </div>
     );
   }

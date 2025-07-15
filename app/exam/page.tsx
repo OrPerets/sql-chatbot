@@ -292,7 +292,7 @@ const InstructionsPage = ({ onContinue, user }: { onContinue: () => void, user: 
                   </span>
                 </div>
                 <div className={styles.detail}>
-                  <span className={styles.detailLabel}>זמן בחינה כולל:</span>
+                  <span className={styles.detailLabel}>זמן עבודה כולל:</span>
                   <span className={styles.detailValue}>
                     {totalExamTime || 'טוען...'}
                   </span>
@@ -309,7 +309,7 @@ const InstructionsPage = ({ onContinue, user }: { onContinue: () => void, user: 
             <li>כל התשובות נשמרות אוטומטית</li>
             <li>במידה ונגמר הזמן או קרתה תקלת תקשורת, התשובה נשמרת אוטומטית</li>
             <li>לאחר הגשה, לא ניתן לשנות את התשובה</li>
-            <li>במסך הבא יוצג "סיפור המעשה" ובסיס הנתונים הכולל 7 סכמות - למעוניינים, ניתן להוריד את בסיס הנתונים לקובץ PDF ולהדפיסו במהלך הבחינה</li>
+            <li>במסך הבא יוצג "סיפור המעשה" ובסיס הנתונים הכולל 7 סכמות - למעוניינים, ניתן להוריד את בסיס הנתונים לקובץ PDF ולהדפיסו במהלך העבודה</li>
           </ul>
         </div>
 
@@ -631,6 +631,40 @@ const DatabaseDescription = ({ onContinue, user }: { onContinue: () => void, use
             </div>
           </div>
         </div> */}
+
+        <div className={styles.tableCard}>
+          <h3 className={styles.tableName}>טבלת Squadrons (טייסות)</h3>
+          <div className={styles.tableSchema}>
+            <div className={styles.column}>
+              <span className={styles.columnType}>מזהה ייחודי של הטייסת</span>
+              <span className={styles.columnName}>squadron_id</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>שם הטייסת (טייסת הנץ)</span>
+              <span className={styles.columnName}>squadron_name</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>מספר הטייסת ההיסטורי</span>
+              <span className={styles.columnName}>squadron_number</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>הבסיס הבית (מפתח זר)</span>
+              <span className={styles.columnName}>base_id</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>סוג כלי הטיס העיקרי</span>
+              <span className={styles.columnName}>aircraft_type</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>התמחות עיקרית</span>
+              <span className={styles.columnName}>mission_type</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>מספר הטייסים הפעילים</span>
+              <span className={styles.columnName}>active_pilots</span>
+            </div>
+          </div>
+        </div>
 
         <div className={styles.tableCard}>
           <h3 className={styles.tableName}>טבלת Pilots (טייסים)</h3>
