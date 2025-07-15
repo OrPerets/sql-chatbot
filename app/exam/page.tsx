@@ -1047,6 +1047,28 @@ const ExamPage = () => {
     if (!verifiedStudent) return;
     setIsLoading(true);
     try {
+      // Configuration for proper exam randomization
+      const examRandomizationConfig = {
+        totalQuestions: 13,
+        structure: {
+          position1: { type: 'easy', fixed: true }, // Always easy
+          positions2to12: { // 11 questions randomized
+            easy: 5,
+            medium: 3, 
+            hard: 3,
+            randomized: true
+          },
+          position13: { type: 'algebra', fixed: true } // Always algebra
+        },
+        preventDuplicates: true, // Ensure no duplicate questions in same exam
+        difficultyDistribution: {
+          easy: 6,    // 1 fixed + 5 randomized
+          medium: 3,  // 3 randomized
+          hard: 3,    // 3 randomized  
+          algebra: 1  // 1 fixed
+        }
+      };
+
       const response = await fetch(`${SERVER_BASE}/exam/start`, {
         method: 'POST',
         headers: {
@@ -1057,6 +1079,7 @@ const ExamPage = () => {
           studentName: verifiedStudent.name,
           studentEmail: user?.email || `student_${verifiedStudent.id}@exam.local`,
           examTitle: 'בחינת מיומנות SQL',
+          randomizationConfig: examRandomizationConfig, // Send randomization config to backend
           // browserFingerprint: browserFingerprint // DISABLED
         }),
       });

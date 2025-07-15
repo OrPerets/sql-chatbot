@@ -397,37 +397,14 @@
 .sidebarContent {
   padding: 1rem;
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden; /* Removed scrollbar - no scrolling needed */
   height: 100%;
   position: relative;
-  overscroll-behavior-y: contain;
-  scroll-behavior: auto;
-  -webkit-overflow-scrolling: touch;
-  /* Allow tooltips to appear above scroll container */
+  /* Allow tooltips to appear above container */
   z-index: 1;
 }
 
-/* Sidebar scrollbar styling */
-.sidebarContent::-webkit-scrollbar {
-  width: 8px;
-  height: 50%;
-}
-
-.sidebarContent::-webkit-scrollbar-track {
-  background: rgba(19, 17, 55, 0.05);
-  border-radius: 4px;
-}
-
-.sidebarContent::-webkit-scrollbar-thumb {
-  background: rgba(19, 17, 55, 0.3);
-  border-radius: 4px;
-  transition: background 0.3s ease;
-}
-
-.sidebarContent::-webkit-scrollbar-thumb:hover {
-  background: rgba(19, 17, 55, 0.5);
-}
+/* Removed scrollbar styling - no longer needed */
 
 .tableCard {
   background: rgba(255, 255, 255, 0.8);

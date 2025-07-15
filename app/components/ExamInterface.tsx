@@ -149,10 +149,40 @@ const EXAM_STRUCTURE = {
   algebra: { count: 1, timePerQuestion: 12 * 60 } // 12 minutes in seconds
 };
 
-// Frontend no longer handles question ordering - backend manages the sequence:
-// Question 1: Always easy
-// Questions 2-13: Backend shuffles 5 easy, 3 medium, 3 hard, 1 algebra
-// Question 13: Always algebra (handled by backend)
+// CRITICAL: Correct exam question randomization structure
+// BACKEND MUST IMPLEMENT THE FOLLOWING SEQUENCE:
+// Question 1: ALWAYS easy (guaranteed)
+// Questions 2-12: RANDOM shuffle of 5 easy + 3 medium + 3 hard (11 questions total)
+// Question 13: ALWAYS algebra (guaranteed)
+// 
+// CURRENT ISSUE: Backend is giving questions in blocks instead of randomized:
+// - Questions 1-6: all easy (WRONG - should be only question 1)
+// - Questions 7-9: all medium (WRONG - should be randomized in positions 2-12) 
+// - Questions 10-13: all hard (WRONG - should be randomized + algebra at position 13)
+//
+// TOTAL: 13 questions (1 easy + 11 randomized + 1 algebra)
+
+// Configuration object to send to backend for proper randomization
+const EXAM_RANDOMIZATION_CONFIG = {
+  totalQuestions: 13,
+  structure: {
+    position1: { type: 'easy', fixed: true }, // Always easy
+    positions2to12: { // 11 questions randomized
+      easy: 5,
+      medium: 3, 
+      hard: 3,
+      randomized: true
+    },
+    position13: { type: 'algebra', fixed: true } // Always algebra
+  },
+  preventDuplicates: true, // Ensure no duplicate questions in same exam
+  difficultyDistribution: {
+    easy: 6,    // 1 fixed + 5 randomized
+    medium: 3,  // 3 randomized
+    hard: 3,    // 3 randomized  
+    algebra: 1  // 1 fixed
+  }
+};
 
 const ALGEBRA_SYMBOLS = [
   { symbol: 'σ', label: 'Select' },
@@ -164,6 +194,8 @@ const ALGEBRA_SYMBOLS = [
   { symbol: 'Ω', label: 'Intersection' },
   { symbol: '⨝', label: 'Join' },
   { symbol: '÷', label: 'Division' },
+  { symbol: '∧', label: 'And' },
+  { symbol: '∨', label: 'Or' },
 ];
 
 
@@ -553,16 +585,25 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
       const data = await response.json();
       console.log(`Question ${questionIndex} loaded:`, data.question, `difficulty: ${data.difficulty}`);
       setCurrentQuestion(data.question);
-      setDifficulty(data.difficulty); // Use the difficulty from server response
+      
+      // Safely handle difficulty value with fallback
+      const validDifficulties = ['easy', 'medium', 'hard', 'algebra'];
+      const safeDifficulty = validDifficulties.includes(data.difficulty) ? data.difficulty : 'easy';
+      
+      // Debug logging for difficulty issues
+      if (data.difficulty !== safeDifficulty) {
+        console.warn(`Invalid difficulty received from server: "${data.difficulty}", using fallback: "${safeDifficulty}"`);
+      }
+      
+      setDifficulty(safeDifficulty); // Use the safe difficulty value
       
       // Debug logging for algebra questions
-      if (data.difficulty === 'algebra') {
+      if (safeDifficulty === 'algebra') {
         console.log('🧮 ALGEBRA QUESTION DETECTED - Algebra buttons should appear!');
       }
       
-      // Recalculate time limit with the correct difficulty from server
-      const serverDifficulty = data.difficulty;
-      const serverBaseTimeLimit = EXAM_STRUCTURE[serverDifficulty].timePerQuestion;
+      // Recalculate time limit with the safe difficulty
+      const serverBaseTimeLimit = EXAM_STRUCTURE[safeDifficulty].timePerQuestion;
       const factor = 1 + (extraTimePercentage / 100);
       const serverTimeLimit = Math.round(serverBaseTimeLimit * factor);
       setMaxTime(serverTimeLimit);
@@ -617,7 +658,16 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
   // Update maxTime only when currentQuestion, extraTimeLoaded, and extraTimePercentage are ready
   useEffect(() => {
     if (currentQuestion && extraTimeLoaded) {
-      const baseTimeLimit = EXAM_STRUCTURE[difficulty].timePerQuestion;
+      // Safely handle difficulty value with fallback
+      const validDifficulties = ['easy', 'medium', 'hard', 'algebra'];
+      const safeDifficulty = validDifficulties.includes(difficulty) ? difficulty : 'easy';
+      
+      // Debug logging to track difficulty issues
+      if (difficulty !== safeDifficulty) {
+        console.warn(`Invalid difficulty received: "${difficulty}", using fallback: "${safeDifficulty}"`);
+      }
+      
+      const baseTimeLimit = EXAM_STRUCTURE[safeDifficulty].timePerQuestion;
       const factor = 1 + (extraTimePercentage / 100);
       const timeLimit = Math.round(baseTimeLimit * factor);
       setMaxTime(timeLimit);
@@ -1001,7 +1051,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
                       <div className={styles.originalTime}>
                         <span className={styles.originalTimeLabel}>זמן מקורי:</span>
                         <span className={styles.originalTimeValue}>
-                          {formatTime(Math.round(EXAM_STRUCTURE[difficulty].timePerQuestion))}
+                          {formatTime(Math.round(EXAM_STRUCTURE[['easy', 'medium', 'hard', 'algebra'].includes(difficulty) ? difficulty : 'easy'].timePerQuestion))}
                         </span>
                       </div>
                       <div className={styles.extraTimeDisplay}>
