@@ -1052,20 +1052,20 @@ const ExamPage = () => {
         totalQuestions: 13,
         structure: {
           position1: { type: 'easy', fixed: true }, // Always easy
-          positions2to12: { // 11 questions randomized
+          positions2to13: { // 12 questions randomized
             easy: 5,
             medium: 3, 
             hard: 3,
+            algebra: 1,
             randomized: true
-          },
-          position13: { type: 'algebra', fixed: true } // Always algebra
+          }
         },
         preventDuplicates: true, // Ensure no duplicate questions in same exam
         difficultyDistribution: {
           easy: 6,    // 1 fixed + 5 randomized
           medium: 3,  // 3 randomized
           hard: 3,    // 3 randomized  
-          algebra: 1  // 1 fixed
+          algebra: 1  // 1 randomized
         }
       };
 
