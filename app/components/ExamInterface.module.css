@@ -1341,12 +1341,19 @@
 }
 
 .algebraBar {
-  display: flex;
+  display: flex !important;
   flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: center;
   margin-bottom: 0.7rem;
   margin-top: 0.5rem;
+  background: rgba(139, 92, 246, 0.05);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 8px;
+  padding: 0.5rem;
+  min-height: 40px;
+  position: relative;
+  z-index: 5;
 }
 
 .algebraButton {

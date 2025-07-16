@@ -597,11 +597,13 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
         console.warn(`Invalid difficulty received from server: "${data.difficulty}", using fallback: "${safeDifficulty}"`);
       }
       
+      console.log(`📊 Setting difficulty to: "${safeDifficulty}" for question ${questionIndex}`);
       setDifficulty(safeDifficulty); // Use the safe difficulty value
       
       // Debug logging for algebra questions
       if (safeDifficulty === 'algebra') {
         console.log('🧮 ALGEBRA QUESTION DETECTED - Algebra buttons should appear!');
+        console.log('🧮 AlgebraSymbolBar should be rendered with these symbols:', ALGEBRA_SYMBOLS);
       }
       
       // Recalculate time limit with the safe difficulty
@@ -1271,6 +1273,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
                   />
                   {difficulty === 'algebra' && (
                     <AlgebraSymbolBar onInsert={(symbol) => {
+                      console.log('🧮 Algebra symbol inserted:', symbol);
                       // @ts-ignore
                       const monaco: any = window.monaco;
                       // Insert symbol at cursor position in Monaco editor
@@ -1290,6 +1293,8 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
                       }
                     }} />
                   )}
+                  
+                  
                 </div>
                 
                 <div className={styles.actionButtons}>
