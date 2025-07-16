@@ -247,6 +247,14 @@
   background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
 }
 
+.quickActionButton:nth-child(3) {
+  background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+}
+
+.quickActionButton:nth-child(3):hover {
+  background: linear-gradient(135deg, #138496 0%, #10707f 100%);
+}
+
 /* Settings Section */
 .settingsSection {
   display: flex;

@@ -6,6 +6,7 @@ import config from '../config';
 import Editor from '@monaco-editor/react';
 import { generateBrowserFingerprint } from '../utils/browserFingerprint';
 import { ExamSecurity } from '../utils/examSecurity';
+import { ExamMetricsTracker, ComprehensiveMetrics } from '../utils/examMetricsTracker';
 
 // NUCLEAR OPTION: Database schema outside component to prevent re-renders
 const DATABASE_SCHEMA = [
@@ -235,10 +236,9 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
   const [extraTimePercentage, setExtraTimePercentage] = useState(0);
   const [extraTimeLoaded, setExtraTimeLoaded] = useState(false);
   
-  // Typing speed tracking
-  const [typingStartTime, setTypingStartTime] = useState<Date | null>(null);
-  const [lastTypingTime, setLastTypingTime] = useState<Date | null>(null);
-  const [typingEvents, setTypingEvents] = useState<Array<{timestamp: Date, event: string}>>([]);
+  // Comprehensive metrics tracking
+  const metricsTrackerRef = useRef<ExamMetricsTracker | null>(null);
+  const [comprehensiveMetrics, setComprehensiveMetrics] = useState<ComprehensiveMetrics | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const questionStartTimeRef = useRef<Date>(new Date());
@@ -527,9 +527,8 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
       const endTime = new Date();
       const timeSpent = Math.floor((endTime.getTime() - questionStartTimeRef.current.getTime()) / 1000);
       
-      // Calculate typing speed metrics
-      const typingSpeed = typingEvents.length > 1 ? 
-        (typingEvents.length - 1) / ((endTime.getTime() - (typingStartTime || endTime).getTime()) / 1000) : 0;
+      // Get interim metrics for auto-save (not finalized)
+      const interimMetrics = metricsTrackerRef.current?.finalizeMetrics(false, studentAnswer, difficulty);
       
       await fetch(`${SERVER_BASE}/exam/${examSession.examId}/auto-save`, {
         method: 'POST',
@@ -545,17 +544,20 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
           difficulty: difficulty,
           studentAnswer: studentAnswer,
           timeSpent: timeSpent,
-          typingSpeed: typingSpeed,
-          typingEvents: typingEvents,
+          // Legacy fields for backward compatibility
+          typingSpeed: interimMetrics?.typingPatterns.charactersPerSecond || 0,
+          typingEvents: interimMetrics?.keystrokeEvents || [],
           startTime: questionStartTimeRef.current.toISOString(),
           endTime: endTime.toISOString(),
-          isAutoSave: true
+          isAutoSave: true,
+          // Comprehensive metrics
+          comprehensiveMetrics: interimMetrics
         }),
       });
     } catch (error) {
       console.error('Error auto-saving answer:', error);
     }
-  }, [currentQuestion, currentQuestionIndex, examSession.examId, studentAnswer, difficulty, user, typingEvents, typingStartTime]);
+  }, [currentQuestion, currentQuestionIndex, examSession.examId, studentAnswer, difficulty, user]);
 
   // Load the current question
   const loadQuestion = useCallback(async (questionIndex: number) => {
@@ -612,10 +614,15 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
       setTimeElapsed(0);
       setStudentAnswer('');
       
-      // Reset typing tracking
-      setTypingStartTime(null);
-      setLastTypingTime(null);
-      setTypingEvents([]);
+      // Initialize comprehensive metrics tracker for new question
+      if (metricsTrackerRef.current) {
+        metricsTrackerRef.current.cleanup();
+      }
+      metricsTrackerRef.current = new ExamMetricsTracker(
+        data.question.id.toString(),
+        user.id.toString(),
+        examSession.examId
+      );
     } catch (error) {
       console.error('Error loading question:', error);
       setError('Failed to load question. Please try again.');
@@ -676,17 +683,9 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentQuestion, extraTimeLoaded, extraTimePercentage, difficulty]);
 
-  // Handle typing events for speed tracking
+  // Handle typing events - now handled by comprehensive metrics tracker
   const handleTyping = useCallback((value: string) => {
-    const now = new Date();
     setStudentAnswer(value);
-    
-    if (!typingStartTime) {
-      setTypingStartTime(now);
-    }
-    
-    setLastTypingTime(now);
-    setTypingEvents(prev => [...prev, { timestamp: now, event: 'typing' }]);
     
     // Clear existing auto-save timeout
     if (autoSaveTimeoutRef.current) {
@@ -697,7 +696,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
     autoSaveTimeoutRef.current = setTimeout(() => {
       autoSaveAnswer();
     }, 5000);
-  }, [typingStartTime, autoSaveAnswer]);
+  }, [autoSaveAnswer]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -748,11 +747,10 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
         currentQuestion.expected_keywords
       );
 
-      // Calculate typing speed metrics
-      const typingSpeed = typingEvents.length > 1 ? 
-        (typingEvents.length - 1) / ((endTime.getTime() - (typingStartTime || endTime).getTime()) / 1000) : 0;
+      // Finalize comprehensive metrics
+      const finalMetrics = metricsTrackerRef.current?.finalizeMetrics(isCorrect, studentAnswer, difficulty);
 
-      // Save the answer
+      // Save the answer with comprehensive metrics
       const response = await fetch(`${SERVER_BASE}/exam/${examSession.examId}/answer`, {
         method: 'POST',
         headers: {
@@ -769,10 +767,13 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
           correctAnswer: currentQuestion.solution_example || '',
           isCorrect: isCorrect,
           timeSpent: timeSpent,
-          typingSpeed: typingSpeed,
-          typingEvents: typingEvents,
+          // Legacy fields for backward compatibility
+          typingSpeed: finalMetrics?.typingPatterns.charactersPerSecond || 0,
+          typingEvents: finalMetrics?.keystrokeEvents || [],
           startTime: questionStartTimeRef.current.toISOString(),
-          endTime: endTime.toISOString()
+          endTime: endTime.toISOString(),
+          // Comprehensive metrics
+          comprehensiveMetrics: finalMetrics
         }),
       });
 
@@ -795,7 +796,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
     } finally {
       setIsSubmitting(false);
     }
-  }, [currentQuestion, currentQuestionIndex, examSession.examId, examSession.totalQuestions, studentAnswer, difficulty, loadQuestion, onComplete, typingEvents, typingStartTime]);
+  }, [currentQuestion, currentQuestionIndex, examSession.examId, examSession.totalQuestions, studentAnswer, difficulty, loadQuestion, onComplete]);
 
   // Timer effect
   useEffect(() => {
@@ -814,6 +815,15 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
       }
     };
   }, [timeElapsed, maxTime, examCompleted, handleSubmitAnswer]);
+
+  // Cleanup metrics tracker on unmount
+  useEffect(() => {
+    return () => {
+      if (metricsTrackerRef.current) {
+        metricsTrackerRef.current.cleanup();
+      }
+    };
+  }, []);
 
   // Cleanup auto-save timeout on unmount
   useEffect(() => {
@@ -1078,8 +1088,14 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
       <div className={styles.examContent}>
         <SchemaSidebar 
           visible={sidebarVisible}
-          onToggle={() => setSidebarVisible(!sidebarVisible)}
-          onOpenModal={() => setShowScenarioModal(true)}
+          onToggle={() => {
+            setSidebarVisible(!sidebarVisible);
+            metricsTrackerRef.current?.trackSidebarToggle();
+          }}
+          onOpenModal={() => {
+            setShowScenarioModal(true);
+            metricsTrackerRef.current?.trackModalOpen();
+          }}
         />
         
         <div className={styles.mainContent}>

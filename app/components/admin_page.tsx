@@ -238,6 +238,14 @@ const AdminPage: React.FC = () => {
            <Award size={20} />
            <span>בדיקה וציונים</span>
          </button>
+         
+         <button
+           onClick={() => router.push('/admin/grade-by-question')}
+           className={styles.quickActionButton}
+         >
+           <BarChart3 size={20} />
+           <span>ציונים לפי שאלה</span>
+         </button>
        </div>
      </div>
    </div>
