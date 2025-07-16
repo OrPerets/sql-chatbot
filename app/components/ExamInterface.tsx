@@ -147,7 +147,7 @@ const EXAM_STRUCTURE = {
   easy: { count: 6, timePerQuestion: 6 * 60 }, // 6 minutes in seconds
   medium: { count: 3, timePerQuestion: 9 * 60 }, // 9 minutes in seconds
   hard: { count: 3, timePerQuestion: 14 * 60 }, // 14 minutes in seconds
-  algebra: { count: 1, timePerQuestion: 12 * 60 } // 12 minutes in seconds
+  algebra: { count: 1, timePerQuestion: 14 * 60 } // 12 minutes in seconds
 };
 
 // CRITICAL: Correct exam question randomization structure
