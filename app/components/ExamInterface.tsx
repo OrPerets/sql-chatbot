@@ -635,7 +635,13 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
   useEffect(() => {
     const fetchExtraTime = async () => {
       try {
-        const response = await fetch(`/api/exam/extraTime/${user.id}`);
+        const response = await fetch(`/api/exam/extraTime/${user.id}?t=${Date.now()}`, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           setExtraTimePercentage(data.percentage || 0);

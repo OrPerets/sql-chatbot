@@ -233,7 +233,13 @@ const InstructionsPage = ({ onContinue, user }: { onContinue: () => void, user: 
   useEffect(() => {
     const fetchExtraTime = async () => {
       try {
-        const response = await fetch(`/api/exam/extraTime/${user.id}`);
+        const response = await fetch(`/api/exam/extraTime/${user.id}?t=${Date.now()}`, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           const percentage = data.percentage || 0;
@@ -333,7 +339,13 @@ const DatabaseDescription = ({ onContinue, user }: { onContinue: () => void, use
   useEffect(() => {
     const fetchExtraTime = async () => {
       try {
-        const response = await fetch(`/api/exam/extraTime/${user.id}`);
+        const response = await fetch(`/api/exam/extraTime/${user.id}?t=${Date.now()}`, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           const percentage = data.percentage || 0;
@@ -878,7 +890,13 @@ const GlobalExamTimer = ({ userId, onTimeUp }: { userId: string, onTimeUp: () =>
       // If not found, fetch extra time and set
       const fetchExtraTime = async () => {
         try {
-          const response = await fetch(`/api/exam/extraTime/${userId}`);
+          const response = await fetch(`/api/exam/extraTime/${userId}?t=${Date.now()}`, {
+            method: 'GET',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            }
+          });
           let percentage = 0;
           if (response.ok) {
             const data = await response.json();

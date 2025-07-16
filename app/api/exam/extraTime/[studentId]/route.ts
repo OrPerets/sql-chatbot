@@ -33,6 +33,13 @@ export async function GET(
           studentId,
           percentage: 0,
           hasExtraTime: false
+        }, {
+          status: 200,
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
         });
       }
       
@@ -50,6 +57,13 @@ export async function GET(
       percentage: extraTimeData.percentage || 0,
       hasExtraTime: extraTimeData.percentage > 0,
       createdAt: extraTimeData.createdAt
+    }, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     });
 
   } catch (error) {
