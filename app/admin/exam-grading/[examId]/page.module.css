@@ -440,6 +440,162 @@
   opacity: 0.6;
 }
 
+/* AI Detection Alert Styles */
+.aiAlert {
+  margin: 12px 16px;
+  border-radius: 8px;
+  border: 2px solid;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.aiAlert.low {
+  background: #e8f4fd;
+  border-color: #b3d9f2;
+}
+
+.aiAlert.medium {
+  background: #fff8e1;
+  border-color: #ffecb3;
+}
+
+.aiAlert.high {
+  background: #ffebee;
+  border-color: #ffcdd2;
+}
+
+.aiAlertHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  font-weight: 600;
+}
+
+.aiAlertIcon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aiAlertTitle {
+  font-size: 14px;
+  color: #2c3e50;
+}
+
+.aiScore {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.aiDetailsToggle {
+  display: flex;
+  align-items: center;
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  padding: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #495057;
+}
+
+.aiDetailsToggle:hover {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(0, 0, 0, 0.3);
+}
+
+.aiAlertDetails {
+  padding: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.aiSummary {
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #495057;
+}
+
+.triggeredTraps {
+  margin-top: 12px;
+}
+
+.trapsList {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0 0;
+}
+
+.trapItem {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.trapDescription {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.trapSeverity {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.trapSeverity.high {
+  background: #ffcdd2;
+  color: #c62828;
+}
+
+.trapSeverity.medium {
+  background: #ffecb3;
+  color: #f57f17;
+}
+
+.trapSeverity.low {
+  background: #c8e6c9;
+  color: #388e3c;
+}
+
+.trapMatches {
+  font-size: 12px;
+  color: #6c757d;
+  font-family: monospace;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin-top: 6px;
+}
+
+.aiHighRisk {
+  color: #dc3545;
+}
+
+.aiMediumRisk {
+  color: #ffc107;
+}
+
+.aiLowRisk {
+  color: #17a2b8;
+}
+
+.aiClean {
+  color: #28a745;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .container {

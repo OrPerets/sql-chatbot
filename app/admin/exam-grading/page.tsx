@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, FileText, Clock, User, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, FileText, Clock, User, CheckCircle, XCircle, AlertTriangle, AlertCircle, Info } from 'lucide-react';
 import styles from './page.module.css';
+import { analyzeExamForAI, getSuspicionColor, getSuspicionIcon } from '../../utils/trapDetector';
 
 interface ExamSession {
   _id: string;
@@ -16,6 +17,13 @@ interface ExamSession {
   score?: number;
   totalQuestions: number;
   graded?: boolean;
+  aiAnalysis?: {
+    isExamSuspicious: boolean;
+    totalSuspiciousAnswers: number;
+    averageSuspicionScore: number;
+    maxSuspicionScore: number;
+    summary: string;
+  };
 }
 
 const ExamGradingPage: React.FC = () => {
@@ -23,7 +31,8 @@ const ExamGradingPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'in_progress' | 'timeout'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'in_progress' | 'timeout' | 'ai_suspicious'>('all');
+  const [aiAnalysisLoading, setAiAnalysisLoading] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   useEffect(() => {
@@ -90,7 +99,12 @@ const ExamGradingPage: React.FC = () => {
       (session.studentName && session.studentName.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (session.studentId && session.studentId.includes(searchTerm));
     
-    const matchesStatus = statusFilter === 'all' || session.status === statusFilter;
+    let matchesStatus = true;
+    if (statusFilter === 'ai_suspicious') {
+      matchesStatus = session.aiAnalysis?.isExamSuspicious === true;
+    } else if (statusFilter !== 'all') {
+      matchesStatus = session.status === statusFilter;
+    }
     
     return matchesSearch && matchesStatus;
   });
@@ -101,6 +115,53 @@ const ExamGradingPage: React.FC = () => {
 
   const handleGradeExam = (examId: string) => {
     router.push(`/admin/exam-grading/${examId}`);
+  };
+
+  const analyzeExamForAIPatterns = async (examId: string) => {
+    if (aiAnalysisLoading.has(examId)) return;
+
+    setAiAnalysisLoading(prev => new Set(prev).add(examId));
+    
+    try {
+      const response = await fetch(`/api/admin/exam/${examId}/for-grading`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch exam data for AI analysis');
+      }
+      
+      const examData = await response.json();
+      if (examData.answers) {
+        const analysis = analyzeExamForAI(examData.answers);
+        
+        // Update the exam session with AI analysis
+        setExamSessions(prev => prev.map(session => 
+          session._id === examId 
+            ? { ...session, aiAnalysis: analysis }
+            : session
+        ));
+      }
+    } catch (err) {
+      console.error('Error analyzing exam for AI:', err);
+    } finally {
+      setAiAnalysisLoading(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(examId);
+        return newSet;
+      });
+    }
+  };
+
+  const getAIIcon = (score: number) => {
+    const iconName = getSuspicionIcon(score);
+    switch (iconName) {
+      case 'AlertTriangle':
+        return <AlertTriangle size={16} className={styles.aiHighRisk} />;
+      case 'AlertCircle':
+        return <AlertCircle size={16} className={styles.aiMediumRisk} />;
+      case 'Info':
+        return <Info size={16} className={styles.aiLowRisk} />;
+      default:
+        return <CheckCircle size={16} className={styles.aiClean} />;
+    }
   };
 
   if (loading) {
@@ -156,6 +217,7 @@ const ExamGradingPage: React.FC = () => {
             <option value="completed">הושלם</option>
             <option value="in_progress">בתהליך</option>
             <option value="timeout">פג תוקף</option>
+            <option value="ai_suspicious">חשוד ב-AI</option>
           </select>
         </div>
       </div>
@@ -178,6 +240,12 @@ const ExamGradingPage: React.FC = () => {
           </div>
           <div className={styles.statLabel}>נבדקו</div>
         </div>
+        <div className={styles.statCard}>
+          <div className={styles.statNumber}>
+            {examSessions.filter(s => s.aiAnalysis?.isExamSuspicious).length}
+          </div>
+          <div className={styles.statLabel}>חשודים ב-AI</div>
+        </div>
       </div>
 
       {/* Exam Sessions Table */}
@@ -191,13 +259,14 @@ const ExamGradingPage: React.FC = () => {
               <th>תאריך סיום</th>
               <th>סטטוס</th>
               <th>ציון</th>
+              <th>AI חשד</th>
               <th>פעולות</th>
             </tr>
           </thead>
           <tbody>
             {filteredSessions.length === 0 ? (
               <tr>
-                <td colSpan={7} className={styles.noData}>
+                <td colSpan={8} className={styles.noData}>
                   לא נמצאו בחינות
                 </td>
               </tr>
@@ -237,6 +306,39 @@ const ExamGradingPage: React.FC = () => {
                       </span>
                     ) : (
                       '-'
+                    )}
+                  </td>
+                  <td className={styles.aiCell}>
+                    {session.status === 'completed' && (
+                      <div className={styles.aiAnalysis}>
+                        {session.aiAnalysis ? (
+                          <div 
+                            className={`${styles.aiIndicator} ${styles[getSuspicionColor(session.aiAnalysis.maxSuspicionScore)]}`}
+                            title={session.aiAnalysis.summary}
+                          >
+                            {getAIIcon(session.aiAnalysis.maxSuspicionScore)}
+                            <span className={styles.aiScore}>
+                              {session.aiAnalysis.maxSuspicionScore}%
+                            </span>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => analyzeExamForAIPatterns(session._id)}
+                            disabled={aiAnalysisLoading.has(session._id)}
+                            className={styles.aiAnalyzeButton}
+                            title="נתח לזיהוי AI"
+                          >
+                            {aiAnalysisLoading.has(session._id) ? (
+                              <Clock size={14} className={styles.loading} />
+                            ) : (
+                              <AlertCircle size={14} />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {session.status !== 'completed' && (
+                      <span className={styles.aiNotAvailable}>-</span>
                     )}
                   </td>
                   <td className={styles.actionsCell}>

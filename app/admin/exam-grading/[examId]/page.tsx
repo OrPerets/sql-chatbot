@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Save, CheckCircle, XCircle, Clock, User, FileText } from 'lucide-react';
+import { ArrowLeft, Save, CheckCircle, XCircle, Clock, User, FileText, AlertTriangle, AlertCircle, Info, Eye } from 'lucide-react';
 import styles from './page.module.css';
+import { detectAITraps, getSuspicionColor, getSuspicionIcon, TrapDetection } from '../../../utils/trapDetector';
 
 interface ExamAnswer {
   _id: string;
@@ -52,6 +53,8 @@ const ExamGradingPage: React.FC = () => {
   const [totalScore, setTotalScore] = useState(0);
   const [maxScore, setMaxScore] = useState(0);
   const [grade, setGrade] = useState('');
+  const [aiAnalyses, setAiAnalyses] = useState<{[questionIndex: number]: TrapDetection}>({});
+  const [showAiDetails, setShowAiDetails] = useState<{[questionIndex: number]: boolean}>({});
   const router = useRouter();
   const params = useParams();
   const examId = params.examId as string;
@@ -87,6 +90,14 @@ const ExamGradingPage: React.FC = () => {
         sum + (answer.isCorrect ? (answer.questionDetails?.points || 1) : 0), 0
       );
       setTotalScore(totalCurrentScore);
+
+      // Analyze answers for AI patterns
+      const aiAnalysisResults: {[questionIndex: number]: TrapDetection} = {};
+      examData.answers.forEach(answer => {
+        const analysis = detectAITraps(answer.studentAnswer);
+        aiAnalysisResults[answer.questionIndex] = analysis;
+      });
+      setAiAnalyses(aiAnalysisResults);
     }
   }, [examData]);
 
@@ -104,6 +115,27 @@ const ExamGradingPage: React.FC = () => {
       setError('Failed to load exam data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleAiDetails = (questionIndex: number) => {
+    setShowAiDetails(prev => ({
+      ...prev,
+      [questionIndex]: !prev[questionIndex]
+    }));
+  };
+
+  const getAIIcon = (score: number) => {
+    const iconName = getSuspicionIcon(score);
+    switch (iconName) {
+      case 'AlertTriangle':
+        return <AlertTriangle size={16} className={styles.aiHighRisk} />;
+      case 'AlertCircle':
+        return <AlertCircle size={16} className={styles.aiMediumRisk} />;
+      case 'Info':
+        return <Info size={16} className={styles.aiLowRisk} />;
+      default:
+        return <CheckCircle size={16} className={styles.aiClean} />;
     }
   };
 
@@ -329,6 +361,62 @@ const ExamGradingPage: React.FC = () => {
                   </span>
                 </div>
               </div>
+
+              {/* AI Detection Alert */}
+              {aiAnalyses[answer.questionIndex]?.isAISuspicious && (
+                <div className={`${styles.aiAlert} ${styles[getSuspicionColor(aiAnalyses[answer.questionIndex].suspicionScore)]}`}>
+                  <div className={styles.aiAlertHeader}>
+                    <div className={styles.aiAlertIcon}>
+                      {getAIIcon(aiAnalyses[answer.questionIndex].suspicionScore)}
+                      <span className={styles.aiAlertTitle}>
+                        חשד לתשובה שנוצרה על ידי AI
+                      </span>
+                    </div>
+                    <div className={styles.aiScore}>
+                      {aiAnalyses[answer.questionIndex].suspicionScore}%
+                    </div>
+                    <button
+                      onClick={() => toggleAiDetails(answer.questionIndex)}
+                      className={styles.aiDetailsToggle}
+                      title="הצג פרטים"
+                    >
+                      <Eye size={14} />
+                    </button>
+                  </div>
+                  
+                  {showAiDetails[answer.questionIndex] && (
+                    <div className={styles.aiAlertDetails}>
+                      <div className={styles.aiSummary}>
+                        <strong>סיכום:</strong> {aiAnalyses[answer.questionIndex].summary}
+                      </div>
+                      
+                      {aiAnalyses[answer.questionIndex].triggeredTraps.length > 0 && (
+                        <div className={styles.triggeredTraps}>
+                          <strong>מלכודות שהופעלו:</strong>
+                          <ul className={styles.trapsList}>
+                            {aiAnalyses[answer.questionIndex].triggeredTraps.map((trap, trapIndex) => (
+                              <li key={trapIndex} className={styles.trapItem}>
+                                <div className={styles.trapDescription}>
+                                  <span className={`${styles.trapSeverity} ${styles[trap.severity]}`}>
+                                    {trap.severity === 'high' ? 'חמור' : 
+                                     trap.severity === 'medium' ? 'בינוני' : 'נמוך'}
+                                  </span>
+                                  {trap.description}
+                                </div>
+                                {trap.matches.length > 0 && (
+                                  <div className={styles.trapMatches}>
+                                    <strong>נמצא:</strong> {trap.matches.join(', ')}
+                                  </div>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className={styles.questionContent}>
                 <div className={styles.questionText}>
