@@ -10,7 +10,7 @@ export interface KeystrokeEvent {
   flightTime?: number; // Time between consecutive keystrokes
 }
 
-export interface MouseEvent {
+export interface TrackedMouseEvent {
   timestamp: number;
   type: 'click' | 'move' | 'scroll' | 'hover';
   x: number;
@@ -134,7 +134,7 @@ export interface ComprehensiveMetrics {
   cognitiveMetrics: CognitiveMetrics;
   
   // Interface interaction
-  mouseEvents: MouseEvent[];
+  mouseEvents: TrackedMouseEvent[];
   focusEvents: FocusEvent[];
   interfaceUsage: InterfaceUsage;
   
@@ -158,7 +158,7 @@ export class ExamMetricsTracker {
   private startTime: Date;
   private lastKeystroke: number = 0;
   private keystrokeBuffer: KeystrokeEvent[] = [];
-  private mouseEventBuffer: MouseEvent[] = [];
+  private mouseEventBuffer: TrackedMouseEvent[] = [];
   private focusEventBuffer: FocusEvent[] = [];
   private textProgressionBuffer: any[] = [];
   private lastTextContent: string = '';
