@@ -21,6 +21,8 @@ export async function GET(
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'User-Agent': 'NextJS-ExamApp/1.0',
+        'Cache-Control': 'no-cache',
       },
     });
 
