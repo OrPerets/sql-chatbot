@@ -660,7 +660,7 @@ const DatabaseDescription = ({ onContinue, user }: { onContinue: () => void, use
               <span className={styles.columnName}>squadron_number</span>
             </div>
             <div className={styles.column}>
-              <span className={styles.columnType}>הבסיס הבית (מפתח זר)</span>
+              <span className={styles.columnType}>קוד הבסיס (מפתח זר)</span>
               <span className={styles.columnName}>base_id</span>
             </div>
             <div className={styles.column}>
