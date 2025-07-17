@@ -625,4 +625,122 @@
     align-items: flex-start;
     gap: 8px;
   }
+}
+
+/* Delete Question Button */
+.deleteQuestionButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: #dc3545;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: white;
+  margin-right: 8px;
+}
+
+.deleteQuestionButton:hover {
+  background: #c82333;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+}
+
+/* Delete Confirmation Dialog */
+.deleteConfirmOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.deleteConfirmDialog {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  direction: rtl;
+}
+
+.deleteConfirmHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.deleteConfirmHeader h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.warningIcon {
+  color: #ffc107;
+}
+
+.deleteConfirmContent {
+  margin-bottom: 24px;
+}
+
+.deleteConfirmContent p {
+  margin: 0 0 8px 0;
+  color: #495057;
+  line-height: 1.5;
+}
+
+.warningText {
+  color: #dc3545 !important;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.deleteConfirmActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-start;
+}
+
+.confirmDeleteButton {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.confirmDeleteButton:hover {
+  background: #c82333;
+}
+
+.cancelDeleteButton {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.cancelDeleteButton:hover {
+  background: #5a6268;
 } 

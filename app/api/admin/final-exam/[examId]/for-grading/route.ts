@@ -10,7 +10,7 @@ export async function GET(
   try {
     const { examId } = params;
     
-    const response = await fetch(`${SERVER_BASE}/admin/exam/${examId}/for-grading`, {
+    const response = await fetch(`${SERVER_BASE}/admin/final-exam/${examId}/for-grading`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -25,9 +25,9 @@ export async function GET(
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error fetching exam for grading:', error);
+    console.error('Error fetching final exam for grading:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch exam for grading' },
+      { error: 'Failed to fetch final exam for grading' },
       { status: 500 }
     );
   }

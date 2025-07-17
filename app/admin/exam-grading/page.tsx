@@ -33,6 +33,8 @@ const ExamGradingPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'in_progress' | 'timeout' | 'ai_suspicious'>('all');
   const [aiAnalysisLoading, setAiAnalysisLoading] = useState<Set<string>>(new Set());
+  const [bulkAnalysisLoading, setBulkAnalysisLoading] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState({ current: 0, total: 0 });
   const router = useRouter();
 
   useEffect(() => {
@@ -42,16 +44,38 @@ const ExamGradingPage: React.FC = () => {
   const fetchExamSessions = async () => {
     try {
       setLoading(true);
-      // Fetch directly from the deployed backend
-      const response = await fetch('https://mentor-server-theta.vercel.app/admin/exam-sessions');
+      // First try to fetch from FinalExams collection via local API
+      const response = await fetch('/api/admin/final-exams');
       if (!response.ok) {
-        throw new Error('Failed to fetch exam sessions');
+        // If FinalExams doesn't exist, initialize it first
+        if (response.status === 500) {
+          console.log('Initializing FinalExams collection...');
+          const initResponse = await fetch('/api/admin/final-exams', {
+            method: 'POST'
+          });
+          if (initResponse.ok) {
+            // Try fetching again after initialization
+            const retryResponse = await fetch('/api/admin/final-exams');
+            if (retryResponse.ok) {
+              const data = await retryResponse.json();
+              const sessions = data.exams || data;
+              setExamSessions(sessions);
+              // Auto-run AI analysis for completed exams
+              runBulkAIAnalysis(sessions);
+              return;
+            }
+          }
+        }
+        throw new Error('Failed to fetch final exams');
       }
       const data = await response.json();
-      setExamSessions(data);
+      const sessions = data.exams || data;
+      setExamSessions(sessions);
+      // Auto-run AI analysis for completed exams
+      runBulkAIAnalysis(sessions);
     } catch (err) {
-      console.error('Error fetching exam sessions:', err);
-      setError('Failed to load exam sessions');
+      console.error('Error fetching final exams:', err);
+      setError('Failed to load final exams');
     } finally {
       setLoading(false);
     }
@@ -95,7 +119,7 @@ const ExamGradingPage: React.FC = () => {
 
   const filteredSessions = examSessions.filter(session => {
     const matchesSearch = 
-      session.studentEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (session.studentEmail && session.studentEmail.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (session.studentName && session.studentName.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (session.studentId && session.studentId.includes(searchTerm));
     
@@ -150,6 +174,63 @@ const ExamGradingPage: React.FC = () => {
     }
   };
 
+  const runBulkAIAnalysis = async (sessions: ExamSession[]) => {
+    // Analyze all completed exams (re-analyze existing ones with enhanced detector)
+    const toAnalyze = sessions.filter(session => 
+      session.status === 'completed'
+    );
+
+    if (toAnalyze.length === 0) return;
+
+    setBulkAnalysisLoading(true);
+    setAnalysisProgress({ current: 0, total: toAnalyze.length });
+
+    console.log(`Starting AI analysis for ${toAnalyze.length} completed exams...`);
+
+    // Process exams in parallel but limit concurrency to avoid overwhelming the API
+    const BATCH_SIZE = 3;
+    for (let i = 0; i < toAnalyze.length; i += BATCH_SIZE) {
+      const batch = toAnalyze.slice(i, Math.min(i + BATCH_SIZE, toAnalyze.length));
+      
+      await Promise.all(
+        batch.map(async (session, batchIndex) => {
+          try {
+            const response = await fetch(`/api/admin/exam/${session._id}/for-grading`);
+            if (response.ok) {
+              const examData = await response.json();
+              if (examData.answers) {
+                const analysis = analyzeExamForAI(examData.answers);
+                
+                // Update the exam session with AI analysis
+                setExamSessions(prev => prev.map(s => 
+                  s._id === session._id 
+                    ? { ...s, aiAnalysis: analysis }
+                    : s
+                ));
+              }
+            }
+          } catch (err) {
+            console.error(`Error analyzing exam ${session._id}:`, err);
+          }
+          
+          // Update progress
+          setAnalysisProgress(prev => ({
+            ...prev,
+            current: i + batchIndex + 1
+          }));
+        })
+      );
+
+      // Small delay between batches to be nice to the API
+      if (i + BATCH_SIZE < toAnalyze.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    setBulkAnalysisLoading(false);
+    console.log('AI analysis completed for all exams');
+  };
+
   const getAIIcon = (score: number) => {
     const iconName = getSuspicionIcon(score);
     switch (iconName) {
@@ -167,7 +248,7 @@ const ExamGradingPage: React.FC = () => {
   if (loading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>טוען בחינות...</div>
+        <div className={styles.loading}>טוען בחינות סופיות...</div>
       </div>
     );
   }
@@ -185,8 +266,11 @@ const ExamGradingPage: React.FC = () => {
         </button>
         <h1 className={styles.title}>
           <FileText size={24} />
-          בדיקה וציונים - בחינות
+          בדיקה וציונים - בחינות סופיות
         </h1>
+        <div className={styles.subtitle}>
+          מציג בחינות מאוחדות - בחינה אחת לכל סטודנט (מעדיף מבחן מקורי על פני חזרה)
+        </div>
       </div>
 
       {error && (
@@ -222,6 +306,46 @@ const ExamGradingPage: React.FC = () => {
         </div>
       </div>
 
+      {/* AI Analysis Controls */}
+      <div className={styles.aiControls}>
+        <div className={styles.aiControlsHeader}>
+          <h3>🤖 מערכת זיהוי AI מתקדמת</h3>
+          <button
+            onClick={() => runBulkAIAnalysis(examSessions)}
+            disabled={bulkAnalysisLoading}
+            className={styles.reAnalyzeButton}
+            title="הרץ מחדש ניתוח AI עם הגדרות מתקדמות"
+          >
+            <AlertTriangle size={16} />
+            {bulkAnalysisLoading ? 'מנתח...' : 'נתח מחדש הכל'}
+          </button>
+        </div>
+        <div className={styles.trapsList}>
+          <span className={styles.trapsInfo}>
+            🪤 מזהה 18 סוגי מלכודות: weapon_id בMissions, טבלת MissionAnalytics פיקטיבית, שדות duration_minutes/fuel_consumption, יחסים שגויים, והזרקת פרומפט התנהגותי
+          </span>
+        </div>
+      </div>
+
+      {/* Bulk AI Analysis Progress */}
+      {bulkAnalysisLoading && (
+        <div className={styles.bulkAnalysisProgress}>
+          <div className={styles.progressHeader}>
+            <AlertTriangle size={20} className={styles.progressIcon} />
+            <span>מריץ ניתוח AI מתקדם עבור בחינות שהושלמו...</span>
+          </div>
+          <div className={styles.progressBar}>
+            <div 
+              className={styles.progressFill}
+              style={{ width: `${(analysisProgress.current / analysisProgress.total) * 100}%` }}
+            />
+          </div>
+          <div className={styles.progressText}>
+            {analysisProgress.current} מתוך {analysisProgress.total} בחינות
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div className={styles.stats}>
         <div className={styles.statCard}>
@@ -245,6 +369,12 @@ const ExamGradingPage: React.FC = () => {
             {examSessions.filter(s => s.aiAnalysis?.isExamSuspicious).length}
           </div>
           <div className={styles.statLabel}>חשודים ב-AI</div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statNumber}>
+            {examSessions.filter(s => s.status === 'completed' && s.aiAnalysis).length}
+          </div>
+          <div className={styles.statLabel}>נותחו ל-AI</div>
         </div>
       </div>
 
@@ -302,7 +432,7 @@ const ExamGradingPage: React.FC = () => {
                   <td className={styles.scoreCell}>
                     {session.score !== undefined ? (
                       <span className={styles.score}>
-                        {session.score}/{session.totalQuestions}
+                        {session.score}
                       </span>
                     ) : (
                       '-'
@@ -322,18 +452,23 @@ const ExamGradingPage: React.FC = () => {
                             </span>
                           </div>
                         ) : (
-                          <button
-                            onClick={() => analyzeExamForAIPatterns(session._id)}
-                            disabled={aiAnalysisLoading.has(session._id)}
-                            className={styles.aiAnalyzeButton}
-                            title="נתח לזיהוי AI"
-                          >
-                            {aiAnalysisLoading.has(session._id) ? (
-                              <Clock size={14} className={styles.loading} />
+                          <div className={styles.aiPending}>
+                            {aiAnalysisLoading.has(session._id) || bulkAnalysisLoading ? (
+                              <div className={styles.aiLoading} title="מנתח...">
+                                <Clock size={14} className={styles.loadingSpinner} />
+                                <span className={styles.loadingText}>מנתח...</span>
+                              </div>
                             ) : (
-                              <AlertCircle size={14} />
+                              <button
+                                onClick={() => analyzeExamForAIPatterns(session._id)}
+                                className={styles.aiAnalyzeButton}
+                                title="נתח לזיהוי AI"
+                              >
+                                <AlertCircle size={14} />
+                                <span>נתח</span>
+                              </button>
                             )}
-                          </button>
+                          </div>
                         )}
                       </div>
                     )}

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Save, CheckCircle, XCircle, Clock, User, FileText, AlertTriangle, AlertCircle, Info, Eye } from 'lucide-react';
+import { ArrowLeft, Save, CheckCircle, XCircle, Clock, User, FileText, AlertTriangle, AlertCircle, Info, Eye, Trash2 } from 'lucide-react';
 import styles from './page.module.css';
 import { detectAITraps, getSuspicionColor, getSuspicionIcon, TrapDetection } from '../../../utils/trapDetector';
 
@@ -55,6 +55,8 @@ const ExamGradingPage: React.FC = () => {
   const [grade, setGrade] = useState('');
   const [aiAnalyses, setAiAnalyses] = useState<{[questionIndex: number]: TrapDetection}>({});
   const [showAiDetails, setShowAiDetails] = useState<{[questionIndex: number]: boolean}>({});
+  const [deletedQuestions, setDeletedQuestions] = useState<Set<number>>(new Set());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const router = useRouter();
   const params = useParams();
   const examId = params.examId as string;
@@ -79,16 +81,16 @@ const ExamGradingPage: React.FC = () => {
       });
       setQuestionGrades(initialGrades);
       
-      // Calculate total max score based on actual question points
-      const totalMaxScore = examData.answers.reduce((sum, answer) => 
-        sum + (answer.questionDetails?.points || 1), 0
-      );
+      // Calculate total max score based on actual question points (excluding deleted questions)
+      const totalMaxScore = examData.answers
+        .filter(answer => !deletedQuestions.has(answer.questionIndex))
+        .reduce((sum, answer) => sum + (answer.questionDetails?.points || 1), 0);
       setMaxScore(totalMaxScore);
       
-      // Calculate total score based on correct answers and their points
-      const totalCurrentScore = examData.answers.reduce((sum, answer) => 
-        sum + (answer.isCorrect ? (answer.questionDetails?.points || 1) : 0), 0
-      );
+      // Calculate total score based on correct answers and their points (excluding deleted questions)
+      const totalCurrentScore = examData.answers
+        .filter(answer => !deletedQuestions.has(answer.questionIndex))
+        .reduce((sum, answer) => sum + (answer.isCorrect ? (answer.questionDetails?.points || 1) : 0), 0);
       setTotalScore(totalCurrentScore);
 
       // Analyze answers for AI patterns
@@ -99,14 +101,19 @@ const ExamGradingPage: React.FC = () => {
       });
       setAiAnalyses(aiAnalysisResults);
     }
-  }, [examData]);
+  }, [examData, deletedQuestions]);
 
   const fetchExamData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/admin/exam/${examId}/for-grading`);
+      // Try fetching from FinalExams first, fall back to regular exams
+      let response = await fetch(`/api/admin/final-exam/${examId}/for-grading`);
       if (!response.ok) {
-        throw new Error('Failed to fetch exam data');
+        // Fall back to original exam endpoint
+        response = await fetch(`/api/admin/exam/${examId}/for-grading`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch exam data');
+        }
       }
       const data = await response.json();
       setExamData(data);
@@ -146,16 +153,44 @@ const ExamGradingPage: React.FC = () => {
         : grade
     ));
 
-    // Update total score
+    // Update total score (excluding deleted questions)
     if (field === 'score') {
       const newGrades = questionGrades.map(grade => 
         grade.questionIndex === questionIndex 
           ? { ...grade, score: Number(value) }
           : grade
       );
-      const newTotal = newGrades.reduce((sum, grade) => sum + grade.score, 0);
+      const newTotal = newGrades
+        .filter(grade => !deletedQuestions.has(grade.questionIndex))
+        .reduce((sum, grade) => sum + grade.score, 0);
       setTotalScore(newTotal);
     }
+  };
+
+  const handleDeleteQuestion = (questionIndex: number) => {
+    setShowDeleteConfirm(questionIndex);
+  };
+
+  const confirmDeleteQuestion = (questionIndex: number) => {
+    setDeletedQuestions(prev => new Set([...Array.from(prev), questionIndex]));
+    setShowDeleteConfirm(null);
+    
+    // Recalculate totals after deletion
+    if (examData?.answers) {
+      const totalMaxScore = examData.answers
+        .filter(answer => !deletedQuestions.has(answer.questionIndex) && answer.questionIndex !== questionIndex)
+        .reduce((sum, answer) => sum + (answer.questionDetails?.points || 1), 0);
+      setMaxScore(totalMaxScore);
+      
+      const totalCurrentScore = questionGrades
+        .filter(grade => !deletedQuestions.has(grade.questionIndex) && grade.questionIndex !== questionIndex)
+        .reduce((sum, grade) => sum + grade.score, 0);
+      setTotalScore(totalCurrentScore);
+    }
+  };
+
+  const cancelDeleteQuestion = () => {
+    setShowDeleteConfirm(null);
   };
 
   const calculatePercentage = () => {
@@ -180,8 +215,9 @@ const ExamGradingPage: React.FC = () => {
         maxScore,
         percentage: calculatePercentage(),
         grade: grade || getGradeLetter(calculatePercentage()),
-        questionGrades,
+        questionGrades: questionGrades.filter(grade => !deletedQuestions.has(grade.questionIndex)),
         overallFeedback,
+        deletedQuestions: Array.from(deletedQuestions),
         review: {
           totalScore,
           maxScore,
@@ -331,7 +367,7 @@ const ExamGradingPage: React.FC = () => {
       <div className={styles.questionsSection}>
         <h2 className={styles.sectionTitle}>שאלות ותשובות</h2>
         
-        {examData.answers.map((answer, index) => {
+        {examData.answers.filter(answer => !deletedQuestions.has(answer.questionIndex)).map((answer, index) => {
           const questionGrade = questionGrades.find(g => g.questionIndex === answer.questionIndex);
           const questionPoints = answer.questionDetails?.points || 1;
           
@@ -359,6 +395,13 @@ const ExamGradingPage: React.FC = () => {
                     {answer.isCorrect ? <CheckCircle size={16} /> : <XCircle size={16} />}
                     {answer.isCorrect ? 'נכון' : 'שגוי'}
                   </span>
+                  <button
+                    onClick={() => handleDeleteQuestion(answer.questionIndex)}
+                    className={styles.deleteQuestionButton}
+                    title="מחק שאלה"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </div>
 
@@ -492,6 +535,36 @@ const ExamGradingPage: React.FC = () => {
           {saving ? 'שומר...' : 'שמור ציון'}
         </button>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm !== null && (
+        <div className={styles.deleteConfirmOverlay}>
+          <div className={styles.deleteConfirmDialog}>
+            <div className={styles.deleteConfirmHeader}>
+              <AlertTriangle size={24} className={styles.warningIcon} />
+              <h3>אישור מחיקת שאלה</h3>
+            </div>
+            <div className={styles.deleteConfirmContent}>
+              <p>האם אתה בטוח שברצונך למחוק את שאלה {showDeleteConfirm + 1} מהבחינה?</p>
+              <p className={styles.warningText}>פעולה זו לא ניתנת לביטול ותשפיע על הציון הסופי.</p>
+            </div>
+            <div className={styles.deleteConfirmActions}>
+              <button
+                onClick={() => confirmDeleteQuestion(showDeleteConfirm)}
+                className={styles.confirmDeleteButton}
+              >
+                מחק שאלה
+              </button>
+              <button
+                onClick={cancelDeleteQuestion}
+                className={styles.cancelDeleteButton}
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

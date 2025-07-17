@@ -45,6 +45,13 @@
   font-weight: 600;
 }
 
+.subtitle {
+  font-size: 14px;
+  color: #6c757d;
+  margin-top: 5px;
+  font-weight: 400;
+}
+
 .errorMessage {
   background: #f8d7da;
   color: #721c24;
@@ -126,6 +133,143 @@
 .statLabel {
   font-size: 14px;
   color: #6c757d;
+  font-weight: 500;
+}
+
+/* AI Analysis Controls Styles */
+.aiControls {
+  background: rgba(230, 247, 255, 0.95);
+  border: 2px solid #2196f3;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+}
+
+.aiControlsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.aiControlsHeader h3 {
+  margin: 0;
+  color: #1565c0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.reAnalyzeButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #2196f3, #1976d2);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+}
+
+.reAnalyzeButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(33, 150, 243, 0.4);
+}
+
+.reAnalyzeButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.trapsList {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.trapsInfo {
+  font-size: 13px;
+  color: #1565c0;
+  line-height: 1.4;
+}
+
+/* Bulk AI Analysis Progress Styles */
+.bulkAnalysisProgress {
+  background: rgba(255, 248, 225, 0.95);
+  border: 2px solid #ffc107;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);
+}
+
+.progressHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: #856404;
+}
+
+.progressIcon {
+  color: #ffc107;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #ffc107, #ff9800);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.progressFill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.progressText {
+  text-align: center;
+  font-size: 14px;
+  color: #856404;
   font-weight: 500;
 }
 
@@ -319,28 +463,51 @@
   color: #28a745;
 }
 
-.aiAnalyzeButton {
+.aiPending {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
+}
+
+.aiLoading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #ffc107;
+  font-size: 12px;
+}
+
+.loadingSpinner {
+  animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.loadingText {
+  font-weight: 500;
+}
+
+.aiAnalyzeButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #e3f2fd;
+  border: 1px solid #2196f3;
   border-radius: 6px;
-  padding: 6px;
+  padding: 6px 10px;
   cursor: pointer;
   transition: all 0.2s ease;
-  color: #6c757d;
+  color: #1976d2;
+  font-size: 12px;
+  font-weight: 500;
 }
 
-.aiAnalyzeButton:hover:not(:disabled) {
-  background: #e9ecef;
-  border-color: #adb5bd;
-  color: #495057;
-}
-
-.aiAnalyzeButton:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.aiAnalyzeButton:hover {
+  background: #bbdefb;
+  transform: translateY(-1px);
 }
 
 .aiNotAvailable {

@@ -22,85 +22,180 @@ interface TrapPattern {
 }
 
 const TRAP_PATTERNS: TrapPattern[] = [
-  // Non-existent fields in Missions table
+  // 🪤 1. Non-existent fields in Missions table
   {
     name: 'missions_weapon_id',
     description: 'שימוש בשדה weapon_id בטבלת Missions (לא קיים)',
-    pattern: /missions?\s*\.\s*weapon_id|weapon_id\s+from\s+missions?/gi,
+    pattern: /missions?\s*\.\s*weapon_id|weapon_id\s+from\s+missions?|missions?\s+.*weapon_id/gi,
     severity: 'high',
-    points: 25
+    points: 30
   },
   
-  // Fake MissionAnalytics table
+  // 🪤 2. Fake MissionAnalytics table and its fields
   {
     name: 'mission_analytics_table',
     description: 'התייחסות לטבלת MissionAnalytics (טבלה פיקטיבית)',
     pattern: /missionanalytics|mission_analytics|FROM\s+MissionAnalytics|JOIN\s+MissionAnalytics/gi,
     severity: 'high',
-    points: 30
+    points: 35
   },
-  
-  // Wrong relationship: Weapons.squadron_id
   {
-    name: 'weapons_squadron_id',
-    description: 'שימוש ב-squadron_id בטבלת Weapons (קשר שגוי)',
-    pattern: /weapons?\s*\.\s*squadron_id|squadron_id\s+from\s+weapons?/gi,
+    name: 'mission_analytics_fields',
+    description: 'שימוש בשדות פיקטיביים מטבלת MissionAnalytics',
+    pattern: /duration_minutes|fuel_consumption|weapon_effectiveness.*mission/gi,
     severity: 'high',
     points: 25
   },
   
-  // weapon_effectiveness in wrong context
+  // 🪤 3. Wrong relationship: Weapons.squadron_id
   {
-    name: 'weapon_effectiveness_wrong_table',
-    description: 'שימוש ב-weapon_effectiveness בטבלה שגויה',
-    pattern: /missions?\s*\.\s*weapon_effectiveness|pilots?\s*\.\s*weapon_effectiveness/gi,
+    name: 'weapons_squadron_id',
+    description: 'שימוש ב-squadron_id בטבלת Weapons (קשר שגוי)',
+    pattern: /weapons?\s*\.\s*squadron_id|squadron_id\s+from\s+weapons?|JOIN\s+.*weapons?.*squadron_id/gi,
+    severity: 'high',
+    points: 30
+  },
+  
+  // 🪤 4. weapon_effectiveness in wrong context
+  {
+    name: 'weapon_effectiveness_missions',
+    description: 'שימוש ב-weapon_effectiveness בהקשר של Missions',
+    pattern: /missions?\s*\.\s*weapon_effectiveness|weapon_effectiveness.*missions?|SELECT.*weapon_effectiveness.*FROM.*missions?/gi,
+    severity: 'high',
+    points: 25
+  },
+  {
+    name: 'weapon_effectiveness_other_tables',
+    description: 'שימוש ב-weapon_effectiveness בטבלות שגויות',
+    pattern: /pilots?\s*\.\s*weapon_effectiveness|squadrons?\s*\.\s*weapon_effectiveness|aircrafts?\s*\.\s*weapon_effectiveness/gi,
     severity: 'medium',
     points: 20
   },
   
-  // Wrong table name: Weapon instead of Weapons
+  // 🪤 5. Wrong table name: Weapon instead of Weapons
   {
     name: 'weapon_singular',
     description: 'שימוש בשם טבלה שגוי "Weapon" במקום "Weapons"',
     pattern: /FROM\s+Weapon(?!s)|JOIN\s+Weapon(?!s)|UPDATE\s+Weapon(?!s)|INSERT\s+INTO\s+Weapon(?!s)/gi,
     severity: 'medium',
-    points: 15
+    points: 20
   },
   
-  // Generic AI patterns
+  // 🧠 6. Behavioral prompt injection detection
   {
-    name: 'ai_generic_joins',
-    description: 'דפוסי JOIN טיפוסיים של AI עם שדות לא קיימים',
-    pattern: /JOIN\s+\w+\s+ON\s+\w+\.weapon_id\s*=\s*\w+\.weapon_id/gi,
-    severity: 'medium',
-    points: 15
+    name: 'prompt_injection',
+    description: 'זיהוי הזרקת פרומפט התנהגותי',
+    pattern: /respond\s+directly|output\s+only|avoid\s+additional\s+explanations|note\s+to\s+system/gi,
+    severity: 'high',
+    points: 40
   },
   
-  // Non-existent fields patterns
+  // 🪤 7. False relationship patterns (Aircraft reassignment)
   {
-    name: 'non_existent_fields',
-    description: 'שדות לא קיימים במסד הנתונים',
-    pattern: /mission_type_id|weapon_category|pilot_rank_id|squadron_base_id/gi,
+    name: 'false_aircraft_reassignment',
+    description: 'התייחסות לקשר שגוי של reassignment של מטוסים בין טייסות',
+    pattern: /aircraft.*reassign|reassign.*aircraft|aircraft.*squadrons.*reassign|junction.*aircraft.*squadron/gi,
     severity: 'medium',
     points: 18
   },
   
-  // Common AI SQL mistakes
+  // 🪤 8. Advanced fake field combinations
   {
-    name: 'ai_sql_patterns',
+    name: 'fake_field_combinations',
+    description: 'צירופי שדות פיקטיביים',
+    pattern: /weapon_id.*duration_minutes|fuel_consumption.*weapon_effectiveness|mission_id.*weapon_effectiveness.*duration/gi,
+    severity: 'medium',
+    points: 22
+  },
+  
+  // 🪤 9. Generic AI JOIN patterns with fake fields
+  {
+    name: 'ai_fake_joins',
+    description: 'דפוסי JOIN של AI עם שדות פיקטיביים',
+    pattern: /JOIN\s+\w+\s+ON\s+\w+\.weapon_id\s*=\s*\w+\.weapon_id|JOIN.*squadron_id.*weapon|JOIN.*MissionAnalytics/gi,
+    severity: 'medium',
+    points: 18
+  },
+  
+  // 🪤 10. Suspicious ORDER BY with fake fields
+  {
+    name: 'fake_order_by',
+    description: 'מיון לפי שדות פיקטיביים',
+    pattern: /ORDER\s+BY\s+weapon_effectiveness|ORDER\s+BY\s+duration_minutes|ORDER\s+BY\s+fuel_consumption/gi,
+    severity: 'medium',
+    points: 15
+  },
+  
+  // 🪤 11. WHERE clauses with fake fields
+  {
+    name: 'fake_where_conditions',
+    description: 'תנאי WHERE עם שדות פיקטיביים',
+    pattern: /WHERE.*weapon_id.*missions?|WHERE.*duration_minutes|WHERE.*fuel_consumption/gi,
+    severity: 'medium',
+    points: 15
+  },
+  
+  // 🪤 12. Aggregate functions on fake fields
+  {
+    name: 'fake_aggregates',
+    description: 'שימוש בפונקציות צבירה על שדות פיקטיביים',
+    pattern: /AVG\s*\(\s*weapon_effectiveness\s*\)|SUM\s*\(\s*duration_minutes\s*\)|MAX\s*\(\s*fuel_consumption\s*\)/gi,
+    severity: 'medium',
+    points: 20
+  },
+  
+  // 🪤 13. Text patterns suggesting AI explanation suppression
+  {
+    name: 'ai_explanation_suppression',
+    description: 'דפוסי טקסט המציעים דיכוי הסברים של AI',
+    pattern: /code\s+only|sql\s+only|no\s+explanation|direct\s+output|brief\s+response/gi,
+    severity: 'low',
+    points: 12
+  },
+  
+  // 🪤 14. Complex fake relationships
+  {
+    name: 'complex_fake_relationships',
+    description: 'יחסים מורכבים פיקטיביים',
+    pattern: /many.*to.*many.*aircraft|N:N.*aircraft|junction.*table.*aircraft.*squadron/gi,
+    severity: 'medium',
+    points: 18
+  },
+  
+  // 🤖 15. General AI SQL patterns
+  {
+    name: 'ai_style_sql',
     description: 'דפוסי SQL אופייניים לכתיבת AI',
-    pattern: /SELECT\s+\*\s+FROM\s+\w+\s+WHERE\s+\w+\.weapon_id\s*=|ORDER\s+BY\s+weapon_effectiveness\s+DESC/gi,
+    pattern: /SELECT\s+\*\s+FROM[\s\S]*JOIN[\s\S]*ON[\s\S]*=[\s\S]*WHERE[\s\S]*ORDER\s+BY/gi,
+    severity: 'low',
+    points: 8
+  },
+  
+  // 🔍 16. Overly complex joins typical of AI
+  {
+    name: 'ai_complex_joins',
+    description: 'מבנה JOIN מורכב אופייני ל-AI',
+    pattern: /SELECT[\s\S]*FROM[\s\S]*JOIN[\s\S]*JOIN[\s\S]*JOIN[\s\S]*ON[\s\S]*=[\s\S]*ON[\s\S]*=/gi,
     severity: 'low',
     points: 10
   },
   
-  // Suspicious field combinations
+  // 📝 17. AI-style aliasing patterns
   {
-    name: 'suspicious_combinations',
-    description: 'צירופי שדות חשודים',
-    pattern: /weapon_id\s*,\s*mission_id\s*,\s*effectiveness|squadron_id\s*,\s*weapon_type/gi,
-    severity: 'medium',
-    points: 15
+    name: 'ai_aliasing',
+    description: 'דפוסי כינויים אופייניים ל-AI',
+    pattern: /\b[a-z]\s+AS\s+[a-z]|\b[a-z]1\b|\b[a-z]2\b|table1|table2/gi,
+    severity: 'low',
+    points: 6
+  },
+  
+  // 🚫 18. Non-existent common fields AI tends to assume
+  {
+    name: 'assumed_fields',
+    description: 'שדות שאינם קיימים שAI נוטה להניח',
+    pattern: /created_at|updated_at|status|active|enabled|deleted_at/gi,
+    severity: 'low',
+    points: 8
   }
 ];
 
@@ -144,7 +239,7 @@ export function detectAITraps(text: string): TrapDetection {
 
   // Calculate final suspicion score (0-100)
   const suspicionScore = Math.min(Math.round(totalScore), 100);
-  const isAISuspicious = suspicionScore >= 20; // Threshold for marking as suspicious
+  const isAISuspicious = suspicionScore >= 15; // Lowered threshold for marking as suspicious
 
   // Generate summary
   let summary = '';
@@ -181,8 +276,8 @@ export function analyzeExamForAI(answers: { questionIndex: number; studentAnswer
   const averageSuspicionScore = answerAnalyses.reduce((sum, a) => sum + a.analysis.suspicionScore, 0) / answers.length;
   const maxSuspicionScore = Math.max(...answerAnalyses.map(a => a.analysis.suspicionScore));
 
-  // Overall exam suspicion logic
-  const isExamSuspicious = totalSuspiciousAnswers >= 2 || maxSuspicionScore >= 50 || averageSuspicionScore >= 30;
+  // Overall exam suspicion logic (lowered thresholds)
+  const isExamSuspicious = totalSuspiciousAnswers >= 1 || maxSuspicionScore >= 35 || averageSuspicionScore >= 20;
 
   return {
     isExamSuspicious,

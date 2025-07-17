@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
       },
+      cache: 'no-store', // Disable caching for admin analytics data
     });
 
     if (!response.ok) {
