@@ -598,52 +598,6 @@ const DatabaseDescription = ({ onContinue, user }: { onContinue: () => void, use
           </div>
         </div>
 
-      {/* GENERIC TABLES FOR EXAM SCREENSHOTS */}
-      {/* <div className={styles.tablesGrid}>
-        <div className={styles.tableCard}>
-          <h3 className={styles.tableName}>טבלה A</h3>
-          <div className={styles.tableSchema}>
-            <div className={styles.column}>
-              <span className={styles.columnType}>מזהה ייחודי (מפתח ראשי)</span>
-              <span className={styles.columnName}>id</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>שם</span>
-              <span className={styles.columnName}>name</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>תיאור</span>
-              <span className={styles.columnName}>description</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>תאריך יצירה</span>
-              <span className={styles.columnName}>created_date</span>
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.tableCard}>
-          <h3 className={styles.tableName}>טבלה B</h3>
-          <div className={styles.tableSchema}>
-            <div className={styles.column}>
-              <span className={styles.columnType}>מזהה ייחודי (מפתח ראשי)</span>
-              <span className={styles.columnName}>id</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>מזהה טבלה A (מפתח זר)</span>
-              <span className={styles.columnName}>table_a_id</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>ערך מספרי</span>
-              <span className={styles.columnName}>numeric_value</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>סטטוס</span>
-              <span className={styles.columnName}>status</span>
-            </div>
-          </div>
-        </div> */}
-
         <div className={styles.tableCard}>
           <h3 className={styles.tableName}>טבלת Squadrons (טייסות)</h3>
           <div className={styles.tableSchema}>
