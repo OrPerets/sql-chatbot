@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Save, CheckCircle, XCircle, Clock, User, FileText, AlertTriangle, AlertCircle, Info, Eye, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, CheckCircle, XCircle, Clock, User, FileText, AlertTriangle, AlertCircle, Info, Eye, Trash2, Check, X } from 'lucide-react';
 import styles from './page.module.css';
 import { detectAITraps, getSuspicionColor, getSuspicionIcon, TrapDetection } from '../../../utils/trapDetector';
 
@@ -54,7 +54,6 @@ const ExamGradingPage: React.FC = () => {
   const [maxScore, setMaxScore] = useState(0);
   const [grade, setGrade] = useState('');
   const [aiAnalyses, setAiAnalyses] = useState<{[questionIndex: number]: TrapDetection}>({});
-  const [showAiDetails, setShowAiDetails] = useState<{[questionIndex: number]: boolean}>({});
   const [deletedQuestions, setDeletedQuestions] = useState<Set<number>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const router = useRouter();
@@ -108,15 +107,38 @@ const ExamGradingPage: React.FC = () => {
       setLoading(true);
       // Try fetching from FinalExams first, fall back to regular exams
       let response = await fetch(`/api/admin/final-exam/${examId}/for-grading`);
+      let isFinalExam = true;
+      
       if (!response.ok) {
         // Fall back to original exam endpoint
         response = await fetch(`/api/admin/exam/${examId}/for-grading`);
+        isFinalExam = false;
         if (!response.ok) {
           throw new Error('Failed to fetch exam data');
         }
       }
+      
       const data = await response.json();
       setExamData(data);
+
+      // Set deleted questions from the exam data (if available from server)
+      if (data.deletedQuestions && Array.isArray(data.deletedQuestions)) {
+        setDeletedQuestions(new Set(data.deletedQuestions));
+      }
+
+      // Also load any additional deleted questions from grade data (fallback)
+      try {
+        const gradeResponse = await fetch(`/api/admin/${isFinalExam ? 'final-exam' : 'exam'}/${examId}/grade`);
+        if (gradeResponse.ok) {
+          const gradeData = await gradeResponse.json();
+          if (gradeData.deletedQuestions && Array.isArray(gradeData.deletedQuestions)) {
+            // Merge with any existing deleted questions
+            setDeletedQuestions(prev => new Set([...Array.from(prev), ...gradeData.deletedQuestions]));
+          }
+        }
+      } catch (err) {
+        console.log('No previous grade data found, using exam data deleted questions only');
+      }
     } catch (err) {
       console.error('Error fetching exam data:', err);
       setError('Failed to load exam data');
@@ -125,26 +147,7 @@ const ExamGradingPage: React.FC = () => {
     }
   };
 
-  const toggleAiDetails = (questionIndex: number) => {
-    setShowAiDetails(prev => ({
-      ...prev,
-      [questionIndex]: !prev[questionIndex]
-    }));
-  };
 
-  const getAIIcon = (score: number) => {
-    const iconName = getSuspicionIcon(score);
-    switch (iconName) {
-      case 'AlertTriangle':
-        return <AlertTriangle size={16} className={styles.aiHighRisk} />;
-      case 'AlertCircle':
-        return <AlertCircle size={16} className={styles.aiMediumRisk} />;
-      case 'Info':
-        return <Info size={16} className={styles.aiLowRisk} />;
-      default:
-        return <CheckCircle size={16} className={styles.aiClean} />;
-    }
-  };
 
   const handleQuestionGradeChange = (questionIndex: number, field: 'score' | 'feedback', value: string | number) => {
     setQuestionGrades(prev => prev.map(grade => 
@@ -167,11 +170,37 @@ const ExamGradingPage: React.FC = () => {
     }
   };
 
+  const handleApproveAnswer = (questionIndex: number, answer: ExamAnswer) => {
+    const questionPoints = answer.questionDetails?.points || 1;
+    const suggestedScore = answer.isCorrect ? questionPoints : 0;
+    const suggestedFeedback = answer.isCorrect 
+      ? 'מאושר - תשובה נכונה' 
+      : 'מאושר - תשובה שגויה';
+
+    // Update both score and feedback
+    setQuestionGrades(prev => prev.map(grade => 
+      grade.questionIndex === questionIndex 
+        ? { ...grade, score: suggestedScore, feedback: suggestedFeedback }
+        : grade
+    ));
+
+    // Update total score
+    const newGrades = questionGrades.map(grade => 
+      grade.questionIndex === questionIndex 
+        ? { ...grade, score: suggestedScore, feedback: suggestedFeedback }
+        : grade
+    );
+    const newTotal = newGrades
+      .filter(grade => !deletedQuestions.has(grade.questionIndex))
+      .reduce((sum, grade) => sum + grade.score, 0);
+    setTotalScore(newTotal);
+  };
+
   const handleDeleteQuestion = (questionIndex: number) => {
     setShowDeleteConfirm(questionIndex);
   };
 
-  const confirmDeleteQuestion = (questionIndex: number) => {
+  const confirmDeleteQuestion = async (questionIndex: number) => {
     setDeletedQuestions(prev => new Set([...Array.from(prev), questionIndex]));
     setShowDeleteConfirm(null);
     
@@ -186,6 +215,44 @@ const ExamGradingPage: React.FC = () => {
         .filter(grade => !deletedQuestions.has(grade.questionIndex) && grade.questionIndex !== questionIndex)
         .reduce((sum, grade) => sum + grade.score, 0);
       setTotalScore(totalCurrentScore);
+    }
+
+    // Immediately save the deletion to persist it
+    try {
+      const currentDeletedQuestions = new Set([...Array.from(deletedQuestions), questionIndex]);
+      const deletionData = {
+        examId,
+        deletedQuestions: Array.from(currentDeletedQuestions),
+        action: 'delete_question',
+        questionIndex,
+        timestamp: new Date().toISOString()
+      };
+
+      // Try to save to both regular exams and final exams
+      let response = await fetch(`/api/admin/exam/${examId}/grade`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(deletionData),
+      });
+
+      if (!response.ok) {
+        // Try final exam endpoint
+        response = await fetch(`/api/admin/final-exam/${examId}/grade`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(deletionData),
+        });
+      }
+
+      if (!response.ok) {
+        console.error('Failed to persist question deletion');
+      }
+    } catch (err) {
+      console.error('Error persisting question deletion:', err);
     }
   };
 
@@ -341,23 +408,12 @@ const ExamGradingPage: React.FC = () => {
           </div>
           <div className={styles.gradeDetails}>
             <div className={styles.gradeRow}>
-              <span className={styles.label}>ציון נוכחי:</span>
-              <span className={styles.score}>{totalScore}/{maxScore}</span>
-            </div>
-            <div className={styles.gradeRow}>
-              <span className={styles.label}>אחוז:</span>
-              <span className={styles.percentage}>{calculatePercentage()}%</span>
-            </div>
-            <div className={styles.gradeRow}>
               <span className={styles.label}>ציון:</span>
-              <input
-                type="text"
-                value={grade}
-                onChange={(e) => setGrade(e.target.value)}
-                placeholder={getGradeLetter(calculatePercentage())}
-                className={styles.gradeInput}
-                maxLength={2}
-              />
+              <span className={styles.percentage}>{calculatePercentage()}</span>
+            </div>
+            <div className={styles.gradeRow}>
+              <span className={styles.label}>כמות שאלות:</span>
+              <span className={styles.score}>{examData?.answers ? examData.answers.filter(answer => !deletedQuestions.has(answer.questionIndex)).length : 0}</span>
             </div>
           </div>
         </div>
@@ -397,67 +453,28 @@ const ExamGradingPage: React.FC = () => {
                   </span>
                   <button
                     onClick={() => handleDeleteQuestion(answer.questionIndex)}
-                    className={styles.deleteQuestionButton}
-                    title="מחק שאלה"
+                    className={styles.deleteButton}
+                    title="מחק שאלה מהבחינה"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
 
-              {/* AI Detection Alert */}
+              {/* AI Suspicion Warning Banner */}
               {aiAnalyses[answer.questionIndex]?.isAISuspicious && (
-                <div className={`${styles.aiAlert} ${styles[getSuspicionColor(aiAnalyses[answer.questionIndex].suspicionScore)]}`}>
-                  <div className={styles.aiAlertHeader}>
-                    <div className={styles.aiAlertIcon}>
-                      {getAIIcon(aiAnalyses[answer.questionIndex].suspicionScore)}
-                      <span className={styles.aiAlertTitle}>
-                        חשד לתשובה שנוצרה על ידי AI
-                      </span>
-                    </div>
-                    <div className={styles.aiScore}>
-                      {aiAnalyses[answer.questionIndex].suspicionScore}%
-                    </div>
-                    <button
-                      onClick={() => toggleAiDetails(answer.questionIndex)}
-                      className={styles.aiDetailsToggle}
-                      title="הצג פרטים"
-                    >
-                      <Eye size={14} />
-                    </button>
+                <div className={styles.aiSuspiciousBanner}>
+                  <div className={styles.aiWarningContent}>
+                    <AlertTriangle size={16} className={styles.aiWarningIcon} />
+                    <span className={styles.aiWarningText}>
+                      חשד לתשובה שנוצרה על ידי AI - ציון חשדנות: {aiAnalyses[answer.questionIndex].suspicionScore}%
+                    </span>
+                                         {aiAnalyses[answer.questionIndex].triggeredTraps.length > 0 && (
+                       <div className={styles.aiTrapsList}>
+                         <strong>מלכודות שהתגלו:</strong> {aiAnalyses[answer.questionIndex].triggeredTraps.map(trap => trap.description).join(', ')}
+                       </div>
+                     )}
                   </div>
-                  
-                  {showAiDetails[answer.questionIndex] && (
-                    <div className={styles.aiAlertDetails}>
-                      <div className={styles.aiSummary}>
-                        <strong>סיכום:</strong> {aiAnalyses[answer.questionIndex].summary}
-                      </div>
-                      
-                      {aiAnalyses[answer.questionIndex].triggeredTraps.length > 0 && (
-                        <div className={styles.triggeredTraps}>
-                          <strong>מלכודות שהופעלו:</strong>
-                          <ul className={styles.trapsList}>
-                            {aiAnalyses[answer.questionIndex].triggeredTraps.map((trap, trapIndex) => (
-                              <li key={trapIndex} className={styles.trapItem}>
-                                <div className={styles.trapDescription}>
-                                  <span className={`${styles.trapSeverity} ${styles[trap.severity]}`}>
-                                    {trap.severity === 'high' ? 'חמור' : 
-                                     trap.severity === 'medium' ? 'בינוני' : 'נמוך'}
-                                  </span>
-                                  {trap.description}
-                                </div>
-                                {trap.matches.length > 0 && (
-                                  <div className={styles.trapMatches}>
-                                    <strong>נמצא:</strong> {trap.matches.join(', ')}
-                                  </div>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -493,6 +510,31 @@ const ExamGradingPage: React.FC = () => {
                         className={styles.scoreField}
                       />
                       <span>/ {questionPoints}</span>
+                      <div className={styles.quickApprovalButtons}>
+                        <button
+                          onClick={() => handleApproveAnswer(answer.questionIndex, { ...answer, isCorrect: true })}
+                          className={`${styles.quickApproveBtn} ${styles.approveCorrectQuick}`}
+                          title={`אשר ${questionPoints} נקודות - תשובה נכונה`}
+                        >
+                          <Check size={12} />
+                        </button>
+                        <button
+                          onClick={() => handleApproveAnswer(answer.questionIndex, { ...answer, isCorrect: false })}
+                          className={`${styles.quickApproveBtn} ${styles.approveIncorrectQuick}`}
+                          title="אשר 0 נקודות - תשובה שגויה"
+                        >
+                          <X size={12} />
+                        </button>
+                        <span className={styles.michaelIndicator}>
+                          <span className={styles.michaelSuggestion}>
+                            מייקל: {answer.isCorrect ? (
+                              <span className={styles.michaelCorrect}>✓</span>
+                            ) : (
+                              <span className={styles.michaelIncorrect}>✗</span>
+                            )}
+                          </span>
+                        </span>
+                      </div>
                     </div>
                     <div className={styles.feedbackInput}>
                       <label>הערות:</label>

@@ -185,6 +185,41 @@
   overflow: hidden;
 }
 
+.aiSuspiciousBanner {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+  border-bottom: 2px solid #ffc107;
+  padding: 12px 16px;
+  color: #856404;
+  font-weight: 600;
+}
+
+.aiWarningContent {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-direction: column;
+}
+
+.aiWarningIcon {
+  color: #f39c12;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.aiWarningText {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aiTrapsList {
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 4px;
+  font-weight: normal;
+}
+
 .questionHeader {
   display: flex;
   justify-content: space-between;
@@ -266,6 +301,24 @@
   color: #dc3545;
 }
 
+.deleteButton {
+  background: none;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.deleteButton:hover {
+  background: rgba(220, 53, 69, 0.1);
+  transform: scale(1.1);
+}
+
 .questionContent {
   padding: 16px;
 }
@@ -331,6 +384,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  position: relative;
 }
 
 .scoreInput label {
@@ -350,6 +404,74 @@
 .scoreField:focus {
   outline: none;
   border-color: #667eea;
+}
+
+.quickApprovalButtons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.quickApproveBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: bold;
+}
+
+.approveCorrectQuick {
+  background: #28a745;
+  color: white;
+}
+
+.approveCorrectQuick:hover {
+  background: #218838;
+  transform: scale(1.1);
+}
+
+.approveIncorrectQuick {
+  background: #dc3545;
+  color: white;
+}
+
+.approveIncorrectQuick:hover {
+  background: #c82333;
+  transform: scale(1.1);
+}
+
+.michaelIndicator {
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.michaelSuggestion {
+  font-size: 11px;
+  color: #6c757d;
+  font-weight: normal;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.michaelCorrect {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.michaelIncorrect {
+  color: #dc3545;
+  font-weight: bold;
 }
 
 .feedbackInput {
@@ -376,6 +498,8 @@
   outline: none;
   border-color: #667eea;
 }
+
+
 
 .overallFeedback {
   background: rgba(255, 255, 255, 0.95);

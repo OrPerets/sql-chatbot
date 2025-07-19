@@ -16,6 +16,7 @@ interface ExamSession {
   status: 'in_progress' | 'completed' | 'timeout';
   score?: number;
   totalQuestions: number;
+  totalPoints?: number;
   graded?: boolean;
   aiAnalysis?: {
     isExamSuspicious: boolean;
@@ -35,6 +36,12 @@ const ExamGradingPage: React.FC = () => {
   const [aiAnalysisLoading, setAiAnalysisLoading] = useState<Set<string>>(new Set());
   const [bulkAnalysisLoading, setBulkAnalysisLoading] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState({ current: 0, total: 0 });
+  const [totalPointsData, setTotalPointsData] = useState<{[examId: string]: number}>({});
+  const [loadingTotalPoints, setLoadingTotalPoints] = useState<Set<string>>(new Set());
+  const [questionCountData, setQuestionCountData] = useState<{[examId: string]: number}>({});
+  const [scaledScoreData, setScaledScoreData] = useState<{[examId: string]: number}>({});
+  const [sortBy, setSortBy] = useState<'totalPoints' | 'date' | 'name'>('totalPoints');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const router = useRouter();
 
   useEffect(() => {
@@ -132,6 +139,38 @@ const ExamGradingPage: React.FC = () => {
     
     return matchesSearch && matchesStatus;
   });
+
+  // Sort the filtered sessions
+  const sortedSessions = [...filteredSessions].sort((a, b) => {
+    if (sortBy === 'totalPoints') {
+      const aPoints = totalPointsData[a._id] || 0;
+      const bPoints = totalPointsData[b._id] || 0;
+      return sortOrder === 'desc' ? bPoints - aPoints : aPoints - bPoints;
+    } else if (sortBy === 'date') {
+      const aDate = new Date(a.startTime).getTime();
+      const bDate = new Date(b.startTime).getTime();
+      return sortOrder === 'desc' ? bDate - aDate : aDate - bDate;
+    } else if (sortBy === 'name') {
+      const aName = a.studentName || '';
+      const bName = b.studentName || '';
+      return sortOrder === 'desc' ? bName.localeCompare(aName) : aName.localeCompare(bName);
+    }
+    return 0;
+  });
+
+  const handleSort = (column: 'totalPoints' | 'date' | 'name') => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
+    } else {
+      setSortBy(column);
+      setSortOrder('desc');
+    }
+  };
+
+  const getSortIcon = (column: 'totalPoints' | 'date' | 'name') => {
+    if (sortBy !== column) return null;
+    return sortOrder === 'desc' ? '↓' : '↑';
+  };
 
   // Debug logging
   console.log('examSessions', examSessions);
@@ -244,6 +283,71 @@ const ExamGradingPage: React.FC = () => {
         return <CheckCircle size={16} className={styles.aiClean} />;
     }
   };
+
+  const fetchTotalPointsForExam = async (examId: string) => {
+    if (loadingTotalPoints.has(examId) || totalPointsData[examId] !== undefined) return;
+
+    setLoadingTotalPoints(prev => new Set(prev).add(examId));
+    
+    try {
+      // Try fetching from FinalExams first, fall back to regular exams
+      let response = await fetch(`/api/admin/final-exam/${examId}/for-grading`);
+      if (!response.ok) {
+        response = await fetch(`/api/admin/exam/${examId}/for-grading`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch exam data');
+        }
+      }
+      
+      const examData = await response.json();
+      if (examData.answers) {
+        const totalPoints = examData.answers.reduce((sum: number, answer: any) => 
+          sum + (answer.questionDetails?.points || 1), 0
+        );
+        
+        // Calculate question count
+        const questionCount = examData.answers.length;
+
+        setTotalPointsData(prev => ({
+          ...prev,
+          [examId]: totalPoints
+        }));
+
+        setQuestionCountData(prev => ({
+          ...prev,
+          [examId]: questionCount
+        }));
+
+        // Calculate scaled score (capped at 100 for bonus points)
+        let scaledScore = 0;
+        if (examData.session?.score !== undefined && totalPoints > 0) {
+          const percentage = (examData.session.score / totalPoints) * 100;
+          scaledScore = Math.min(100, Math.round(percentage)); // Cap at 100
+        }
+
+        setScaledScoreData(prev => ({
+          ...prev,
+          [examId]: scaledScore
+        }));
+      }
+    } catch (err) {
+      console.error(`Error fetching total points for exam ${examId}:`, err);
+    } finally {
+      setLoadingTotalPoints(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(examId);
+        return newSet;
+      });
+    }
+  };
+
+  // Fetch total points for all visible exams
+  useEffect(() => {
+    const visibleExams = filteredSessions.filter(session => session.status === 'completed');
+    visibleExams.forEach(session => {
+      fetchTotalPointsForExam(session._id);
+    });
+  }, [filteredSessions]);
 
   if (loading) {
     return (
@@ -383,10 +487,15 @@ const ExamGradingPage: React.FC = () => {
         <table className={styles.examTable}>
           <thead>
             <tr>
-              <th>סטודנט</th>
-              <th>אימייל</th>
-              <th>תאריך התחלה</th>
-              <th>תאריך סיום</th>
+              <th onClick={() => handleSort('name')} className={styles.sortableHeader}>
+                סטודנט {getSortIcon('name')}
+              </th>
+              <th onClick={() => handleSort('date')} className={styles.sortableHeader}>
+                תאריך התחלה {getSortIcon('date')}
+              </th>
+              <th onClick={() => handleSort('date')} className={styles.sortableHeader}>
+                תאריך סיום {getSortIcon('date')}
+              </th>
               <th>סטטוס</th>
               <th>ציון</th>
               <th>AI חשד</th>
@@ -394,14 +503,14 @@ const ExamGradingPage: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredSessions.length === 0 ? (
+            {sortedSessions.length === 0 ? (
               <tr>
-                <td colSpan={8} className={styles.noData}>
+                <td colSpan={7} className={styles.noData}>
                   לא נמצאו בחינות
                 </td>
               </tr>
             ) : (
-              filteredSessions.map((session) => (
+              sortedSessions.map((session) => (
                 <tr key={session._id} className={styles.tableRow}>
                   <td className={styles.studentCell}>
                     <div className={styles.studentInfo}>
@@ -413,9 +522,9 @@ const ExamGradingPage: React.FC = () => {
                         ID: {session.studentId}
                       </div>
                     )}
-                  </td>
-                  <td className={styles.emailCell}>
-                    {session.studentEmail}
+                    <div className={styles.studentEmail}>
+                      {session.studentEmail}
+                    </div>
                   </td>
                   <td className={styles.dateCell}>
                     {formatDate(session.startTime)}
@@ -432,7 +541,7 @@ const ExamGradingPage: React.FC = () => {
                   <td className={styles.scoreCell}>
                     {session.score !== undefined ? (
                       <span className={styles.score}>
-                        {session.score}
+                        {scaledScoreData[session._id] !== undefined ? scaledScoreData[session._id] : session.score}
                       </span>
                     ) : (
                       '-'
