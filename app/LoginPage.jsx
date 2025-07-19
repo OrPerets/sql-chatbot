@@ -22,7 +22,7 @@ const LoginPage = () => {
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const setEmailandAdmin  = (val) => {
+  const setEmailandAdmin = (val) => {
     if (val === "orperets11@gmail.com") {
       setIsAdmin(true);
     } else {
@@ -51,10 +51,9 @@ const LoginPage = () => {
       if (data.length > 0) {
         localStorage.setItem("currentBalance", data[0]["coins"]);
       }
-      // setUsers(data);
     } catch (error) {
-      console.error('Error fetching users:', error);
-      setError('Failed to fetch users. Please try again.');
+      console.error('Error fetching balance:', error);
+      setError('Failed to fetch balance. Please try again.');
     } finally {
       setIsFetchingUsers(false);
     }
@@ -80,8 +79,9 @@ const LoginPage = () => {
     } finally {
       setIsFetchingUsers(false);
     }
+    
     try {
-      const response = await fetch(SERVER_BASE + "/getStatus" , {
+      const response = await fetch(SERVER_BASE + "/getStatus", {
         method: 'GET',
         mode: 'cors',
         credentials: 'same-origin',
@@ -91,16 +91,14 @@ const LoginPage = () => {
         }
       });
       const data = await response.json();
-      setStatus(data["status"])
-      // setStatus("ON")
-      // setUsers(data);
+      setStatus(data["status"]);
     } catch (error) {
+      console.error('Error fetching status:', error);
       setError('Failed to fetch status. Please try again.');
     }
   };
 
   const storeUserInfo = (user) => {
-    // {key:value, key:value}
     localStorage.setItem("currentUser", JSON.stringify({
       email: user.email,
       name: user.firstName
@@ -114,16 +112,28 @@ const LoginPage = () => {
 
     const user = users.find(item => item.email === email);
 
-    // First check if user exists and password matches their stored password
-    if (user && password === user.password) {
+    if (!user) {
+      setError('User not found');
+      setIsLoading(false);
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    // Check if password is the initial "shenkar" password
+    if (password === "shenkar") {
+      // First time user - need to change password and go through questionnaire
+      setChangePassword(true);
+      setIsLoading(false);
+      return;
+    }
+
+    // Check if password matches their stored password (returning user)
+    if (password === user.password) {
       getCoinsBalance(user.email);
       storeUserInfo(user);
       router.push('/entities/basic-chat');
-    } else if (password === "shenkar") {
-      // Only check for default password if normal login failed
-      setChangePassword(true);
     } else {
-      setError('Wrong Password or Email');
+      setError('Wrong Password');
       setTimeout(() => setError(''), 3000);
     }
 
@@ -135,37 +145,46 @@ const LoginPage = () => {
     setIsLoading(true);
     setError('');
 
-    if (newPassword && newPassword !== "shenkar") {
-      const user = users.find(item => item.email === email);
-      if (user) {
-        try {
-          const response = await fetch(UPDATE_PASSWORD, {
-            method: 'POST',
-            mode: 'cors',
-            credentials: 'same-origin',
-            headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*'
-            },
-            body: JSON.stringify({
-              "email": email,
-              "password": newPassword
-            })
-          });
-          if (response.ok) {
-            storeUserInfo(user);
-            router.push('/entities/questionnaire');
-          } else {
-            setError('Failed to update password');
-          }
-        } catch (error) {
-          console.error('Error updating password:', error);
-          setError('Failed to update password');
-        }
-      }
-    } else {
-      setError('Invalid new password');
+    if (!newPassword || newPassword === "shenkar") {
+      setError('Please enter a valid new password (cannot be "shenkar")');
+      setIsLoading(false);
       setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    const user = users.find(item => item.email === email);
+    if (!user) {
+      setError('User not found');
+      setIsLoading(false);
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    try {
+      const response = await fetch(UPDATE_PASSWORD, {
+        method: 'POST',
+        mode: 'cors',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({
+          "email": email,
+          "password": newPassword
+        })
+      });
+
+      if (response.ok) {
+        storeUserInfo(user);
+        // First time user goes to questionnaire after password change
+        router.push('/entities/questionnaire');
+      } else {
+        setError('Failed to update password. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error updating password:', error);
+      setError('Failed to update password. Please try again.');
     }
 
     setIsLoading(false);
@@ -185,92 +204,127 @@ const LoginPage = () => {
     <div className={styles.loginContainer}>
       {status === "OFF" && (
         <div className={styles.loginCard}>
-        <div className={styles.assistantTitle} style={{color: "black"}}>Michael is sleeping now</div>
-        <p className={styles.assistantTitle} style={{color: "black"}}>Take a break or check back later!</p>
-      </div>
+          <div className={styles.assistantTitle} style={{color: "black"}}>Michael is sleeping now</div>
+          <p className={styles.assistantTitle} style={{color: "black"}}>Take a break or check back later!</p>
+        </div>
       )}
       {status === "ON" && (
         <div>
-        <div className={styles.logoWrapper}>
-        <img className={styles.botImage} src="bot.png" alt="Bot" />
-        <div className={styles.assistantName}>
-          <img className={styles.logoImage} src="logo.png" alt="Logo" />
-          <h2 className={styles.assistantTitle}>MICHAEL</h2>
-          <p className={styles.assistantSubtitle}>SQL AI Assistant</p>
-        </div>
-      </div>
-      <div className={styles.loginCard}>
-        <h2 className={styles.title}>התחברות</h2>
-        {!changePassword ? (
-          <form className={styles.form} onSubmit={handleLogin}>
-            <div className={styles.inputGroup}>
-              <span className={styles.iconWrapper}>
-                <User size={18} />
-              </span>
-              <input 
-                type="email" 
-                className={styles.input}
-                placeholder="כתובת מייל" 
-                value={email}
-                onChange={(e) => setEmailandAdmin(e.target.value)}
-              />
+          <div className={styles.logoWrapper}>
+            <img className={styles.botImage} src="bot.png" alt="Bot" />
+            <div className={styles.assistantName}>
+              <img className={styles.logoImage} src="logo.png" alt="Logo" />
+              <h2 className={styles.assistantTitle}>MICHAEL</h2>
+              <p className={styles.assistantSubtitle}>SQL AI Assistant</p>
             </div>
-            <div className={styles.inputGroup}>
-              <span className={styles.iconWrapper}>
-                <Lock size={18} />
-              </span>
-              <input 
-                type="password" 
-                className={styles.input}
-                placeholder="סיסמה"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            <button type="submit" className={styles.button} disabled={isLoading}>
-              {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'אישור'}
-            </button>
-            {isAdmin && (
-              <button 
-              type="button" 
-              className={styles.adminButton}
-              onClick={() => router.push('/admin')}
-            >
-              כניסת מנהל מערכת
-            </button>
+          </div>
+          <div className={styles.loginCard}>
+            {!changePassword ? (
+              <>
+                <h2 className={styles.title}>התחברות</h2>
+                <form className={styles.form} onSubmit={handleLogin}>
+                  <div className={styles.inputGroup}>
+                    <span className={styles.iconWrapper}>
+                      <User size={18} />
+                    </span>
+                    <input 
+                      type="email" 
+                      className={styles.input}
+                      placeholder="כתובת מייל" 
+                      value={email}
+                      onChange={(e) => setEmailandAdmin(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className={styles.inputGroup}>
+                    <span className={styles.iconWrapper}>
+                      <Lock size={18} />
+                    </span>
+                    <input 
+                      type="password" 
+                      className={styles.input}
+                      placeholder="סיסמה"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <button type="submit" className={styles.button} disabled={isLoading}>
+                    {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'אישור'}
+                  </button>
+                  {isAdmin && (
+                    <button 
+                      type="button" 
+                      className={styles.adminButton}
+                      onClick={() => router.push('/admin')}
+                    >
+                      כניסת מנהל מערכת
+                    </button>
+                  )}
+                </form>
+              </>
+            ) : (
+              <>
+                <h2 className={styles.title}>שינוי סיסמה - כניסה ראשונה</h2>
+                <p style={{textAlign: 'center', marginBottom: '20px', color: '#666'}}>
+                  זוהי הכניסה הראשונה שלך. אנא הגדר סיסמה חדשה
+                </p>
+                <form className={styles.form} onSubmit={handleChangePassword}>
+                  <div className={styles.inputGroup}>
+                    <span className={styles.iconWrapper}>
+                      <User size={18} />
+                    </span>
+                    <input 
+                      type="email" 
+                      className={styles.input}
+                      placeholder="כתובת מייל" 
+                      value={email}
+                      disabled
+                      style={{backgroundColor: '#f0f0f0'}}
+                    />
+                  </div>
+                  <div className={styles.inputGroup}>
+                    <span className={styles.iconWrapper}>
+                      <Lock size={18} />
+                    </span>
+                    <input 
+                      type="password" 
+                      className={styles.input}
+                      placeholder="סיסמה חדשה"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <button type="submit" className={styles.button} disabled={isLoading}>
+                    {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'שנה סיסמה'}
+                  </button>
+                  <button 
+                    type="button" 
+                    className={styles.button}
+                    style={{backgroundColor: '#666', marginTop: '10px'}}
+                    onClick={() => {
+                      setChangePassword(false);
+                      setNewPassword('');
+                      setError('');
+                    }}
+                  >
+                    חזור
+                  </button>
+                </form>
+              </>
             )}
-            
-          </form>
-        ) : (
-          <form className={styles.form} onSubmit={handleChangePassword}>
-            <div className={styles.inputGroup}>
-              <span className={styles.iconWrapper}>
-                <Lock size={18} />
-              </span>
-              <input 
-                type="password" 
-                className={styles.input}
-                placeholder="סיסמה חדשה"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
+            {error && <div className={styles.errorMessage}>{error}</div>}
+          </div>
+          {isLoading && (
+            <div className={styles.loadingOverlay}>
+              <Loader className={styles.loadingSpinner} size={48} />
             </div>
-            <button type="submit" className={styles.button} disabled={isLoading}>
-              {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'שנה סיסמה'}
-            </button>
-          </form>
-        )}
-        {error && <div className={styles.errorMessage}>{error}</div>}
-      </div>
-      {isLoading && (
-        <div className={styles.loadingOverlay}>
-          <Loader className={styles.loadingSpinner} size={48} />
+          )}
         </div>
       )}
-</div>
-      )}
-
     </div>
   );
 };
+
 export default LoginPage;
