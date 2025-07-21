@@ -15,6 +15,7 @@ export async function GET(
       headers: {
         'Content-Type': 'application/json',
       },
+      cache: 'no-store', // Disable caching for admin data
     });
 
     if (!response.ok) {
@@ -22,7 +23,15 @@ export async function GET(
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    
+    // Create response with strong cache-busting headers
+    const jsonResponse = NextResponse.json(data);
+    jsonResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    jsonResponse.headers.set('Pragma', 'no-cache');
+    jsonResponse.headers.set('Expires', '0');
+    jsonResponse.headers.set('Surrogate-Control', 'no-store');
+    
+    return jsonResponse;
   } catch (error) {
     console.error('Error fetching question answers:', error);
     return NextResponse.json(

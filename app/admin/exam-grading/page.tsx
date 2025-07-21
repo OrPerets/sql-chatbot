@@ -411,44 +411,9 @@ const ExamGradingPage: React.FC = () => {
       </div>
 
       {/* AI Analysis Controls */}
-      <div className={styles.aiControls}>
-        <div className={styles.aiControlsHeader}>
-          <h3>🤖 מערכת זיהוי AI מתקדמת</h3>
-          <button
-            onClick={() => runBulkAIAnalysis(examSessions)}
-            disabled={bulkAnalysisLoading}
-            className={styles.reAnalyzeButton}
-            title="הרץ מחדש ניתוח AI עם הגדרות מתקדמות"
-          >
-            <AlertTriangle size={16} />
-            {bulkAnalysisLoading ? 'מנתח...' : 'נתח מחדש הכל'}
-          </button>
-        </div>
-        <div className={styles.trapsList}>
-          <span className={styles.trapsInfo}>
-            🪤 מזהה 18 סוגי מלכודות: weapon_id בMissions, טבלת MissionAnalytics פיקטיבית, שדות duration_minutes/fuel_consumption, יחסים שגויים, והזרקת פרומפט התנהגותי
-          </span>
-        </div>
-      </div>
-
+      {/* (הוסרו כפתורי ניתוח AI, טקסטים ואנימציות) */}
       {/* Bulk AI Analysis Progress */}
-      {bulkAnalysisLoading && (
-        <div className={styles.bulkAnalysisProgress}>
-          <div className={styles.progressHeader}>
-            <AlertTriangle size={20} className={styles.progressIcon} />
-            <span>מריץ ניתוח AI מתקדם עבור בחינות שהושלמו...</span>
-          </div>
-          <div className={styles.progressBar}>
-            <div 
-              className={styles.progressFill}
-              style={{ width: `${(analysisProgress.current / analysisProgress.total) * 100}%` }}
-            />
-          </div>
-          <div className={styles.progressText}>
-            {analysisProgress.current} מתוך {analysisProgress.total} בחינות
-          </div>
-        </div>
-      )}
+      {/* (הוסרו כל האנימציות והטעינות של ניתוח AI) */}
 
       {/* Stats */}
       <div className={styles.stats}>
@@ -468,18 +433,7 @@ const ExamGradingPage: React.FC = () => {
           </div>
           <div className={styles.statLabel}>נבדקו</div>
         </div>
-        <div className={styles.statCard}>
-          <div className={styles.statNumber}>
-            {examSessions.filter(s => s.aiAnalysis?.isExamSuspicious).length}
-          </div>
-          <div className={styles.statLabel}>חשודים ב-AI</div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={styles.statNumber}>
-            {examSessions.filter(s => s.status === 'completed' && s.aiAnalysis).length}
-          </div>
-          <div className={styles.statLabel}>נותחו ל-AI</div>
-        </div>
+        {/* הסתרת סטטיסטיקות AI */}
       </div>
 
       {/* Exam Sessions Table */}
@@ -498,14 +452,14 @@ const ExamGradingPage: React.FC = () => {
               </th>
               <th>סטטוס</th>
               <th>ציון</th>
-              <th>AI חשד</th>
+              {/* הסתרת עמודת AI חשד */}
               <th>פעולות</th>
             </tr>
           </thead>
           <tbody>
             {sortedSessions.length === 0 ? (
               <tr>
-                <td colSpan={7} className={styles.noData}>
+                <td colSpan={6} className={styles.noData}>
                   לא נמצאו בחינות
                 </td>
               </tr>
@@ -547,44 +501,7 @@ const ExamGradingPage: React.FC = () => {
                       '-'
                     )}
                   </td>
-                  <td className={styles.aiCell}>
-                    {session.status === 'completed' && (
-                      <div className={styles.aiAnalysis}>
-                        {session.aiAnalysis ? (
-                          <div 
-                            className={`${styles.aiIndicator} ${styles[getSuspicionColor(session.aiAnalysis.maxSuspicionScore)]}`}
-                            title={session.aiAnalysis.summary}
-                          >
-                            {getAIIcon(session.aiAnalysis.maxSuspicionScore)}
-                            <span className={styles.aiScore}>
-                              {session.aiAnalysis.maxSuspicionScore}%
-                            </span>
-                          </div>
-                        ) : (
-                          <div className={styles.aiPending}>
-                            {aiAnalysisLoading.has(session._id) || bulkAnalysisLoading ? (
-                              <div className={styles.aiLoading} title="מנתח...">
-                                <Clock size={14} className={styles.loadingSpinner} />
-                                <span className={styles.loadingText}>מנתח...</span>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => analyzeExamForAIPatterns(session._id)}
-                                className={styles.aiAnalyzeButton}
-                                title="נתח לזיהוי AI"
-                              >
-                                <AlertCircle size={14} />
-                                <span>נתח</span>
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {session.status !== 'completed' && (
-                      <span className={styles.aiNotAvailable}>-</span>
-                    )}
-                  </td>
+                  {/* הסתרת עמודת AI חשד ופעולות ניתוח */}
                   <td className={styles.actionsCell}>
                     <button
                       onClick={() => handleGradeExam(session._id)}

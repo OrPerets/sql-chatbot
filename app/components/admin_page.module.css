@@ -1021,3 +1021,122 @@ input:checked + .slider:before {
     font-size: 0.8rem;
   }
 }
+
+/* Missing Correct Answers Styles */
+.missingAnswersSection {
+  margin-top: 30px;
+}
+
+.missingAnswersCard {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e1e5e9;
+}
+
+.missingAnswersHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  color: #2c3e50;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.missingAnswersActions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.checkButton {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.checkButton:hover:not(:disabled) {
+  background: #2980b9;
+  transform: translateY(-1px);
+}
+
+.checkButton:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.fixButton {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.fixButton:hover:not(:disabled) {
+  background: #c0392b;
+  transform: translateY(-1px);
+}
+
+.fixButton:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.missingAnswersResults {
+  border-top: 1px solid #ecf0f1;
+  padding-top: 20px;
+}
+
+.resultsSummary {
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.resultsSummary p {
+  margin: 8px 0;
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+.missingAnswersList {
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.missingAnswersList h4 {
+  margin: 0 0 12px 0;
+  color: #e53e3e;
+  font-size: 14px;
+}
+
+.missingAnswersList ul {
+  margin: 0;
+  padding-right: 20px;
+  color: #2d3748;
+}
+
+.missingAnswersList li {
+  margin-bottom: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}

@@ -38,6 +38,26 @@ interface QuestionWithAnswers {
 }
 
 const GradeByQuestionPage: React.FC = () => {
+  // Comment bank entry type
+  interface CommentBankEntry {
+    _id: string;
+    questionId: number;
+    questionText: string;
+    difficulty: string;
+    score: number;
+    maxScore: number;
+    feedback: string;
+    gradedBy: string;
+    gradedAt: string;
+    usageCount: number;
+    lastUsed?: string;
+  }
+
+  // Add comment bank state (must be inside the component)
+  const [commentBankEntries, setCommentBankEntries] = useState<{[questionId: number]: CommentBankEntry[]}>({});
+  const [activeCommentBank, setActiveCommentBank] = useState<{ answerId: string | null, questionId?: number, maxScore?: number }>({ answerId: null });
+  const [loadingComments, setLoadingComments] = useState<{[questionId: number]: boolean}>({});
+
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<QuestionWithAnswers | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,6 +68,41 @@ const GradeByQuestionPage: React.FC = () => {
   const [showGradedOnly, setShowGradedOnly] = useState(false);
   const [grading, setGrading] = useState<{[answerId: string]: boolean}>({});
   const router = useRouter();
+
+  // Fetch comments for a question
+  const fetchCommentBankEntries = async (questionId: number) => {
+    try {
+      setLoadingComments(prev => ({ ...prev, [questionId]: true }));
+      const response = await fetch(`/api/admin/comment-bank?questionId=${questionId}&limit=10`);
+      if (!response.ok) throw new Error('Failed to fetch comments');
+      const data = await response.json();
+      setCommentBankEntries(prev => ({ ...prev, [questionId]: data.comments || [] }));
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Error fetching comment bank entries:', err);
+    } finally {
+      setLoadingComments(prev => ({ ...prev, [questionId]: false }));
+    }
+  };
+
+  // Open comment bank modal for an answer
+  const openCommentBank = (answerId: string, questionId: number, maxScore: number) => {
+    fetchCommentBankEntries(questionId);
+    setActiveCommentBank({ answerId, questionId, maxScore });
+  };
+
+  // Close modal
+  const closeCommentBank = () => setActiveCommentBank({ answerId: null });
+
+  // Use comment from bank
+  const useCommentFromBank = (comment: CommentBankEntry) => {
+    if (!activeCommentBank.answerId) return;
+    const gradeInput = document.getElementById(`grade-${activeCommentBank.answerId}`) as HTMLInputElement;
+    const feedbackInput = document.getElementById(`feedback-${activeCommentBank.answerId}`) as HTMLTextAreaElement;
+    if (gradeInput) gradeInput.value = comment.score.toString();
+    if (feedbackInput) feedbackInput.value = comment.feedback;
+    closeCommentBank();
+  };
 
   useEffect(() => {
     const storedUser = localStorage.getItem("currentUser");
@@ -91,7 +146,14 @@ const GradeByQuestionPage: React.FC = () => {
   const fetchQuestionAnswers = async (questionId: number) => {
     try {
       setQuestionsLoading(true);
-      const response = await fetch(`/api/admin/question/${questionId}/answers`);
+      // Add timestamp to break CDN caching
+      const timestamp = Date.now();
+      const response = await fetch(`/api/admin/question/${questionId}/answers?t=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch question answers');
       }
@@ -125,6 +187,56 @@ const GradeByQuestionPage: React.FC = () => {
 
       if (!response.ok) {
         throw new Error('Failed to save grade');
+      }
+
+      // Auto-save to comment bank if feedback is provided
+      if (feedback && feedback.trim() && selectedQuestion) {
+        try {
+          await fetch('/api/admin/comment-bank', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              questionId: selectedQuestion.question.id,
+              questionText: selectedQuestion.question.question,
+              difficulty: selectedQuestion.question.difficulty,
+              score: grade,
+              maxScore: selectedQuestion.question.points,
+              feedback: feedback,
+              gradedBy: 'admin'
+            }),
+          });
+          
+          // Show success message to user
+          const successMessage = document.createElement('div');
+          successMessage.innerHTML = '✅ ציון והערה נשמרו (כולל בבנק ההערות)';
+          successMessage.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 10000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+          `;
+          document.body.appendChild(successMessage);
+          
+          // Remove message after 3 seconds
+          setTimeout(() => {
+            if (successMessage.parentNode) {
+              successMessage.parentNode.removeChild(successMessage);
+            }
+          }, 3000);
+          
+        } catch (commentErr) {
+          console.error('Error saving to comment bank:', commentErr);
+          // Don't show error for comment bank save failure as the main grade was saved
+        }
       }
 
       // Refresh the current question answers
@@ -424,6 +536,15 @@ const GradeByQuestionPage: React.FC = () => {
                             
                             <div className={styles.feedbackInput}>
                               <label>הערות:</label>
+                              <button
+                                type="button"
+                                onClick={() => openCommentBank(answerId, selectedQuestion.question.id, selectedQuestion.question.points)}
+                                className={styles.commentBankToggle}
+                                title="פתח בנק הערות - הערות נשמרות אוטומטית עם הציון"
+                              >
+                                <FileText size={14} />
+                                בנק הערות
+                              </button>
                               <textarea
                                 defaultValue={answer.feedback || ''}
                                 placeholder="הערות על התשובה..."
@@ -431,6 +552,9 @@ const GradeByQuestionPage: React.FC = () => {
                                 rows={2}
                                 id={`feedback-${answerId}`}
                               />
+                              <div className={styles.autoSaveNote}>
+                                💡 הערה: הערות נשמרות אוטומטית בבנק ההערות עם הציון
+                              </div>
                             </div>
                             
                             <button
@@ -468,6 +592,57 @@ const GradeByQuestionPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Global Comment Bank Modal */}
+      {activeCommentBank.answerId !== null && (
+        <div className={styles.commentBankOverlay}>
+          <div className={styles.commentBankPopup}>
+            <div className={styles.commentBankHeader}>
+              <h4>בנק הערות</h4>
+              <button onClick={closeCommentBank} className={styles.closeCommentBank}>
+                <XCircle size={16} />
+              </button>
+            </div>
+            <div className={styles.commentBankContent}>
+              {loadingComments[activeCommentBank.questionId!] ? (
+                <div className={styles.commentBankLoading}>טוען הערות...</div>
+              ) : commentBankEntries[activeCommentBank.questionId!] && commentBankEntries[activeCommentBank.questionId!].length > 0 ? (
+                <div className={styles.commentsList}>
+                  {commentBankEntries[activeCommentBank.questionId!].map((comment) => (
+                    <div key={comment._id} className={styles.commentItem}>
+                      <div className={styles.commentMeta}>
+                        <span className={styles.commentScore}>
+                          {comment.score}/{comment.maxScore} נקודות
+                        </span>
+                        <span className={styles.commentDifficulty}>
+                          {comment.difficulty}
+                        </span>
+                        <span className={styles.commentUsage}>
+                          נוצר: {new Date(comment.gradedAt).toLocaleDateString('he-IL')}
+                          {comment.usageCount > 0 && ` | שימושים: ${comment.usageCount}`}
+                        </span>
+                      </div>
+                      <div className={styles.commentFeedback}>
+                        {comment.feedback}
+                      </div>
+                      <button
+                        onClick={() => useCommentFromBank(comment)}
+                        className={styles.useCommentBtn}
+                      >
+                        השתמש בהערה
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles.noComments}>
+                  לא נמצאו הערות קודמות לשאלה זו
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

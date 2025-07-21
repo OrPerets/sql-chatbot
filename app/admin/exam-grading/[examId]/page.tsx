@@ -43,6 +43,20 @@ interface QuestionGrade {
   feedback: string;
 }
 
+interface CommentBankEntry {
+  _id: string;
+  questionId: number;
+  questionText: string;
+  difficulty: string;
+  score: number;
+  maxScore: number;
+  feedback: string;
+  gradedBy: string;
+  gradedAt: string;
+  usageCount: number;
+  lastUsed?: string;
+}
+
 const ExamGradingPage: React.FC = () => {
   const [examData, setExamData] = useState<ExamData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +70,11 @@ const ExamGradingPage: React.FC = () => {
   const [aiAnalyses, setAiAnalyses] = useState<{[questionIndex: number]: TrapDetection}>({});
   const [deletedQuestions, setDeletedQuestions] = useState<Set<number>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
+  
+  // Comment Bank state
+  const [commentBankEntries, setCommentBankEntries] = useState<{[questionIndex: number]: CommentBankEntry[]}>({});
+  const [activeCommentBank, setActiveCommentBank] = useState<{ questionIndex: number | null, anchorRect?: DOMRect, answer?: ExamAnswer }>({ questionIndex: null });
+  const [loadingComments, setLoadingComments] = useState<{[questionIndex: number]: boolean}>({});
   const router = useRouter();
   const params = useParams();
   const examId = params.examId as string;
@@ -150,23 +169,48 @@ const ExamGradingPage: React.FC = () => {
 
 
   const handleQuestionGradeChange = (questionIndex: number, field: 'score' | 'feedback', value: string | number) => {
-    setQuestionGrades(prev => prev.map(grade => 
+    const updatedGrades = questionGrades.map(grade => 
       grade.questionIndex === questionIndex 
         ? { ...grade, [field]: value }
         : grade
-    ));
+    );
+    
+    setQuestionGrades(updatedGrades);
 
     // Update total score (excluding deleted questions)
     if (field === 'score') {
-      const newGrades = questionGrades.map(grade => 
-        grade.questionIndex === questionIndex 
-          ? { ...grade, score: Number(value) }
-          : grade
-      );
-      const newTotal = newGrades
+      const newTotal = updatedGrades
         .filter(grade => !deletedQuestions.has(grade.questionIndex))
         .reduce((sum, grade) => sum + grade.score, 0);
       setTotalScore(newTotal);
+    }
+
+    // Auto-save to comment bank when feedback is provided and not empty
+    if (field === 'feedback' && value && typeof value === 'string' && value.trim()) {
+      const currentGrade = updatedGrades.find(grade => grade.questionIndex === questionIndex);
+      const answer = examData?.answers.find(answer => answer.questionIndex === questionIndex);
+      
+      if (currentGrade && answer) {
+        // Debounce the save operation
+        setTimeout(() => {
+          // Use the current score or default to 1 if score is 0
+          const scoreToSave = currentGrade.score > 0 ? currentGrade.score : 1;
+          saveToCommentBank(questionIndex, answer, scoreToSave, value);
+        }, 1000);
+      }
+    }
+
+    // Also auto-save when score is updated if there's already feedback
+    if (field === 'score' && typeof value === 'number' && value > 0) {
+      const currentGrade = updatedGrades.find(grade => grade.questionIndex === questionIndex);
+      const answer = examData?.answers.find(answer => answer.questionIndex === questionIndex);
+      
+      if (currentGrade && answer && currentGrade.feedback && currentGrade.feedback.trim()) {
+        // Debounce the save operation
+        setTimeout(() => {
+          saveToCommentBank(questionIndex, answer, value, currentGrade.feedback);
+        }, 1000);
+      }
     }
   };
 
@@ -258,6 +302,160 @@ const ExamGradingPage: React.FC = () => {
 
   const cancelDeleteQuestion = () => {
     setShowDeleteConfirm(null);
+  };
+
+  // Comment Bank functions
+  const fetchCommentBankEntries = async (questionIndex: number, answer: ExamAnswer) => {
+    try {
+      setLoadingComments(prev => ({ ...prev, [questionIndex]: true }));
+      
+      const response = await fetch(
+        `/api/admin/comment-bank?questionId=${answer.questionId}&difficulty=${answer.difficulty}&limit=10`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch comments');
+      }
+      
+      const data = await response.json();
+      setCommentBankEntries(prev => ({
+        ...prev,
+        [questionIndex]: data.comments || []
+      }));
+    } catch (err) {
+      console.error('Error fetching comment bank entries:', err);
+    } finally {
+      setLoadingComments(prev => ({ ...prev, [questionIndex]: false }));
+    }
+  };
+
+  const saveToCommentBank = async (questionIndex: number, answer: ExamAnswer, score: number, feedback: string) => {
+    if (!feedback.trim()) return; // Don't save empty feedback
+    
+    try {
+      const response = await fetch('/api/admin/comment-bank', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          questionId: answer.questionId,
+          questionText: answer.questionText,
+          difficulty: answer.difficulty,
+          score: score,
+          maxScore: answer.questionDetails?.points || 1,
+          feedback: feedback,
+          gradedBy: 'admin'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save to comment bank');
+      }
+      
+      const data = await response.json();
+      console.log('Comment saved to bank successfully:', data);
+      
+      // Show success message to user
+      const successMessage = document.createElement('div');
+      successMessage.innerHTML = '✅ הערה נשמרה בבנק ההערות';
+      successMessage.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #28a745;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 5px;
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 10000;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      `;
+      document.body.appendChild(successMessage);
+      
+      // Remove message after 3 seconds
+      setTimeout(() => {
+        if (successMessage.parentNode) {
+          successMessage.parentNode.removeChild(successMessage);
+        }
+      }, 3000);
+      
+    } catch (err) {
+      console.error('Error saving to comment bank:', err);
+      
+      // Show error message to user
+      const errorMessage = document.createElement('div');
+      errorMessage.innerHTML = '❌ שגיאה בשמירת ההערה בבנק ההערות';
+      errorMessage.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #dc3545;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 5px;
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 10000;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      `;
+      document.body.appendChild(errorMessage);
+      
+      // Remove message after 3 seconds
+      setTimeout(() => {
+        if (errorMessage.parentNode) {
+          errorMessage.parentNode.removeChild(errorMessage);
+        }
+      }, 3000);
+    }
+  };
+
+  const useCommentFromBank = async (questionIndex: number, comment: CommentBankEntry) => {
+    // Update the grade and feedback
+    setQuestionGrades(prev => prev.map(grade => 
+      grade.questionIndex === questionIndex 
+        ? { ...grade, score: comment.score, feedback: comment.feedback }
+        : grade
+    ));
+
+    // Update total score
+    const newGrades = questionGrades.map(grade => 
+      grade.questionIndex === questionIndex 
+        ? { ...grade, score: comment.score, feedback: comment.feedback }
+        : grade
+    );
+    const newTotal = newGrades
+      .filter(grade => !deletedQuestions.has(grade.questionIndex))
+      .reduce((sum, grade) => sum + grade.score, 0);
+    setTotalScore(newTotal);
+
+    // Mark comment as used in the bank
+    try {
+      await fetch(`/api/admin/comment-bank/${comment._id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'use' }),
+      });
+    } catch (err) {
+      console.error('Error marking comment as used:', err);
+    }
+
+    // Hide comment bank
+    setActiveCommentBank({ questionIndex: null }); // Close the modal
+  };
+
+  // Open the comment bank modal for a question
+  const openCommentBank = (questionIndex: number, answer: ExamAnswer) => {
+    fetchCommentBankEntries(questionIndex, answer);
+    setActiveCommentBank({ questionIndex, answer });
+  };
+
+  // Close the comment bank modal
+  const closeCommentBank = () => {
+    setActiveCommentBank({ questionIndex: null });
   };
 
   const calculatePercentage = () => {
@@ -485,10 +683,25 @@ const ExamGradingPage: React.FC = () => {
                 </div>
 
                 <div className={styles.answerSection}>
-                  <div className={styles.studentAnswer}>
-                    <strong>תשובת הסטודנט:</strong>
+                                  <div className={styles.studentAnswer}>
+                  <strong>תשובת הסטודנט:</strong>
+                  {aiAnalyses[answer.questionIndex]?.highlightedText && aiAnalyses[answer.questionIndex].isAISuspicious ? (
+                    <div className={styles.highlightedAnswerContainer}>
+                      <div className={styles.highlightedAnswerHeader}>
+                        <AlertTriangle size={14} />
+                        זוהו איזורים חשודים
+                      </div>
+                      <div className={styles.highlightedAnswerContent}>
+                        <pre 
+                          className={styles.sqlCodeHighlighted}
+                          dangerouslySetInnerHTML={{ __html: aiAnalyses[answer.questionIndex].highlightedText || '' }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
                     <pre className={styles.sqlCode}>{answer.studentAnswer}</pre>
-                  </div>
+                  )}
+                </div>
 
                   <div className={styles.correctAnswer}>
                     <strong>תשובה נכונה:</strong>
@@ -537,7 +750,18 @@ const ExamGradingPage: React.FC = () => {
                       </div>
                     </div>
                     <div className={styles.feedbackInput}>
-                      <label>הערות:</label>
+                      <div className={styles.feedbackHeader}>
+                        <label>הערות:</label>
+                        <button
+                          type="button"
+                          onClick={() => openCommentBank(answer.questionIndex, answer)}
+                          className={styles.commentBankToggle}
+                          title="פתח בנק הערות - הערות נשמרות אוטומטית בכתיבה"
+                        >
+                          <FileText size={14} />
+                          בנק הערות
+                        </button>
+                      </div>
                       <textarea
                         value={questionGrade?.feedback || ''}
                         onChange={(e) => handleQuestionGradeChange(answer.questionIndex, 'feedback', e.target.value)}
@@ -545,6 +769,66 @@ const ExamGradingPage: React.FC = () => {
                         className={styles.feedbackField}
                         rows={2}
                       />
+                      <div className={styles.autoSaveNote}>
+                        💡 הערה: הערות נשמרות אוטומטית בבנק ההערות אחרי שנייה מכתיבה
+                      </div>
+                      
+                      {/* Comment Bank Modal (global, not per-question) */}
+                      {activeCommentBank.questionIndex !== null && (
+                        <div className={styles.commentBankOverlay}>
+                          <div className={styles.commentBankPopup}>
+                            <div className={styles.commentBankHeader}>
+                              <h4>בנק הערות - שאלה {activeCommentBank.questionIndex! + 1}</h4>
+                              <button
+                                onClick={closeCommentBank}
+                                className={styles.closeCommentBank}
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                            <div className={styles.commentBankContent}>
+                              {loadingComments[activeCommentBank.questionIndex!] ? (
+                                <div className={styles.commentBankLoading}>טוען הערות...</div>
+                              ) : commentBankEntries[activeCommentBank.questionIndex!] && commentBankEntries[activeCommentBank.questionIndex!].length > 0 ? (
+                                <div className={styles.commentsList}>
+                                  {commentBankEntries[activeCommentBank.questionIndex!].map((comment) => (
+                                    <div key={comment._id} className={styles.commentItem}>
+                                      <div className={styles.commentMeta}>
+                                        <span className={styles.commentScore}>
+                                          {comment.score}/{comment.maxScore} נקודות
+                                        </span>
+                                        <span className={styles.commentDifficulty}>
+                                          {comment.difficulty}
+                                        </span>
+                                        <span className={styles.commentUsage}>
+                                          נוצר: {new Date(comment.gradedAt).toLocaleDateString('he-IL')}
+                                          {comment.usageCount > 0 && ` | שימושים: ${comment.usageCount}`}
+                                        </span>
+                                      </div>
+                                      <div className={styles.commentFeedback}>
+                                        {comment.feedback}
+                                      </div>
+                                      <button
+                                        onClick={() => {
+                                          useCommentFromBank(activeCommentBank.questionIndex!, comment);
+                                          closeCommentBank();
+                                        }}
+                                        className={styles.useCommentBtn}
+                                      >
+                                        השתמש בהערה
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className={styles.noComments}>
+                                  לא נמצאו הערות קודמות לשאלה זו
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

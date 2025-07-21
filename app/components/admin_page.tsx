@@ -26,6 +26,11 @@ const AdminPage: React.FC = () => {
  const [isUploading, setIsUploading] = useState(false);
  const [uploadResult, setUploadResult] = useState<any>(null);
  const [activeTab, setActiveTab] = useState('dashboard');
+ 
+ // Missing answers state
+ const [missingAnswersData, setMissingAnswersData] = useState<any>(null);
+ const [checkingMissingAnswers, setCheckingMissingAnswers] = useState(false);
+ const [fixingMissingAnswers, setFixingMissingAnswers] = useState(false);
 
  // Fetch initial token visibility state
  useEffect(() => {
@@ -184,6 +189,49 @@ const AdminPage: React.FC = () => {
    }
  };
 
+ // Missing answers functions
+ const checkMissingAnswers = async () => {
+   setCheckingMissingAnswers(true);
+   try {
+     const response = await fetch('/api/admin/check-missing-answers');
+     const data = await response.json();
+     setMissingAnswersData(data);
+     
+     if (data.questionsWithoutSolution > 0) {
+       setSuccessMessage(`נמצאו ${data.questionsWithoutSolution} שאלות ללא תשובות נכונות`);
+     } else {
+       setSuccessMessage('כל השאלות מכילות תשובות נכונות!');
+     }
+   } catch (error) {
+     console.error('Error checking missing answers:', error);
+     setError('שגיאה בבדיקת תשובות נכונות');
+   } finally {
+     setCheckingMissingAnswers(false);
+   }
+ };
+
+ const fixMissingAnswers = async () => {
+   setFixingMissingAnswers(true);
+   try {
+     const response = await fetch('/api/admin/check-missing-answers', {
+       method: 'POST'
+     });
+     const data = await response.json();
+     setMissingAnswersData(data);
+     
+     if (data.fixedCount > 0) {
+       setSuccessMessage(`תוקנו ${data.fixedCount} שאלות בהצלחה!`);
+     } else {
+       setSuccessMessage('לא נמצאו שאלות לתיקון');
+     }
+   } catch (error) {
+     console.error('Error fixing missing answers:', error);
+     setError('שגיאה בתיקון תשובות נכונות');
+   } finally {
+     setFixingMissingAnswers(false);
+   }
+ };
+
  const renderDashboard = () => (
    <div className={styles.dashboardSection}>
      <div className={styles.statsGrid}>
@@ -246,6 +294,62 @@ const AdminPage: React.FC = () => {
            <BarChart3 size={20} />
            <span>ציונים לפי שאלה</span>
          </button>
+       </div>
+     </div>
+
+     {/* Missing Correct Answers Section */}
+     <div className={styles.missingAnswersSection}>
+       <h3 className={styles.sectionTitle}>בדיקת תשובות נכונות</h3>
+       <div className={styles.missingAnswersCard}>
+         <div className={styles.missingAnswersHeader}>
+           <FileText size={20} />
+           <span>וודא שכל השאלות מכילות תשובות נכונות</span>
+         </div>
+         
+         <div className={styles.missingAnswersActions}>
+           <button
+             onClick={checkMissingAnswers}
+             disabled={checkingMissingAnswers}
+             className={styles.checkButton}
+           >
+             {checkingMissingAnswers ? 'בודק...' : 'בדוק תשובות חסרות'}
+           </button>
+           
+           {missingAnswersData && missingAnswersData.questionsWithoutSolution > 0 && (
+             <button
+               onClick={fixMissingAnswers}
+               disabled={fixingMissingAnswers}
+               className={styles.fixButton}
+             >
+               {fixingMissingAnswers ? 'מתקן...' : `תקן ${missingAnswersData.questionsWithoutSolution} שאלות`}
+             </button>
+           )}
+         </div>
+
+         {missingAnswersData && (
+           <div className={styles.missingAnswersResults}>
+             <div className={styles.resultsSummary}>
+               <p><strong>סה"כ שאלות:</strong> {missingAnswersData.totalQuestions}</p>
+               <p><strong>שאלות ללא תשובות נכונות:</strong> {missingAnswersData.questionsWithoutSolution || 0}</p>
+               {missingAnswersData.fixedCount > 0 && (
+                 <p><strong>תוקנו:</strong> {missingAnswersData.fixedCount}</p>
+               )}
+             </div>
+             
+             {missingAnswersData.missingAnswers && missingAnswersData.missingAnswers.length > 0 && (
+               <div className={styles.missingAnswersList}>
+                 <h4>שאלות שעדיין חסרות תשובות:</h4>
+                 <ul>
+                   {missingAnswersData.missingAnswers.map((q: any) => (
+                     <li key={q.id}>
+                       <strong>שאלה #{q.id}</strong> ({q.difficulty}): {q.question}
+                     </li>
+                   ))}
+                 </ul>
+               </div>
+             )}
+           </div>
+         )}
        </div>
      </div>
    </div>

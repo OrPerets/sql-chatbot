@@ -3,6 +3,7 @@ export interface TrapDetection {
   suspicionScore: number; // 0-100
   triggeredTraps: TrapTrigger[];
   summary: string;
+  highlightedText?: string; // NEW: HTML with highlighted suspicious parts
 }
 
 export interface TrapTrigger {
@@ -34,7 +35,7 @@ const TRAP_PATTERNS: TrapPattern[] = [
   // 🪤 2. Fake MissionAnalytics table and its fields
   {
     name: 'mission_analytics_table',
-    description: 'התייחסות לטבלת MissionAnalytics (טבלה פיקטיבית)',
+    description: 'שימוש בטבלה שלא קיימת: MissionAnalytics',
     pattern: /missionanalytics|mission_analytics|FROM\s+MissionAnalytics|JOIN\s+MissionAnalytics/gi,
     severity: 'high',
     points: 35
@@ -45,6 +46,33 @@ const TRAP_PATTERNS: TrapPattern[] = [
     pattern: /duration_minutes|fuel_consumption|weapon_effectiveness.*mission/gi,
     severity: 'high',
     points: 25
+  },
+  
+  // 🚫 NEW: Additional non-existent tables
+  {
+    name: 'non_existent_tables',
+    description: 'שימוש בטבלות שלא קיימות במאגר',
+    pattern: /FROM\s+(Aircraft_Assignments|PilotSchedule|WeaponInventory|Squadron_Aircraft|Mission_Reports|Aircraft_Maintenance)\b|JOIN\s+(Aircraft_Assignments|PilotSchedule|WeaponInventory|Squadron_Aircraft|Mission_Reports|Aircraft_Maintenance)\b/gi,
+    severity: 'high',
+    points: 40
+  },
+  
+  // 🚫 NEW: Invalid JOIN relationships
+  {
+    name: 'invalid_joins',
+    description: 'חיבור לא קיים - קשרים שגויים בין טבלות',
+    pattern: /JOIN\s+Weapons\s+ON\s+Pilots\.|JOIN\s+Pilots\s+ON\s+Weapons\.|JOIN\s+Missions\s+ON\s+Weapons\.weapon_id|JOIN\s+Squadrons\s+ON\s+Weapons\.squadron_id/gi,
+    severity: 'high',
+    points: 35
+  },
+  
+  // 🚫 NEW: Non-existent columns in existing tables
+  {
+    name: 'non_existent_columns',
+    description: 'עמודה לא קיימת - שימוש בעמודות שאינן קיימות',
+    pattern: /Pilots\.(salary|hire_date|last_mission|training_hours)|Squadrons\.(budget|commander_id|home_base|aircraft_count)|Aircraft\.(last_maintenance|flight_hours|fuel_capacity|max_speed)|Missions\.(pilot_count|aircraft_count|success_rate|cost)/gi,
+    severity: 'high',
+    points: 30
   },
   
   // 🪤 3. Wrong relationship: Weapons.squadron_id
@@ -200,6 +228,48 @@ const TRAP_PATTERNS: TrapPattern[] = [
 ];
 
 /**
+ * Creates highlighted version of text with suspicious parts marked
+ * @param text - Original text
+ * @param triggeredTraps - Array of triggered traps with matches
+ * @returns HTML string with highlighted suspicious parts
+ */
+export function createHighlightedText(text: string, triggeredTraps: TrapTrigger[]): string {
+  if (!text || triggeredTraps.length === 0) {
+    return text;
+  }
+
+  let highlightedText = text;
+  const processedMatches = new Set<string>();
+
+  // Sort traps by severity (high first) to prioritize highlighting
+  const sortedTraps = [...triggeredTraps].sort((a, b) => {
+    const severityOrder = { high: 3, medium: 2, low: 1 };
+    return severityOrder[b.severity] - severityOrder[a.severity];
+  });
+
+  // Process each trap and highlight its matches
+  sortedTraps.forEach(trap => {
+    trap.matches.forEach(match => {
+      if (!processedMatches.has(match.toLowerCase())) {
+        const regex = new RegExp(`\\b${match.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+        
+        // Get severity-based styling
+        const severityClass = trap.severity === 'high' ? 'ai-trap-high' : 
+                            trap.severity === 'medium' ? 'ai-trap-medium' : 'ai-trap-low';
+        
+        highlightedText = highlightedText.replace(regex, 
+          `<span class="${severityClass}" title="${trap.description}">${match}</span>`
+        );
+        
+        processedMatches.add(match.toLowerCase());
+      }
+    });
+  });
+
+  return highlightedText;
+}
+
+/**
  * Analyzes text to detect potential AI-generated content based on trap triggers
  * @param text - The text to analyze (usually student's SQL answer)
  * @returns TrapDetection object with analysis results
@@ -210,7 +280,8 @@ export function detectAITraps(text: string): TrapDetection {
       isAISuspicious: false,
       suspicionScore: 0,
       triggeredTraps: [],
-      summary: 'אין תוכן לניתוח'
+      summary: 'אין תוכן לניתוח',
+      highlightedText: text
     };
   }
 
@@ -253,11 +324,15 @@ export function detectAITraps(text: string): TrapDetection {
     summary = `חשד נמוך ב-AI (${triggeredTraps.length} מלכודות)`;
   }
 
+  // Create highlighted text
+  const highlightedText = createHighlightedText(text, triggeredTraps);
+
   return {
     isAISuspicious,
     suspicionScore,
     triggeredTraps,
-    summary
+    summary,
+    highlightedText
   };
 }
 
