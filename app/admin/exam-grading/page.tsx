@@ -42,7 +42,57 @@ const ExamGradingPage: React.FC = () => {
   const [scaledScoreData, setScaledScoreData] = useState<{[examId: string]: number}>({});
   const [sortBy, setSortBy] = useState<'totalPoints' | 'date' | 'name'>('totalPoints');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  
+  // State for new statistics
+  const [statisticsData, setStatisticsData] = useState<{
+    averageGrade: number;
+    standardDeviation: number;
+    failurePercentage: number;
+  }>({
+    averageGrade: 0,
+    standardDeviation: 0,
+    failurePercentage: 0
+  });
+  
   const router = useRouter();
+
+  // Calculate statistics for completed exams
+  const calculateStatistics = () => {
+    const completedExams = examSessions.filter(session => 
+      session.status === 'completed' && 
+      session.score !== undefined &&
+      scaledScoreData[session._id] !== undefined
+    );
+
+    if (completedExams.length === 0) {
+      setStatisticsData({
+        averageGrade: 0,
+        standardDeviation: 0,
+        failurePercentage: 0
+      });
+      return;
+    }
+
+    // Get all scaled scores
+    const scores = completedExams.map(session => scaledScoreData[session._id]);
+    
+    // Calculate average
+    const averageGrade = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+    
+    // Calculate standard deviation
+    const variance = scores.reduce((sum, score) => sum + Math.pow(score - averageGrade, 2), 0) / scores.length;
+    const standardDeviation = Math.sqrt(variance);
+    
+    // Calculate failure percentage (score < 60)
+    const failedExams = scores.filter(score => score < 60).length;
+    const failurePercentage = (failedExams / scores.length) * 100;
+    
+    setStatisticsData({
+      averageGrade: Math.round(averageGrade * 10) / 10, // Round to 1 decimal place
+      standardDeviation: Math.round(standardDeviation * 10) / 10,
+      failurePercentage: Math.round(failurePercentage * 10) / 10
+    });
+  };
 
   useEffect(() => {
     fetchExamSessions();
@@ -349,6 +399,11 @@ const ExamGradingPage: React.FC = () => {
     });
   }, [filteredSessions]);
 
+  // Recalculate statistics when scaled score data changes
+  useEffect(() => {
+    calculateStatistics();
+  }, [scaledScoreData, examSessions]);
+
   if (loading) {
     return (
       <div className={styles.container}>
@@ -418,22 +473,17 @@ const ExamGradingPage: React.FC = () => {
       {/* Stats */}
       <div className={styles.stats}>
         <div className={styles.statCard}>
-          <div className={styles.statNumber}>{examSessions.length}</div>
-          <div className={styles.statLabel}>סה"כ בחינות</div>
+          <div className={styles.statNumber}>{statisticsData.averageGrade}</div>
+          <div className={styles.statLabel}>ציון ממוצע</div>
         </div>
         <div className={styles.statCard}>
-          <div className={styles.statNumber}>
-            {examSessions.filter(s => s.status === 'completed').length}
-          </div>
-          <div className={styles.statLabel}>הושלמו</div>
+          <div className={styles.statNumber}>{statisticsData.standardDeviation}</div>
+          <div className={styles.statLabel}>סטיית תקן</div>
         </div>
         <div className={styles.statCard}>
-          <div className={styles.statNumber}>
-            {examSessions.filter(s => s.graded).length}
-          </div>
-          <div className={styles.statLabel}>נבדקו</div>
+          <div className={styles.statNumber}>{statisticsData.failurePercentage}%</div>
+          <div className={styles.statLabel}>אחוז נכשלים (מתחת ל60)</div>
         </div>
-        {/* הסתרת סטטיסטיקות AI */}
       </div>
 
       {/* Exam Sessions Table */}

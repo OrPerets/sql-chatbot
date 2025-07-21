@@ -269,7 +269,7 @@ const AdminPage: React.FC = () => {
      </div>
 
      <div className={styles.quickActions}>
-       <h3 className={styles.sectionTitle}>פעולות מהירות</h3>
+       <h3 className={styles.sectionTitle}>ממשק מבחנים</h3>
        <div className={styles.actionButtons}>
          <button
            onClick={() => router.push('/admin/questions')}

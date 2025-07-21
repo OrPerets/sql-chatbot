@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, FileText, Search, Eye, Users, CheckCircle, XCircle, Clock, Edit3, Filter, BarChart3 } from 'lucide-react';
+import { ArrowLeft, FileText, Search, Eye, Users, CheckCircle, XCircle, Clock, Edit3, Filter, BarChart3, AlertTriangle, AlertCircle, Info } from 'lucide-react';
 import styles from './page.module.css';
+import { detectAITraps, getSuspicionColor, getSuspicionIcon } from '../../utils/trapDetector';
 
 interface Question {
   id: number;
@@ -12,6 +13,7 @@ interface Question {
   points: number;
   approved: boolean;
   answerCount: number;
+  averageScore?: number; // הוספת ממוצע ניקוד
 }
 
 interface StudentAnswer {
@@ -66,7 +68,35 @@ const GradeByQuestionPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'easy' | 'medium' | 'hard' | 'algebra'>('all');
   const [showGradedOnly, setShowGradedOnly] = useState(false);
+
+  // Save filter state to localStorage
+  const saveFiltersToStorage = (search: string, difficulty: string) => {
+    localStorage.setItem('gradeByQuestion_filters', JSON.stringify({
+      searchTerm: search,
+      difficultyFilter: difficulty
+    }));
+  };
+
+  // Load filter state from localStorage
+  const loadFiltersFromStorage = () => {
+    try {
+      const saved = localStorage.getItem('gradeByQuestion_filters');
+      if (saved) {
+        const { searchTerm: savedSearch, difficultyFilter: savedDifficulty } = JSON.parse(saved);
+        setSearchTerm(savedSearch || '');
+        setDifficultyFilter(savedDifficulty || 'all');
+      }
+    } catch (err) {
+      console.error('Error loading filters from storage:', err);
+    }
+  };
   const [grading, setGrading] = useState<{[answerId: string]: boolean}>({});
+  
+  // Cache for questions data
+  const [questionsCache, setQuestionsCache] = useState<Question[] | null>(null);
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  
   const router = useRouter();
 
   // Fetch comments for a question
@@ -123,18 +153,116 @@ const GradeByQuestionPage: React.FC = () => {
       return;
     }
 
+    // Try to load from localStorage first
+    const cachedQuestions = localStorage.getItem('gradeByQuestion_cache');
+    const cachedTime = localStorage.getItem('gradeByQuestion_cache_time');
+    
+    if (cachedQuestions && cachedTime) {
+      const cacheAge = Date.now() - parseInt(cachedTime);
+      if (cacheAge < CACHE_DURATION) {
+        try {
+          const parsedQuestions = JSON.parse(cachedQuestions);
+          setQuestionsCache(parsedQuestions);
+          setQuestions(parsedQuestions);
+          setLastFetchTime(parseInt(cachedTime));
+          setLoading(false);
+          console.log(`💾 Loaded questions from localStorage cache (${parsedQuestions.length} questions, age: ${Math.round(cacheAge / 60000)}min)`);
+          return;
+        } catch (err) {
+          console.error('Error parsing cached questions:', err);
+        }
+      }
+    }
+
+    // Load saved filters
+    loadFiltersFromStorage();
+    
     fetchQuestions();
   }, [router]);
 
-  const fetchQuestions = async () => {
+  // Save filters when they change
+  useEffect(() => {
+    if (searchTerm !== '' || difficultyFilter !== 'all') {
+      saveFiltersToStorage(searchTerm, difficultyFilter);
+    }
+  }, [searchTerm, difficultyFilter]);
+
+  const fetchQuestions = async (forceRefresh = false) => {
     try {
+      const now = Date.now();
+      
+      // Check if we have cached data and it's still fresh
+      if (!forceRefresh && questionsCache && (now - lastFetchTime) < CACHE_DURATION) {
+        console.log(`🚀 Using cached questions data (${questionsCache.length} questions, age: ${Math.round((now - lastFetchTime) / 60000)}min)`);
+        setQuestions(questionsCache);
+        setLoading(false);
+        return;
+      }
+      
       setLoading(true);
+      console.log('📥 Fetching fresh questions data from API...');
+      
       const response = await fetch('/api/admin/questions-with-answers');
       if (!response.ok) {
         throw new Error('Failed to fetch questions');
       }
       const data = await response.json();
-      setQuestions(data);
+      
+      // חישוב ממוצע ניקוד לכל שאלה - עם batching לשיפור ביצועים
+      const questionsWithAverage = await Promise.allSettled(
+        data.map(async (question: Question) => {
+          try {
+            // קבלת כל התשובות לשאלה כדי לחשב ממוצע
+            const answersResponse = await fetch(`/api/admin/question/${question.id}/answers`);
+            if (answersResponse.ok) {
+              const answersData = await answersResponse.json();
+              const gradedAnswers = answersData.answers?.filter((answer: any) => 
+                answer.grade !== undefined && answer.grade !== null
+              ) || [];
+              
+              let averageScore = 0;
+              if (gradedAnswers.length > 0) {
+                const totalScore = gradedAnswers.reduce((sum: number, answer: any) => 
+                  sum + (answer.grade || 0), 0
+                );
+                averageScore = totalScore / gradedAnswers.length;
+              }
+              
+              return {
+                ...question,
+                averageScore: Math.round(averageScore * 10) / 10 // עיגול לעשירית
+              };
+            }
+          } catch (err) {
+            console.error(`Error calculating average for question ${question.id}:`, err);
+          }
+          
+          return {
+            ...question,
+            averageScore: 0
+          };
+        })
+      );
+      
+      // Process results from Promise.allSettled
+      const processedQuestions = questionsWithAverage
+        .filter(result => result.status === 'fulfilled')
+        .map(result => (result as PromiseFulfilledResult<Question>).value);
+      
+      // Update cache
+      setQuestionsCache(processedQuestions);
+      setLastFetchTime(now);
+      setQuestions(processedQuestions);
+      
+      // Save to localStorage
+      try {
+        localStorage.setItem('gradeByQuestion_cache', JSON.stringify(processedQuestions));
+        localStorage.setItem('gradeByQuestion_cache_time', now.toString());
+        console.log(`💾 Saved ${processedQuestions.length} questions to cache`);
+      } catch (err) {
+        console.error('Error saving to localStorage:', err);
+      }
+      
     } catch (err) {
       console.error('Error fetching questions:', err);
       setError('Failed to load questions');
@@ -165,6 +293,11 @@ const GradeByQuestionPage: React.FC = () => {
     } finally {
       setQuestionsLoading(false);
     }
+  };
+
+  // Function to refresh data manually
+  const handleRefreshQuestions = async () => {
+    await fetchQuestions(true); // Force refresh
   };
 
   const handleGradeAnswer = async (examId: string, questionIndex: number, grade: number, feedback: string) => {
@@ -242,6 +375,15 @@ const GradeByQuestionPage: React.FC = () => {
       // Refresh the current question answers
       if (selectedQuestion) {
         fetchQuestionAnswers(selectedQuestion.question.id);
+        
+        // Invalidate cache to ensure fresh data on next load
+        const questionId = selectedQuestion.question.id;
+        if (questionsCache) {
+          // Update the specific question's average in cache
+          setTimeout(() => {
+            fetchQuestions(true);
+          }, 1000); // Small delay to allow grade to be processed
+        }
       }
     } catch (err) {
       console.error('Error saving grade:', err);
@@ -301,13 +443,15 @@ const GradeByQuestionPage: React.FC = () => {
       return a.id - b.id;
     });
 
-  if (loading) {
+  if (loading && !questionsCache) {
     return (
       <div className={styles.container}>
         <div className={styles.loading}>טוען שאלות...</div>
       </div>
     );
   }
+  
+
 
   if (error) {
     return (
@@ -333,8 +477,21 @@ const GradeByQuestionPage: React.FC = () => {
           <h1>ציונים לפי שאלה</h1>
         </div>
         <div className={styles.headerActions}>
+          <button 
+            onClick={handleRefreshQuestions}
+            disabled={loading}
+            className={styles.refreshButton}
+            title="רענן נתונים"
+          >
+            🔄 {loading ? 'טוען...' : 'רענן'}
+          </button>
           <div className={styles.headerInfo}>
             <span>{filteredQuestions.length} שאלות זמינות</span>
+            {questionsCache && !loading && (
+              <span className={styles.cacheInfo}>
+                • מטמון: {Math.round((Date.now() - lastFetchTime) / 60000)} דק' ({questionsCache === questions ? '🟢 פעיל' : '🔄 מתעדכן'})
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -409,6 +566,12 @@ const GradeByQuestionPage: React.FC = () => {
                       <Users size={16} />
                       {question.answerCount} תשובות
                     </div>
+                    {question.averageScore !== undefined && question.averageScore > 0 && (
+                      <div className={styles.averageScore}>
+                        <BarChart3 size={16} />
+                        ממוצע: {question.averageScore}
+                      </div>
+                    )}
                     <div className={styles.viewAnswersButton}>
                       <Eye size={16} />
                       צפה בתשובות
@@ -483,6 +646,24 @@ const GradeByQuestionPage: React.FC = () => {
                     const answerId = `${answer.examId}-${answer.questionIndex}`;
                     const isGrading = grading[answerId] || false;
                     
+                    // ניתוח AI עבור התשובה
+                    const aiAnalysis = detectAITraps(answer.studentAnswer);
+                    const suspicionLevel = getSuspicionColor(aiAnalysis.suspicionScore);
+                    const iconName = getSuspicionIcon(aiAnalysis.suspicionScore);
+                    
+                    const getAIIcon = () => {
+                      switch (iconName) {
+                        case 'AlertTriangle':
+                          return <AlertTriangle size={14} className={styles.aiHighRisk} />;
+                        case 'AlertCircle':
+                          return <AlertCircle size={14} className={styles.aiMediumRisk} />;
+                        case 'Info':
+                          return <Info size={14} className={styles.aiLowRisk} />;
+                        default:
+                          return <CheckCircle size={14} className={styles.aiClean} />;
+                      }
+                    };
+                    
                     return (
                       <div key={answerId} className={styles.answerCard}>
                         <div className={styles.answerHeader}>
@@ -504,17 +685,63 @@ const GradeByQuestionPage: React.FC = () => {
                             <div className={styles.dateInfo}>
                               {formatDate(answer.timestamp)}
                             </div>
-                            <div className={`${styles.correctnessIndicator} ${answer.isCorrect ? styles.correct : styles.incorrect}`}>
-                              {answer.isCorrect ? <CheckCircle size={14} /> : <XCircle size={14} />}
-                              {answer.isCorrect ? 'נכון' : 'שגוי'}
-                            </div>
+                            {/* הסרת אינדיקטור נכון/שגוי */}
                           </div>
                         </div>
+                        
+                        {/* הצגת חשד AI בנפרד ובולט יותר */}
+                        {aiAnalysis.isAISuspicious && (
+                          <div className={styles.aiSuspicionBanner}>
+                            <div className={styles.aiSuspicionHeader}>
+                              <div className={styles.aiSuspicionTitle}>
+                                <AlertTriangle size={20} />
+                                <span>⚠️ חשוד בשימוש ב-AI (ציון חשד: {aiAnalysis.suspicionScore})</span>
+                              </div>
+                              <button 
+                                className={styles.aiDetailsToggle}
+                                onClick={() => {
+                                  const details = document.getElementById(`ai-details-${answerId}`);
+                                  if (details) {
+                                    details.style.display = details.style.display === 'none' ? 'block' : 'none';
+                                  }
+                                }}
+                              >
+                                {aiAnalysis.triggeredTraps.length > 0 ? 'הצג פרטים' : 'אין פרטים זמינים'}
+                              </button>
+                            </div>
+                            
+                            {aiAnalysis.triggeredTraps.length > 0 && (
+                              <div id={`ai-details-${answerId}`} className={styles.aiSuspicionDetails} style={{ display: 'none' }}>
+                                <div className={styles.aiDetailsTitle}>מלכודות שנתפסו:</div>
+                                <ul className={styles.trapsList}>
+                                  {aiAnalysis.triggeredTraps.map((trap, trapIndex) => (
+                                    <li key={trapIndex} className={`${styles.trapItem} ${styles[`trap${trap.severity.charAt(0).toUpperCase() + trap.severity.slice(1)}`]}`}>
+                                      <div className={styles.trapDescription}>
+                                        <strong>{trap.description}</strong>
+                                      </div>
+                                      <div className={styles.trapMatches}>
+                                        נמצאו: {trap.matches.join(', ')}
+                                      </div>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        )}
                         
                         <div className={styles.answerContent}>
                           <div className={styles.answerText}>
                             <strong>תשובת הסטודנט:</strong>
                             <pre className={styles.answerQuery}>{answer.studentAnswer}</pre>
+                            
+                            {/* הוספת אינדיקטור נכון/שגוי כאן */}
+                            {/* <div className={styles.correctnessSection}>
+                              <div className={`${styles.correctnessIndicator} ${answer.isCorrect ? styles.correct : styles.incorrect}`}>
+                                {answer.isCorrect ? <CheckCircle size={14} /> : <XCircle size={14} />}
+                                {answer.isCorrect ? 'נכון' : 'שגוי'}
+                              </div>
+                            </div> */}
                           </div>
                         </div>
                         
