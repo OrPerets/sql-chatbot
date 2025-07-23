@@ -1116,6 +1116,57 @@
   font-style: italic;
 }
 
+/* Individual Question Save Button */
+.questionSaveContainer {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.questionSaveButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.questionSaveButton:hover:not(:disabled) {
+  background: #0056b3;
+  transform: translateY(-1px);
+}
+
+.questionSaveButton:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.questionSaved {
+  background: #28a745 !important;
+}
+
+.questionSaved:hover:not(:disabled) {
+  background: #218838 !important;
+}
+
+.savedIndicator {
+  font-size: 11px;
+  color: #28a745;
+  font-style: italic;
+  text-align: center;
+}
+
 /* Comment Bank Modal Overlay and Popup */
 .commentBankOverlay {
   position: fixed;

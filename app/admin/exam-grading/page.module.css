@@ -298,16 +298,24 @@
 .sortableHeader {
   cursor: pointer;
   user-select: none;
-  transition: background-color 0.2s ease;
-  position: relative;
+  font-weight: 700;
+  color: #1976d2;
+  background: #f8f9fa;
+  padding: 8px 12px;
+  border-bottom: 2px solid #e9ecef;
+  transition: background 0.2s;
 }
-
 .sortableHeader:hover {
-  background: #e9ecef;
+  background: #e3f2fd;
 }
-
-.sortableHeader:active {
-  background: #dee2e6;
+.gradeCell {
+  text-align: center;
+  font-weight: 700;
+  color: #28a745;
+  font-size: 16px;
+  background: #f3f9f3;
+  border-radius: 4px;
+  padding: 4px 8px;
 }
 
 .examTable td {

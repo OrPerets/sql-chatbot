@@ -34,9 +34,11 @@ interface ExamSession {
 interface ExamData {
   session: ExamSession;
   answers: ExamAnswer[];
+  existingGrades?: QuestionGrade[];
 }
 
 interface QuestionGrade {
+  uniqueKey: string; // Format: "answerId_questionIndex" to ensure uniqueness
   questionIndex: number;
   score: number;
   maxScore: number;
@@ -70,7 +72,19 @@ const ExamGradingPage: React.FC = () => {
   const [aiAnalyses, setAiAnalyses] = useState<{[questionIndex: number]: TrapDetection}>({});
   const [deletedQuestions, setDeletedQuestions] = useState<Set<number>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
+  const [savingQuestions, setSavingQuestions] = useState<Set<string>>(new Set());
+  const [savedQuestions, setSavedQuestions] = useState<Set<string>>(new Set());
+  const [initializedExamId, setInitializedExamId] = useState<string | null>(null);
   
+  // Helper function to create unique key
+  const createUniqueKey = (answerId: string, questionIndex: number) => `${answerId}_${questionIndex}`;
+
+  // Helper function to get answer by unique key
+  const getAnswerByUniqueKey = (uniqueKey: string) => {
+    const answerId = uniqueKey.split('_')[0];
+    return examData?.answers.find(answer => answer._id === answerId);
+  };
+
   // Comment Bank state
   const [commentBankEntries, setCommentBankEntries] = useState<{[questionIndex: number]: CommentBankEntry[]}>({});
   const [activeCommentBank, setActiveCommentBank] = useState<{ questionIndex: number | null, anchorRect?: DOMRect, answer?: ExamAnswer }>({ questionIndex: null });
@@ -86,32 +100,55 @@ const ExamGradingPage: React.FC = () => {
   }, [examId]);
 
   useEffect(() => {
-    // Initialize question grades when exam data loads
-    if (examData?.answers) {
-      const initialGrades = examData.answers.map(answer => {
-        const questionPoints = answer.questionDetails?.points || 1; // Use actual points from database
-        return {
-          questionIndex: answer.questionIndex,
-          score: answer.isCorrect ? questionPoints : 0,
-          maxScore: questionPoints,
-          feedback: ''
-        };
-      });
-      setQuestionGrades(initialGrades);
+    // Initialize question grades when exam data loads (only once per exam)
+    if (examData?.answers && initializedExamId !== examId) {
+      console.log('🔄 Initializing grades for exam:', examId);
       
-      // Calculate total max score based on actual question points (excluding deleted questions)
-      const totalMaxScore = examData.answers
-        .filter(answer => !deletedQuestions.has(answer.questionIndex))
-        .reduce((sum, answer) => sum + (answer.questionDetails?.points || 1), 0);
-      setMaxScore(totalMaxScore);
-      
-      // Calculate total score based on correct answers and their points (excluding deleted questions)
-      const totalCurrentScore = examData.answers
-        .filter(answer => !deletedQuestions.has(answer.questionIndex))
-        .reduce((sum, answer) => sum + (answer.isCorrect ? (answer.questionDetails?.points || 1) : 0), 0);
-      setTotalScore(totalCurrentScore);
+      // Create a map of existing grades by unique key from loaded data
+      const existingGradesMap = new Map();
+      if (examData.existingGrades && Array.isArray(examData.existingGrades)) {
+        console.log('🔄 Found existing grades:', examData.existingGrades);
+        examData.existingGrades.forEach((grade, index) => {
+          // For existing grades, we need to match them to answers
+          // We'll use the array index to match since we don't have unique keys in old data
+          const answer = examData.answers[index];
+          if (answer) {
+            const uniqueKey = createUniqueKey(answer._id, answer.questionIndex);
+            existingGradesMap.set(uniqueKey, grade);
+          }
+        });
+      }
 
-      // Analyze answers for AI patterns
+      // Create grade objects for ALL questions with unique keys
+      const allGrades = examData.answers.map(answer => {
+        const uniqueKey = createUniqueKey(answer._id, answer.questionIndex);
+        const existing = existingGradesMap.get(uniqueKey);
+        const questionPoints = answer.questionDetails?.points || 1;
+        
+        if (existing) {
+          return {
+            uniqueKey,
+            questionIndex: answer.questionIndex,
+            score: existing.score,
+            maxScore: questionPoints,
+            feedback: existing.feedback || ''
+          };
+        } else {
+          return {
+            uniqueKey,
+            questionIndex: answer.questionIndex,
+            score: answer.isCorrect ? questionPoints : 0,
+            maxScore: questionPoints,
+            feedback: ''
+          };
+        }
+      });
+      
+      console.log('Setting question grades with unique keys:', allGrades);
+      setQuestionGrades(allGrades);
+      setInitializedExamId(examId);
+
+      // Analyze answers for AI patterns (only once)
       const aiAnalysisResults: {[questionIndex: number]: TrapDetection} = {};
       examData.answers.forEach(answer => {
         const analysis = detectAITraps(answer.studentAnswer);
@@ -119,7 +156,24 @@ const ExamGradingPage: React.FC = () => {
       });
       setAiAnalyses(aiAnalysisResults);
     }
-  }, [examData, deletedQuestions]);
+  }, [examData, examId]);
+
+  // Separate effect for recalculating totals when deleted questions change
+  useEffect(() => {
+    if (examData?.answers) {
+      // Calculate total max score based on actual question points (excluding deleted questions)
+      const totalMaxScore = examData.answers
+        .filter(answer => !deletedQuestions.has(answer.questionIndex))
+        .reduce((sum, answer) => sum + (answer.questionDetails?.points || 1), 0);
+      setMaxScore(totalMaxScore);
+      
+      // Calculate total score based on current grades (excluding deleted questions)
+      const totalCurrentScore = questionGrades
+        .filter(grade => !deletedQuestions.has(grade.questionIndex))
+        .reduce((sum, grade) => sum + grade.score, 0);
+      setTotalScore(totalCurrentScore);
+    }
+  }, [deletedQuestions, questionGrades, examData]);
 
   const fetchExamData = async () => {
     try {
@@ -138,26 +192,73 @@ const ExamGradingPage: React.FC = () => {
       }
       
       const data = await response.json();
-      setExamData(data);
-
-      // Set deleted questions from the exam data (if available from server)
-      if (data.deletedQuestions && Array.isArray(data.deletedQuestions)) {
-        setDeletedQuestions(new Set(data.deletedQuestions));
-      }
-
-      // Also load any additional deleted questions from grade data (fallback)
+      
+      // Load any existing grade data BEFORE setting exam data
       try {
-        const gradeResponse = await fetch(`/api/admin/${isFinalExam ? 'final-exam' : 'exam'}/${examId}/grade`);
+        const gradeResponse = await fetch(`/api/admin/${isFinalExam ? 'final-exam' : 'exam'}/${examId}/grade`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        });
         if (gradeResponse.ok) {
           const gradeData = await gradeResponse.json();
+          console.log('✅ Successfully loaded grade data:', gradeData);
+          
+          // Load existing deleted questions
           if (gradeData.deletedQuestions && Array.isArray(gradeData.deletedQuestions)) {
-            // Merge with any existing deleted questions
-            setDeletedQuestions(prev => new Set([...Array.from(prev), ...gradeData.deletedQuestions]));
+            // Merge with any existing deleted questions from exam data
+            const allDeletedQuestions = new Set([
+              ...(data.deletedQuestions || []),
+              ...gradeData.deletedQuestions
+            ]);
+            setDeletedQuestions(allDeletedQuestions);
+            console.log('📝 Loaded deleted questions:', allDeletedQuestions);
+          } else if (data.deletedQuestions && Array.isArray(data.deletedQuestions)) {
+            setDeletedQuestions(new Set(data.deletedQuestions));
+          }
+          
+          // Attach existing grades to exam data
+          if (gradeData.questionGrades && Array.isArray(gradeData.questionGrades)) {
+            data.existingGrades = gradeData.questionGrades;
+            const savedIndices = gradeData.questionGrades.map(g => g.questionIndex);
+            setSavedQuestions(new Set(savedIndices));
+            console.log('📊 Found and attached existing grades:', gradeData.questionGrades);
+            console.log('💾 Marking questions as saved:', savedIndices);
+          } else {
+            console.log('⚠️ No existing question grades found in response');
+          }
+          
+          // Load overall feedback and scores
+          if (gradeData.overallFeedback) {
+            setOverallFeedback(gradeData.overallFeedback);
+          }
+          if (gradeData.totalScore !== undefined) {
+            setTotalScore(gradeData.totalScore);
+          }
+          if (gradeData.maxScore !== undefined) {
+            setMaxScore(gradeData.maxScore);
+          }
+          if (gradeData.grade) {
+            setGrade(gradeData.grade);
+          }
+        } else {
+          console.log('No existing grade data found - response not ok');
+          // Set deleted questions from exam data only
+          if (data.deletedQuestions && Array.isArray(data.deletedQuestions)) {
+            setDeletedQuestions(new Set(data.deletedQuestions));
           }
         }
       } catch (err) {
         console.log('No previous grade data found, using exam data deleted questions only');
+        // Set deleted questions from exam data only
+        if (data.deletedQuestions && Array.isArray(data.deletedQuestions)) {
+          setDeletedQuestions(new Set(data.deletedQuestions));
+        }
       }
+
+      // Set exam data AFTER we've attached existing grades
+      setExamData(data);
     } catch (err) {
       console.error('Error fetching exam data:', err);
       setError('Failed to load exam data');
@@ -168,9 +269,9 @@ const ExamGradingPage: React.FC = () => {
 
 
 
-  const handleQuestionGradeChange = (questionIndex: number, field: 'score' | 'feedback', value: string | number) => {
+  const handleQuestionGradeChange = (uniqueKey: string, field: 'score' | 'feedback', value: string | number) => {
     const updatedGrades = questionGrades.map(grade => 
-      grade.questionIndex === questionIndex 
+      grade.uniqueKey === uniqueKey 
         ? { ...grade, [field]: value }
         : grade
     );
@@ -185,33 +286,15 @@ const ExamGradingPage: React.FC = () => {
       setTotalScore(newTotal);
     }
 
-    // Auto-save to comment bank when feedback is provided and not empty
-    if (field === 'feedback' && value && typeof value === 'string' && value.trim()) {
-      const currentGrade = updatedGrades.find(grade => grade.questionIndex === questionIndex);
-      const answer = examData?.answers.find(answer => answer.questionIndex === questionIndex);
-      
-      if (currentGrade && answer) {
-        // Debounce the save operation
-        setTimeout(() => {
-          // Use the current score or default to 1 if score is 0
-          const scoreToSave = currentGrade.score > 0 ? currentGrade.score : 1;
-          saveToCommentBank(questionIndex, answer, scoreToSave, value);
-        }, 1000);
-      }
-    }
+    // Remove from saved questions when data changes
+    setSavedQuestions(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(uniqueKey);
+      return newSet;
+    });
 
-    // Also auto-save when score is updated if there's already feedback
-    if (field === 'score' && typeof value === 'number' && value > 0) {
-      const currentGrade = updatedGrades.find(grade => grade.questionIndex === questionIndex);
-      const answer = examData?.answers.find(answer => answer.questionIndex === questionIndex);
-      
-      if (currentGrade && answer && currentGrade.feedback && currentGrade.feedback.trim()) {
-        // Debounce the save operation
-        setTimeout(() => {
-          saveToCommentBank(questionIndex, answer, value, currentGrade.feedback);
-        }, 1000);
-      }
-    }
+    // Note: Auto-save to comment bank removed to reduce database calls
+    // Users can manually save to comment bank via the save button
   };
 
   const handleApproveAnswer = (questionIndex: number, answer: ExamAnswer) => {
@@ -304,8 +387,13 @@ const ExamGradingPage: React.FC = () => {
     setShowDeleteConfirm(null);
   };
 
-  // Comment Bank functions
+  // Comment Bank functions with caching
   const fetchCommentBankEntries = async (questionIndex: number, answer: ExamAnswer) => {
+    // Check if we already have cached entries for this question
+    if (commentBankEntries[questionIndex]) {
+      return; // Use cached data
+    }
+    
     try {
       setLoadingComments(prev => ({ ...prev, [questionIndex]: true }));
       
@@ -456,6 +544,143 @@ const ExamGradingPage: React.FC = () => {
   // Close the comment bank modal
   const closeCommentBank = () => {
     setActiveCommentBank({ questionIndex: null });
+  };
+
+  // Save individual question grade
+  const saveQuestionGrade = async (uniqueKey: string) => {
+    try {
+      setSavingQuestions(prev => new Set([...Array.from(prev), uniqueKey]));
+      
+      const currentGrade = questionGrades.find(grade => grade.uniqueKey === uniqueKey);
+      if (!currentGrade) {
+        throw new Error('No grade found for this answer');
+      }
+      
+      // Instead of individual question save, we'll save the entire current state
+      // This ensures persistence and compatibility with existing backend
+      const allGrades = questionGrades.filter(grade => !deletedQuestions.has(grade.questionIndex));
+      
+      const gradeData = {
+        gradedBy: 'admin',
+        totalScore,
+        maxScore,
+        percentage: maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0,
+        grade: '',
+        questionGrades: allGrades.map(grade => ({
+          questionIndex: grade.questionIndex,
+          score: grade.score,
+          maxScore: grade.maxScore,
+          feedback: grade.feedback
+        })),
+        overallFeedback,
+        deletedQuestions: Array.from(deletedQuestions),
+        partialSave: true,
+        savedUniqueKey: uniqueKey,
+        timestamp: new Date().toISOString()
+      };
+
+      console.log('Saving grade data:', gradeData);
+
+      // Try final exam endpoint first, then regular exam
+      let response = await fetch(`/api/admin/final-exam/${examId}/grade`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(gradeData),
+      });
+
+      if (!response.ok) {
+        // Try regular exam endpoint
+        response = await fetch(`/api/admin/exam/${examId}/grade`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(gradeData),
+        });
+      }
+
+      if (!response.ok) {
+        console.error('Save failed with status:', response.status);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error('Failed to save question grade');
+      }
+
+      const result = await response.json();
+      console.log('Save successful:', result);
+
+      // Mark as saved
+      setSavedQuestions(prev => new Set([...Array.from(prev), uniqueKey]));
+      
+      // Also save to comment bank if there's feedback
+      const answer = getAnswerByUniqueKey(uniqueKey);
+      if (currentGrade.feedback && currentGrade.feedback.trim() && answer) {
+        try {
+          await saveToCommentBank(answer.questionIndex, answer, currentGrade.score, currentGrade.feedback);
+        } catch (err) {
+          console.error('Failed to save to comment bank:', err);
+          // Don't fail the whole operation if comment bank save fails
+        }
+      }
+      
+      // Show success message
+      const successMessage = document.createElement('div');
+      successMessage.innerHTML = `✅ תשובה לשאלה ${currentGrade.questionIndex + 1} נשמרה`;
+      successMessage.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #28a745;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 5px;
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 10000;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      `;
+      document.body.appendChild(successMessage);
+      
+      setTimeout(() => {
+        if (successMessage.parentNode) {
+          successMessage.parentNode.removeChild(successMessage);
+        }
+      }, 4000);
+      
+    } catch (err) {
+      console.error('Error saving question grade:', err);
+      
+      const errorMessage = document.createElement('div');
+      errorMessage.innerHTML = `❌ שגיאה בשמירת התשובה`;
+      errorMessage.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #dc3545;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 5px;
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 10000;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      `;
+      document.body.appendChild(errorMessage);
+      
+      setTimeout(() => {
+        if (errorMessage.parentNode) {
+          errorMessage.parentNode.removeChild(errorMessage);
+        }
+      }, 3000);
+    } finally {
+      setSavingQuestions(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(uniqueKey);
+        return newSet;
+      });
+    }
   };
 
   const calculatePercentage = () => {
@@ -622,14 +847,15 @@ const ExamGradingPage: React.FC = () => {
         <h2 className={styles.sectionTitle}>שאלות ותשובות</h2>
         
         {examData.answers.filter(answer => !deletedQuestions.has(answer.questionIndex)).map((answer, index) => {
-          const questionGrade = questionGrades.find(g => g.questionIndex === answer.questionIndex);
+          const uniqueKey = createUniqueKey(answer._id, answer.questionIndex);
+          const questionGrade = questionGrades.find(g => g.uniqueKey === uniqueKey);
           const questionPoints = answer.questionDetails?.points || 1;
           
           return (
-            <div key={answer._id} className={styles.questionCard}>
+            <div key={uniqueKey} className={styles.questionCard}>
               <div className={styles.questionHeader}>
                 <div className={styles.questionNumber}>
-                  שאלה {answer.questionIndex + 1}
+                  שאלה {answer.questionIndex + 1} {answer._id !== examData.answers.find(a => a.questionIndex === answer.questionIndex)?._id ? `(${answer._id.slice(-4)})` : ''}
                 </div>
                 <div className={styles.questionMeta}>
                   <span className={`${styles.difficulty} ${styles[answer.difficulty]}`}>
@@ -719,7 +945,7 @@ const ExamGradingPage: React.FC = () => {
                         max={questionPoints}
                         step="0.1"
                         value={questionGrade?.score || 0}
-                        onChange={(e) => handleQuestionGradeChange(answer.questionIndex, 'score', Number(e.target.value))}
+                        onChange={(e) => handleQuestionGradeChange(uniqueKey, 'score', Number(e.target.value))}
                         className={styles.scoreField}
                       />
                       <span>/ {questionPoints}</span>
@@ -764,13 +990,37 @@ const ExamGradingPage: React.FC = () => {
                       </div>
                       <textarea
                         value={questionGrade?.feedback || ''}
-                        onChange={(e) => handleQuestionGradeChange(answer.questionIndex, 'feedback', e.target.value)}
+                        onChange={(e) => handleQuestionGradeChange(uniqueKey, 'feedback', e.target.value)}
                         placeholder="הערות על התשובה..."
                         className={styles.feedbackField}
                         rows={2}
                       />
                       <div className={styles.autoSaveNote}>
-                        💡 הערה: הערות נשמרות אוטומטית בבנק ההערות אחרי שנייה מכתיבה
+                        💡 הערה: לשמירת הערות לבנק ההערות, השתמש בכפתור "שמור שאלה" למטה
+                      </div>
+                      
+                      {/* Individual Save Button */}
+                      <div className={styles.questionSaveContainer}>
+                        <button
+                          onClick={() => saveQuestionGrade(uniqueKey)}
+                          disabled={savingQuestions.has(uniqueKey)}
+                          className={`${styles.questionSaveButton} ${
+                            savedQuestions.has(uniqueKey) ? styles.questionSaved : ''
+                          }`}
+                        >
+                          {savingQuestions.has(uniqueKey) ? (
+                            <>⏳ שומר...</>
+                          ) : savedQuestions.has(uniqueKey) ? (
+                            <>✅ נשמר</>
+                          ) : (
+                            <>💾 שמור תשובה</>
+                          )}
+                        </button>
+                        {savedQuestions.has(uniqueKey) && (
+                          <span className={styles.savedIndicator}>
+                            התשובה נשמרה והערות יישמרו על רענון הדף
+                          </span>
+                        )}
                       </div>
                       
                       {/* Comment Bank Modal (global, not per-question) */}

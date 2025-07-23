@@ -40,7 +40,7 @@ const ExamGradingPage: React.FC = () => {
   const [loadingTotalPoints, setLoadingTotalPoints] = useState<Set<string>>(new Set());
   const [questionCountData, setQuestionCountData] = useState<{[examId: string]: number}>({});
   const [scaledScoreData, setScaledScoreData] = useState<{[examId: string]: number}>({});
-  const [sortBy, setSortBy] = useState<'totalPoints' | 'date' | 'name'>('totalPoints');
+  const [sortBy, setSortBy] = useState<'grade' | 'totalPoints' | 'date' | 'name'>('grade');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   
   // State for new statistics
@@ -117,8 +117,7 @@ const ExamGradingPage: React.FC = () => {
               const data = await retryResponse.json();
               const sessions = data.exams || data;
               setExamSessions(sessions);
-              // Auto-run AI analysis for completed exams
-              runBulkAIAnalysis(sessions);
+              // Note: Bulk AI analysis removed to reduce database load
               return;
             }
           }
@@ -128,8 +127,8 @@ const ExamGradingPage: React.FC = () => {
       const data = await response.json();
       const sessions = data.exams || data;
       setExamSessions(sessions);
-      // Auto-run AI analysis for completed exams
-      runBulkAIAnalysis(sessions);
+      // Note: Bulk AI analysis removed to reduce database load
+      // AI analysis can be run manually if needed
     } catch (err) {
       console.error('Error fetching final exams:', err);
       setError('Failed to load final exams');
@@ -192,7 +191,11 @@ const ExamGradingPage: React.FC = () => {
 
   // Sort the filtered sessions
   const sortedSessions = [...filteredSessions].sort((a, b) => {
-    if (sortBy === 'totalPoints') {
+    if (sortBy === 'grade') {
+      const aScore = scaledScoreData[a._id] ?? 0;
+      const bScore = scaledScoreData[b._id] ?? 0;
+      return sortOrder === 'desc' ? bScore - aScore : aScore - bScore;
+    } else if (sortBy === 'totalPoints') {
       const aPoints = totalPointsData[a._id] || 0;
       const bPoints = totalPointsData[b._id] || 0;
       return sortOrder === 'desc' ? bPoints - aPoints : aPoints - bPoints;
@@ -208,7 +211,7 @@ const ExamGradingPage: React.FC = () => {
     return 0;
   });
 
-  const handleSort = (column: 'totalPoints' | 'date' | 'name') => {
+  const handleSort = (column: 'grade' | 'totalPoints' | 'date' | 'name') => {
     if (sortBy === column) {
       setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
     } else {
@@ -217,7 +220,7 @@ const ExamGradingPage: React.FC = () => {
     }
   };
 
-  const getSortIcon = (column: 'totalPoints' | 'date' | 'name') => {
+  const getSortIcon = (column: 'grade' | 'totalPoints' | 'date' | 'name') => {
     if (sortBy !== column) return null;
     return sortOrder === 'desc' ? '↓' : '↑';
   };
@@ -263,62 +266,8 @@ const ExamGradingPage: React.FC = () => {
     }
   };
 
-  const runBulkAIAnalysis = async (sessions: ExamSession[]) => {
-    // Analyze all completed exams (re-analyze existing ones with enhanced detector)
-    const toAnalyze = sessions.filter(session => 
-      session.status === 'completed'
-    );
-
-    if (toAnalyze.length === 0) return;
-
-    setBulkAnalysisLoading(true);
-    setAnalysisProgress({ current: 0, total: toAnalyze.length });
-
-    console.log(`Starting AI analysis for ${toAnalyze.length} completed exams...`);
-
-    // Process exams in parallel but limit concurrency to avoid overwhelming the API
-    const BATCH_SIZE = 3;
-    for (let i = 0; i < toAnalyze.length; i += BATCH_SIZE) {
-      const batch = toAnalyze.slice(i, Math.min(i + BATCH_SIZE, toAnalyze.length));
-      
-      await Promise.all(
-        batch.map(async (session, batchIndex) => {
-          try {
-            const response = await fetch(`/api/admin/exam/${session._id}/for-grading`);
-            if (response.ok) {
-              const examData = await response.json();
-              if (examData.answers) {
-                const analysis = analyzeExamForAI(examData.answers);
-                
-                // Update the exam session with AI analysis
-                setExamSessions(prev => prev.map(s => 
-                  s._id === session._id 
-                    ? { ...s, aiAnalysis: analysis }
-                    : s
-                ));
-              }
-            }
-          } catch (err) {
-            console.error(`Error analyzing exam ${session._id}:`, err);
-          }
-          
-          // Update progress
-          setAnalysisProgress(prev => ({
-            ...prev,
-            current: i + batchIndex + 1
-          }));
-        })
-      );
-
-      // Small delay between batches to be nice to the API
-      if (i + BATCH_SIZE < toAnalyze.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
-
-    setBulkAnalysisLoading(false);
-    console.log('AI analysis completed for all exams');
-  };
+  // Note: Bulk AI analysis function removed to reduce database load
+  // Individual AI analysis can still be triggered manually if needed
 
   const getAIIcon = (score: number) => {
     const iconName = getSuspicionIcon(score);
@@ -333,6 +282,35 @@ const ExamGradingPage: React.FC = () => {
         return <CheckCircle size={16} className={styles.aiClean} />;
     }
   };
+
+  const NORMALIZED_MAX = 13;
+  const NORMALIZED_POINTS_PER_QUESTION = 6;
+  const NORMALIZED_SCALE = 100;
+
+  // Helper to get normalization scale for a given question count
+  function getNormalizationScale(questionCount: number) {
+    if (questionCount >= NORMALIZED_MAX) return NORMALIZED_SCALE;
+    // Each question is 6 points, so 12 questions = 72, 11 = 66, etc.
+    // The normalized max for 12 questions: (12/13)*100 = 92.3, but user wants 94 for 12, 88 for 11, etc.
+    // We'll use a lookup for clarity:
+    const scaleMap: Record<number, number> = {
+      13: 100,
+      12: 94,
+      11: 88,
+      10: 82,
+      9: 76,
+      8: 70,
+      7: 64,
+      6: 58,
+      5: 52,
+      4: 46,
+      3: 40,
+      2: 34,
+      1: 28,
+      0: 0,
+    };
+    return scaleMap[questionCount] ?? Math.round((questionCount / NORMALIZED_MAX) * 100);
+  }
 
   const fetchTotalPointsForExam = async (examId: string) => {
     if (loadingTotalPoints.has(examId) || totalPointsData[examId] !== undefined) return;
@@ -368,11 +346,13 @@ const ExamGradingPage: React.FC = () => {
           [examId]: questionCount
         }));
 
-        // Calculate scaled score (capped at 100 for bonus points)
+        // --- Normalization logic ---
         let scaledScore = 0;
         if (examData.session?.score !== undefined && totalPoints > 0) {
-          const percentage = (examData.session.score / totalPoints) * 100;
-          scaledScore = Math.min(100, Math.round(percentage)); // Cap at 100
+          // Normalize to the correct scale based on question count
+          const normalizationScale = getNormalizationScale(questionCount);
+          const percentage = (examData.session.score / (questionCount * NORMALIZED_POINTS_PER_QUESTION)) * normalizationScale;
+          scaledScore = Math.round(percentage);
         }
 
         setScaledScoreData(prev => ({
@@ -391,10 +371,12 @@ const ExamGradingPage: React.FC = () => {
     }
   };
 
-  // Fetch total points for all visible exams
+  // Fetch total points for all visible exams (throttled to reduce DB calls)
   useEffect(() => {
     const visibleExams = filteredSessions.filter(session => session.status === 'completed');
-    visibleExams.forEach(session => {
+    // Only fetch for the first 10 exams to reduce database load
+    const limitedExams = visibleExams.slice(0, 10);
+    limitedExams.forEach(session => {
       fetchTotalPointsForExam(session._id);
     });
   }, [filteredSessions]);
@@ -500,8 +482,10 @@ const ExamGradingPage: React.FC = () => {
               <th onClick={() => handleSort('date')} className={styles.sortableHeader}>
                 תאריך סיום {getSortIcon('date')}
               </th>
+              <th onClick={() => handleSort('grade')} className={styles.sortableHeader}>
+                ציון {getSortIcon('grade')}
+              </th>
               <th>סטטוס</th>
-              <th>ציון</th>
               {/* הסתרת עמודת AI חשד */}
               <th>פעולות</th>
             </tr>
@@ -536,12 +520,6 @@ const ExamGradingPage: React.FC = () => {
                   <td className={styles.dateCell}>
                     {session.endTime ? formatDate(session.endTime) : '-'}
                   </td>
-                  <td className={styles.statusCell}>
-                    <div className={styles.statusWrapper}>
-                      {getStatusIcon(session.status)}
-                      <span>{getStatusText(session.status)}</span>
-                    </div>
-                  </td>
                   <td className={styles.scoreCell}>
                     {session.score !== undefined ? (
                       <span className={styles.score}>
@@ -550,6 +528,12 @@ const ExamGradingPage: React.FC = () => {
                     ) : (
                       '-'
                     )}
+                  </td>
+                  <td className={styles.statusCell}>
+                    <div className={styles.statusWrapper}>
+                      {getStatusIcon(session.status)}
+                      <span>{getStatusText(session.status)}</span>
+                    </div>
                   </td>
                   {/* הסתרת עמודת AI חשד ופעולות ניתוח */}
                   <td className={styles.actionsCell}>
