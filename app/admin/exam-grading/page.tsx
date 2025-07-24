@@ -39,7 +39,7 @@ const ExamGradingPage: React.FC = () => {
   const [totalPointsData, setTotalPointsData] = useState<{[examId: string]: number}>({});
   const [loadingTotalPoints, setLoadingTotalPoints] = useState<Set<string>>(new Set());
   const [questionCountData, setQuestionCountData] = useState<{[examId: string]: number}>({});
-  const [sortBy, setSortBy] = useState<'grade' | 'totalPoints' | 'date' | 'name'>('grade');
+  const [sortBy, setSortBy] = useState<'grade' | 'totalPoints' | 'date' | 'name' | 'questionCount'>('questionCount');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   
   // State for difficulty-based question counts
@@ -47,6 +47,9 @@ const ExamGradingPage: React.FC = () => {
   
   // State for actual graded scores (final scores after manual grading)
   const [actualGradedScores, setActualGradedScores] = useState<{[examId: string]: number}>({});
+  
+  // State for batch loading
+  const [batchLoading, setBatchLoading] = useState(false);
   
   // State for new statistics
   const [statisticsData, setStatisticsData] = useState<{
@@ -195,36 +198,53 @@ const ExamGradingPage: React.FC = () => {
 
   // Sort the filtered sessions
   const sortedSessions = [...filteredSessions].sort((a, b) => {
-    if (sortBy === 'grade') {
-      const aScore = actualGradedScores[a._id] ?? a.score ?? 0;
-      const bScore = actualGradedScores[b._id] ?? b.score ?? 0;
-      return sortOrder === 'desc' ? bScore - aScore : aScore - bScore;
-    } else if (sortBy === 'totalPoints') {
-      const aPoints = totalPointsData[a._id] || 0;
-      const bPoints = totalPointsData[b._id] || 0;
-      return sortOrder === 'desc' ? bPoints - aPoints : aPoints - bPoints;
-    } else if (sortBy === 'date') {
-      const aDate = new Date(a.startTime).getTime();
-      const bDate = new Date(b.startTime).getTime();
-      return sortOrder === 'desc' ? bDate - aDate : aDate - bDate;
-    } else if (sortBy === 'name') {
-      const aName = a.studentName || '';
-      const bName = b.studentName || '';
-      return sortOrder === 'desc' ? bName.localeCompare(aName) : aName.localeCompare(bName);
+    let aValue, bValue;
+    
+    switch (sortBy) {
+      case 'questionCount':
+        aValue = questionCountData[a._id] || 0;
+        bValue = questionCountData[b._id] || 0;
+        break;
+      case 'grade':
+        aValue = actualGradedScores[a._id] !== undefined ? actualGradedScores[a._id] : (a.score || 0);
+        bValue = actualGradedScores[b._id] !== undefined ? actualGradedScores[b._id] : (b.score || 0);
+        break;
+      case 'totalPoints':
+        aValue = totalPointsData[a._id] || 0;
+        bValue = totalPointsData[b._id] || 0;
+        break;
+      case 'date':
+        aValue = new Date(a.startTime).getTime();
+        bValue = new Date(b.startTime).getTime();
+        break;
+      case 'name':
+        aValue = a.studentName?.toLowerCase() || '';
+        bValue = b.studentName?.toLowerCase() || '';
+        // Handle string comparison separately
+        if (sortOrder === 'desc') {
+          return bValue.localeCompare(aValue);
+        } else {
+          return aValue.localeCompare(bValue);
+        }
+      default:
+        aValue = 0;
+        bValue = 0;
     }
-    return 0;
+
+    // Handle numeric comparison
+    return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
   });
 
-  const handleSort = (column: 'grade' | 'totalPoints' | 'date' | 'name') => {
+  const handleSort = (column: 'grade' | 'totalPoints' | 'date' | 'name' | 'questionCount') => {
     if (sortBy === column) {
-      setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortBy(column);
       setSortOrder('desc');
     }
   };
 
-  const getSortIcon = (column: 'grade' | 'totalPoints' | 'date' | 'name') => {
+  const getSortIcon = (column: 'grade' | 'totalPoints' | 'date' | 'name' | 'questionCount') => {
     if (sortBy !== column) return null;
     return sortOrder === 'desc' ? '↓' : '↑';
   };
@@ -233,41 +253,29 @@ const ExamGradingPage: React.FC = () => {
     router.push(`/admin/exam-grading/${examId}`);
   };
 
-  // Temporary debug function for specific student
-  const debugStudentGrade = async (examId: string, studentId: string) => {
-    console.log(`🐛 Debug student ${studentId}, exam ${examId}`);
+  // Force refresh all grades function
+  const forceRefreshGrades = () => {
+    setActualGradedScores({});
+    setTotalPointsData({});
+    setQuestionCountData({});
+    setDifficultyCountData({});
     
-    try {
-      // First determine which type of exam this is
-      let isFinalExam = true;
-      let examResponse = await fetch(`/api/admin/final-exam/${examId}/for-grading`);
-      if (!examResponse.ok) {
-        isFinalExam = false;
-        examResponse = await fetch(`/api/admin/exam/${examId}/for-grading`);
+    // Re-fetch all visible exams
+    const visibleExams = examSessions.filter(session => session.status === 'completed');
+    const examIds = visibleExams.map(session => session._id);
+    
+    if (examIds.length > 0) {
+      const batchSize = 10;
+      const batches = [];
+      for (let i = 0; i < examIds.length; i += batchSize) {
+        batches.push(examIds.slice(i, i + batchSize));
       }
       
-      console.log(`📋 Exam type: ${isFinalExam ? 'Final Exam' : 'Regular Exam'}`);
-      console.log(`📋 Exam data response: ${examResponse.status} ${examResponse.ok}`);
-      
-      // Now fetch the grade data using the correct endpoint
-      const gradeResponse = await fetch(`/api/admin/${isFinalExam ? 'final-exam' : 'exam'}/${examId}/grade`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
+      batches.forEach((batch, index) => {
+        setTimeout(() => {
+          fetchExamDataBatch(batch);
+        }, index * 1000);
       });
-      
-      console.log(`📊 Grade response: ${gradeResponse.status} ${gradeResponse.ok}`);
-      
-      if (gradeResponse.ok) {
-        const gradeData = await gradeResponse.json();
-        console.log('📊 Grade data:', gradeData);
-      } else {
-        console.log('❌ Grade response not ok');
-      }
-      
-    } catch (err) {
-      console.error('Debug error:', err);
     }
   };
 
@@ -321,146 +329,125 @@ const ExamGradingPage: React.FC = () => {
     }
   };
 
-  const fetchTotalPointsForExam = async (examId: string) => {
-    // Restore cache check to prevent infinite loops
-    if (loadingTotalPoints.has(examId) || totalPointsData[examId] !== undefined) return;
-
-    setLoadingTotalPoints(prev => new Set(prev).add(examId));
+  // Optimized batch fetch function
+  const fetchExamDataBatch = async (examIds: string[]) => {
+    if (examIds.length === 0) return;
     
-    try {
-      // Try fetching from FinalExams first, fall back to regular exams
-      let response = await fetch(`/api/admin/final-exam/${examId}/for-grading`);
-      if (!response.ok) {
-        response = await fetch(`/api/admin/exam/${examId}/for-grading`);
-        if (!response.ok) {
-          console.error(`❌ Failed to fetch exam ${examId}: ${response.status}`);
-          return; // Exit early on error
-        }
-      }
-      
-      const examData = await response.json();
-      if (examData.answers) {
-        // Filter out duplicate questions based on question text (same logic as individual grading page)
-        const uniqueAnswers = examData.answers.filter((answer, index, arr) => {
-          const firstOccurrence = arr.findIndex(a => a.questionText.trim() === answer.questionText.trim());
-          return index === firstOccurrence;
-        });
-        
-        const totalPoints = uniqueAnswers.reduce((sum: number, answer: any) => 
-          sum + (answer.questionDetails?.points || 1), 0
-        );
-        
-        // Calculate question count using unique answers
-        const questionCount = uniqueAnswers.length;
-
-        // Calculate difficulty-based question counts
-        const difficultyCounts = uniqueAnswers.reduce((counts, answer: any) => {
-          const difficulty = answer.difficulty || 'medium'; // default to medium if not specified
-          if (difficulty === 'easy') counts.easy++;
-          else if (difficulty === 'medium') counts.medium++;
-          else if (difficulty === 'hard') counts.hard++;
-          else if (difficulty === 'algebra') counts.hard++; // treat algebra as hard
-          return counts;
-        }, { easy: 0, medium: 0, hard: 0 });
-
-        setTotalPointsData(prev => ({
-          ...prev,
-          [examId]: totalPoints
-        }));
-
-        setQuestionCountData(prev => ({
-          ...prev,
-          [examId]: questionCount
-        }));
-
-        setDifficultyCountData(prev => ({
-          ...prev,
-          [examId]: difficultyCounts
-        }));
-
-        // Fetch the actual graded score if it exists
+    setBatchLoading(true);
+    const results = await Promise.allSettled(
+      examIds.map(async (examId) => {
         try {
-          // First determine which type of exam this is, then fetch the correct grade data
+          // Try final exam first, then regular exam
+          let response = await fetch(`/api/admin/final-exam/${examId}/for-grading`);
           let isFinalExam = true;
-          let examResponse = await fetch(`/api/admin/final-exam/${examId}/for-grading`);
-          if (!examResponse.ok) {
+          
+          if (!response.ok) {
+            response = await fetch(`/api/admin/exam/${examId}/for-grading`);
             isFinalExam = false;
+            if (!response.ok) return null;
           }
           
-          // Now fetch the grade data using the correct endpoint
-          const gradeResponse = await fetch(`/api/admin/${isFinalExam ? 'final-exam' : 'exam'}/${examId}/grade`, {
-            cache: 'no-store',
-            headers: {
-              'Cache-Control': 'no-cache'
-            }
+          const examData = await response.json();
+          if (!examData.answers) return null;
+          
+          // Filter duplicates
+          const uniqueAnswers = examData.answers.filter((answer, index, arr) => {
+            const firstOccurrence = arr.findIndex(a => a.questionText.trim() === answer.questionText.trim());
+            return index === firstOccurrence;
           });
           
-          if (gradeResponse.ok) {
-            const gradeData = await gradeResponse.json();
-            console.log(`📝 Graded data for exam ${examId}:`, gradeData);
-            if (gradeData && gradeData.totalScore !== undefined) {
-              console.log(`✅ Setting graded score for ${examId}: ${gradeData.totalScore}`);
-              setActualGradedScores(prev => ({
-                ...prev,
-                [examId]: gradeData.totalScore
-              }));
-            } else {
-              console.log(`⚠️ No totalScore found for exam ${examId}`);
+          // Calculate data
+          const totalPoints = uniqueAnswers.reduce((sum: number, answer: any) => 
+            sum + (answer.questionDetails?.points || 1), 0
+          );
+          
+          const questionCount = uniqueAnswers.length;
+          
+          const difficultyCounts = uniqueAnswers.reduce((counts, answer: any) => {
+            const difficulty = answer.difficulty || 'medium';
+            if (difficulty === 'easy') counts.easy++;
+            else if (difficulty === 'medium') counts.medium++;
+            else if (difficulty === 'hard') counts.hard++;
+            else if (difficulty === 'algebra') counts.hard++;
+            return counts;
+          }, { easy: 0, medium: 0, hard: 0 });
+          
+          // Try to get grade data
+          let gradedScore = undefined;
+          try {
+            const gradeResponse = await fetch(`/api/admin/${isFinalExam ? 'final-exam' : 'exam'}/${examId}/grade`, {
+              cache: 'no-store',
+              headers: { 'Cache-Control': 'no-cache' }
+            });
+            
+            if (gradeResponse.ok) {
+              const gradeData = await gradeResponse.json();
+              if (gradeData && gradeData.totalScore !== undefined) {
+                gradedScore = gradeData.totalScore;
+              }
             }
-          } else {
-            console.log(`❌ No grade data found for exam ${examId} (${isFinalExam ? 'final' : 'regular'})`);
+          } catch (gradeErr) {
+            // Ignore grade fetch errors
           }
-        } catch (gradeErr) {
-          console.log(`❌ Error fetching graded score for exam ${examId}:`, gradeErr);
+          
+          return {
+            examId,
+            totalPoints,
+            questionCount,
+            difficultyCounts,
+            gradedScore
+          };
+        } catch (err) {
+          console.error(`Error fetching data for exam ${examId}:`, err);
+          return null;
+        }
+      })
+    );
+    
+    // Process results
+    results.forEach((result) => {
+      if (result.status === 'fulfilled' && result.value) {
+        const { examId, totalPoints, questionCount, difficultyCounts, gradedScore } = result.value;
+        
+        setTotalPointsData(prev => ({ ...prev, [examId]: totalPoints }));
+        setQuestionCountData(prev => ({ ...prev, [examId]: questionCount }));
+        setDifficultyCountData(prev => ({ ...prev, [examId]: difficultyCounts }));
+        
+        if (gradedScore !== undefined) {
+          setActualGradedScores(prev => ({ ...prev, [examId]: gradedScore }));
         }
       }
-    } catch (err) {
-      console.error(`❌ Error fetching total points for exam ${examId}:`, err);
-      // Don't throw the error, just log it and continue
-    } finally {
-      setLoadingTotalPoints(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(examId);
-        return newSet;
-      });
-    }
+    });
+    
+    setBatchLoading(false);
   };
 
-  // Fetch total points for all visible exams
+  // Fetch exam data in batches when sessions are loaded
   useEffect(() => {
-    const visibleExams = filteredSessions.filter(session => session.status === 'completed');
-    // Process all visible exams (removed the 10-exam limit)
-    visibleExams.forEach(session => {
-      fetchTotalPointsForExam(session._id);
-    });
-  }, [examSessions]); // Changed dependency to examSessions to make it more stable
+    const visibleExams = examSessions.filter(session => session.status === 'completed');
+    const examIds = visibleExams.map(session => session._id);
+    
+    if (examIds.length > 0) {
+      // Process in batches of 10 to avoid overwhelming the server
+      const batchSize = 10;
+      const batches = [];
+      for (let i = 0; i < examIds.length; i += batchSize) {
+        batches.push(examIds.slice(i, i + batchSize));
+      }
+      
+      // Process batches with delay
+      batches.forEach((batch, index) => {
+        setTimeout(() => {
+          fetchExamDataBatch(batch);
+        }, index * 1000); // 1 second delay between batches
+      });
+    }
+  }, [examSessions]);
 
   // Recalculate statistics when exam sessions change
   useEffect(() => {
     calculateStatistics();
   }, [examSessions]);
-
-  // Debug logging for state
-  useEffect(() => {
-    console.log('🔍 Current actualGradedScores state:', actualGradedScores);
-    console.log('🔍 Keys in actualGradedScores:', Object.keys(actualGradedScores));
-    console.log('🔍 Values in actualGradedScores:', Object.values(actualGradedScores));
-  }, [actualGradedScores]);
-
-  // Force refresh all grades function
-  const forceRefreshGrades = () => {
-    console.log('🔄 Force refreshing all grades...');
-    setActualGradedScores({});
-    setTotalPointsData({});
-    setQuestionCountData({});
-    setDifficultyCountData({});
-    
-    // Re-fetch all visible exams
-    const visibleExams = examSessions.filter(session => session.status === 'completed');
-    visibleExams.forEach(session => {
-      fetchTotalPointsForExam(session._id);
-    });
-  };
 
   if (loading) {
     return (
@@ -496,6 +483,14 @@ const ExamGradingPage: React.FC = () => {
         </div>
       )}
 
+      {/* Loading indicator for batch processing */}
+      {batchLoading && (
+        <div className={styles.batchLoadingIndicator}>
+          <div className={styles.loadingSpinner}></div>
+          <span>טוען נתוני בחינות...</span>
+        </div>
+      )}
+
       {/* Filters */}
       <div className={styles.filters}>
         <div className={styles.filterGroup}>
@@ -527,7 +522,7 @@ const ExamGradingPage: React.FC = () => {
           className={styles.gradeButton}
           style={{ background: '#28a745', color: 'white' }}
         >
-          🔄 רענן ציונים
+          🔄 רענן נתונים
         </button>
       </div>
 
@@ -563,10 +558,12 @@ const ExamGradingPage: React.FC = () => {
               {/* <th onClick={() => handleSort('grade')} className={styles.sortableHeader}>
                 ציון סטודנט {getSortIcon('grade')}
               </th> */}
-              <th>סך שאלות</th>
-              <th>קל</th>
-              <th>בינוני</th>
-              <th>קשה</th>
+              <th onClick={() => handleSort('questionCount')} className={styles.sortableHeader}>
+                סך שאלות {getSortIcon('questionCount')}
+              </th>
+              <th onClick={() => handleSort('totalPoints')} className={styles.sortableHeader}>
+                סך נקודות {getSortIcon('totalPoints')}
+              </th>
               <th>סטטוס</th>
               {/* הסתרת עמודת AI חשד */}
               <th>פעולות</th>
@@ -575,7 +572,7 @@ const ExamGradingPage: React.FC = () => {
           <tbody>
             {sortedSessions.length === 0 ? (
               <tr>
-                <td colSpan={8} className={styles.noData}>
+                <td colSpan={5} className={styles.noData}>
                   לא נמצאו בחינות
                 </td>
               </tr>
@@ -635,40 +632,14 @@ const ExamGradingPage: React.FC = () => {
                       )
                     )}
                   </td>
-                  <td className={styles.difficultyCountCell}>
-                    {difficultyCountData[session._id] ? (
-                      <span className={styles.easyCount}>
-                        {difficultyCountData[session._id].easy}
+                  <td className={styles.totalPointsCell}>
+                    {totalPointsData[session._id] !== undefined ? (
+                      <span className={styles.totalPoints}>
+                        {totalPointsData[session._id]} נקודות
                       </span>
                     ) : (
                       loadingTotalPoints.has(session._id) ? (
-                        <span className={styles.loading}>...</span>
-                      ) : (
-                        '-'
-                      )
-                    )}
-                  </td>
-                  <td className={styles.difficultyCountCell}>
-                    {difficultyCountData[session._id] ? (
-                      <span className={styles.mediumCount}>
-                        {difficultyCountData[session._id].medium}
-                      </span>
-                    ) : (
-                      loadingTotalPoints.has(session._id) ? (
-                        <span className={styles.loading}>...</span>
-                      ) : (
-                        '-'
-                      )
-                    )}
-                  </td>
-                  <td className={styles.difficultyCountCell}>
-                    {difficultyCountData[session._id] ? (
-                      <span className={styles.hardCount}>
-                        {difficultyCountData[session._id].hard}
-                      </span>
-                    ) : (
-                      loadingTotalPoints.has(session._id) ? (
-                        <span className={styles.loading}>...</span>
+                        <span className={styles.loading}>טוען...</span>
                       ) : (
                         '-'
                       )
@@ -691,7 +662,7 @@ const ExamGradingPage: React.FC = () => {
                       {session.graded ? 'ערוך ציון' : 'בדוק וציין'}
                     </button>
                     {/* Temporary debug button for specific student */}
-                    {session.studentId === '207749219' && (
+                    {/* {session.studentId === '207749219' && (
                       <button
                         onClick={() => debugStudentGrade(session._id, session.studentId)}
                         className={styles.gradeButton}
@@ -699,7 +670,7 @@ const ExamGradingPage: React.FC = () => {
                       >
                         🐛 Debug
                       </button>
-                    )}
+                    )} */}
                   </td>
                 </tr>
               ))
