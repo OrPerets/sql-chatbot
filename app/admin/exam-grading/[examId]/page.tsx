@@ -85,6 +85,29 @@ const ExamGradingPage: React.FC = () => {
     return examData?.answers.find(answer => answer._id === answerId);
   };
 
+  // Helper function to get unique answers (filter duplicates based on question text)
+  const getUniqueAnswers = (answers: ExamAnswer[]) => {
+    if (!answers) return [];
+    
+    const uniqueAnswers = answers.filter((answer, index, arr) => {
+      const firstOccurrence = arr.findIndex(a => a.questionText.trim() === answer.questionText.trim());
+      const isUnique = index === firstOccurrence;
+      
+      // Debug logging for duplicates
+      if (!isUnique) {
+        console.log(`🔄 Filtering duplicate question: "${answer.questionText.substring(0, 50)}..." (index ${index}, first occurrence at ${firstOccurrence})`);
+      }
+      
+      return isUnique;
+    });
+    
+    console.log(`📊 Original answers: ${answers.length}, Unique answers: ${uniqueAnswers.length}, Filtered: ${answers.length - uniqueAnswers.length}`);
+    return uniqueAnswers;
+  };
+
+  // Get unique answers for rendering
+  const uniqueAnswers = examData?.answers ? getUniqueAnswers(examData.answers) : [];
+
   // Comment Bank state
   const [commentBankEntries, setCommentBankEntries] = useState<{[questionIndex: number]: CommentBankEntry[]}>({});
   const [activeCommentBank, setActiveCommentBank] = useState<{ questionIndex: number | null, anchorRect?: DOMRect, answer?: ExamAnswer }>({ questionIndex: null });
@@ -104,6 +127,9 @@ const ExamGradingPage: React.FC = () => {
     if (examData?.answers && initializedExamId !== examId) {
       console.log('🔄 Initializing grades for exam:', examId);
       
+      // Get unique answers
+      const uniqueAnswers = getUniqueAnswers(examData.answers);
+      
       // Create a map of existing grades by unique key from loaded data
       const existingGradesMap = new Map();
       if (examData.existingGrades && Array.isArray(examData.existingGrades)) {
@@ -111,7 +137,7 @@ const ExamGradingPage: React.FC = () => {
         examData.existingGrades.forEach((grade, index) => {
           // For existing grades, we need to match them to answers
           // We'll use the array index to match since we don't have unique keys in old data
-          const answer = examData.answers[index];
+          const answer = uniqueAnswers[index];
           if (answer) {
             const uniqueKey = createUniqueKey(answer._id, answer.questionIndex);
             existingGradesMap.set(uniqueKey, grade);
@@ -120,7 +146,7 @@ const ExamGradingPage: React.FC = () => {
       }
 
       // Create grade objects for ALL questions with unique keys
-      const allGrades = examData.answers.map(answer => {
+      const allGrades = uniqueAnswers.map(answer => {
         const uniqueKey = createUniqueKey(answer._id, answer.questionIndex);
         const existing = existingGradesMap.get(uniqueKey);
         const questionPoints = answer.questionDetails?.points || 1;
@@ -150,7 +176,7 @@ const ExamGradingPage: React.FC = () => {
 
       // Analyze answers for AI patterns (only once)
       const aiAnalysisResults: {[questionIndex: number]: TrapDetection} = {};
-      examData.answers.forEach(answer => {
+      uniqueAnswers.forEach(answer => {
         const analysis = detectAITraps(answer.studentAnswer);
         aiAnalysisResults[answer.questionIndex] = analysis;
       });
@@ -331,9 +357,9 @@ const ExamGradingPage: React.FC = () => {
     setDeletedQuestions(prev => new Set([...Array.from(prev), questionIndex]));
     setShowDeleteConfirm(null);
     
-    // Recalculate totals after deletion
-    if (examData?.answers) {
-      const totalMaxScore = examData.answers
+    // Recalculate totals after deletion using unique answers
+    if (uniqueAnswers) {
+      const totalMaxScore = uniqueAnswers
         .filter(answer => !deletedQuestions.has(answer.questionIndex) && answer.questionIndex !== questionIndex)
         .reduce((sum, answer) => sum + (answer.questionDetails?.points || 1), 0);
       setMaxScore(totalMaxScore);
@@ -836,7 +862,7 @@ const ExamGradingPage: React.FC = () => {
             </div>
             <div className={styles.gradeRow}>
               <span className={styles.label}>כמות שאלות:</span>
-              <span className={styles.score}>{examData?.answers ? examData.answers.filter(answer => !deletedQuestions.has(answer.questionIndex)).length : 0}</span>
+              <span className={styles.score}>{uniqueAnswers ? uniqueAnswers.filter(answer => !deletedQuestions.has(answer.questionIndex)).length : 0}</span>
             </div>
           </div>
         </div>
@@ -846,7 +872,7 @@ const ExamGradingPage: React.FC = () => {
       <div className={styles.questionsSection}>
         <h2 className={styles.sectionTitle}>שאלות ותשובות</h2>
         
-        {examData.answers.filter(answer => !deletedQuestions.has(answer.questionIndex)).map((answer, index) => {
+        {uniqueAnswers.filter(answer => !deletedQuestions.has(answer.questionIndex)).map((answer, index) => {
           const uniqueKey = createUniqueKey(answer._id, answer.questionIndex);
           const questionGrade = questionGrades.find(g => g.uniqueKey === uniqueKey);
           const questionPoints = answer.questionDetails?.points || 1;
@@ -855,7 +881,7 @@ const ExamGradingPage: React.FC = () => {
             <div key={uniqueKey} className={styles.questionCard}>
               <div className={styles.questionHeader}>
                 <div className={styles.questionNumber}>
-                  שאלה {answer.questionIndex + 1} {answer._id !== examData.answers.find(a => a.questionIndex === answer.questionIndex)?._id ? `(${answer._id.slice(-4)})` : ''}
+                  שאלה {answer.questionIndex + 1} {answer._id !== uniqueAnswers.find(a => a.questionIndex === answer.questionIndex)?._id ? `(${answer._id.slice(-4)})` : ''}
                 </div>
                 <div className={styles.questionMeta}>
                   <span className={`${styles.difficulty} ${styles[answer.difficulty]}`}>

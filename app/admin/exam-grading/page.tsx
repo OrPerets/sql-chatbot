@@ -39,9 +39,14 @@ const ExamGradingPage: React.FC = () => {
   const [totalPointsData, setTotalPointsData] = useState<{[examId: string]: number}>({});
   const [loadingTotalPoints, setLoadingTotalPoints] = useState<Set<string>>(new Set());
   const [questionCountData, setQuestionCountData] = useState<{[examId: string]: number}>({});
-  const [scaledScoreData, setScaledScoreData] = useState<{[examId: string]: number}>({});
   const [sortBy, setSortBy] = useState<'grade' | 'totalPoints' | 'date' | 'name'>('grade');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  
+  // State for difficulty-based question counts
+  const [difficultyCountData, setDifficultyCountData] = useState<{[examId: string]: {easy: number, medium: number, hard: number}}>({});
+  
+  // State for actual graded scores (final scores after manual grading)
+  const [actualGradedScores, setActualGradedScores] = useState<{[examId: string]: number}>({});
   
   // State for new statistics
   const [statisticsData, setStatisticsData] = useState<{
@@ -56,12 +61,11 @@ const ExamGradingPage: React.FC = () => {
   
   const router = useRouter();
 
-  // Calculate statistics for completed exams
+  // Calculate statistics for completed exams (removed since we don't have scaled scores anymore)
   const calculateStatistics = () => {
     const completedExams = examSessions.filter(session => 
       session.status === 'completed' && 
-      session.score !== undefined &&
-      scaledScoreData[session._id] !== undefined
+      session.score !== undefined
     );
 
     if (completedExams.length === 0) {
@@ -73,8 +77,8 @@ const ExamGradingPage: React.FC = () => {
       return;
     }
 
-    // Get all scaled scores
-    const scores = completedExams.map(session => scaledScoreData[session._id]);
+    // Use actual scores instead of scaled scores
+    const scores = completedExams.map(session => session.score || 0);
     
     // Calculate average
     const averageGrade = scores.reduce((sum, score) => sum + score, 0) / scores.length;
@@ -83,8 +87,8 @@ const ExamGradingPage: React.FC = () => {
     const variance = scores.reduce((sum, score) => sum + Math.pow(score - averageGrade, 2), 0) / scores.length;
     const standardDeviation = Math.sqrt(variance);
     
-    // Calculate failure percentage (score < 60)
-    const failedExams = scores.filter(score => score < 60).length;
+    // Calculate failure percentage (this will need adjustment without normalized scores)
+    const failedExams = scores.filter(score => score < 60).length; // This threshold may need adjustment
     const failurePercentage = (failedExams / scores.length) * 100;
     
     setStatisticsData({
@@ -192,8 +196,8 @@ const ExamGradingPage: React.FC = () => {
   // Sort the filtered sessions
   const sortedSessions = [...filteredSessions].sort((a, b) => {
     if (sortBy === 'grade') {
-      const aScore = scaledScoreData[a._id] ?? 0;
-      const bScore = scaledScoreData[b._id] ?? 0;
+      const aScore = actualGradedScores[a._id] ?? a.score ?? 0;
+      const bScore = actualGradedScores[b._id] ?? b.score ?? 0;
       return sortOrder === 'desc' ? bScore - aScore : aScore - bScore;
     } else if (sortBy === 'totalPoints') {
       const aPoints = totalPointsData[a._id] || 0;
@@ -225,12 +229,46 @@ const ExamGradingPage: React.FC = () => {
     return sortOrder === 'desc' ? '↓' : '↑';
   };
 
-  // Debug logging
-  console.log('examSessions', examSessions);
-  console.log('filteredSessions', filteredSessions);
-
   const handleGradeExam = (examId: string) => {
     router.push(`/admin/exam-grading/${examId}`);
+  };
+
+  // Temporary debug function for specific student
+  const debugStudentGrade = async (examId: string, studentId: string) => {
+    console.log(`🐛 Debug student ${studentId}, exam ${examId}`);
+    
+    try {
+      // First determine which type of exam this is
+      let isFinalExam = true;
+      let examResponse = await fetch(`/api/admin/final-exam/${examId}/for-grading`);
+      if (!examResponse.ok) {
+        isFinalExam = false;
+        examResponse = await fetch(`/api/admin/exam/${examId}/for-grading`);
+      }
+      
+      console.log(`📋 Exam type: ${isFinalExam ? 'Final Exam' : 'Regular Exam'}`);
+      console.log(`📋 Exam data response: ${examResponse.status} ${examResponse.ok}`);
+      
+      // Now fetch the grade data using the correct endpoint
+      const gradeResponse = await fetch(`/api/admin/${isFinalExam ? 'final-exam' : 'exam'}/${examId}/grade`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      console.log(`📊 Grade response: ${gradeResponse.status} ${gradeResponse.ok}`);
+      
+      if (gradeResponse.ok) {
+        const gradeData = await gradeResponse.json();
+        console.log('📊 Grade data:', gradeData);
+      } else {
+        console.log('❌ Grade response not ok');
+      }
+      
+    } catch (err) {
+      console.error('Debug error:', err);
+    }
   };
 
   const analyzeExamForAIPatterns = async (examId: string) => {
@@ -283,36 +321,8 @@ const ExamGradingPage: React.FC = () => {
     }
   };
 
-  const NORMALIZED_MAX = 13;
-  const NORMALIZED_POINTS_PER_QUESTION = 6;
-  const NORMALIZED_SCALE = 100;
-
-  // Helper to get normalization scale for a given question count
-  function getNormalizationScale(questionCount: number) {
-    if (questionCount >= NORMALIZED_MAX) return NORMALIZED_SCALE;
-    // Each question is 6 points, so 12 questions = 72, 11 = 66, etc.
-    // The normalized max for 12 questions: (12/13)*100 = 92.3, but user wants 94 for 12, 88 for 11, etc.
-    // We'll use a lookup for clarity:
-    const scaleMap: Record<number, number> = {
-      13: 100,
-      12: 94,
-      11: 88,
-      10: 82,
-      9: 76,
-      8: 70,
-      7: 64,
-      6: 58,
-      5: 52,
-      4: 46,
-      3: 40,
-      2: 34,
-      1: 28,
-      0: 0,
-    };
-    return scaleMap[questionCount] ?? Math.round((questionCount / NORMALIZED_MAX) * 100);
-  }
-
   const fetchTotalPointsForExam = async (examId: string) => {
+    // Restore cache check to prevent infinite loops
     if (loadingTotalPoints.has(examId) || totalPointsData[examId] !== undefined) return;
 
     setLoadingTotalPoints(prev => new Set(prev).add(examId));
@@ -323,18 +333,35 @@ const ExamGradingPage: React.FC = () => {
       if (!response.ok) {
         response = await fetch(`/api/admin/exam/${examId}/for-grading`);
         if (!response.ok) {
-          throw new Error('Failed to fetch exam data');
+          console.error(`❌ Failed to fetch exam ${examId}: ${response.status}`);
+          return; // Exit early on error
         }
       }
       
       const examData = await response.json();
       if (examData.answers) {
-        const totalPoints = examData.answers.reduce((sum: number, answer: any) => 
+        // Filter out duplicate questions based on question text (same logic as individual grading page)
+        const uniqueAnswers = examData.answers.filter((answer, index, arr) => {
+          const firstOccurrence = arr.findIndex(a => a.questionText.trim() === answer.questionText.trim());
+          return index === firstOccurrence;
+        });
+        
+        const totalPoints = uniqueAnswers.reduce((sum: number, answer: any) => 
           sum + (answer.questionDetails?.points || 1), 0
         );
         
-        // Calculate question count
-        const questionCount = examData.answers.length;
+        // Calculate question count using unique answers
+        const questionCount = uniqueAnswers.length;
+
+        // Calculate difficulty-based question counts
+        const difficultyCounts = uniqueAnswers.reduce((counts, answer: any) => {
+          const difficulty = answer.difficulty || 'medium'; // default to medium if not specified
+          if (difficulty === 'easy') counts.easy++;
+          else if (difficulty === 'medium') counts.medium++;
+          else if (difficulty === 'hard') counts.hard++;
+          else if (difficulty === 'algebra') counts.hard++; // treat algebra as hard
+          return counts;
+        }, { easy: 0, medium: 0, hard: 0 });
 
         setTotalPointsData(prev => ({
           ...prev,
@@ -346,22 +373,50 @@ const ExamGradingPage: React.FC = () => {
           [examId]: questionCount
         }));
 
-        // --- Normalization logic ---
-        let scaledScore = 0;
-        if (examData.session?.score !== undefined && totalPoints > 0) {
-          // Normalize to the correct scale based on question count
-          const normalizationScale = getNormalizationScale(questionCount);
-          const percentage = (examData.session.score / (questionCount * NORMALIZED_POINTS_PER_QUESTION)) * normalizationScale;
-          scaledScore = Math.round(percentage);
-        }
-
-        setScaledScoreData(prev => ({
+        setDifficultyCountData(prev => ({
           ...prev,
-          [examId]: scaledScore
+          [examId]: difficultyCounts
         }));
+
+        // Fetch the actual graded score if it exists
+        try {
+          // First determine which type of exam this is, then fetch the correct grade data
+          let isFinalExam = true;
+          let examResponse = await fetch(`/api/admin/final-exam/${examId}/for-grading`);
+          if (!examResponse.ok) {
+            isFinalExam = false;
+          }
+          
+          // Now fetch the grade data using the correct endpoint
+          const gradeResponse = await fetch(`/api/admin/${isFinalExam ? 'final-exam' : 'exam'}/${examId}/grade`, {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache'
+            }
+          });
+          
+          if (gradeResponse.ok) {
+            const gradeData = await gradeResponse.json();
+            console.log(`📝 Graded data for exam ${examId}:`, gradeData);
+            if (gradeData && gradeData.totalScore !== undefined) {
+              console.log(`✅ Setting graded score for ${examId}: ${gradeData.totalScore}`);
+              setActualGradedScores(prev => ({
+                ...prev,
+                [examId]: gradeData.totalScore
+              }));
+            } else {
+              console.log(`⚠️ No totalScore found for exam ${examId}`);
+            }
+          } else {
+            console.log(`❌ No grade data found for exam ${examId} (${isFinalExam ? 'final' : 'regular'})`);
+          }
+        } catch (gradeErr) {
+          console.log(`❌ Error fetching graded score for exam ${examId}:`, gradeErr);
+        }
       }
     } catch (err) {
-      console.error(`Error fetching total points for exam ${examId}:`, err);
+      console.error(`❌ Error fetching total points for exam ${examId}:`, err);
+      // Don't throw the error, just log it and continue
     } finally {
       setLoadingTotalPoints(prev => {
         const newSet = new Set(prev);
@@ -371,20 +426,41 @@ const ExamGradingPage: React.FC = () => {
     }
   };
 
-  // Fetch total points for all visible exams (throttled to reduce DB calls)
+  // Fetch total points for all visible exams
   useEffect(() => {
     const visibleExams = filteredSessions.filter(session => session.status === 'completed');
-    // Only fetch for the first 10 exams to reduce database load
-    const limitedExams = visibleExams.slice(0, 10);
-    limitedExams.forEach(session => {
+    // Process all visible exams (removed the 10-exam limit)
+    visibleExams.forEach(session => {
       fetchTotalPointsForExam(session._id);
     });
-  }, [filteredSessions]);
+  }, [examSessions]); // Changed dependency to examSessions to make it more stable
 
-  // Recalculate statistics when scaled score data changes
+  // Recalculate statistics when exam sessions change
   useEffect(() => {
     calculateStatistics();
-  }, [scaledScoreData, examSessions]);
+  }, [examSessions]);
+
+  // Debug logging for state
+  useEffect(() => {
+    console.log('🔍 Current actualGradedScores state:', actualGradedScores);
+    console.log('🔍 Keys in actualGradedScores:', Object.keys(actualGradedScores));
+    console.log('🔍 Values in actualGradedScores:', Object.values(actualGradedScores));
+  }, [actualGradedScores]);
+
+  // Force refresh all grades function
+  const forceRefreshGrades = () => {
+    console.log('🔄 Force refreshing all grades...');
+    setActualGradedScores({});
+    setTotalPointsData({});
+    setQuestionCountData({});
+    setDifficultyCountData({});
+    
+    // Re-fetch all visible exams
+    const visibleExams = examSessions.filter(session => session.status === 'completed');
+    visibleExams.forEach(session => {
+      fetchTotalPointsForExam(session._id);
+    });
+  };
 
   if (loading) {
     return (
@@ -422,29 +498,37 @@ const ExamGradingPage: React.FC = () => {
 
       {/* Filters */}
       <div className={styles.filters}>
-        <div className={styles.searchContainer}>
+        <div className={styles.filterGroup}>
+          <label>חיפוש:</label>
           <input
             type="text"
-            placeholder="חיפוש לפי אימייל, שם או מספר זהות..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="שם סטודנט או מספר זהות"
             className={styles.searchInput}
           />
         </div>
-        
-        <div className={styles.statusFilter}>
+        <div className={styles.filterGroup}>
+          <label>סטטוס:</label>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className={styles.statusSelect}
+            className={styles.statusFilter}
           >
-            <option value="all">כל הסטטוסים</option>
+            <option value="all">הכל</option>
             <option value="completed">הושלם</option>
             <option value="in_progress">בתהליך</option>
-            <option value="timeout">פג תוקף</option>
-            <option value="ai_suspicious">חשוד ב-AI</option>
+            <option value="timeout">נגמר הזמן</option>
           </select>
         </div>
+        {/* Debug refresh button */}
+        <button
+          onClick={forceRefreshGrades}
+          className={styles.gradeButton}
+          style={{ background: '#28a745', color: 'white' }}
+        >
+          🔄 רענן ציונים
+        </button>
       </div>
 
       {/* AI Analysis Controls */}
@@ -476,15 +560,13 @@ const ExamGradingPage: React.FC = () => {
               <th onClick={() => handleSort('name')} className={styles.sortableHeader}>
                 סטודנט {getSortIcon('name')}
               </th>
-              <th onClick={() => handleSort('date')} className={styles.sortableHeader}>
-                תאריך התחלה {getSortIcon('date')}
-              </th>
-              <th onClick={() => handleSort('date')} className={styles.sortableHeader}>
-                תאריך סיום {getSortIcon('date')}
-              </th>
-              <th onClick={() => handleSort('grade')} className={styles.sortableHeader}>
-                ציון {getSortIcon('grade')}
-              </th>
+              {/* <th onClick={() => handleSort('grade')} className={styles.sortableHeader}>
+                ציון סטודנט {getSortIcon('grade')}
+              </th> */}
+              <th>סך שאלות</th>
+              <th>קל</th>
+              <th>בינוני</th>
+              <th>קשה</th>
               <th>סטטוס</th>
               {/* הסתרת עמודת AI חשד */}
               <th>פעולות</th>
@@ -493,7 +575,7 @@ const ExamGradingPage: React.FC = () => {
           <tbody>
             {sortedSessions.length === 0 ? (
               <tr>
-                <td colSpan={6} className={styles.noData}>
+                <td colSpan={8} className={styles.noData}>
                   לא נמצאו בחינות
                 </td>
               </tr>
@@ -514,19 +596,82 @@ const ExamGradingPage: React.FC = () => {
                       {session.studentEmail}
                     </div>
                   </td>
-                  <td className={styles.dateCell}>
-                    {formatDate(session.startTime)}
-                  </td>
-                  <td className={styles.dateCell}>
-                    {session.endTime ? formatDate(session.endTime) : '-'}
-                  </td>
-                  <td className={styles.scoreCell}>
-                    {session.score !== undefined ? (
+                  {/* <td className={styles.scoreCell}>
+                    {(actualGradedScores[session._id] !== undefined || session.score !== undefined) ? (
                       <span className={styles.score}>
-                        {scaledScoreData[session._id] !== undefined ? scaledScoreData[session._id] : session.score}
+                        {(() => {
+                          const finalScore = actualGradedScores[session._id] ?? session.score;
+                          // Special debug for problematic student
+                          if (session.studentId === '207749219') {
+                            console.log(`🔍 Student 207749219 DEBUG:`, {
+                              examId: session._id,
+                              actualGradedScore: actualGradedScores[session._id],
+                              sessionScore: session.score,
+                              finalDisplayed: finalScore,
+                              hasActualGraded: actualGradedScores[session._id] !== undefined
+                            });
+                          }
+                          return finalScore;
+                        })()}
                       </span>
                     ) : (
-                      '-'
+                      loadingTotalPoints.has(session._id) ? (
+                        <span className={styles.loading}>טוען...</span>
+                      ) : (
+                        '-'
+                      )
+                    )}
+                  </td> */}
+                  <td className={styles.questionCountCell}>
+                    {questionCountData[session._id] !== undefined ? (
+                      <span className={styles.questionCount}>
+                        {questionCountData[session._id]} {questionCountData[session._id] > 13 ? '📚' : '📄'}
+                      </span>
+                    ) : (
+                      loadingTotalPoints.has(session._id) ? (
+                        <span className={styles.loading}>טוען...</span>
+                      ) : (
+                        '-'
+                      )
+                    )}
+                  </td>
+                  <td className={styles.difficultyCountCell}>
+                    {difficultyCountData[session._id] ? (
+                      <span className={styles.easyCount}>
+                        {difficultyCountData[session._id].easy}
+                      </span>
+                    ) : (
+                      loadingTotalPoints.has(session._id) ? (
+                        <span className={styles.loading}>...</span>
+                      ) : (
+                        '-'
+                      )
+                    )}
+                  </td>
+                  <td className={styles.difficultyCountCell}>
+                    {difficultyCountData[session._id] ? (
+                      <span className={styles.mediumCount}>
+                        {difficultyCountData[session._id].medium}
+                      </span>
+                    ) : (
+                      loadingTotalPoints.has(session._id) ? (
+                        <span className={styles.loading}>...</span>
+                      ) : (
+                        '-'
+                      )
+                    )}
+                  </td>
+                  <td className={styles.difficultyCountCell}>
+                    {difficultyCountData[session._id] ? (
+                      <span className={styles.hardCount}>
+                        {difficultyCountData[session._id].hard}
+                      </span>
+                    ) : (
+                      loadingTotalPoints.has(session._id) ? (
+                        <span className={styles.loading}>...</span>
+                      ) : (
+                        '-'
+                      )
                     )}
                   </td>
                   <td className={styles.statusCell}>
@@ -545,6 +690,16 @@ const ExamGradingPage: React.FC = () => {
                       <FileText size={16} />
                       {session.graded ? 'ערוך ציון' : 'בדוק וציין'}
                     </button>
+                    {/* Temporary debug button for specific student */}
+                    {session.studentId === '207749219' && (
+                      <button
+                        onClick={() => debugStudentGrade(session._id, session.studentId)}
+                        className={styles.gradeButton}
+                        style={{ marginLeft: '5px', background: '#ff6b6b' }}
+                      >
+                        🐛 Debug
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))
