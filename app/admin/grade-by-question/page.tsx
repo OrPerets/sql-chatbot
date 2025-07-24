@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, FileText, Search, Eye, Users, CheckCircle, XCircle, Clock, Edit3, Filter, BarChart3, AlertTriangle, AlertCircle, Info } from 'lucide-react';
+import { ArrowLeft, FileText, Search, Eye, Users, CheckCircle, XCircle, Clock, Edit3, Filter, BarChart3, AlertTriangle, AlertCircle, Info, Plus, Trash2, Tag, Save, MessageSquare, Database } from 'lucide-react';
 import styles from './page.module.css';
-import { detectAITraps, getSuspicionColor, getSuspicionIcon } from '../../utils/trapDetector';
+import { detectAITraps, getSuspicionColor, getSuspicionIcon, createHighlightedText } from '../../utils/trapDetector';
 
 interface Question {
   id: number;
@@ -13,7 +13,7 @@ interface Question {
   points: number;
   approved: boolean;
   answerCount: number;
-  averageScore?: number; // הוספת ממוצע ניקוד
+  averageScore?: number;
 }
 
 interface StudentAnswer {
@@ -29,6 +29,7 @@ interface StudentAnswer {
   grade?: number;
   feedback?: string;
   examStartTime: string;
+  _id?: string; // For unique identification
 }
 
 interface QuestionWithAnswers {
@@ -39,27 +40,32 @@ interface QuestionWithAnswers {
   averageGrade: number;
 }
 
+interface CommentBankEntry {
+  _id: string;
+  questionId: number;
+  questionText: string;
+  difficulty: string;
+  score: number;
+  maxScore: number;
+  feedback: string;
+  gradedBy: string;
+  gradedAt: string;
+  usageCount: number;
+  lastUsed?: string;
+  reduced_points?: number; // Points to subtract when applying this comment
+  tag?: 'positive' | 'negative'; // Tag for tracking effectiveness
+  likes?: number; // Number of likes (approvals)
+  dislikes?: number; // Number of dislikes (rejections)
+  userRating?: 'like' | 'dislike' | null; // Current user's rating
+}
+
+interface SchemaValidation {
+  hasInvalidTables: boolean;
+  hasInvalidColumns: boolean;
+  invalidItems: string[];
+}
+
 const GradeByQuestionPage: React.FC = () => {
-  // Comment bank entry type
-  interface CommentBankEntry {
-    _id: string;
-    questionId: number;
-    questionText: string;
-    difficulty: string;
-    score: number;
-    maxScore: number;
-    feedback: string;
-    gradedBy: string;
-    gradedAt: string;
-    usageCount: number;
-    lastUsed?: string;
-  }
-
-  // Add comment bank state (must be inside the component)
-  const [commentBankEntries, setCommentBankEntries] = useState<{[questionId: number]: CommentBankEntry[]}>({});
-  const [activeCommentBank, setActiveCommentBank] = useState<{ answerId: string | null, questionId?: number, maxScore?: number }>({ answerId: null });
-  const [loadingComments, setLoadingComments] = useState<{[questionId: number]: boolean}>({});
-
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<QuestionWithAnswers | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,71 +73,71 @@ const GradeByQuestionPage: React.FC = () => {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'easy' | 'medium' | 'hard' | 'algebra'>('all');
-  const [showGradedOnly, setShowGradedOnly] = useState(false);
-
-  // Save filter state to localStorage
-  const saveFiltersToStorage = (search: string, difficulty: string) => {
-    localStorage.setItem('gradeByQuestion_filters', JSON.stringify({
-      searchTerm: search,
-      difficultyFilter: difficulty
-    }));
-  };
-
-  // Load filter state from localStorage
-  const loadFiltersFromStorage = () => {
-    try {
-      const saved = localStorage.getItem('gradeByQuestion_filters');
-      if (saved) {
-        const { searchTerm: savedSearch, difficultyFilter: savedDifficulty } = JSON.parse(saved);
-        setSearchTerm(savedSearch || '');
-        setDifficultyFilter(savedDifficulty || 'all');
-      }
-    } catch (err) {
-      console.error('Error loading filters from storage:', err);
-    }
-  };
-  const [grading, setGrading] = useState<{[answerId: string]: boolean}>({});
   
-  // Cache for questions data
-  const [questionsCache, setQuestionsCache] = useState<Question[] | null>(null);
-  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
-  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  // Comment bank state
+  const [commentBankEntries, setCommentBankEntries] = useState<CommentBankEntry[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [newComment, setNewComment] = useState({ text: '', reduced_points: 0, tag: '' as 'positive' | 'negative' | '' });
+  const [editingComment, setEditingComment] = useState<CommentBankEntry | null>(null);
+  
+  // Current grading state
+  const [currentAnswerIndex, setCurrentAnswerIndex] = useState(0);
+  const [currentGrade, setCurrentGrade] = useState<number>(0);
+  const [currentFeedback, setCurrentFeedback] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [processedAnswers, setProcessedAnswers] = useState<Set<string>>(new Set());
   
   const router = useRouter();
 
-  // Fetch comments for a question
-  const fetchCommentBankEntries = async (questionId: number) => {
-    try {
-      setLoadingComments(prev => ({ ...prev, [questionId]: true }));
-      const response = await fetch(`/api/admin/comment-bank?questionId=${questionId}&limit=10`);
-      if (!response.ok) throw new Error('Failed to fetch comments');
-      const data = await response.json();
-      setCommentBankEntries(prev => ({ ...prev, [questionId]: data.comments || [] }));
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('Error fetching comment bank entries:', err);
-    } finally {
-      setLoadingComments(prev => ({ ...prev, [questionId]: false }));
+  // Utility functions for encoding/decoding points in feedback
+  const encodePointsInFeedback = (feedback: string, reducedPoints: number): string => {
+    if (reducedPoints > 0) {
+      return `${feedback}\n[REDUCE_POINTS:${reducedPoints}]`;
     }
+    return feedback;
   };
 
-  // Open comment bank modal for an answer
-  const openCommentBank = (answerId: string, questionId: number, maxScore: number) => {
-    fetchCommentBankEntries(questionId);
-    setActiveCommentBank({ answerId, questionId, maxScore });
+  const decodePointsFromFeedback = (feedback: string): { feedback: string, reducedPoints: number } => {
+    const pointsMatch = feedback.match(/\[REDUCE_POINTS:(\d+(\.\d+)?)\]/);
+    if (pointsMatch) {
+      const reducedPoints = parseFloat(pointsMatch[1]);
+      const cleanFeedback = feedback.replace(/\[REDUCE_POINTS:\d+(\.\d+)?\]/, '').trim();
+      return { feedback: cleanFeedback, reducedPoints };
+    }
+    return { feedback, reducedPoints: 0 };
   };
 
-  // Close modal
-  const closeCommentBank = () => setActiveCommentBank({ answerId: null });
+  const getCommentReducedPoints = (comment: CommentBankEntry): number => {
+    // First try the reduced_points field, then extract from feedback
+    if (comment.reduced_points !== undefined) {
+      return comment.reduced_points;
+    }
+    const { reducedPoints } = decodePointsFromFeedback(comment.feedback);
+    return reducedPoints;
+  };
 
-  // Use comment from bank
-  const useCommentFromBank = (comment: CommentBankEntry) => {
-    if (!activeCommentBank.answerId) return;
-    const gradeInput = document.getElementById(`grade-${activeCommentBank.answerId}`) as HTMLInputElement;
-    const feedbackInput = document.getElementById(`feedback-${activeCommentBank.answerId}`) as HTMLTextAreaElement;
-    if (gradeInput) gradeInput.value = comment.score.toString();
-    if (feedbackInput) feedbackInput.value = comment.feedback;
-    closeCommentBank();
+  const getCommentDisplayFeedback = (comment: CommentBankEntry): string => {
+    const { feedback } = decodePointsFromFeedback(comment.feedback);
+    return feedback;
+  };
+
+  // Database schema for validation
+  const DATABASE_SCHEMA = {
+    tables: {
+      'pilots': ['pilot_id', 'pilot_name', 'squadron_id'],
+      'squadrons': ['squadron_id', 'squadron_name', 'base_location'],
+      'aircraft': ['aircraft_id', 'aircraft_type', 'squadron_id'],
+      'missions': ['mission_id', 'mission_date', 'pilot_id', 'aircraft_id', 'target_location'],
+      'weapons': ['weapon_id', 'weapon_type', 'weapon_effectiveness'] // Note: no squadron_id here
+    },
+    invalidTables: ['missionanalytics', 'mission_analytics', 'aircraft_assignments', 'pilotschedule', 'weaponinventory', 'squadron_aircraft', 'mission_reports', 'aircraft_maintenance'],
+    invalidColumns: {
+      'pilots': ['salary', 'hire_date', 'last_mission', 'training_hours', 'weapon_id'],
+      'squadrons': ['budget', 'commander_id', 'home_base', 'aircraft_count'],
+      'aircraft': ['last_maintenance', 'flight_hours', 'fuel_capacity', 'max_speed'],
+      'missions': ['weapon_id', 'pilot_count', 'aircraft_count', 'success_rate', 'cost', 'duration_minutes', 'fuel_consumption', 'weapon_effectiveness'],
+      'weapons': ['squadron_id'] // This is a key trap - weapons don't have squadron_id
+    }
   };
 
   useEffect(() => {
@@ -153,116 +159,18 @@ const GradeByQuestionPage: React.FC = () => {
       return;
     }
 
-    // Try to load from localStorage first
-    const cachedQuestions = localStorage.getItem('gradeByQuestion_cache');
-    const cachedTime = localStorage.getItem('gradeByQuestion_cache_time');
-    
-    if (cachedQuestions && cachedTime) {
-      const cacheAge = Date.now() - parseInt(cachedTime);
-      if (cacheAge < CACHE_DURATION) {
-        try {
-          const parsedQuestions = JSON.parse(cachedQuestions);
-          setQuestionsCache(parsedQuestions);
-          setQuestions(parsedQuestions);
-          setLastFetchTime(parseInt(cachedTime));
-          setLoading(false);
-          console.log(`💾 Loaded questions from localStorage cache (${parsedQuestions.length} questions, age: ${Math.round(cacheAge / 60000)}min)`);
-          return;
-        } catch (err) {
-          console.error('Error parsing cached questions:', err);
-        }
-      }
-    }
-
-    // Load saved filters
-    loadFiltersFromStorage();
-    
     fetchQuestions();
   }, [router]);
 
-  // Save filters when they change
-  useEffect(() => {
-    if (searchTerm !== '' || difficultyFilter !== 'all') {
-      saveFiltersToStorage(searchTerm, difficultyFilter);
-    }
-  }, [searchTerm, difficultyFilter]);
-
-  const fetchQuestions = async (forceRefresh = false) => {
+  const fetchQuestions = async () => {
     try {
-      const now = Date.now();
-      
-      // Check if we have cached data and it's still fresh
-      if (!forceRefresh && questionsCache && (now - lastFetchTime) < CACHE_DURATION) {
-        console.log(`🚀 Using cached questions data (${questionsCache.length} questions, age: ${Math.round((now - lastFetchTime) / 60000)}min)`);
-        setQuestions(questionsCache);
-        setLoading(false);
-        return;
-      }
-      
       setLoading(true);
-      console.log('📥 Fetching fresh questions data from API...');
-      
       const response = await fetch('/api/admin/questions-with-answers');
       if (!response.ok) {
         throw new Error('Failed to fetch questions');
       }
       const data = await response.json();
-      
-      // חישוב ממוצע ניקוד לכל שאלה - עם batching לשיפור ביצועים
-      const questionsWithAverage = await Promise.allSettled(
-        data.map(async (question: Question) => {
-          try {
-            // קבלת כל התשובות לשאלה כדי לחשב ממוצע
-            const answersResponse = await fetch(`/api/admin/question/${question.id}/answers`);
-            if (answersResponse.ok) {
-              const answersData = await answersResponse.json();
-              const gradedAnswers = answersData.answers?.filter((answer: any) => 
-                answer.grade !== undefined && answer.grade !== null
-              ) || [];
-              
-              let averageScore = 0;
-              if (gradedAnswers.length > 0) {
-                const totalScore = gradedAnswers.reduce((sum: number, answer: any) => 
-                  sum + (answer.grade || 0), 0
-                );
-                averageScore = totalScore / gradedAnswers.length;
-              }
-              
-              return {
-                ...question,
-                averageScore: Math.round(averageScore * 10) / 10 // עיגול לעשירית
-              };
-            }
-          } catch (err) {
-            console.error(`Error calculating average for question ${question.id}:`, err);
-          }
-          
-          return {
-            ...question,
-            averageScore: 0
-          };
-        })
-      );
-      
-      // Process results from Promise.allSettled
-      const processedQuestions = questionsWithAverage
-        .filter(result => result.status === 'fulfilled')
-        .map(result => (result as PromiseFulfilledResult<Question>).value);
-      
-      // Update cache
-      setQuestionsCache(processedQuestions);
-      setLastFetchTime(now);
-      setQuestions(processedQuestions);
-      
-      // Save to localStorage
-      try {
-        localStorage.setItem('gradeByQuestion_cache', JSON.stringify(processedQuestions));
-        localStorage.setItem('gradeByQuestion_cache_time', now.toString());
-        console.log(`💾 Saved ${processedQuestions.length} questions to cache`);
-      } catch (err) {
-        console.error('Error saving to localStorage:', err);
-      }
-      
+      setQuestions(data);
     } catch (err) {
       console.error('Error fetching questions:', err);
       setError('Failed to load questions');
@@ -274,7 +182,6 @@ const GradeByQuestionPage: React.FC = () => {
   const fetchQuestionAnswers = async (questionId: number) => {
     try {
       setQuestionsLoading(true);
-      // Add timestamp to break CDN caching
       const timestamp = Date.now();
       const response = await fetch(`/api/admin/question/${questionId}/answers?t=${timestamp}`, {
         cache: 'no-store',
@@ -287,6 +194,18 @@ const GradeByQuestionPage: React.FC = () => {
       }
       const data = await response.json();
       setSelectedQuestion(data);
+      setCurrentAnswerIndex(0);
+      setProcessedAnswers(new Set());
+      
+      // Load first answer data if available
+      if (data.answers && data.answers.length > 0) {
+        const firstAnswer = data.answers[0];
+        setCurrentGrade(firstAnswer.grade || (firstAnswer.isCorrect ? data.question.points : 0));
+        setCurrentFeedback(firstAnswer.feedback || '');
+      }
+      
+      // Load comment bank for this question
+      fetchCommentBankEntries(questionId);
     } catch (err) {
       console.error('Error fetching question answers:', err);
       setError('Failed to load question answers');
@@ -295,26 +214,196 @@ const GradeByQuestionPage: React.FC = () => {
     }
   };
 
-  // Function to refresh data manually
-  const handleRefreshQuestions = async () => {
-    await fetchQuestions(true); // Force refresh
+  const fetchCommentBankEntries = async (questionId: number) => {
+    try {
+      setLoadingComments(true);
+      const response = await fetch(`/api/admin/comment-bank?questionId=${questionId}&limit=50`);
+      if (!response.ok) throw new Error('Failed to fetch comments');
+      const data = await response.json();
+      setCommentBankEntries(data.comments || []);
+    } catch (err) {
+      console.error('Error fetching comment bank entries:', err);
+    } finally {
+      setLoadingComments(false);
+    }
   };
 
-  const handleGradeAnswer = async (examId: string, questionIndex: number, grade: number, feedback: string) => {
-    const answerId = `${examId}-${questionIndex}`;
+  // Validate SQL answer against database schema
+  const validateSchema = (answer: string): SchemaValidation => {
+    const upperAnswer = answer.toUpperCase();
+    let hasInvalidTables = false;
+    let hasInvalidColumns = false;
+    const invalidItems: string[] = [];
+
+    // Check for invalid tables
+    DATABASE_SCHEMA.invalidTables.forEach(table => {
+      const regex = new RegExp(`\\b${table.toUpperCase()}\\b`, 'gi');
+      if (regex.test(upperAnswer)) {
+        hasInvalidTables = true;
+        invalidItems.push(`טבלה לא קיימת: ${table}`);
+      }
+    });
+
+    // Check for invalid columns in each table
+    Object.entries(DATABASE_SCHEMA.invalidColumns).forEach(([table, columns]) => {
+      columns.forEach(column => {
+        const regex = new RegExp(`${table}\\.${column}|${column}.*FROM.*${table}`, 'gi');
+        if (regex.test(answer)) {
+          hasInvalidColumns = true;
+          invalidItems.push(`עמודה לא קיימת: ${table}.${column}`);
+        }
+      });
+    });
+
+    return { hasInvalidTables, hasInvalidColumns, invalidItems };
+  };
+
+  // Apply comment from bank
+  const applyComment = (comment: CommentBankEntry) => {
+    const pointsToReduce = getCommentReducedPoints(comment);
+    const displayFeedback = getCommentDisplayFeedback(comment);
+    const newGrade = Math.max(0, currentGrade - pointsToReduce);
+    
+
+    
+    setCurrentGrade(newGrade);
+    setCurrentFeedback(prev => {
+      const newFeedback = prev ? `${prev}\n${displayFeedback}` : displayFeedback;
+      return newFeedback;
+    });
+
+    // Mark comment as used
+    markCommentAsUsed(comment._id);
+  };
+
+  const markCommentAsUsed = async (commentId: string) => {
     try {
-      setGrading(prev => ({ ...prev, [answerId]: true }));
+      await fetch(`/api/admin/comment-bank/${commentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'use' }),
+      });
+    } catch (err) {
+      console.error('Error marking comment as used:', err);
+    }
+  };
+
+  // Add new comment to bank
+  const addCommentToBank = async () => {
+    if (!newComment.text || !selectedQuestion) return;
+
+    // Encode points in feedback for backend compatibility
+    const encodedFeedback = encodePointsInFeedback(newComment.text, newComment.reduced_points);
+
+    const commentData = {
+      questionId: selectedQuestion.question.id,
+      questionText: selectedQuestion.question.question,
+      difficulty: selectedQuestion.question.difficulty,
+      score: currentGrade,
+      maxScore: selectedQuestion.question.points,
+      feedback: encodedFeedback,
+      reduced_points: newComment.reduced_points, // Still send this in case backend supports it
+      tag: newComment.tag || undefined,
+      gradedBy: 'admin'
+    };
+
+    try {
+      const response = await fetch('/api/admin/comment-bank', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(commentData),
+      });
+
+      if (!response.ok) throw new Error('Failed to save comment');
       
+      // Refresh comment bank
+      fetchCommentBankEntries(selectedQuestion.question.id);
+      setNewComment({ text: '', reduced_points: 0, tag: '' });
+      
+      showSuccessMessage('הערה נוספה לבנק ההערות');
+    } catch (err) {
+      console.error('Error adding comment:', err);
+      showErrorMessage('שגיאה בהוספת הערה');
+    }
+  };
+
+  // Edit comment
+  const editComment = async (comment: CommentBankEntry) => {
+    if (!editingComment) return;
+
+    try {
+      // Encode points in feedback for backend compatibility
+      const encodedFeedback = encodePointsInFeedback(editingComment.feedback, editingComment.reduced_points || 0);
+
+      const response = await fetch(`/api/admin/comment-bank/${comment._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feedback: encodedFeedback,
+          reduced_points: editingComment.reduced_points,
+          tag: editingComment.tag,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update comment');
+      
+      fetchCommentBankEntries(selectedQuestion?.question.id || 0);
+      setEditingComment(null);
+      showSuccessMessage('הערה עודכנה');
+    } catch (err) {
+      console.error('Error updating comment:', err);
+      showErrorMessage('שגיאה בעדכון הערה');
+    }
+  };
+
+  // Delete comment
+  const deleteComment = async (commentId: string) => {
+    try {
+      const response = await fetch(`/api/admin/comment-bank/${commentId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('Failed to delete comment');
+      
+      fetchCommentBankEntries(selectedQuestion?.question.id || 0);
+      showSuccessMessage('הערה נמחקה');
+    } catch (err) {
+      console.error('Error deleting comment:', err);
+      showErrorMessage('שגיאה במחיקת הערה');
+    }
+  };
+
+  // Handle "Done" button - save current answer and move to next
+  const handleDoneAnswer = async () => {
+    if (!selectedQuestion || currentAnswerIndex >= selectedQuestion.answers.length) return;
+
+    const currentAnswer = selectedQuestion.answers[currentAnswerIndex];
+    
+    try {
+      setSaving(true);
+      
+      // Perform schema validation for AI-suspicious answers
+      const aiAnalysis = detectAITraps(currentAnswer.studentAnswer);
+      const schemaValidation = validateSchema(currentAnswer.studentAnswer);
+      
+      let finalGrade = currentGrade;
+      let finalFeedback = currentFeedback;
+      
+      // Auto-apply schema validation penalties for AI-suspicious answers
+      if (aiAnalysis.isAISuspicious && (schemaValidation.hasInvalidTables || schemaValidation.hasInvalidColumns)) {
+        finalGrade = 0;
+        const schemaMessage = "יש שימוש בתשובה בעמודות / טבלאות שלא קיימות בבסיס הנתונים.";
+        finalFeedback = finalFeedback ? `${finalFeedback}\n${schemaMessage}` : schemaMessage;
+      }
+
       const response = await fetch('/api/admin/grade-answer', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          examId,
-          questionIndex,
-          grade,
-          feedback,
+          examId: currentAnswer.examId,
+          questionIndex: currentAnswer.questionIndex,
+          grade: finalGrade,
+          feedback: finalFeedback,
         }),
       });
 
@@ -323,74 +412,154 @@ const GradeByQuestionPage: React.FC = () => {
       }
 
       // Auto-save to comment bank if feedback is provided
-      if (feedback && feedback.trim() && selectedQuestion) {
+      if (finalFeedback && finalFeedback.trim()) {
         try {
           await fetch('/api/admin/comment-bank', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               questionId: selectedQuestion.question.id,
               questionText: selectedQuestion.question.question,
               difficulty: selectedQuestion.question.difficulty,
-              score: grade,
+              score: finalGrade,
               maxScore: selectedQuestion.question.points,
-              feedback: feedback,
+              feedback: finalFeedback,
               gradedBy: 'admin'
             }),
           });
-          
-          // Show success message to user
-          const successMessage = document.createElement('div');
-          successMessage.innerHTML = '✅ ציון והערה נשמרו (כולל בבנק ההערות)';
-          successMessage.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #28a745;
-            color: white;
-            padding: 10px 15px;
-            border-radius: 5px;
-            font-size: 14px;
-            font-weight: 500;
-            z-index: 10000;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-          `;
-          document.body.appendChild(successMessage);
-          
-          // Remove message after 3 seconds
-          setTimeout(() => {
-            if (successMessage.parentNode) {
-              successMessage.parentNode.removeChild(successMessage);
-            }
-          }, 3000);
-          
         } catch (commentErr) {
           console.error('Error saving to comment bank:', commentErr);
-          // Don't show error for comment bank save failure as the main grade was saved
         }
       }
 
-      // Refresh the current question answers
-      if (selectedQuestion) {
-        fetchQuestionAnswers(selectedQuestion.question.id);
-        
-        // Invalidate cache to ensure fresh data on next load
-        const questionId = selectedQuestion.question.id;
-        if (questionsCache) {
-          // Update the specific question's average in cache
-          setTimeout(() => {
-            fetchQuestions(true);
-          }, 1000); // Small delay to allow grade to be processed
-        }
+             // Mark as processed and remove from list
+       const answerId = `${currentAnswer.examId}-${currentAnswer.questionIndex}`;
+       setProcessedAnswers(prev => new Set([...Array.from(prev), answerId]));
+      
+      // Move to next unprocessed answer
+      const nextIndex = findNextUnprocessedAnswer();
+      if (nextIndex !== -1) {
+        setCurrentAnswerIndex(nextIndex);
+        const nextAnswer = selectedQuestion.answers[nextIndex];
+        setCurrentGrade(nextAnswer.grade || (nextAnswer.isCorrect ? selectedQuestion.question.points : 0));
+        setCurrentFeedback(nextAnswer.feedback || '');
+      } else {
+        // All answers processed
+        showSuccessMessage('כל התשובות לשאלה זו נבדקו!');
+        setSelectedQuestion(null); // Return to questions list
       }
+
+      showSuccessMessage(`התשובה נשמרה בהצלחה`);
     } catch (err) {
-      console.error('Error saving grade:', err);
-      alert('שגיאה בשמירת הציון');
+      console.error('Error saving answer:', err);
+      showErrorMessage('שגיאה בשמירת התשובה');
     } finally {
-      setGrading(prev => ({ ...prev, [answerId]: false }));
+      setSaving(false);
     }
+  };
+
+  const findNextUnprocessedAnswer = (): number => {
+    if (!selectedQuestion) return -1;
+    
+    for (let i = 0; i < selectedQuestion.answers.length; i++) {
+      const answer = selectedQuestion.answers[i];
+      const answerId = `${answer.examId}-${answer.questionIndex}`;
+      if (!processedAnswers.has(answerId)) {
+        return i;
+      }
+    }
+    return -1;
+  };
+
+  // Like/Dislike functionality for comments
+  const rateComment = async (commentId: string, rating: 'like' | 'dislike') => {
+    try {
+      const response = await fetch(`/api/admin/comment-bank/${commentId}/rate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating }),
+      });
+
+      const data = await response.json();
+      
+      // Always update locally for immediate feedback
+      setCommentBankEntries(prev => prev.map(comment => {
+        if (comment._id === commentId) {
+          const newComment = { ...comment };
+          
+          // Reset previous rating
+          if (comment.userRating === 'like') {
+            newComment.likes = (newComment.likes || 0) - 1;
+          } else if (comment.userRating === 'dislike') {
+            newComment.dislikes = (newComment.dislikes || 0) - 1;
+          }
+          
+          // Apply new rating
+          if (rating === 'like') {
+            newComment.likes = (newComment.likes || 0) + 1;
+          } else {
+            newComment.dislikes = (newComment.dislikes || 0) + 1;
+          }
+          
+          newComment.userRating = rating;
+          return newComment;
+        }
+        return comment;
+      }));
+      
+      showSuccessMessage(rating === 'like' ? 'הערה אושרה' : 'הערה נדחתה');
+    } catch (err) {
+      console.error('Error rating comment:', err);
+      showErrorMessage('שגיאה בדירוג ההערה');
+    }
+  };
+
+  const showSuccessMessage = (message: string) => {
+    const successDiv = document.createElement('div');
+    successDiv.innerHTML = `✅ ${message}`;
+    successDiv.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #28a745;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 10000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    `;
+    document.body.appendChild(successDiv);
+    setTimeout(() => {
+      if (successDiv.parentNode) {
+        successDiv.parentNode.removeChild(successDiv);
+      }
+    }, 4000);
+  };
+
+  const showErrorMessage = (message: string) => {
+    const errorDiv = document.createElement('div');
+    errorDiv.innerHTML = `❌ ${message}`;
+    errorDiv.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #dc3545;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 10000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    `;
+    document.body.appendChild(errorDiv);
+    setTimeout(() => {
+      if (errorDiv.parentNode) {
+        errorDiv.parentNode.removeChild(errorDiv);
+      }
+    }, 4000);
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -436,22 +605,19 @@ const GradeByQuestionPage: React.FC = () => {
       return matchesSearch && matchesDifficulty;
     })
     .sort((a, b) => {
-      // Sort by answer count (descending), then by question ID (ascending)
       if (b.answerCount !== a.answerCount) {
         return b.answerCount - a.answerCount;
       }
       return a.id - b.id;
     });
 
-  if (loading && !questionsCache) {
+  if (loading) {
     return (
       <div className={styles.container}>
         <div className={styles.loading}>טוען שאלות...</div>
       </div>
     );
   }
-  
-
 
   if (error) {
     return (
@@ -460,6 +626,13 @@ const GradeByQuestionPage: React.FC = () => {
       </div>
     );
   }
+
+  const getCurrentAnswer = () => {
+    if (!selectedQuestion || currentAnswerIndex >= selectedQuestion.answers.length) return null;
+    return selectedQuestion.answers[currentAnswerIndex];
+  };
+
+  const currentAnswer = getCurrentAnswer();
 
   return (
     <div className={styles.container}>
@@ -475,24 +648,6 @@ const GradeByQuestionPage: React.FC = () => {
         <div className={styles.headerTitle}>
           <BarChart3 size={24} />
           <h1>ציונים לפי שאלה</h1>
-        </div>
-        <div className={styles.headerActions}>
-          <button 
-            onClick={handleRefreshQuestions}
-            disabled={loading}
-            className={styles.refreshButton}
-            title="רענן נתונים"
-          >
-            🔄 {loading ? 'טוען...' : 'רענן'}
-          </button>
-          <div className={styles.headerInfo}>
-            <span>{filteredQuestions.length} שאלות זמינות</span>
-            {questionsCache && !loading && (
-              <span className={styles.cacheInfo}>
-                • מטמון: {Math.round((Date.now() - lastFetchTime) / 60000)} דק' ({questionsCache === questions ? '🟢 פעיל' : '🔄 מתעדכן'})
-              </span>
-            )}
-          </div>
         </div>
       </div>
 
@@ -590,286 +745,369 @@ const GradeByQuestionPage: React.FC = () => {
             )}
           </div>
         ) : (
-          /* Question Answers View */
-          <div className={styles.answersView}>
+          /* Question Grading View with Sidebar */
+          <div className={styles.gradingView}>
             {questionsLoading ? (
               <div className={styles.loading}>טוען תשובות...</div>
             ) : (
               <>
-                {/* Question Details Header */}
-                <div className={styles.questionDetailsHeader}>
-                  <button
-                    onClick={() => setSelectedQuestion(null)}
-                    className={styles.backToQuestionsButton}
-                  >
-                    <ArrowLeft size={16} />
-                    חזרה לרשימת שאלות
-                  </button>
-                  
-                  <div className={styles.questionDetails}>
-                    <div className={styles.questionTitle}>
-                      <span className={styles.questionIdLarge}>שאלה #{selectedQuestion.question.id}</span>
-                      <div 
-                        className={styles.difficultyBadgeLarge}
-                        style={{ backgroundColor: getDifficultyColor(selectedQuestion.question.difficulty) }}
-                      >
-                        {getDifficultyText(selectedQuestion.question.difficulty)} ({selectedQuestion.question.points} נקודות)
-                      </div>
-                    </div>
-                    
-                    <div className={styles.questionTextLarge}>
-                      {selectedQuestion.question.question}
-                    </div>
-                    
-                    <div className={styles.answerStats}>
-                      <div className={styles.statItem}>
-                        <Users size={16} />
-                        <span>{selectedQuestion.totalAnswers} תשובות</span>
-                      </div>
-                      <div className={styles.statItem}>
-                        <CheckCircle size={16} />
-                        <span>{selectedQuestion.gradedAnswers} בודקו</span>
-                      </div>
-                      {selectedQuestion.averageGrade > 0 && (
-                        <div className={styles.statItem}>
-                          <BarChart3 size={16} />
-                          <span>ממוצע: {selectedQuestion.averageGrade.toFixed(1)}</span>
-                        </div>
-                      )}
-                    </div>
+                {/* Left Sidebar - Comment Bank */}
+                <div className={styles.sidebar}>
+                  <div className={styles.sidebarHeader}>
+                    <MessageSquare size={20} />
+                    <h3>בנק הערות</h3>
                   </div>
-                </div>
 
-                {/* Answers List */}
-                <div className={styles.answersContainer}>
-                  {selectedQuestion.answers.map((answer, index) => {
-                    const answerId = `${answer.examId}-${answer.questionIndex}`;
-                    const isGrading = grading[answerId] || false;
-                    
-                    // ניתוח AI עבור התשובה
-                    const aiAnalysis = detectAITraps(answer.studentAnswer);
-                    const suspicionLevel = getSuspicionColor(aiAnalysis.suspicionScore);
-                    const iconName = getSuspicionIcon(aiAnalysis.suspicionScore);
-                    
-                    const getAIIcon = () => {
-                      switch (iconName) {
-                        case 'AlertTriangle':
-                          return <AlertTriangle size={14} className={styles.aiHighRisk} />;
-                        case 'AlertCircle':
-                          return <AlertCircle size={14} className={styles.aiMediumRisk} />;
-                        case 'Info':
-                          return <Info size={14} className={styles.aiLowRisk} />;
-                        default:
-                          return <CheckCircle size={14} className={styles.aiClean} />;
-                      }
-                    };
-                    
-                    return (
-                      <div key={answerId} className={styles.answerCard}>
-                        <div className={styles.answerHeader}>
-                          <div className={styles.studentInfo}>
-                            <div className={styles.studentName}>
-                              {answer.studentName || 'לא צוין'}
-                            </div>
-                            <div className={styles.studentDetails}>
-                              <span>{answer.studentEmail}</span>
-                              {answer.studentId && <span>• ID: {answer.studentId}</span>}
-                            </div>
-                          </div>
-                          
-                          <div className={styles.answerMeta}>
-                            <div className={styles.timeInfo}>
-                              <Clock size={14} />
-                              <span>זמן: {formatTime(answer.timeSpent)}</span>
-                            </div>
-                            <div className={styles.dateInfo}>
-                              {formatDate(answer.timestamp)}
-                            </div>
-                            {/* הסרת אינדיקטור נכון/שגוי */}
-                          </div>
-                        </div>
-                        
-                        {/* הצגת חשד AI בנפרד ובולט יותר */}
-                        {aiAnalysis.isAISuspicious && (
-                          <div className={styles.aiSuspicionBanner}>
-                            <div className={styles.aiSuspicionHeader}>
-                              <div className={styles.aiSuspicionTitle}>
-                                <AlertTriangle size={20} />
-                                <span>⚠️ חשוד בשימוש ב-AI (ציון חשד: {aiAnalysis.suspicionScore})</span>
+                  {/* Add New Comment */}
+                  <div className={styles.addCommentSection}>
+                    <h4>הוסף הערה חדשה</h4>
+                    <textarea
+                      value={newComment.text}
+                      onChange={(e) => setNewComment({...newComment, text: e.target.value})}
+                      placeholder="הקלד הערה..."
+                      className={styles.newCommentInput}
+                      rows={3}
+                    />
+                    <div className={styles.commentOptions}>
+                      <div className={styles.pointsInput}>
+                        <label>נקודות לקיזוז:</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max={selectedQuestion?.question.points || 10}
+                          value={newComment.reduced_points}
+                          onChange={(e) => setNewComment({...newComment, reduced_points: Number(e.target.value)})}
+                          className={styles.pointsField}
+                        />
+                      </div>
+                      <div className={styles.tagSelect}>
+                        <label>תג:</label>
+                        <select
+                          value={newComment.tag}
+                          onChange={(e) => setNewComment({...newComment, tag: e.target.value as 'positive' | 'negative' | ''})}
+                          className={styles.tagField}
+                        >
+                          <option value="">ללא תג</option>
+                          <option value="positive">✅ חיובי</option>
+                          <option value="negative">❌ שלילי</option>
+                        </select>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={addCommentToBank}
+                      disabled={!newComment.text.trim()}
+                      className={styles.addCommentBtn}
+                    >
+                      <Plus size={16} />
+                      הוסף לבנק
+                    </button>
+                  </div>
+
+                  {/* Existing Comments */}
+                  <div className={styles.commentsSection}>
+                    <h4>הערות קיימות ({commentBankEntries.length})</h4>
+                    {loadingComments ? (
+                      <div className={styles.loadingComments}>טוען הערות...</div>
+                    ) : (
+                      <div className={styles.commentsList}>
+                        {commentBankEntries.map((comment) => (
+                          <div key={comment._id} className={styles.commentItem}>
+                            {editingComment?._id === comment._id ? (
+                                                                                                                           <div className={styles.editingComment}>
+                                  <textarea
+                                    value={editingComment.feedback}
+                                    onChange={(e) => setEditingComment({...editingComment, feedback: e.target.value})}
+                                    className={styles.editCommentInput}
+                                    rows={2}
+                                  />
+                                <div className={styles.editCommentOptions}>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={editingComment.reduced_points || 0}
+                                    onChange={(e) => setEditingComment({...editingComment, reduced_points: Number(e.target.value)})}
+                                    className={styles.editPointsField}
+                                  />
+                                  <select
+                                    value={editingComment.tag || ''}
+                                    onChange={(e) => setEditingComment({...editingComment, tag: e.target.value as 'positive' | 'negative' | undefined})}
+                                    className={styles.editTagField}
+                                  >
+                                    <option value="">ללא תג</option>
+                                    <option value="positive">✅ חיובי</option>
+                                    <option value="negative">❌ שלילי</option>
+                                  </select>
+                                </div>
+                                <div className={styles.editActions}>
+                                  <button onClick={() => editComment(comment)} className={styles.saveEditBtn}>
+                                    <Save size={14} />
+                                    שמור
+                                  </button>
+                                  <button onClick={() => setEditingComment(null)} className={styles.cancelEditBtn}>
+                                    ביטול
+                                  </button>
+                                </div>
                               </div>
-                              <button 
-                                className={styles.aiDetailsToggle}
-                                onClick={() => {
-                                  const details = document.getElementById(`ai-details-${answerId}`);
-                                  if (details) {
-                                    details.style.display = details.style.display === 'none' ? 'block' : 'none';
-                                  }
-                                }}
-                              >
-                                {aiAnalysis.triggeredTraps.length > 0 ? 'הצג פרטים' : 'אין פרטים זמינים'}
-                              </button>
-                            </div>
-                            
-                            {aiAnalysis.triggeredTraps.length > 0 && (
-                              <div id={`ai-details-${answerId}`} className={styles.aiSuspicionDetails} style={{ display: 'none' }}>
-                                <div className={styles.aiDetailsTitle}>מלכודות שנתפסו:</div>
-                                <ul className={styles.trapsList}>
-                                  {aiAnalysis.triggeredTraps.map((trap, trapIndex) => (
-                                    <li key={trapIndex} className={`${styles.trapItem} ${styles[`trap${trap.severity.charAt(0).toUpperCase() + trap.severity.slice(1)}`]}`}>
-                                      <div className={styles.trapDescription}>
-                                        <strong>{trap.description}</strong>
-                                      </div>
-                                      <div className={styles.trapMatches}>
-                                        נמצאו: {trap.matches.join(', ')}
-                                      </div>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
+                            ) : (
+                              <>
+                                                                                                                                   <div className={styles.commentHeader}>
+                                    <span className={styles.commentScore}>
+                                      -{getCommentReducedPoints(comment)} נק'
+                                    </span>
+                                  {comment.tag && (
+                                    <span className={`${styles.commentTag} ${styles[comment.tag]}`}>
+                                      {comment.tag === 'positive' ? '✅' : '❌'}
+                                    </span>
+                                  )}
+                                  <span className={styles.commentUsage}>
+                                    שימושים: {comment.usageCount}
+                                  </span>
+                                </div>
+                                                                 <div className={styles.commentText}>
+                                   {getCommentDisplayFeedback(comment)}
+                                 </div>
+                                                                 <div className={styles.commentActions}>
+                                   <button
+                                     onClick={() => applyComment(comment)}
+                                     className={styles.useCommentBtn}
+                                     title="החל הערה זו על התשובה הנוכחית"
+                                   >
+                                     השתמש
+                                   </button>
+                                   
+                                   <div className={styles.ratingButtons}>
+                                     <button
+                                       onClick={() => rateComment(comment._id, 'like')}
+                                       className={`${styles.ratingBtn} ${styles.likeBtn} ${comment.userRating === 'like' ? styles.active : ''}`}
+                                       title="אשר הערה (מתאים לשימוש)"
+                                     >
+                                       👍 {comment.likes || 0}
+                                     </button>
+                                     <button
+                                       onClick={() => rateComment(comment._id, 'dislike')}
+                                       className={`${styles.ratingBtn} ${styles.dislikeBtn} ${comment.userRating === 'dislike' ? styles.active : ''}`}
+                                       title="דחה הערה (לא מתאים לשימוש)"
+                                     >
+                                       👎 {comment.dislikes || 0}
+                                     </button>
+                                   </div>
+                                   
+                                   <button
+                                     onClick={() => setEditingComment({
+                                       ...comment,
+                                       feedback: getCommentDisplayFeedback(comment),
+                                       reduced_points: getCommentReducedPoints(comment)
+                                     })}
+                                     className={styles.editCommentBtn}
+                                     title="ערוך הערה"
+                                   >
+                                     <Edit3 size={14} />
+                                   </button>
+                                   <button
+                                     onClick={() => deleteComment(comment._id)}
+                                     className={styles.deleteCommentBtn}
+                                     title="מחק הערה"
+                                   >
+                                     <Trash2 size={14} />
+                                   </button>
+                                 </div>
+                              </>
                             )}
                           </div>
-                        )}
-                        
-                        <div className={styles.answerContent}>
-                          <div className={styles.answerText}>
-                            <strong>תשובת הסטודנט:</strong>
-                            <pre className={styles.answerQuery}>{answer.studentAnswer}</pre>
-                            
-                            {/* הוספת אינדיקטור נכון/שגוי כאן */}
-                            {/* <div className={styles.correctnessSection}>
-                              <div className={`${styles.correctnessIndicator} ${answer.isCorrect ? styles.correct : styles.incorrect}`}>
-                                {answer.isCorrect ? <CheckCircle size={14} /> : <XCircle size={14} />}
-                                {answer.isCorrect ? 'נכון' : 'שגוי'}
-                              </div>
-                            </div> */}
-                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Main Content - Question and Current Answer */}
+                <div className={styles.mainGradingContent}>
+                  {/* Question Display Header */}
+                  <div className={styles.questionDetailsHeader}>
+                    <button
+                      onClick={() => setSelectedQuestion(null)}
+                      className={styles.backToQuestionsButton}
+                    >
+                      <ArrowLeft size={16} />
+                      חזרה לרשימת שאלות
+                    </button>
+                    
+                    <div className={styles.questionDetails}>
+                      <div className={styles.questionTitle}>
+                        <span className={styles.questionIdLarge}>שאלה #{selectedQuestion.question.id}</span>
+                        <div 
+                          className={styles.difficultyBadgeLarge}
+                          style={{ backgroundColor: getDifficultyColor(selectedQuestion.question.difficulty) }}
+                        >
+                          {getDifficultyText(selectedQuestion.question.difficulty)} ({selectedQuestion.question.points} נקודות)
                         </div>
-                        
-                        <div className={styles.gradingSection}>
-                          <div className={styles.gradeInputs}>
-                            <div className={styles.gradeInput}>
-                              <label>ציון:</label>
-                              <input
-                                type="number"
-                                min="0"
-                                max={selectedQuestion.question.points}
-                                step="0.1"
-                                defaultValue={answer.grade || (answer.isCorrect ? selectedQuestion.question.points : 0)}
-                                className={styles.gradeField}
-                                id={`grade-${answerId}`}
-                              />
-                              <span>/ {selectedQuestion.question.points}</span>
+                      </div>
+                      
+                      <div className={styles.questionTextLarge}>
+                        {selectedQuestion.question.question}
+                      </div>
+                      
+                      <div className={styles.answerStats}>
+                        <div className={styles.statItem}>
+                          <Users size={16} />
+                          <span>{selectedQuestion.totalAnswers} תשובות</span>
+                        </div>
+                        <div className={styles.statItem}>
+                          <CheckCircle size={16} />
+                          <span>{selectedQuestion.gradedAnswers} בודקו</span>
+                        </div>
+                        <div className={styles.statItem}>
+                          <span>נותרו: {selectedQuestion.answers.filter((_, index) => {
+                            const answerId = `${selectedQuestion.answers[index].examId}-${selectedQuestion.answers[index].questionIndex}`;
+                            return !processedAnswers.has(answerId);
+                          }).length}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Current Answer Display */}
+                  {currentAnswer && (
+                    <div className={styles.currentAnswerSection}>
+                      <div className={styles.answerHeader}>
+                        <div className={styles.studentInfo}>
+                          <h3>תשובה {currentAnswerIndex + 1} מתוך {selectedQuestion.answers.length}</h3>
+                          <div className={styles.studentDetails}>
+                            <div className={styles.studentName}>
+                              {currentAnswer.studentName || 'לא צוין'}
                             </div>
-                            
-                            <div className={styles.feedbackInput}>
-                              <label>הערות:</label>
-                              <button
-                                type="button"
-                                onClick={() => openCommentBank(answerId, selectedQuestion.question.id, selectedQuestion.question.points)}
-                                className={styles.commentBankToggle}
-                                title="פתח בנק הערות - הערות נשמרות אוטומטית עם הציון"
-                              >
-                                <FileText size={14} />
-                                בנק הערות
-                              </button>
-                              <textarea
-                                defaultValue={answer.feedback || ''}
-                                placeholder="הערות על התשובה..."
-                                className={styles.feedbackField}
-                                rows={2}
-                                id={`feedback-${answerId}`}
-                              />
-                              <div className={styles.autoSaveNote}>
-                                💡 הערה: הערות נשמרות אוטומטית בבנק ההערות עם הציון
-                              </div>
+                            <div className={styles.studentMeta}>
+                              <span>{currentAnswer.studentEmail}</span>
+                              {currentAnswer.studentId && <span>• ID: {currentAnswer.studentId}</span>}
+                              <span>• זמן: {formatTime(currentAnswer.timeSpent)}</span>
+                              <span>• {formatDate(currentAnswer.timestamp)}</span>
                             </div>
-                            
-                            <button
-                              onClick={() => {
-                                const gradeInput = document.getElementById(`grade-${answerId}`) as HTMLInputElement;
-                                const feedbackInput = document.getElementById(`feedback-${answerId}`) as HTMLTextAreaElement;
-                                handleGradeAnswer(
-                                  answer.examId,
-                                  answer.questionIndex,
-                                  parseFloat(gradeInput.value) || 0,
-                                  feedbackInput.value
-                                );
-                              }}
-                              disabled={isGrading}
-                              className={styles.saveGradeButton}
-                            >
-                              {isGrading ? 'שומר...' : 'שמור ציון'}
-                            </button>
                           </div>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
 
-                {selectedQuestion.answers.length === 0 && (
-                  <div className={styles.noAnswers}>
-                    <Users size={48} />
-                    <h3>אין תשובות לשאלה זו</h3>
-                    <p>לא נמצאו תשובות סטודנטים לשאלה זו</p>
-                  </div>
-                )}
+                      {/* AI Detection and Schema Validation */}
+                      {(() => {
+                        const aiAnalysis = detectAITraps(currentAnswer.studentAnswer);
+                        const schemaValidation = validateSchema(currentAnswer.studentAnswer);
+                        
+                        return (
+                          <>
+                            {aiAnalysis.isAISuspicious && (
+                              <div className={styles.aiSuspicionBanner}>
+                                <div className={styles.aiSuspicionHeader}>
+                                  <AlertTriangle size={20} />
+                                  <span>⚠️ חשוד בשימוש ב-AI (ציון חשד: {aiAnalysis.suspicionScore})</span>
+                                </div>
+                                {aiAnalysis.triggeredTraps.length > 0 && (
+                                  <div className={styles.aiSuspicionDetails}>
+                                    <div className={styles.aiDetailsTitle}>מלכודות שנתפסו:</div>
+                                    <ul className={styles.trapsList}>
+                                      {aiAnalysis.triggeredTraps.map((trap, trapIndex) => (
+                                        <li key={trapIndex} className={`${styles.trapItem} ${styles[`trap${trap.severity.charAt(0).toUpperCase() + trap.severity.slice(1)}`]}`}>
+                                          <div className={styles.trapDescription}>
+                                            <strong>{trap.description}</strong>
+                                          </div>
+                                          <div className={styles.trapMatches}>
+                                            נמצאו: {trap.matches.join(', ')}
+                                          </div>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {(schemaValidation.hasInvalidTables || schemaValidation.hasInvalidColumns) && aiAnalysis.isAISuspicious && (
+                              <div className={styles.schemaBanner}>
+                                <div className={styles.schemaHeader}>
+                                  <Database size={20} />
+                                  <span>🚫 שימוש בטבלות/עמודות לא קיימות (ציון אוטומטי: 0)</span>
+                                </div>
+                                <div className={styles.schemaDetails}>
+                                  <ul>
+                                    {schemaValidation.invalidItems.map((item, index) => (
+                                      <li key={index}>{item}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+
+                      {/* Answer Content */}
+                      <div className={styles.answerContent}>
+                        <div className={styles.answerText}>
+                          <strong>תשובת הסטודנט:</strong>
+                          <pre className={styles.answerQuery}>
+                            {(() => {
+                              const aiAnalysis = detectAITraps(currentAnswer.studentAnswer);
+                              if (aiAnalysis.isAISuspicious && aiAnalysis.highlightedText) {
+                                return <div dangerouslySetInnerHTML={{ __html: aiAnalysis.highlightedText }} />;
+                              }
+                              return currentAnswer.studentAnswer;
+                            })()}
+                          </pre>
+                        </div>
+                      </div>
+
+                      {/* Grading Section */}
+                      <div className={styles.gradingSection}>
+                        <div className={styles.gradeInputs}>
+                          <div className={styles.gradeInput}>
+                            <label>ציון:</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max={selectedQuestion.question.points}
+                              step="0.1"
+                              value={currentGrade}
+                              onChange={(e) => setCurrentGrade(Number(e.target.value))}
+                              className={styles.gradeField}
+                            />
+                            <span>/ {selectedQuestion.question.points}</span>
+                          </div>
+                          
+                          <div className={styles.feedbackInput}>
+                            <label>הערות:</label>
+                            <textarea
+                              value={currentFeedback}
+                              onChange={(e) => setCurrentFeedback(e.target.value)}
+                              placeholder="הערות על התשובה..."
+                              className={styles.feedbackField}
+                              rows={3}
+                            />
+                          </div>
+                          
+                          <button
+                            onClick={handleDoneAnswer}
+                            disabled={saving}
+                            className={styles.doneButton}
+                          >
+                            {saving ? 'שומר...' : 'סיים ושמור'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No More Answers */}
+                  {selectedQuestion.answers.length === 0 && (
+                    <div className={styles.noAnswers}>
+                      <Users size={48} />
+                      <h3>אין תשובות לשאלה זו</h3>
+                      <p>לא נמצאו תשובות סטודנטים לשאלה זו</p>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>
         )}
       </div>
-
-      {/* Global Comment Bank Modal */}
-      {activeCommentBank.answerId !== null && (
-        <div className={styles.commentBankOverlay}>
-          <div className={styles.commentBankPopup}>
-            <div className={styles.commentBankHeader}>
-              <h4>בנק הערות</h4>
-              <button onClick={closeCommentBank} className={styles.closeCommentBank}>
-                <XCircle size={16} />
-              </button>
-            </div>
-            <div className={styles.commentBankContent}>
-              {loadingComments[activeCommentBank.questionId!] ? (
-                <div className={styles.commentBankLoading}>טוען הערות...</div>
-              ) : commentBankEntries[activeCommentBank.questionId!] && commentBankEntries[activeCommentBank.questionId!].length > 0 ? (
-                <div className={styles.commentsList}>
-                  {commentBankEntries[activeCommentBank.questionId!].map((comment) => (
-                    <div key={comment._id} className={styles.commentItem}>
-                      <div className={styles.commentMeta}>
-                        <span className={styles.commentScore}>
-                          {comment.score}/{comment.maxScore} נקודות
-                        </span>
-                        <span className={styles.commentDifficulty}>
-                          {comment.difficulty}
-                        </span>
-                        <span className={styles.commentUsage}>
-                          נוצר: {new Date(comment.gradedAt).toLocaleDateString('he-IL')}
-                          {comment.usageCount > 0 && ` | שימושים: ${comment.usageCount}`}
-                        </span>
-                      </div>
-                      <div className={styles.commentFeedback}>
-                        {comment.feedback}
-                      </div>
-                      <button
-                        onClick={() => useCommentFromBank(comment)}
-                        className={styles.useCommentBtn}
-                      >
-                        השתמש בהערה
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className={styles.noComments}>
-                  לא נמצאו הערות קודמות לשאלה זו
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
