@@ -123,23 +123,101 @@ const GradeByQuestionPage: React.FC = () => {
   };
 
   // Database schema for validation
-  const DATABASE_SCHEMA = {
-    tables: {
-      'pilots': ['pilot_id', 'pilot_name', 'squadron_id'],
-      'squadrons': ['squadron_id', 'squadron_name', 'base_location'],
-      'aircraft': ['aircraft_id', 'aircraft_type', 'squadron_id'],
-      'missions': ['mission_id', 'mission_date', 'pilot_id', 'aircraft_id', 'target_location'],
-      'weapons': ['weapon_id', 'weapon_type', 'weapon_effectiveness'] // Note: no squadron_id here
+  const DATABASE_SCHEMA = [
+    {
+      name: 'AirBases',
+      nameHe: 'בסיסי חיל האוויר',
+      columns: [
+        { name: 'base_id', type: 'מזהה ייחודי של הבסיס' },
+        { name: 'base_name', type: 'שם הבסיס (רמת דוד, חצרים)' },
+        { name: 'base_code', type: 'קוד הבסיס (3 אותיות)' },
+        { name: 'location', type: 'אזור גיאוגרפי' },
+        { name: 'established_year', type: 'שנת הקמה' },
+        { name: 'runways_count', type: 'מספר מסלולי נחיתה' },
+        { name: 'personnel_capacity', type: 'מספר מקסימלי של אנשי צוות' }
+      ]
     },
-    invalidTables: ['missionanalytics', 'mission_analytics', 'aircraft_assignments', 'pilotschedule', 'weaponinventory', 'squadron_aircraft', 'mission_reports', 'aircraft_maintenance'],
-    invalidColumns: {
-      'pilots': ['salary', 'hire_date', 'last_mission', 'training_hours', 'weapon_id'],
-      'squadrons': ['budget', 'commander_id', 'home_base', 'aircraft_count'],
-      'aircraft': ['last_maintenance', 'flight_hours', 'fuel_capacity', 'max_speed'],
-      'missions': ['weapon_id', 'pilot_count', 'aircraft_count', 'success_rate', 'cost', 'duration_minutes', 'fuel_consumption', 'weapon_effectiveness'],
-      'weapons': ['squadron_id'] // This is a key trap - weapons don't have squadron_id
+    {
+      name: 'Squadrons',
+      nameHe: 'טייסות',
+      columns: [
+        { name: 'squadron_id', type: 'מזהה ייחודי של הטייסת' },
+        { name: 'squadron_name', type: 'שם הטייסת' },
+        { name: 'squadron_number', type: 'מספר הטייסת' },
+        { name: 'base_id', type: 'בסיס הטייסת (מפתח זר)' },
+        { name: 'aircraft_type', type: 'סוג המטוס העיקרי' },
+        { name: 'established_date', type: 'תאריך הקמת הטייסת' },
+        { name: 'active_status', type: 'האם הטייסת פעילה' }
+      ]
+    },
+    {
+      name: 'Pilots',
+      nameHe: 'טייסים',
+      columns: [
+        { name: 'pilot_id', type: 'מזהה ייחודי של הטייס' },
+        { name: 'first_name', type: 'שם פרטי' },
+        { name: 'last_name', type: 'שם משפחה' },
+        { name: 'rank', type: 'דרגה צבאית' },
+        { name: 'squadron_id', type: 'הטייסת (מפתח זר)' },
+        { name: 'flight_hours', type: 'שעות טיסה מצטברות' },
+        { name: 'specialization', type: 'התמחות' },
+        { name: 'service_start_date', type: 'תאריך תחילת שירות' }
+      ]
+    },
+    {
+      name: 'Aircraft',
+      nameHe: 'כלי טיס',
+      columns: [
+        { name: 'aircraft_id', type: 'מזהה ייחודי של כלי הטיס' },
+        { name: 'aircraft_type', type: 'סוג המטוס (F-16, F-35)' },
+        { name: 'tail_number', type: 'מספר זנב' },
+        { name: 'squadron_id', type: 'הטייסת (מפתח זר)' },
+        { name: 'manufacture_year', type: 'שנת ייצור' },
+        { name: 'last_maintenance', type: 'תאריך תחזוקה אחרונה' },
+        { name: 'flight_hours_total', type: 'שעות טיסה מצטברות' },
+        { name: 'operational_status', type: 'סטטוס תפעולי' }
+      ]
+    },
+    {
+      name: 'Weapons',
+      nameHe: 'כלי נשק ותחמושת',
+      columns: [
+        { name: 'weapon_id', type: 'מזהה ייחודי של כלי הנשק' },
+        { name: 'weapon_name', type: 'שם כלי הנשק' },
+        { name: 'weapon_type', type: 'סוג (טיל, פצצה, תותח)' },
+        { name: 'base_id', type: 'בסיס אחסון (מפתח זר)' },
+        { name: 'quantity_available', type: 'כמות זמינה' },
+        { name: 'unit_cost', type: 'עלות יחידה באלפי ש"ח' },
+        { name: 'minimum_stock', type: 'מלאי מינימום' }
+      ]
+    },
+    {
+      name: 'Missions',
+      nameHe: 'משימות ותפעול',
+      columns: [
+        { name: 'mission_id', type: 'מזהה ייחודי של המשימה' },
+        { name: 'mission_name', type: 'שם המשימה' },
+        { name: 'mission_date', type: 'תאריך המשימה' },
+        { name: 'squadron_id', type: 'הטייסת (מפתח זר)' },
+        { name: 'pilot_id', type: 'הטייס הראשי (מפתח זר)' },
+        { name: 'aircraft_id', type: 'כלי הטיס (מפתח זר)' },
+        { name: 'mission_duration', type: 'משך המשימה בשעות' },
+        { name: 'mission_status', type: 'סטטוס (הושלמה, בביצוע, בוטלה)' }
+      ]
+    },
+    {
+      name: 'Maintenance',
+      nameHe: 'תחזוקה',
+      columns: [
+        { name: 'maintenance_id', type: 'מזהה ייחודי של התחזוקה' },
+        { name: 'aircraft_id', type: 'כלי הטיס (מפתח זר)' },
+        { name: 'maintenance_type', type: 'סוג התחזוקה' },
+        { name: 'start_date', type: 'תאריך התחלה' },
+        { name: 'end_date', type: 'תאריך סיום התחזוקה' },
+        { name: 'cost', type: 'עלות התחזוקה באלפי ש"ח' }
+      ]
     }
-  };
+  ];
 
   useEffect(() => {
     const storedUser = localStorage.getItem("currentUser");
@@ -248,24 +326,95 @@ const GradeByQuestionPage: React.FC = () => {
     let hasInvalidColumns = false;
     const invalidItems: string[] = [];
 
-    // Check for invalid tables
-    DATABASE_SCHEMA.invalidTables.forEach(table => {
-      const regex = new RegExp(`\\b${table.toUpperCase()}\\b`, 'gi');
-      if (regex.test(upperAnswer)) {
+    // Create lookup maps for faster validation
+    const validTableNames = new Set(DATABASE_SCHEMA.map(table => table.name.toUpperCase()));
+    const tableColumnMap = new Map<string, Set<string>>();
+    
+    DATABASE_SCHEMA.forEach(table => {
+      const columns = new Set(table.columns.map(col => col.name.toUpperCase()));
+      tableColumnMap.set(table.name.toUpperCase(), columns);
+    });
+
+    // Find all table references in the SQL query
+    const tableMatches = upperAnswer.match(/FROM\s+(\w+)|JOIN\s+(\w+)|UPDATE\s+(\w+)|INSERT\s+INTO\s+(\w+)|DELETE\s+FROM\s+(\w+)/gi);
+    const referencedTables = new Set<string>();
+    
+    if (tableMatches) {
+      tableMatches.forEach(match => {
+        const tableNameMatch = match.match(/(?:FROM|JOIN|UPDATE|INTO)\s+(\w+)/i);
+        if (tableNameMatch) {
+          referencedTables.add(tableNameMatch[1].toUpperCase());
+        }
+      });
+    }
+
+    // Check for invalid tables (tables that don't exist at all)
+    referencedTables.forEach(tableName => {
+      if (!validTableNames.has(tableName)) {
         hasInvalidTables = true;
-        invalidItems.push(`טבלה לא קיימת: ${table}`);
+        invalidItems.push(`טבלה לא קיימת: ${tableName}`);
       }
     });
 
-    // Check for invalid columns in each table
-    Object.entries(DATABASE_SCHEMA.invalidColumns).forEach(([table, columns]) => {
-      columns.forEach(column => {
-        const regex = new RegExp(`${table}\\.${column}|${column}.*FROM.*${table}`, 'gi');
-        if (regex.test(answer)) {
-          hasInvalidColumns = true;
-          invalidItems.push(`עמודה לא קיימת: ${table}.${column}`);
+    // Check for invalid columns in existing tables
+    DATABASE_SCHEMA.forEach(table => {
+      const upperTableName = table.name.toUpperCase();
+      const validColumns = tableColumnMap.get(upperTableName)!;
+      
+      // Check if this table is referenced in the query
+      if (referencedTables.has(upperTableName) || upperAnswer.includes(upperTableName)) {
+        
+        // Extract SELECT clause columns when this table is used
+        const selectMatch = upperAnswer.match(/SELECT\s+(.*?)\s+FROM\s+\w*/i);
+        if (selectMatch) {
+          const selectColumns = selectMatch[1];
+          // Split by comma and clean up each column name
+          const columnNames = selectColumns.split(',').map(col => {
+            // Remove table prefix, whitespace, and get just the column name
+            return col.trim().replace(/.*\./, '').replace(/\s+AS\s+\w+/i, '').trim();
+          });
+          
+          columnNames.forEach(columnName => {
+            const upperColumnName = columnName.toUpperCase();
+            
+            // Skip SQL keywords and functions
+            const sqlKeywords = ['SELECT', 'FROM', 'WHERE', 'ORDER', 'GROUP', 'HAVING', 'AS', 'AND', 'OR', 'NOT', 'NULL', 'DISTINCT'];
+            const sqlFunctions = ['COUNT', 'SUM', 'AVG', 'MAX', 'MIN'];
+            
+            // Skip if it's a keyword, function, or contains parentheses (function call)
+            if (!sqlKeywords.includes(upperColumnName) && 
+                !sqlFunctions.includes(upperColumnName) && 
+                !upperColumnName.includes('(') && 
+                upperColumnName.length > 1) {
+              
+              if (!validColumns.has(upperColumnName)) {
+                hasInvalidColumns = true;
+                invalidItems.push(`עמודה לא קיימת: ${table.nameHe}.${columnName.toLowerCase()}`);
+              }
+            }
+          });
         }
-      });
+        
+        // Also check for table.column syntax
+        const tableColumnPattern = new RegExp(`${upperTableName}\\.([\\w_]+)`, 'gi');
+        let match;
+        while ((match = tableColumnPattern.exec(upperAnswer)) !== null) {
+          const columnName = match[1].toUpperCase();
+          if (!validColumns.has(columnName)) {
+            hasInvalidColumns = true;
+            invalidItems.push(`עמודה לא קיימת: ${table.nameHe}.${columnName.toLowerCase()}`);
+          }
+        }
+        
+        // Also check for common AI-generated column names that don't exist
+        const commonAIColumns = ['MAX_SPEED', 'RANGE_KM', 'FUEL_CAPACITY', 'LAST_MISSION', 'TRAINING_HOURS', 'SALARY', 'HIRE_DATE', 'BUDGET', 'COMMANDER_ID', 'SUCCESS_RATE', 'COST', 'DURATION_MINUTES'];
+        commonAIColumns.forEach(aiColumn => {
+          if (upperAnswer.includes(aiColumn) && !validColumns.has(aiColumn)) {
+            hasInvalidColumns = true;
+            invalidItems.push(`עמודה לא קיימת: ${table.nameHe}.${aiColumn.toLowerCase()}`);
+          }
+        });
+      }
     });
 
     return { hasInvalidTables, hasInvalidColumns, invalidItems };
@@ -424,22 +573,35 @@ const GradeByQuestionPage: React.FC = () => {
         throw new Error('Failed to save grade');
       }
 
-      // Auto-save to comment bank if feedback is provided
+      // Auto-save to comment bank if feedback is provided (check for duplicates first)
       if (finalFeedback && finalFeedback.trim()) {
         try {
-          await fetch('/api/admin/comment-bank', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              questionId: selectedQuestion.question.id,
-              questionText: selectedQuestion.question.question,
-              difficulty: selectedQuestion.question.difficulty,
-              score: finalGrade,
-              maxScore: selectedQuestion.question.points,
-              feedback: finalFeedback,
-              gradedBy: 'admin'
-            }),
-          });
+          // Check if this exact comment already exists in the comment bank
+          const existingComment = commentBankEntries.find(comment => 
+            comment.feedback === finalFeedback && 
+            comment.score === finalGrade &&
+            comment.questionId === selectedQuestion.question.id
+          );
+          
+          // Only save if this exact comment doesn't already exist
+          if (!existingComment) {
+            await fetch('/api/admin/comment-bank', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                questionId: selectedQuestion.question.id,
+                questionText: selectedQuestion.question.question,
+                difficulty: selectedQuestion.question.difficulty,
+                score: finalGrade,
+                maxScore: selectedQuestion.question.points,
+                feedback: finalFeedback,
+                gradedBy: 'admin'
+              }),
+            });
+            
+            // Refresh comment bank to include the new comment
+            fetchCommentBankEntries(selectedQuestion.question.id);
+          }
         } catch (commentErr) {
           console.error('Error saving to comment bank:', commentErr);
         }
@@ -1108,15 +1270,36 @@ const GradeByQuestionPage: React.FC = () => {
                         
                         return (
                           <>
-                            {aiAnalysis.isAISuspicious && (
+                            {(aiAnalysis.isAISuspicious || schemaValidation.hasInvalidTables || schemaValidation.hasInvalidColumns) && (
                               <div className={styles.aiSuspicionBanner}>
                                 <div className={styles.aiSuspicionHeader}>
                                   <AlertTriangle size={20} />
-                                  <span>⚠️ חשוד בשימוש ב-AI (ציון חשד: {aiAnalysis.suspicionScore})</span>
+                                  <span>⚠️ חשוד בשימוש ב-AI 
+                                    {aiAnalysis.isAISuspicious && ` (ציון חשד: ${aiAnalysis.suspicionScore})`}
+                                    {(schemaValidation.hasInvalidTables || schemaValidation.hasInvalidColumns) && ' - שימוש בעמודות/טבלאות לא קיימות'}
+                                  </span>
                                 </div>
+                                
+                                {/* Show schema validation errors */}
+                                {(schemaValidation.hasInvalidTables || schemaValidation.hasInvalidColumns) && (
+                                  <div className={styles.aiSuspicionDetails}>
+                                    <div className={styles.aiDetailsTitle}>שגיאות סכמה שנמצאו:</div>
+                                    <ul className={styles.trapsList}>
+                                      {schemaValidation.invalidItems.map((item, index) => (
+                                        <li key={index} className={`${styles.trapItem} ${styles.trapHigh}`}>
+                                          <div className={styles.trapDescription}>
+                                            <strong>{item}</strong>
+                                          </div>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                                
+                                {/* Show AI traps if any */}
                                 {aiAnalysis.triggeredTraps.length > 0 && (
                                   <div className={styles.aiSuspicionDetails}>
-                                    <div className={styles.aiDetailsTitle}>מלכודות שנתפסו:</div>
+                                    <div className={styles.aiDetailsTitle}>מלכודות AI שנתפסו:</div>
                                     <ul className={styles.trapsList}>
                                       {aiAnalysis.triggeredTraps.map((trap, trapIndex) => (
                                         <li key={trapIndex} className={`${styles.trapItem} ${styles[`trap${trap.severity.charAt(0).toUpperCase() + trap.severity.slice(1)}`]}`}>

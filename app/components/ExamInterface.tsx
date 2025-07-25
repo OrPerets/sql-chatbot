@@ -935,7 +935,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
 
   const completeExam = async () => {
     try {
-      // Get final results
+      // § final results
       const resultsResponse = await fetch(`${SERVER_BASE}/exam/${examSession.examId}/results`);
       const results = await resultsResponse.json();
       

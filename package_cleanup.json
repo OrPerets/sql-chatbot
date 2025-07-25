@@ -1,0 +1,15 @@
+{
+  "name": "comment-bank-cleanup",
+  "version": "1.0.0",
+  "description": "Script to extract and deduplicate commentBank collection",
+  "main": "cleanup_comment_bank.js",
+  "scripts": {
+    "cleanup": "node cleanup_comment_bank.js",
+    "dry-run": "node cleanup_comment_bank.js --dry-run"
+  },
+  "dependencies": {
+    "mongodb": "^6.0.0"
+  },
+  "author": "Database Cleanup",
+  "license": "MIT"
+} 
