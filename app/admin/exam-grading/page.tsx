@@ -425,6 +425,7 @@ const ExamGradingPage: React.FC = () => {
   // Fetch exam data in batches when sessions are loaded
   useEffect(() => {
     const visibleExams = examSessions.filter(session => session.status === 'completed');
+    
     const examIds = visibleExams.map(session => session._id);
     
     if (examIds.length > 0) {
