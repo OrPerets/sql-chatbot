@@ -14,6 +14,7 @@ interface Question {
   approved: boolean;
   answerCount: number;
   averageScore?: number;
+  answers?: StudentAnswer[];
 }
 
 interface StudentAnswer {
