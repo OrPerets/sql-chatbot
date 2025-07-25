@@ -751,7 +751,69 @@ const GradeByQuestionPage: React.FC = () => {
               <div className={styles.loading}>טוען תשובות...</div>
             ) : (
               <>
-                {/* Left Sidebar - Comment Bank */}
+                {/* Left Sidebar - Student Navigation */}
+                <div className={styles.navigationSidebar}>
+                  <div className={styles.sidebarHeader}>
+                    <Users size={20} />
+                    <h3>ניווט תשובות</h3>
+                  </div>
+                  
+                  <div className={styles.navigationList}>
+                    {selectedQuestion.answers.map((answer, index) => {
+                      const answerId = `${answer.examId}-${answer.questionIndex}`;
+                      const isProcessed = processedAnswers.has(answerId);
+                      const isCurrent = index === currentAnswerIndex;
+                      
+                      return (
+                        <div
+                          key={answerId}
+                          className={`${styles.navigationItem} ${isCurrent ? styles.currentItem : ''} ${isProcessed ? styles.processedItem : ''}`}
+                          onClick={() => {
+                            setCurrentAnswerIndex(index);
+                            setCurrentGrade(answer.grade || (answer.isCorrect ? selectedQuestion.question.points : 0));
+                            setCurrentFeedback(answer.feedback || '');
+                          }}
+                        >
+                          <div className={styles.navigationItemHeader}>
+                            <span className={styles.answerNumber}>#{index + 1}</span>
+                            {isProcessed && <CheckCircle size={14} className={styles.processedIcon} />}
+                          </div>
+                          <div className={styles.navigationItemInfo}>
+                            <div className={styles.studentNameNav}>
+                              {answer.studentName || 'לא צוין'}
+                            </div>
+                            <div className={styles.studentEmailNav}>
+                              {answer.studentEmail}
+                            </div>
+                            <div className={styles.answerTimeNav}>
+                              {formatTime(answer.timeSpent)}
+                            </div>
+                          </div>
+                          {answer.grade !== undefined && (
+                            <div className={styles.gradeDisplay}>
+                              {answer.grade}/{selectedQuestion.question.points}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className={styles.navigationFooter}>
+                    <div className={styles.progressStats}>
+                      <div className={styles.progressItem}>
+                        <span>הושלמו:</span>
+                        <span>{processedAnswers.size}</span>
+                      </div>
+                      <div className={styles.progressItem}>
+                        <span>נותרו:</span>
+                        <span>{selectedQuestion.answers.length - processedAnswers.size}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Sidebar - Comment Bank */}
                 <div className={styles.sidebar}>
                   <div className={styles.sidebarHeader}>
                     <MessageSquare size={20} />

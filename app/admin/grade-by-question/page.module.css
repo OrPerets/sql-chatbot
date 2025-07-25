@@ -1018,12 +1018,207 @@
 /* Grading View with Sidebar Layout */
 .gradingView {
   display: flex;
-  gap: 2rem;
+  gap: 1.5rem;
   min-height: calc(100vh - 140px);
   align-items: flex-start;
 }
 
-/* Left Sidebar - Comment Bank */
+/* Left Navigation Sidebar - Student Answers */
+.navigationSidebar {
+  width: 280px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 160px);
+  max-height: calc(100vh - 160px);
+  min-height: 500px;
+  overflow: hidden;
+  position: sticky;
+  top: 20px;
+  order: 1;
+}
+
+.navigationList {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+.navigationList::-webkit-scrollbar {
+  width: 6px;
+}
+
+.navigationList::-webkit-scrollbar-track {
+  background: #f7fafc;
+  border-radius: 3px;
+}
+
+.navigationList::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 3px;
+}
+
+.navigationList::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+.navigationItem {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.navigationItem:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e0;
+  transform: translateX(-2px);
+}
+
+.navigationItem.currentItem {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.navigationItem.processedItem {
+  background: #f0fff4;
+  border-color: #9ae6b4;
+}
+
+.navigationItem.processedItem:hover {
+  background: #e6fffa;
+  border-color: #68d391;
+}
+
+.navigationItemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.answerNumber {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #4a5568;
+}
+
+.navigationItem.currentItem .answerNumber {
+  color: white;
+}
+
+.processedIcon {
+  color: #38a169;
+}
+
+.navigationItem.currentItem .processedIcon {
+  color: #c6f6d5;
+}
+
+.navigationItemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.studentNameNav {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #2d3748;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.navigationItem.currentItem .studentNameNav {
+  color: white;
+}
+
+.studentEmailNav {
+  font-size: 0.7rem;
+  color: #6c757d;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.navigationItem.currentItem .studentEmailNav {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.answerTimeNav {
+  font-size: 0.7rem;
+  color: #38a169;
+  font-weight: 500;
+}
+
+.navigationItem.currentItem .answerTimeNav {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.gradeDisplay {
+  background: #e2e8f0;
+  color: #4a5568;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  align-self: flex-end;
+}
+
+.navigationItem.currentItem .gradeDisplay {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.navigationFooter {
+  padding: 1rem;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.progressStats {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.progressItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.progressItem span:first-child {
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.progressItem span:last-child {
+  color: #667eea;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+/* Right Sidebar - Comment Bank */
 .sidebar {
   width: 350px;
   background: white;
@@ -1034,6 +1229,9 @@
   flex-direction: column;
   min-height: fit-content;
   max-height: calc(100vh - 160px);
+  order: 3;
+  position: sticky;
+  top: 20px;
 }
 
 .sidebarHeader {
@@ -1391,6 +1589,7 @@
   flex-direction: column;
   gap: 1.5rem;
   min-height: fit-content;
+  order: 2;
 }
 
 /* Current Answer Section */
@@ -1542,21 +1741,29 @@
 }
 
 /* Responsive Design Updates */
-@media (max-width: 1200px) {
+@media (max-width: 1400px) {
   .gradingView {
     flex-direction: column;
     min-height: auto;
     gap: 1.5rem;
   }
   
-  .sidebar {
+  .navigationSidebar {
     width: 100%;
-    max-height: 50vh;
-    overflow-y: auto;
+    max-height: 300px;
+    order: 1;
   }
   
   .mainGradingContent {
     min-height: auto;
+    order: 2;
+  }
+  
+  .sidebar {
+    width: 100%;
+    max-height: 50vh;
+    overflow-y: auto;
+    order: 3;
   }
   
   .commentsSection {
@@ -1588,6 +1795,10 @@
   
   .questionsGrid {
     grid-template-columns: 1fr;
+  }
+  
+  .navigationSidebar {
+    max-height: 250px;
   }
   
   .sidebar {
