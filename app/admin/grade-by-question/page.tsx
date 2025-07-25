@@ -183,10 +183,12 @@ const GradeByQuestionPage: React.FC = () => {
     try {
       setQuestionsLoading(true);
       const timestamp = Date.now();
-      const response = await fetch(`/api/admin/question/${questionId}/answers?t=${timestamp}`, {
+      const response = await fetch(`/api/admin/question/${questionId}/answers?t=${timestamp}&bust=${Math.random()}`, {
         cache: 'no-store',
         headers: {
-          'Cache-Control': 'no-cache',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
         },
       });
       if (!response.ok) {
@@ -199,9 +201,19 @@ const GradeByQuestionPage: React.FC = () => {
       
       // Load first answer data if available
       if (data.answers && data.answers.length > 0) {
-        const firstAnswer = data.answers[0];
-        setCurrentGrade(firstAnswer.grade || (firstAnswer.isCorrect ? data.question.points : 0));
-        setCurrentFeedback(firstAnswer.feedback || '');
+        // Get unique answers and load first one
+        const uniqueAnswers = data.answers.filter((answer, index, self) => {
+          const firstOccurrence = self.findIndex(a => 
+            a.studentEmail === answer.studentEmail
+          );
+          return index === firstOccurrence;
+        });
+        
+        if (uniqueAnswers.length > 0) {
+          const firstAnswer = uniqueAnswers[0];
+          setCurrentGrade(firstAnswer.grade || (firstAnswer.isCorrect ? data.question.points : 0));
+          setCurrentFeedback(firstAnswer.feedback || '');
+        }
       }
       
       // Load comment bank for this question
@@ -436,11 +448,12 @@ const GradeByQuestionPage: React.FC = () => {
        const answerId = `${currentAnswer.examId}-${currentAnswer.questionIndex}`;
        setProcessedAnswers(prev => new Set([...Array.from(prev), answerId]));
       
-      // Move to next unprocessed answer
+                            // Move to next unprocessed answer
       const nextIndex = findNextUnprocessedAnswer();
       if (nextIndex !== -1) {
         setCurrentAnswerIndex(nextIndex);
-        const nextAnswer = selectedQuestion.answers[nextIndex];
+        const uniqueAnswers = getUniqueAnswers();
+        const nextAnswer = uniqueAnswers[nextIndex];
         setCurrentGrade(nextAnswer.grade || (nextAnswer.isCorrect ? selectedQuestion.question.points : 0));
         setCurrentFeedback(nextAnswer.feedback || '');
       } else {
@@ -458,11 +471,41 @@ const GradeByQuestionPage: React.FC = () => {
     }
   };
 
-  const findNextUnprocessedAnswer = (): number => {
-    if (!selectedQuestion) return -1;
+  // Get unique answers helper function
+  const getUniqueAnswers = () => {
+    if (!selectedQuestion) return [];
     
-    for (let i = 0; i < selectedQuestion.answers.length; i++) {
-      const answer = selectedQuestion.answers[i];
+    // Debug logging
+    console.log(`🔍 Original answers count: ${selectedQuestion.answers.length}`);
+    selectedQuestion.answers.forEach((answer, index) => {
+      console.log(`  ${index}: ${answer.studentEmail} (QIndex: ${answer.questionIndex}, ExamId: ${answer.examId?.slice(-6)})`);
+    });
+    
+    const uniqueAnswers = selectedQuestion.answers.filter((answer, index, self) => {
+      // Since we're viewing a specific question, only deduplicate by student email
+      // The same student might have different questionIndex values for the same question
+      const firstOccurrence = self.findIndex(a => 
+        a.studentEmail === answer.studentEmail
+      );
+      const isUnique = index === firstOccurrence;
+      
+      if (!isUnique) {
+        console.log(`🔄 Filtering duplicate: ${answer.studentEmail} at index ${index}`);
+      }
+      
+      return isUnique;
+    });
+    
+    console.log(`✅ Unique answers count: ${uniqueAnswers.length}`);
+    return uniqueAnswers;
+  };
+
+  const findNextUnprocessedAnswer = (): number => {
+    const uniqueAnswers = getUniqueAnswers();
+    if (uniqueAnswers.length === 0) return -1;
+    
+    for (let i = 0; i < uniqueAnswers.length; i++) {
+      const answer = uniqueAnswers[i];
       const answerId = `${answer.examId}-${answer.questionIndex}`;
       if (!processedAnswers.has(answerId)) {
         return i;
@@ -628,8 +671,9 @@ const GradeByQuestionPage: React.FC = () => {
   }
 
   const getCurrentAnswer = () => {
-    if (!selectedQuestion || currentAnswerIndex >= selectedQuestion.answers.length) return null;
-    return selectedQuestion.answers[currentAnswerIndex];
+    const uniqueAnswers = getUniqueAnswers();
+    if (uniqueAnswers.length === 0 || currentAnswerIndex >= uniqueAnswers.length) return null;
+    return uniqueAnswers[currentAnswerIndex];
   };
 
   const currentAnswer = getCurrentAnswer();
@@ -686,54 +730,62 @@ const GradeByQuestionPage: React.FC = () => {
 
             {/* Questions Grid */}
             <div className={styles.questionsGrid}>
-              {filteredQuestions.map((question) => (
-                <div
-                  key={question.id}
-                  className={styles.questionCard}
-                  onClick={() => fetchQuestionAnswers(question.id)}
-                >
-                  <div className={styles.questionHeader}>
-                    <div className={styles.questionId}>
-                      שאלה #{question.id}
-                      {question.answerCount === 0 && <span className={styles.noAnswersBadge}>אין תשובות</span>}
-                    </div>
-                    <div 
-                      className={styles.difficultyBadge}
-                      style={{ backgroundColor: getDifficultyColor(question.difficulty) }}
-                    >
-                      {getDifficultyText(question.difficulty)}
-                    </div>
-                  </div>
-                  
-                  <div className={styles.questionContent}>
-                    <p className={styles.questionText}>
-                      {question.question.length > 150 
-                        ? `${question.question.substring(0, 150)}...` 
-                        : question.question}
-                    </p>
-                  </div>
-                  
-                  <div className={styles.questionFooter}>
-                    <div className={styles.questionPoints}>
-                      {question.points} נקודות
-                    </div>
-                    <div className={`${styles.answerCount} ${question.answerCount === 0 ? styles.noAnswers : ''}`}>
-                      <Users size={16} />
-                      {question.answerCount} תשובות
-                    </div>
-                    {question.averageScore !== undefined && question.averageScore > 0 && (
-                      <div className={styles.averageScore}>
-                        <BarChart3 size={16} />
-                        ממוצע: {question.averageScore}
+              {filteredQuestions.map((question) => {
+                // Calculate unique student count for this question
+                const uniqueStudentCount = question.answers
+                  ? question.answers.filter((answer: any, idx: number, arr: any[]) =>
+                      arr.findIndex(a => a.studentEmail === answer.studentEmail) === idx
+                    ).length
+                  : question.answerCount;
+                return (
+                  <div
+                    key={question.id}
+                    className={styles.questionCard}
+                    onClick={() => fetchQuestionAnswers(question.id)}
+                  >
+                    <div className={styles.questionHeader}>
+                      <div className={styles.questionId}>
+                        שאלה #{question.id}
+                        {uniqueStudentCount === 0 && <span className={styles.noAnswersBadge}>אין תשובות</span>}
                       </div>
-                    )}
-                    <div className={styles.viewAnswersButton}>
-                      <Eye size={16} />
-                      צפה בתשובות
+                      <div 
+                        className={styles.difficultyBadge}
+                        style={{ backgroundColor: getDifficultyColor(question.difficulty) }}
+                      >
+                        {getDifficultyText(question.difficulty)}
+                      </div>
+                    </div>
+                    
+                    <div className={styles.questionContent}>
+                      <p className={styles.questionText}>
+                        {question.question.length > 150 
+                          ? `${question.question.substring(0, 150)}...` 
+                          : question.question}
+                      </p>
+                    </div>
+                    
+                    <div className={styles.questionFooter}>
+                      <div className={styles.questionPoints}>
+                        {question.points} נקודות
+                      </div>
+                      <div className={`${styles.answerCount} ${uniqueStudentCount === 0 ? styles.noAnswers : ''}`}>
+                        <Users size={16} />
+                        {uniqueStudentCount} תשובות
+                      </div>
+                      {question.averageScore !== undefined && question.averageScore > 0 && (
+                        <div className={styles.averageScore}>
+                          <BarChart3 size={16} />
+                          ממוצע: {question.averageScore}
+                        </div>
+                      )}
+                      <div className={styles.viewAnswersButton}>
+                        <Eye size={16} />
+                        צפה בתשובות
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {filteredQuestions.length === 0 && (
@@ -759,7 +811,7 @@ const GradeByQuestionPage: React.FC = () => {
                   </div>
                   
                   <div className={styles.navigationList}>
-                    {selectedQuestion.answers.map((answer, index) => {
+                    {getUniqueAnswers().map((answer, index) => {
                       const answerId = `${answer.examId}-${answer.questionIndex}`;
                       const isProcessed = processedAnswers.has(answerId);
                       const isCurrent = index === currentAnswerIndex;
@@ -807,7 +859,7 @@ const GradeByQuestionPage: React.FC = () => {
                       </div>
                       <div className={styles.progressItem}>
                         <span>נותרו:</span>
-                        <span>{selectedQuestion.answers.length - processedAnswers.size}</span>
+                        <span>{getUniqueAnswers().length - processedAnswers.size}</span>
                       </div>
                     </div>
                   </div>
@@ -1009,18 +1061,18 @@ const GradeByQuestionPage: React.FC = () => {
                         {selectedQuestion.question.question}
                       </div>
                       
-                      <div className={styles.answerStats}>
+                                              <div className={styles.answerStats}>
                         <div className={styles.statItem}>
                           <Users size={16} />
-                          <span>{selectedQuestion.totalAnswers} תשובות</span>
+                          <span>{getUniqueAnswers().length} תשובות</span>
                         </div>
                         <div className={styles.statItem}>
                           <CheckCircle size={16} />
                           <span>{selectedQuestion.gradedAnswers} בודקו</span>
                         </div>
                         <div className={styles.statItem}>
-                          <span>נותרו: {selectedQuestion.answers.filter((_, index) => {
-                            const answerId = `${selectedQuestion.answers[index].examId}-${selectedQuestion.answers[index].questionIndex}`;
+                          <span>נותרו: {getUniqueAnswers().filter((answer) => {
+                            const answerId = `${answer.examId}-${answer.questionIndex}`;
                             return !processedAnswers.has(answerId);
                           }).length}</span>
                         </div>
@@ -1033,7 +1085,7 @@ const GradeByQuestionPage: React.FC = () => {
                     <div className={styles.currentAnswerSection}>
                       <div className={styles.answerHeader}>
                         <div className={styles.studentInfo}>
-                          <h3>תשובה {currentAnswerIndex + 1} מתוך {selectedQuestion.answers.length}</h3>
+                          <h3>תשובה {currentAnswerIndex + 1} מתוך {getUniqueAnswers().length}</h3>
                           <div className={styles.studentDetails}>
                             <div className={styles.studentName}>
                               {currentAnswer.studentName || 'לא צוין'}
@@ -1157,7 +1209,7 @@ const GradeByQuestionPage: React.FC = () => {
                   )}
 
                   {/* No More Answers */}
-                  {selectedQuestion.answers.length === 0 && (
+                  {getUniqueAnswers().length === 0 && (
                     <div className={styles.noAnswers}>
                       <Users size={48} />
                       <h3>אין תשובות לשאלה זו</h3>
