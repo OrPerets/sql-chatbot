@@ -760,6 +760,41 @@
   border-top: 1px solid #e2e8f0;
 }
 
+/* Correct Answer Section */
+.correctAnswerSection {
+  background: linear-gradient(135deg, #e8f5e8, #f0f8f0);
+  border: 2px solid #4caf50;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+  box-shadow: 0 2px 6px rgba(76, 175, 80, 0.2);
+}
+
+.correctAnswerHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #2e7d32;
+  margin-bottom: 0.75rem;
+}
+
+.correctAnswerText {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid #81c784;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin: 0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: #1b5e20;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-x: auto;
+}
+
 /* Answer Content */
 .answerContent {
   display: flex;

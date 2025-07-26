@@ -15,6 +15,7 @@ interface Question {
   ungradedCount?: number;
   isCompleted?: boolean;
   completionPercentage?: number;
+  solution_example?: string;
 }
 
 interface StudentAnswer {

@@ -168,7 +168,8 @@ const validateSchema = (answer: string) => {
   }
 
   referencedTables.forEach(tableName => {
-    if (!validTableNames.has(tableName)) {
+    // Allow "SQUARDRON" as a valid alternative to "SQUADRONS"
+    if (!validTableNames.has(tableName) && tableName !== 'SQUARDRON') {
       hasInvalidTables = true;
       invalidItems.push(`טבלה לא קיימת: ${tableName}`);
     }
@@ -540,6 +541,18 @@ const QuestionDetail: React.FC = () => {
                 <div className={styles.questionTextLarge}>
                   {state.selectedQuestion.question.question}
                 </div>
+                
+                {/* Correct Answer Display */}
+                {state.selectedQuestion.question.solution_example && (
+                  <div className={styles.correctAnswerSection}>
+                    <div className={styles.correctAnswerHeader}>
+                      <strong>תשובה נכונה:</strong>
+                    </div>
+                    <pre className={styles.correctAnswerText}>
+                      {state.selectedQuestion.question.solution_example}
+                    </pre>
+                  </div>
+                )}
                 
                 <div className={styles.answerStats}>
                   <div className={styles.statItem}>
