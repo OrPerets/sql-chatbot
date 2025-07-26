@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, memo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, FileText, Search, Eye, Users, CheckCircle, XCircle, Clock, Edit3, Filter, BarChart3, AlertTriangle, AlertCircle, Info, Plus, Trash2, Tag, Save, MessageSquare, Database } from 'lucide-react';
+import { ArrowLeft, FileText, Search, Eye, Users, CheckCircle, XCircle, Clock, Edit3, Filter, BarChart3, AlertTriangle, AlertCircle, Info, Plus, Trash2, Tag, Save, MessageSquare, Database, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import styles from './page.module.css';
 import { detectAITraps, getSuspicionColor, getSuspicionIcon, createHighlightedText } from '../../utils/trapDetector';
 
@@ -15,6 +15,10 @@ interface Question {
   answerCount: number;
   averageScore?: number;
   answers?: StudentAnswer[];
+  gradedCount?: number;
+  ungradedCount?: number;
+  isCompleted?: boolean;
+  completionPercentage?: number;
 }
 
 interface StudentAnswer {
@@ -66,14 +70,255 @@ interface SchemaValidation {
   invalidItems: string[];
 }
 
+interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalQuestions: number;
+  hasMore: boolean;
+  questionsPerPage: number;
+}
+
+// Enhanced Question Card Component with better completion status display
+const QuestionCard = memo(({ 
+  question, 
+  onQuestionClick, 
+  getDifficultyColor, 
+  getDifficultyText,
+  skipCompletionData 
+}: {
+  question: Question;
+  onQuestionClick: (id: number) => void;
+  getDifficultyColor: (difficulty: string) => string;
+  getDifficultyText: (difficulty: string) => string;
+  skipCompletionData: boolean;
+}) => {
+  // Calculate unique student count for this question with debug info
+  const uniqueStudentCount = useMemo(() => {
+    const count = question.answers
+      ? question.answers.filter((answer: any, idx: number, arr: any[]) =>
+          arr.findIndex(a => a.studentEmail === answer.studentEmail) === idx
+        ).length
+      : (question.answerCount || 0);
+    
+    // Debug info only for development
+    if (process.env.NODE_ENV === 'development' && question.id <= 2) {
+      console.log(`📊 Q${question.id}:`, {
+        total: question.answerCount,
+        graded: question.gradedCount,
+        completed: question.isCompleted
+      });
+    }
+    
+    return count;
+  }, [question.answers, question.answerCount, question.id, skipCompletionData]);
+  
+  // Get completion status from backend data with enhanced display
+  const completionData = useMemo(() => {
+    const gradedCount = question.gradedCount || 0;
+    const ungradedCount = question.ungradedCount || (uniqueStudentCount - gradedCount);
+    const isCompleted = question.isCompleted || (ungradedCount === 0 && uniqueStudentCount > 0);
+    const completionPercentage = uniqueStudentCount > 0 ? Math.round((gradedCount / uniqueStudentCount) * 100) : 0;
+    
+    return {
+      isCompleted,
+      completionPercentage,
+      gradedCount,
+      ungradedCount,
+      hasAnswers: uniqueStudentCount > 0
+    };
+  }, [question.isCompleted, question.gradedCount, question.ungradedCount, uniqueStudentCount]);
+
+  const handleClick = useCallback(() => {
+    onQuestionClick(question.id);
+  }, [question.id, onQuestionClick]);
+
+  const getCompletionStatus = () => {
+    // SIMPLIFIED: Just show basic ready-for-grading status
+    if (uniqueStudentCount === 0) {
+      return (
+        <div className={styles.completionStatus}>
+          <div className={styles.noAnswersStatus}>
+            <AlertCircle size={16} />
+            אין תשובות
+          </div>
+        </div>
+      );
+    }
+
+    // Check if we have completion data for this question
+    const completion = completionData || { gradedCount: 0, ungradedCount: uniqueStudentCount, isCompleted: false };
+    
+    if (!skipCompletionData && completion.isCompleted) {
+      return (
+        <div className={styles.completionStatus}>
+          <div className={styles.completedStatus}>
+            <CheckCircle size={16} />
+            הושלם ✅ ({completion.gradedCount}/{uniqueStudentCount})
+          </div>
+        </div>
+      );
+    }
+    
+    if (!skipCompletionData && completion.gradedCount > 0) {
+      return (
+        <div className={styles.completionStatus}>
+          <div className={styles.partialStatus}>
+            <Clock size={16} />
+            בתהליך ({completion.gradedCount}/{uniqueStudentCount})
+          </div>
+          <div className={styles.ungradedBadge}>
+            {completion.ungradedCount} נותרו
+          </div>
+        </div>
+      );
+    }
+
+    // Show simple ready-to-grade status in fast mode with basic info
+    const hasGradedAnswers = (question.gradedCount || 0) > 0;
+    const gradedInfo = hasGradedAnswers ? ` | ${question.gradedCount} נבדקו` : '';
+    
+    // If no answers, show clear message
+    if (uniqueStudentCount === 0) {
+      return (
+        <div className={styles.completionStatus}>
+          <div className={styles.noAnswersStatus}>
+            <AlertCircle size={16} />
+            אין תשובות
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <div className={styles.completionStatus}>
+        <div className={`${styles.readyToGradeStatus} ${hasGradedAnswers ? styles.hasGradedAnswers : ''}`}>
+          <Eye size={16} />
+          {uniqueStudentCount} תשובות{gradedInfo}
+        </div>
+      </div>
+    );
+  };
+
+  // Determine card styling based on completion status
+  const completion = completionData || { gradedCount: 0, ungradedCount: uniqueStudentCount, isCompleted: false };
+  const isCompleted = !skipCompletionData && completion.isCompleted;
+  const isPartial = !skipCompletionData && completion.gradedCount > 0 && !completion.isCompleted;
+  
+  // In fast mode, use basic question data for styling
+  const hasGradedInFastMode = skipCompletionData && question.gradedCount > 0;
+  const isFullyGradedInFastMode = skipCompletionData && question.gradedCount >= uniqueStudentCount && uniqueStudentCount > 0;
+
+  return (
+    <div
+      className={`${styles.questionCard} ${isCompleted || isFullyGradedInFastMode ? styles.completedQuestion : ''} ${isPartial || hasGradedInFastMode ? styles.partiallyGradedQuestion : ''}`}
+      onClick={handleClick}
+    >
+      <div className={styles.questionHeader}>
+        <div className={styles.questionId}>
+          שאלה #{question.id}
+          {!completionData.hasAnswers && <span className={styles.noAnswersBadge}>אין תשובות</span>}
+        </div>
+        <div 
+          className={styles.difficultyBadge}
+          style={{ backgroundColor: getDifficultyColor(question.difficulty) }}
+        >
+          {getDifficultyText(question.difficulty)}
+        </div>
+      </div>
+      
+      <div className={styles.questionContent}>
+        <p className={styles.questionText}>
+          {question.question.length > 150 
+            ? `${question.question.substring(0, 150)}...` 
+            : question.question}
+        </p>
+      </div>
+      
+      <div className={styles.questionFooter}>
+        <div className={styles.questionPoints}>
+          {question.points} נקודות
+        </div>
+        <div className={`${styles.answerCount} ${uniqueStudentCount === 0 ? styles.noAnswers : ''}`}>
+          <Users size={16} />
+          {uniqueStudentCount} תשובות
+        </div>
+        
+        {/* Enhanced completion status */}
+        {getCompletionStatus()}
+        
+        {question.averageScore !== undefined && question.averageScore > 0 && (
+          <div className={styles.averageScore}>
+            <BarChart3 size={16} />
+            ממוצע: {question.averageScore}
+          </div>
+        )}
+        <div className={styles.viewAnswersButton}>
+          <Eye size={16} />
+          צפה בתשובות
+        </div>
+      </div>
+    </div>
+  );
+});
+
+QuestionCard.displayName = 'QuestionCard';
+
+// Simple cache implementation with TTL
+class SimpleCache {
+  private cache = new Map<string, { data: any; timestamp: number }>();
+  private ttl = 3 * 60 * 1000; // 3 minutes TTL (reduced for fresher data)
+
+  set(key: string, data: any) {
+    this.cache.set(key, { data, timestamp: Date.now() });
+  }
+
+  get(key: string) {
+    const cached = this.cache.get(key);
+    if (!cached) return null;
+    
+    if (Date.now() - cached.timestamp > this.ttl) {
+      this.cache.delete(key);
+      return null;
+    }
+    
+    return cached.data;
+  }
+
+  clear() {
+    this.cache.clear();
+  }
+
+  clearByPattern(pattern: string) {
+    for (const key of Array.from(this.cache.keys())) {
+      if (key.includes(pattern)) {
+        this.cache.delete(key);
+      }
+    }
+  }
+}
+
+const completionCache = new SimpleCache();
+
 const GradeByQuestionPage: React.FC = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [allQuestions, setAllQuestions] = useState<Question[]>([]); // Cache all questions
   const [selectedQuestion, setSelectedQuestion] = useState<QuestionWithAnswers | null>(null);
   const [loading, setLoading] = useState(true);
   const [questionsLoading, setQuestionsLoading] = useState(false);
+  const [completionLoading, setCompletionLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'easy' | 'medium' | 'hard' | 'algebra'>('all');
+  const [gradingStatusFilter, setGradingStatusFilter] = useState<'all' | 'completed' | 'partial' | 'ungraded'>('all');
+  
+  // Enhanced pagination state
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    currentPage: 1,
+    totalPages: 1,
+    totalQuestions: 0,
+    hasMore: false,
+    questionsPerPage: 2 // REDUCED TO 2 for immediate grading
+  });
   
   // Comment bank state
   const [commentBankEntries, setCommentBankEntries] = useState<CommentBankEntry[]>([]);
@@ -87,6 +332,12 @@ const GradeByQuestionPage: React.FC = () => {
   const [currentFeedback, setCurrentFeedback] = useState('');
   const [saving, setSaving] = useState(false);
   const [processedAnswers, setProcessedAnswers] = useState<Set<string>>(new Set());
+  
+  // Performance state
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  // FAST MODE by default for speed, switch to detailed for accurate counts
+  const [skipCompletionData, setSkipCompletionData] = useState(true);
   
   const router = useRouter();
 
@@ -238,36 +489,399 @@ const GradeByQuestionPage: React.FC = () => {
       return;
     }
 
+    setAllQuestions([]); // Clear cache on initial load
     fetchQuestions();
   }, [router]);
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = async (page: number = 1, preserveSelectedQuestion: boolean = false) => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/admin/questions-with-answers');
-      if (!response.ok) {
-        throw new Error('Failed to fetch questions');
+      if (page === 1) {
+        setLoading(true);
       }
-      const data = await response.json();
-      setQuestions(data);
+      setError('');
+      
+      console.log(`🚀 Loading questions page ${page}...`);
+      
+      // Check if we need to fetch new data or just paginate existing data
+      const needsNewData = allQuestions.length === 0 || page === 1;
+      
+      let questionsToUse = allQuestions;
+      
+      if (needsNewData) {
+        console.log('📡 Fetching fresh data from server...');
+        
+        // Clear relevant cache when starting fresh
+        completionCache.clearByPattern('completion-');
+        
+        const response = await fetch(`/api/admin/questions-basic?page=1&limit=999&search=${encodeURIComponent(searchTerm)}&difficulty=${difficultyFilter}&gradingStatus=${gradingStatusFilter}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch questions');
+        }
+        
+        const data = await response.json();
+        questionsToUse = data.questions || [];
+        
+        // Load completion data immediately for visible questions to get accurate counts
+        if (!skipCompletionData && questionsToUse.length > 0) {
+          console.log('🔄 Loading real completion data for accurate counts...');
+          try {
+            const questionIds = questionsToUse.slice(0, 2).map(q => q.id); // Only for current page
+            const completionResponse = await fetch('/api/admin/questions-completion', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ questionIds }),
+            });
+            
+            if (completionResponse.ok) {
+              const completionData = await completionResponse.json();
+              questionsToUse = questionsToUse.map(question => ({
+                ...question,
+                ...completionData[question.id] // Merge real completion data
+              }));
+              console.log('✅ Updated questions with real completion data');
+            } else {
+              console.log('⚠️ Failed to load completion data, using server defaults');
+            }
+          } catch (error) {
+            console.log('⚠️ Error loading completion data:', error);
+          }
+        }
+        
+        setAllQuestions(questionsToUse);
+        
+              console.log('📊 Fresh data loaded:', { 
+        questionsCount: questionsToUse.length,
+        sampleQuestion: questionsToUse[0] ? {
+          id: questionsToUse[0].id,
+          answerCount: questionsToUse[0].answerCount,
+          gradedCount: questionsToUse[0].gradedCount,
+          ungradedCount: questionsToUse[0].ungradedCount
+        } : null
+      });
+      } else {
+        console.log('📚 Using cached questions for pagination');
+      }
+      
+      // CLIENT-SIDE PAGINATION: Always paginate on the client
+      const questionsPerPage = 2;
+      const startIndex = (page - 1) * questionsPerPage;
+      const endIndex = startIndex + questionsPerPage;
+      const paginatedQuestions = questionsToUse.slice(startIndex, endIndex);
+      
+      console.log(`✂️ Client-side pagination: showing questions ${startIndex + 1}-${Math.min(endIndex, questionsToUse.length)} of ${questionsToUse.length}`);
+      
+      // Use our manually paginated questions
+      setQuestions(paginatedQuestions);
+      
+      // Update pagination info based on client-side pagination
+      const totalQuestions = questionsToUse.length;
+      const questionsPerPageValue = 2;
+      const totalPages = Math.ceil(totalQuestions / questionsPerPageValue);
+      
+      setPagination({
+        currentPage: page,
+        totalPages: totalPages,
+        totalQuestions: totalQuestions,
+        hasMore: page < totalPages,
+        questionsPerPage: questionsPerPageValue
+      });
+      
+      console.log(`📄 Pagination updated: page ${page}/${totalPages}, showing ${paginatedQuestions.length} questions`);
+      
+      setLoading(false);
+      
+      // Skip loading completion data - we already loaded it above when fetching questions
+      if (skipCompletionData) {
+        console.log('⚡ Fast mode - no completion data loading');
+      } else {
+        console.log('📊 Using completion data loaded with questions');
+      }
+      
+      setLastRefreshTime(new Date());
     } catch (err) {
       console.error('Error fetching questions:', err);
       setError('Failed to load questions');
-    } finally {
       setLoading(false);
     }
   };
 
-  const fetchQuestionAnswers = async (questionId: number) => {
+  const fetchCompletionDataParallel = async (questionsToUpdate: Question[], isFirstPage: boolean = false) => {
     try {
+      if (isFirstPage) {
+        setCompletionLoading(true);
+      }
+      
+      const questionIds = questionsToUpdate.map(q => q.id);
+      
+      console.log(`📊 Loading completion data for ${questionIds.length} questions...`);
+      
+      // Reduced chunk size to handle API limitations
+      const chunkSize = 2; // Process 2 questions at once (our page size)
+      const chunks: number[][] = [];
+      
+      for (let i = 0; i < questionIds.length; i += chunkSize) {
+        chunks.push(questionIds.slice(i, i + chunkSize));
+      }
+      
+      // Process chunks with increased delay and retry mechanism
+      const promises = chunks.map(async (chunk, index) => {
+        // Add progressive delay between requests to prevent rate limiting
+        const baseDelay = Math.min(index * 200, 2000); // Cap at 2 seconds
+        if (index > 0) {
+          await new Promise(resolve => setTimeout(resolve, baseDelay));
+        }
+        
+        return await fetchChunkWithRetry(chunk, index + 1, chunks.length);
+      });
+      
+      // Wait for all chunks to complete
+      const results = await Promise.allSettled(promises);
+      
+      // Merge all completion data
+      const allCompletionData = results.reduce((acc, result) => {
+        if (result.status === 'fulfilled') {
+          return { ...acc, ...result.value };
+        } else {
+          console.error('❌ Chunk failed:', result.reason);
+          return acc;
+        }
+      }, {});
+      
+      // Count successful vs fallback data
+      const successfulCount = Object.values(allCompletionData).filter((data: any) => !data.isFallback).length;
+      const fallbackCount = Object.values(allCompletionData).filter((data: any) => data.isFallback).length;
+      
+      if (fallbackCount > 0) {
+        console.warn(`⚠️ ${fallbackCount} questions using fallback data, ${successfulCount} loaded successfully`);
+        showWarningMessage(`טוען נתוני השלמה: ${successfulCount} מוצלח, ${fallbackCount} עם נתונים בסיסיים`);
+      }
+      
+      // Update questions with completion data
+      setQuestions(prevQuestions => 
+        prevQuestions.map(question => {
+          const completion = allCompletionData[question.id];
+          return completion ? { ...question, ...completion } : question;
+        })
+      );
+      
+      console.log('✅ Completion data loading finished');
+    } catch (err) {
+      console.error('💥 Critical error fetching completion data:', err);
+      showErrorMessage('שגיאה בטעינת נתוני השלמה - המשך בנתונים בסיסיים');
+    } finally {
+      if (isFirstPage) {
+        setCompletionLoading(false);
+      }
+    }
+  };
+
+  // Enhanced chunk fetching with retry mechanism
+  const fetchChunkWithRetry = async (chunk: number[], chunkIndex: number, totalChunks: number, maxRetries: number = 2): Promise<Record<number, any>> => {
+    const cacheKey = `completion-${chunk.join(',')}`;
+    let completionData = completionCache.get(cacheKey);
+    
+    if (completionData) {
+      console.log(`💾 Cache hit for chunk ${chunkIndex}/${totalChunks}`);
+      return completionData;
+    }
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔄 Loading chunk ${chunkIndex}/${totalChunks}, attempt ${attempt}/${maxRetries}: ${chunk.length} questions`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 40000); // 40 second timeout
+        
+        const response = await fetch('/api/admin/questions-completion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ questionIds: chunk }),
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          if (response.status === 400) {
+            // Handle chunk size limit error
+            const errorData = await response.json();
+            if (errorData.suggestedChunkSize && chunk.length > errorData.suggestedChunkSize) {
+              console.warn(`⚠️ Chunk too large, splitting into smaller pieces`);
+              // Split chunk into smaller pieces
+              const smallerChunks: number[][] = [];
+              for (let i = 0; i < chunk.length; i += errorData.suggestedChunkSize) {
+                smallerChunks.push(chunk.slice(i, i + errorData.suggestedChunkSize));
+              }
+              
+              // Process smaller chunks
+              const smallerResults = await Promise.allSettled(
+                smallerChunks.map(smallChunk => fetchChunkWithRetry(smallChunk, chunkIndex, totalChunks, 1))
+              );
+              
+              // Merge results
+              const mergedData = smallerResults.reduce((acc, result) => {
+                if (result.status === 'fulfilled') {
+                  return { ...acc, ...result.value };
+                }
+                return acc;
+              }, {});
+              
+              completionCache.set(cacheKey, mergedData);
+              return mergedData;
+            }
+          }
+          
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        completionData = await response.json();
+        
+        // Validate we got data for all requested questions
+        const missingQuestions = chunk.filter(id => !completionData[id]);
+        if (missingQuestions.length > 0) {
+          console.warn(`⚠️ Missing data for questions: ${missingQuestions.join(', ')}`);
+          // Add fallback data for missing questions
+          missingQuestions.forEach(id => {
+            completionData[id] = {
+              id,
+              gradedCount: 0,
+              ungradedCount: 0,
+              isCompleted: false,
+              completionPercentage: 0,
+              averageScore: 0,
+              totalAnswers: 0,
+              isFallback: true
+            };
+          });
+        }
+        
+        completionCache.set(cacheKey, completionData);
+        console.log(`✅ Chunk ${chunkIndex}/${totalChunks} loaded successfully`);
+        return completionData;
+        
+      } catch (error: any) {
+        console.error(`❌ Chunk ${chunkIndex} attempt ${attempt} failed:`, error.message);
+        
+        if (attempt === maxRetries) {
+          // Create fallback data for all questions in this chunk
+          const fallbackData: Record<number, any> = {};
+          chunk.forEach(id => {
+            fallbackData[id] = {
+              id,
+              gradedCount: 0,
+              ungradedCount: 0,
+              isCompleted: false,
+              completionPercentage: 0,
+              averageScore: 0,
+              totalAnswers: 0,
+              isFallback: true
+            };
+          });
+          
+          console.warn(`🔄 Using fallback data for chunk ${chunkIndex}/${totalChunks}`);
+          return fallbackData;
+        }
+        
+        // Wait before retry with exponential backoff
+        const retryDelay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+    }
+    
+    // Fallback - should never reach here
+    return {};
+  };
+
+  const refreshQuestionCompletion = async (questionId: number) => {
+    try {
+      console.log(`🔄 Refreshing completion data for question ${questionId}`);
+      
+      // Clear cache for this question
+      completionCache.clearByPattern(`${questionId}`);
+      
+      const response = await fetch('/api/admin/questions-completion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionIds: [questionId] }),
+      });
+      
+      if (!response.ok) {
+        console.error(`Failed to refresh completion data for question ${questionId}`);
+        return;
+      }
+      
+      const completionData = await response.json();
+      
+      // Update the specific question with new completion data
+      setQuestions(prevQuestions => 
+        prevQuestions.map(question => {
+          if (question.id === questionId) {
+            const completion = completionData[questionId];
+            return completion ? { ...question, ...completion } : question;
+          }
+          return question;
+        })
+      );
+      
+      console.log(`✅ Refreshed completion data for question ${questionId}`);
+    } catch (error) {
+      console.error(`Error refreshing completion data for question ${questionId}:`, error);
+    }
+  };
+
+  // Utility functions
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('he-IL', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  // Enhanced question click handler
+  const handleQuestionClick = useCallback((questionId: number) => {
+    console.log(`🔄 User clicked question ${questionId} - showing loading immediately`);
+    setQuestionsLoading(true); // Show loading immediately
+    setError(''); // Clear any errors
+    fetchQuestionAnswers(questionId);
+  }, []);
+
+  const fetchQuestionAnswers = async (questionId: number) => {
+    const startTime = Date.now();
+    let progressInterval: NodeJS.Timeout;
+    
+    try {
+      console.log(`🔄 fetchQuestionAnswers called for question ${questionId}...`);
+      console.log(`📱 Setting questionsLoading to true`);
       setQuestionsLoading(true);
+      setError(''); // Clear any previous errors
+      
+      // Progress update every 5 seconds during loading
+      progressInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        console.log(`⏱️ Still loading question ${questionId}... ${elapsed}s elapsed`);
+      }, 5000);
+      
       const timestamp = Date.now();
-      const response = await fetch(`/api/admin/question/${questionId}/answers?t=${timestamp}&bust=${Math.random()}`, {
+      const response = await fetch(`/api/admin/question/${questionId}/answers?t=${timestamp}`, {
         cache: 'no-store',
         headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
+          'Content-Type': 'application/json',
         },
       });
       if (!response.ok) {
@@ -276,11 +890,11 @@ const GradeByQuestionPage: React.FC = () => {
       const data = await response.json();
       setSelectedQuestion(data);
       setCurrentAnswerIndex(0);
-      setProcessedAnswers(new Set());
       
-      // Load first answer data if available
+      // Initialize processedAnswers with already graded answers
+      const alreadyProcessed = new Set<string>();
       if (data.answers && data.answers.length > 0) {
-        // Get unique answers and load first one
+        // Get unique answers
         const uniqueAnswers = data.answers.filter((answer, index, self) => {
           const firstOccurrence = self.findIndex(a => 
             a.studentEmail === answer.studentEmail
@@ -288,18 +902,36 @@ const GradeByQuestionPage: React.FC = () => {
           return index === firstOccurrence;
         });
         
+        // Add graded answers to processedAnswers set
+        uniqueAnswers.forEach(answer => {
+          if (answer.grade !== undefined && answer.grade !== null) {
+            const answerId = `${answer.examId}-${answer.questionIndex}`;
+            alreadyProcessed.add(answerId);
+          }
+        });
+        
+        setProcessedAnswers(alreadyProcessed);
+        
         if (uniqueAnswers.length > 0) {
           const firstAnswer = uniqueAnswers[0];
           setCurrentGrade(firstAnswer.grade || (firstAnswer.isCorrect ? data.question.points : 0));
           setCurrentFeedback(firstAnswer.feedback || '');
         }
+      } else {
+        setProcessedAnswers(new Set());
       }
       
       // Load comment bank for this question
-      fetchCommentBankEntries(questionId);
+      await fetchCommentBankEntries(questionId);
+      
+      if (progressInterval) clearInterval(progressInterval);
+      const loadTime = Date.now() - startTime;
+      console.log(`✅ Successfully loaded question ${questionId} with ${data.answers?.length || 0} answers in ${loadTime}ms`);
     } catch (err) {
-      console.error('Error fetching question answers:', err);
-      setError('Failed to load question answers');
+      if (progressInterval) clearInterval(progressInterval);
+      const loadTime = Date.now() - startTime;
+      console.error(`❌ Error fetching question ${questionId} after ${loadTime}ms:`, err);
+      setError(`שגיאה בטעינת שאלה ${questionId}. נסה שוב או רענן את הדף.`);
     } finally {
       setQuestionsLoading(false);
     }
@@ -425,8 +1057,6 @@ const GradeByQuestionPage: React.FC = () => {
     const pointsToReduce = getCommentReducedPoints(comment);
     const displayFeedback = getCommentDisplayFeedback(comment);
     const newGrade = Math.max(0, currentGrade - pointsToReduce);
-    
-
     
     setCurrentGrade(newGrade);
     setCurrentFeedback(prev => {
@@ -607,11 +1237,11 @@ const GradeByQuestionPage: React.FC = () => {
         }
       }
 
-             // Mark as processed and remove from list
-       const answerId = `${currentAnswer.examId}-${currentAnswer.questionIndex}`;
-       setProcessedAnswers(prev => new Set([...Array.from(prev), answerId]));
+      // Mark as processed and remove from list
+      const answerId = `${currentAnswer.examId}-${currentAnswer.questionIndex}`;
+      setProcessedAnswers(prev => new Set([...Array.from(prev), answerId]));
       
-                            // Move to next unprocessed answer
+      // Move to next unprocessed answer
       const nextIndex = findNextUnprocessedAnswer();
       if (nextIndex !== -1) {
         setCurrentAnswerIndex(nextIndex);
@@ -622,6 +1252,8 @@ const GradeByQuestionPage: React.FC = () => {
       } else {
         // All answers processed
         showSuccessMessage('כל התשובות לשאלה זו נבדקו!');
+        // Refresh completion data for the current question only (faster than full refresh)
+        await refreshQuestionCompletion(selectedQuestion.question.id);
         setSelectedQuestion(null); // Return to questions list
       }
 
@@ -638,28 +1270,14 @@ const GradeByQuestionPage: React.FC = () => {
   const getUniqueAnswers = () => {
     if (!selectedQuestion) return [];
     
-    // Debug logging
-    console.log(`🔍 Original answers count: ${selectedQuestion.answers.length}`);
-    selectedQuestion.answers.forEach((answer, index) => {
-      console.log(`  ${index}: ${answer.studentEmail} (QIndex: ${answer.questionIndex}, ExamId: ${answer.examId?.slice(-6)})`);
-    });
-    
     const uniqueAnswers = selectedQuestion.answers.filter((answer, index, self) => {
       // Since we're viewing a specific question, only deduplicate by student email
-      // The same student might have different questionIndex values for the same question
       const firstOccurrence = self.findIndex(a => 
         a.studentEmail === answer.studentEmail
       );
-      const isUnique = index === firstOccurrence;
-      
-      if (!isUnique) {
-        console.log(`🔄 Filtering duplicate: ${answer.studentEmail} at index ${index}`);
-      }
-      
-      return isUnique;
+      return index === firstOccurrence;
     });
     
-    console.log(`✅ Unique answers count: ${uniqueAnswers.length}`);
     return uniqueAnswers;
   };
 
@@ -744,6 +1362,30 @@ const GradeByQuestionPage: React.FC = () => {
     }, 4000);
   };
 
+  const showWarningMessage = (message: string) => {
+    const warningDiv = document.createElement('div');
+    warningDiv.innerHTML = `⚠️ ${message}`;
+    warningDiv.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #f59e0b;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 10000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    `;
+    document.body.appendChild(warningDiv);
+    setTimeout(() => {
+      if (warningDiv.parentNode) {
+        warningDiv.parentNode.removeChild(warningDiv);
+      }
+    }, 6000);
+  };
+
   const showErrorMessage = (message: string) => {
     const errorDiv = document.createElement('div');
     errorDiv.innerHTML = `❌ ${message}`;
@@ -768,7 +1410,8 @@ const GradeByQuestionPage: React.FC = () => {
     }, 4000);
   };
 
-  const getDifficultyColor = (difficulty: string) => {
+  // Enhanced utility functions
+  const getDifficultyColor = useCallback((difficulty: string) => {
     switch (difficulty.toLowerCase()) {
       case 'easy': return '#48bb78';
       case 'medium': return '#ed8936';
@@ -776,9 +1419,9 @@ const GradeByQuestionPage: React.FC = () => {
       case 'algebra': return '#8b5cf6';
       default: return '#718096';
     }
-  };
+  }, []);
 
-  const getDifficultyText = (difficulty: string) => {
+  const getDifficultyText = useCallback((difficulty: string) => {
     switch (difficulty.toLowerCase()) {
       case 'easy': return 'קל';
       case 'medium': return 'בינוני';
@@ -786,41 +1429,59 @@ const GradeByQuestionPage: React.FC = () => {
       case 'algebra': return 'אלגברה';
       default: return difficulty;
     }
-  };
+  }, []);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('he-IL', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const filteredQuestions = questions
-    .filter(question => {
-      const matchesSearch = question.question.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesDifficulty = difficultyFilter === 'all' || question.difficulty === difficultyFilter;
-      return matchesSearch && matchesDifficulty;
-    })
-    .sort((a, b) => {
-      if (b.answerCount !== a.answerCount) {
-        return b.answerCount - a.answerCount;
+  // Enhanced search and filtering
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      if (searchTerm !== debouncedSearchTerm) {
+        setAllQuestions([]); // Clear cache to force reload when searching
+        fetchQuestions(1); // Reset to first page when searching
       }
-      return a.id - b.id;
-    });
+    }, 500); // Increased debounce time for better performance
+    
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Handle filter changes
+  useEffect(() => {
+    setAllQuestions([]); // Clear cache to force reload when filters change
+    fetchQuestions(1); // Reset to first page when filtering
+  }, [difficultyFilter, gradingStatusFilter]);
+
+  // Enhanced pagination controls
+  const handlePreviousPage = () => {
+    if (pagination.currentPage > 1) {
+      fetchQuestions(pagination.currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (pagination.currentPage < pagination.totalPages) {
+      fetchQuestions(pagination.currentPage + 1);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    
+    setRefreshing(true);
+    completionCache.clear(); // Clear all cache
+    setAllQuestions([]); // Clear questions cache to force reload
+    await fetchQuestions(1);
+    setRefreshing(false);
+  };
 
   if (loading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>טוען שאלות...</div>
+        <div className={styles.loading}>
+          <Clock size={24} />
+          טוען שאלות...
+        </div>
       </div>
     );
   }
@@ -843,7 +1504,7 @@ const GradeByQuestionPage: React.FC = () => {
 
   return (
     <div className={styles.container}>
-      {/* Header */}
+      {/* Enhanced Header */}
       <div className={styles.header}>
         <button 
           onClick={() => router.push('/admin')}
@@ -855,6 +1516,43 @@ const GradeByQuestionPage: React.FC = () => {
         <div className={styles.headerTitle}>
           <BarChart3 size={24} />
           <h1>ציונים לפי שאלה</h1>
+          {completionLoading && (
+            <div className={styles.completionLoadingIndicator}>
+              <Clock size={16} />
+              טוען נתוני השלמה...
+            </div>
+          )}
+        </div>
+        <div className={styles.headerActions}>
+          <button
+            onClick={() => {
+              setSkipCompletionData(!skipCompletionData);
+              if (!skipCompletionData) {
+                // If enabling completion data, refresh to load it
+                handleRefresh();
+              }
+            }}
+            className={`${styles.toggleButton} ${skipCompletionData ? styles.active : ''}`}
+                        title={skipCompletionData ? 'מצב מהיר - מציג רק מידע בסיסי על בדיקות' : 'מצב מפורט - טוען סטטוס בדיקה מלא (עלול להיות איטי)'}
+          >
+            {skipCompletionData ? '⚡ מהיר' : '📊 מפורט'}
+          </button>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className={styles.refreshButton}
+          >
+            <RefreshCw size={16} className={refreshing ? styles.spinning : ''} />
+            {refreshing ? 'מרענן...' : 'רענן'}
+          </button>
+          {lastRefreshTime && (
+            <div className={styles.headerInfo}>
+              <div>עודכן לאחרונה:</div>
+              <div className={styles.cacheInfo}>
+                {lastRefreshTime.toLocaleTimeString('he-IL')}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -862,7 +1560,7 @@ const GradeByQuestionPage: React.FC = () => {
         {!selectedQuestion ? (
           /* Questions List View */
           <div className={styles.questionsView}>
-            {/* Filters */}
+            {/* Enhanced Filters */}
             <div className={styles.filters}>
               <div className={styles.searchContainer}>
                 <Search size={20} />
@@ -889,69 +1587,71 @@ const GradeByQuestionPage: React.FC = () => {
                   <option value="algebra">אלגברה</option>
                 </select>
               </div>
+
+              {/* New Grading Status Filter */}
+              <div className={styles.gradingStatusFilter}>
+                <CheckCircle size={16} />
+                <select
+                  value={gradingStatusFilter}
+                  onChange={(e) => setGradingStatusFilter(e.target.value as any)}
+                  className={styles.gradingStatusSelect}
+                >
+                  <option value="all">כל הסטטוסים</option>
+                  <option value="ungraded">טרם נבדקו</option>
+                  <option value="partial">נבדקו חלקית</option>
+                  <option value="completed">הושלמו</option>
+                </select>
+              </div>
+              
+              <div className={styles.questionCount}>
+                מציג {questions.length} שאלות (עמוד {pagination.currentPage}/{pagination.totalPages})
+                {skipCompletionData && <span className={styles.fastModeIndicator}>⚡ מצב מהיר</span>}
+                {!skipCompletionData && <span className={styles.detailedModeIndicator}>📊 מצב מפורט</span>}
+              </div>
             </div>
 
             {/* Questions Grid */}
             <div className={styles.questionsGrid}>
-              {filteredQuestions.map((question) => {
-                // Calculate unique student count for this question
-                const uniqueStudentCount = question.answers
-                  ? question.answers.filter((answer: any, idx: number, arr: any[]) =>
-                      arr.findIndex(a => a.studentEmail === answer.studentEmail) === idx
-                    ).length
-                  : question.answerCount;
-                return (
-                  <div
+              {questions.map((question) => (
+                                  <QuestionCard 
                     key={question.id}
-                    className={styles.questionCard}
-                    onClick={() => fetchQuestionAnswers(question.id)}
-                  >
-                    <div className={styles.questionHeader}>
-                      <div className={styles.questionId}>
-                        שאלה #{question.id}
-                        {uniqueStudentCount === 0 && <span className={styles.noAnswersBadge}>אין תשובות</span>}
-                      </div>
-                      <div 
-                        className={styles.difficultyBadge}
-                        style={{ backgroundColor: getDifficultyColor(question.difficulty) }}
-                      >
-                        {getDifficultyText(question.difficulty)}
-                      </div>
-                    </div>
-                    
-                    <div className={styles.questionContent}>
-                      <p className={styles.questionText}>
-                        {question.question.length > 150 
-                          ? `${question.question.substring(0, 150)}...` 
-                          : question.question}
-                      </p>
-                    </div>
-                    
-                    <div className={styles.questionFooter}>
-                      <div className={styles.questionPoints}>
-                        {question.points} נקודות
-                      </div>
-                      <div className={`${styles.answerCount} ${uniqueStudentCount === 0 ? styles.noAnswers : ''}`}>
-                        <Users size={16} />
-                        {uniqueStudentCount} תשובות
-                      </div>
-                      {question.averageScore !== undefined && question.averageScore > 0 && (
-                        <div className={styles.averageScore}>
-                          <BarChart3 size={16} />
-                          ממוצע: {question.averageScore}
-                        </div>
-                      )}
-                      <div className={styles.viewAnswersButton}>
-                        <Eye size={16} />
-                        צפה בתשובות
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                    question={question}
+                    onQuestionClick={handleQuestionClick}
+                    getDifficultyColor={getDifficultyColor}
+                    getDifficultyText={getDifficultyText}
+                    skipCompletionData={skipCompletionData}
+                  />
+              ))}
             </div>
 
-            {filteredQuestions.length === 0 && (
+            {/* Enhanced Pagination */}
+            {pagination.totalPages > 1 && (
+              <div className={styles.pagination}>
+                <button
+                  onClick={handlePreviousPage}
+                  disabled={pagination.currentPage === 1 || refreshing}
+                  className={styles.paginationButton}
+                >
+                  <ChevronRight size={16} />
+                  הקודם
+                </button>
+                
+                <div className={styles.paginationInfo}>
+                  עמוד {pagination.currentPage} מתוך {pagination.totalPages}
+                </div>
+                
+                <button
+                  onClick={handleNextPage}
+                  disabled={pagination.currentPage >= pagination.totalPages || refreshing}
+                  className={styles.paginationButton}
+                >
+                  הבא
+                  <ChevronLeft size={16} />
+                </button>
+              </div>
+            )}
+
+            {questions.length === 0 && !loading && (
               <div className={styles.noQuestions}>
                 <FileText size={48} />
                 <h3>לא נמצאו שאלות</h3>
@@ -960,10 +1660,55 @@ const GradeByQuestionPage: React.FC = () => {
             )}
           </div>
         ) : (
-          /* Question Grading View with Sidebar */
+          /* Question Grading View with Sidebar - Keep existing implementation */
           <div className={styles.gradingView}>
             {questionsLoading ? (
-              <div className={styles.loading}>טוען תשובות...</div>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100vh',
+                width: '100%',
+                background: 'white',
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                zIndex: 9999
+              }}>
+                <div className={styles.loadingSpinner}></div>
+                <div style={{fontSize: '1.5rem', fontWeight: 'bold', color: '#667eea', marginTop: '1rem'}}>
+                  טוען תשובות השאלה...
+                </div>
+                <div style={{fontSize: '1.3rem', color: '#e53e3e', marginTop: '1rem', fontWeight: 'bold'}}>
+                  ⏰ אנא המתן 30-40 שניות...
+                </div>
+                <div style={{fontSize: '1rem', color: '#4a5568', marginTop: '1rem', textAlign: 'center'}}>
+                  השרת מעבד את הנתונים, זה לוקח זמן<br/>
+                  אל תסגור את הדפדפן
+                </div>
+                <button 
+                  onClick={() => {
+                    console.log('🚫 User cancelled loading');
+                    setSelectedQuestion(null);
+                    setQuestionsLoading(false);
+                  }}
+                  style={{
+                    marginTop: '2rem', 
+                    padding: '1rem 2rem', 
+                    backgroundColor: '#e53e3e', 
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '8px', 
+                    cursor: 'pointer',
+                    fontSize: '1.1rem',
+                    fontWeight: 'bold',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+                  }}
+                >
+                  🚫 ביטול וחזרה לרשימת שאלות
+                </button>
+              </div>
             ) : (
               <>
                 {/* Left Sidebar - Student Navigation */}
@@ -1090,13 +1835,13 @@ const GradeByQuestionPage: React.FC = () => {
                         {commentBankEntries.map((comment) => (
                           <div key={comment._id} className={styles.commentItem}>
                             {editingComment?._id === comment._id ? (
-                                                                                                                           <div className={styles.editingComment}>
-                                  <textarea
-                                    value={editingComment.feedback}
-                                    onChange={(e) => setEditingComment({...editingComment, feedback: e.target.value})}
-                                    className={styles.editCommentInput}
-                                    rows={2}
-                                  />
+                              <div className={styles.editingComment}>
+                                <textarea
+                                  value={editingComment.feedback}
+                                  onChange={(e) => setEditingComment({...editingComment, feedback: e.target.value})}
+                                  className={styles.editCommentInput}
+                                  rows={2}
+                                />
                                 <div className={styles.editCommentOptions}>
                                   <input
                                     type="number"
@@ -1127,10 +1872,10 @@ const GradeByQuestionPage: React.FC = () => {
                               </div>
                             ) : (
                               <>
-                                                                                                                                   <div className={styles.commentHeader}>
-                                    <span className={styles.commentScore}>
-                                      -{getCommentReducedPoints(comment)} נק'
-                                    </span>
+                                <div className={styles.commentHeader}>
+                                  <span className={styles.commentScore}>
+                                    -{getCommentReducedPoints(comment)} נק'
+                                  </span>
                                   {comment.tag && (
                                     <span className={`${styles.commentTag} ${styles[comment.tag]}`}>
                                       {comment.tag === 'positive' ? '✅' : '❌'}
@@ -1140,54 +1885,54 @@ const GradeByQuestionPage: React.FC = () => {
                                     שימושים: {comment.usageCount}
                                   </span>
                                 </div>
-                                                                 <div className={styles.commentText}>
-                                   {getCommentDisplayFeedback(comment)}
-                                 </div>
-                                                                 <div className={styles.commentActions}>
-                                   <button
-                                     onClick={() => applyComment(comment)}
-                                     className={styles.useCommentBtn}
-                                     title="החל הערה זו על התשובה הנוכחית"
-                                   >
-                                     השתמש
-                                   </button>
-                                   
-                                   <div className={styles.ratingButtons}>
-                                     <button
-                                       onClick={() => rateComment(comment._id, 'like')}
-                                       className={`${styles.ratingBtn} ${styles.likeBtn} ${comment.userRating === 'like' ? styles.active : ''}`}
-                                       title="אשר הערה (מתאים לשימוש)"
-                                     >
-                                       👍 {comment.likes || 0}
-                                     </button>
-                                     <button
-                                       onClick={() => rateComment(comment._id, 'dislike')}
-                                       className={`${styles.ratingBtn} ${styles.dislikeBtn} ${comment.userRating === 'dislike' ? styles.active : ''}`}
-                                       title="דחה הערה (לא מתאים לשימוש)"
-                                     >
-                                       👎 {comment.dislikes || 0}
-                                     </button>
-                                   </div>
-                                   
-                                   <button
-                                     onClick={() => setEditingComment({
-                                       ...comment,
-                                       feedback: getCommentDisplayFeedback(comment),
-                                       reduced_points: getCommentReducedPoints(comment)
-                                     })}
-                                     className={styles.editCommentBtn}
-                                     title="ערוך הערה"
-                                   >
-                                     <Edit3 size={14} />
-                                   </button>
-                                   <button
-                                     onClick={() => deleteComment(comment._id)}
-                                     className={styles.deleteCommentBtn}
-                                     title="מחק הערה"
-                                   >
-                                     <Trash2 size={14} />
-                                   </button>
-                                 </div>
+                                <div className={styles.commentText}>
+                                  {getCommentDisplayFeedback(comment)}
+                                </div>
+                                <div className={styles.commentActions}>
+                                  <button
+                                    onClick={() => applyComment(comment)}
+                                    className={styles.useCommentBtn}
+                                    title="החל הערה זו על התשובה הנוכחית"
+                                  >
+                                    השתמש
+                                  </button>
+                                  
+                                  <div className={styles.ratingButtons}>
+                                    <button
+                                      onClick={() => rateComment(comment._id, 'like')}
+                                      className={`${styles.ratingBtn} ${styles.likeBtn} ${comment.userRating === 'like' ? styles.active : ''}`}
+                                      title="אשר הערה (מתאים לשימוש)"
+                                    >
+                                      👍 {comment.likes || 0}
+                                    </button>
+                                    <button
+                                      onClick={() => rateComment(comment._id, 'dislike')}
+                                      className={`${styles.ratingBtn} ${styles.dislikeBtn} ${comment.userRating === 'dislike' ? styles.active : ''}`}
+                                      title="דחה הערה (לא מתאים לשימוש)"
+                                    >
+                                      👎 {comment.dislikes || 0}
+                                    </button>
+                                  </div>
+                                  
+                                  <button
+                                    onClick={() => setEditingComment({
+                                      ...comment,
+                                      feedback: getCommentDisplayFeedback(comment),
+                                      reduced_points: getCommentReducedPoints(comment)
+                                    })}
+                                    className={styles.editCommentBtn}
+                                    title="ערוך הערה"
+                                  >
+                                    <Edit3 size={14} />
+                                  </button>
+                                  <button
+                                    onClick={() => deleteComment(comment._id)}
+                                    className={styles.deleteCommentBtn}
+                                    title="מחק הערה"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
                               </>
                             )}
                           </div>
@@ -1224,7 +1969,7 @@ const GradeByQuestionPage: React.FC = () => {
                         {selectedQuestion.question.question}
                       </div>
                       
-                                              <div className={styles.answerStats}>
+                      <div className={styles.answerStats}>
                         <div className={styles.statItem}>
                           <Users size={16} />
                           <span>{getUniqueAnswers().length} תשובות</span>

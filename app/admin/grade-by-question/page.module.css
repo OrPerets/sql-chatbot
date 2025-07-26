@@ -58,6 +58,22 @@
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
+.completionLoadingIndicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-top: 0.25rem;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 0.5; }
+}
+
 .headerActions {
   display: flex;
   align-items: center;
@@ -99,6 +115,43 @@
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+}
+
+.refreshButton .spinning {
+  animation: spin 1s linear infinite;
+}
+
+.toggleButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.toggleButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.toggleButton.active {
+  background: #38a169;
+  border-color: #2f855a;
+  box-shadow: 0 2px 4px rgba(56, 161, 105, 0.3);
+  font-weight: 600;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .cacheInfo {
@@ -237,6 +290,27 @@
   border-color: #cbd5e0;
 }
 
+/* Completion indicator styles */
+.completedQuestion {
+  border-color: #38a169;
+  background: linear-gradient(135deg, #f0fff4 0%, #f9f9f9 100%);
+}
+
+.completedQuestion:hover {
+  border-color: #2f855a;
+  box-shadow: 0 8px 16px rgba(56, 161, 105, 0.2);
+}
+
+.partiallyGradedQuestion {
+  border-color: #d69e2e;
+  background: linear-gradient(135deg, #fffaf0 0%, #f9f9f9 100%);
+}
+
+.partiallyGradedQuestion:hover {
+  border-color: #b7791f;
+  box-shadow: 0 8px 16px rgba(214, 158, 46, 0.2);
+}
+
 .questionHeader {
   display: flex;
   justify-content: space-between;
@@ -329,6 +403,55 @@
   color: #48bb78;
   font-weight: 500;
   font-size: 0.9rem;
+}
+
+/* Completion Status Indicators */
+.completionStatus {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.completedStatus {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #38a169;
+  background: rgba(56, 161, 105, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.partialStatus {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #d69e2e;
+  background: rgba(214, 158, 46, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.pendingStatus {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #e53e3e;
+  background: rgba(229, 62, 62, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.loadingStatus {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #718096;
+  background: rgba(113, 128, 150, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-style: italic;
 }
 
 /* No Questions State */
@@ -1857,4 +1980,523 @@
     font-size: 0.65rem;
     padding: 0.25rem 0.4rem;
   }
+}
+
+/* Pagination Styles */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin: 2rem 0;
+  padding: 1rem;
+  background: var(--background-card);
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+}
+
+.paginationButton {
+  padding: 0.75rem 1.25rem;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--background-light);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  min-width: 80px;
+}
+
+.paginationButton:hover:not(:disabled) {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+.paginationButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--background-muted);
+}
+
+.paginationInfo {
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--background-light);
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  min-width: 120px;
+  text-align: center;
+}
+
+.questionCount {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--background-light);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Loading optimizations */
+.completionLoadingIndicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+  border: 1px solid #90caf9;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #1976d2;
+  font-weight: 500;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Performance improvements for question cards */
+.questionCard {
+  /* Add will-change for better performance */
+  will-change: transform;
+  contain: layout style paint;
+}
+
+.questionCard:hover {
+  /* Use transform instead of changing other properties for better performance */
+  transform: translateY(-2px) scale(1.01);
+}
+
+/* Virtual scrolling preparation */
+.questionsGrid {
+  /* Optimize for potential virtual scrolling */
+  contain: layout style paint;
+  overflow: hidden;
+}
+
+/* Reduce layout thrashing */
+.questionText, .studentInfo, .answerContent {
+  contain: layout style;
+}
+
+/* Virtual Scrolling Styles */
+.virtualScrollContainer {
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  background: var(--background-light);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.virtualScrollBadge {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+} 
+
+/* New Grading Status Filter */
+.gradingStatusFilter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #4a5568;
+}
+
+.gradingStatusSelect {
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: white;
+  min-width: 140px;
+  cursor: pointer;
+}
+
+/* Enhanced completion status indicators */
+.noAnswersStatus {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #a0aec0;
+  background: rgba(160, 174, 192, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.ungradedBadge {
+  background: #fed7d7;
+  color: #c53030;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+/* Enhanced question count display */
+.questionCount {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #4a5568;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-wrap: wrap;
+}
+
+.fastModeIndicator {
+  background: #38a169;
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+.detailedModeIndicator {
+  background: #667eea;
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+/* Enhanced pagination with chevron icons */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin: 2rem 0;
+  padding: 1rem;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.paginationButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  color: #4a5568;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  min-width: 100px;
+  justify-content: center;
+}
+
+.paginationButton:hover:not(:disabled) {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.paginationButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f7fafc;
+  transform: none;
+  box-shadow: none;
+}
+
+.paginationInfo {
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  color: #2d3748;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  min-width: 150px;
+  text-align: center;
+}
+
+/* Enhanced loading state with icon */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  height: 200px;
+  font-size: 1.1rem;
+  color: #6c757d;
+  background: white;
+  border-radius: 12px;
+  margin: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  flex-direction: column;
+}
+
+.loadingSpinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e2e8f0;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Improved responsive design for new components */
+@media (max-width: 768px) {
+  .headerActions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .headerInfo {
+    text-align: center;
+    order: -1;
+  }
+  
+  .filters {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .gradingStatusFilter,
+  .difficultyFilter {
+    width: 100%;
+  }
+  
+  .gradingStatusSelect,
+  .difficultySelect {
+    width: 100%;
+  }
+  
+  .questionCount {
+    justify-content: center;
+    text-align: center;
+  }
+  
+  .pagination {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .paginationButton {
+    width: 100%;
+    min-width: auto;
+  }
+  
+  .refreshButton,
+  .toggleButton {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 1200px) {
+  .gradingStatusFilter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .gradingStatusSelect {
+    width: 100%;
+  }
+}
+
+/* Enhanced question card hover effects */
+.questionCard {
+  /* Add will-change for better performance */
+  will-change: transform;
+  contain: layout style paint;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.questionCard:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Performance optimizations */
+.questionsGrid {
+  contain: layout style paint;
+  overflow: hidden;
+}
+
+.questionText, 
+.studentInfo, 
+.answerContent {
+  contain: layout style;
+}
+
+/* Better visual hierarchy */
+.completedQuestion {
+  border-left: 4px solid #38a169;
+}
+
+.partiallyGradedQuestion {
+  border-left: 4px solid #d69e2e;
+}
+
+.questionCard:not(.completedQuestion):not(.partiallyGradedQuestion) {
+  border-left: 4px solid #e2e8f0;
+}
+
+.questionCard:not(.completedQuestion):not(.partiallyGradedQuestion):hover {
+  border-left-color: #667eea;
+}
+
+/* Enhanced completion status styling */
+.completionStatus {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.completedStatus,
+.partialStatus,
+.pendingStatus,
+.noAnswersStatus,
+.loadingStatus,
+.readyToGradeStatus {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.completedStatus {
+  background: linear-gradient(135deg, #c6f6d5, #9ae6b4);
+  color: #22543d;
+  border: 1px solid #9ae6b4;
+}
+
+.partialStatus {
+  background: linear-gradient(135deg, #faf089, #f6e05e);
+  color: #744210;
+  border: 1px solid #f6e05e;
+}
+
+.pendingStatus {
+  background: linear-gradient(135deg, #fed7d7, #feb2b2);
+  color: #742a2a;
+  border: 1px solid #feb2b2;
+}
+
+.loadingStatus {
+  background: linear-gradient(135deg, #e2e8f0, #cbd5e0);
+  color: #4a5568;
+  border: 1px solid #cbd5e0;
+  font-style: italic;
+}
+
+.noAnswersStatus {
+  background: rgba(160, 174, 192, 0.1);
+  color: #a0aec0;
+  border: 1px solid #e2e8f0;
+}
+
+.readyToGradeStatus {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: 1px solid #667eea;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+}
+
+.hasGradedAnswers {
+  background: linear-gradient(135deg, #38a169, #2f855a) !important;
+  border: 1px solid #38a169 !important;
+  box-shadow: 0 2px 4px rgba(56, 161, 105, 0.3) !important;
+}
+
+/* Enhanced filter styling */
+.filters {
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.searchContainer {
+  background: linear-gradient(135deg, #f8fafc, #ffffff);
+  border: 2px solid #e2e8f0;
+  transition: border-color 0.2s ease;
+}
+
+.searchContainer:focus-within {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.difficultySelect,
+.gradingStatusSelect {
+  transition: all 0.2s ease;
+}
+
+.difficultySelect:focus,
+.gradingStatusSelect:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  outline: none;
+}
+
+/* Better visual feedback for interactive elements */
+.questionCard,
+.paginationButton,
+.refreshButton {
+  position: relative;
+}
+
+.questionCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, transparent, rgba(102, 126, 234, 0.05));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.questionCard:hover::before {
+  opacity: 1;
+}
+
+/* Enhanced error state styling */
+.errorMessage {
+  background: linear-gradient(135deg, #fed7d7, #feb2b2);
+  color: #742a2a;
+  border: 1px solid #feb2b2;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
 } 
