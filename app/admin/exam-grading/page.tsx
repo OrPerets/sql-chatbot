@@ -50,10 +50,12 @@ const ExamGradingPage: React.FC = () => {
     averageGrade: number;
     standardDeviation: number;
     failurePercentage: number;
+    averageTime: number;
   }>({
     averageGrade: 0,
     standardDeviation: 0,
-    failurePercentage: 0
+    failurePercentage: 0,
+    averageTime: 0
   });
   
   // State for report generation loading
@@ -70,24 +72,36 @@ const ExamGradingPage: React.FC = () => {
   
   const router = useRouter();
 
-  // Calculate statistics for completed exams (removed since we don't have scaled scores anymore)
+  // Calculate statistics for completed exams using actual graded scores
   const calculateStatistics = () => {
     const completedExams = examSessions.filter(session => 
-      session.status === 'completed' && 
-      session.score !== undefined
+      session.status === 'completed'
     );
 
     if (completedExams.length === 0) {
       setStatisticsData({
         averageGrade: 0,
         standardDeviation: 0,
-        failurePercentage: 0
+        failurePercentage: 0,
+        averageTime: 0
       });
       return;
     }
 
-    // Use actual scores instead of scaled scores
-    const scores = completedExams.map(session => session.score || 0);
+    // Use actual graded scores instead of initial session scores
+    const scores = completedExams
+      .map(session => actualGradedScores[session._id])
+      .filter(score => score !== undefined && score !== null);
+    
+    if (scores.length === 0) {
+      setStatisticsData({
+        averageGrade: 0,
+        standardDeviation: 0,
+        failurePercentage: 0,
+        averageTime: 0
+      });
+      return;
+    }
     
     // Calculate average
     const averageGrade = scores.reduce((sum, score) => sum + score, 0) / scores.length;
@@ -96,14 +110,29 @@ const ExamGradingPage: React.FC = () => {
     const variance = scores.reduce((sum, score) => sum + Math.pow(score - averageGrade, 2), 0) / scores.length;
     const standardDeviation = Math.sqrt(variance);
     
-    // Calculate failure percentage (this will need adjustment without normalized scores)
-    const failedExams = scores.filter(score => score < 60).length; // This threshold may need adjustment
+    // Calculate failure percentage (using threshold of 60)
+    const failedExams = scores.filter(score => score < 60).length;
     const failurePercentage = (failedExams / scores.length) * 100;
+    
+    // Calculate average time (in minutes)
+    const examTimes = completedExams
+      .filter(session => session.startTime && session.endTime)
+      .map(session => {
+        const startTime = new Date(session.startTime);
+        const endTime = new Date(session.endTime!);
+        return (endTime.getTime() - startTime.getTime()) / (1000 * 60); // Convert to minutes
+      })
+      .filter(time => time > 0 && time < 300); // Filter out invalid times (negative or > 5 hours)
+    
+    const averageTime = examTimes.length > 0 
+      ? examTimes.reduce((sum, time) => sum + time, 0) / examTimes.length 
+      : 0;
     
     setStatisticsData({
       averageGrade: Math.round(averageGrade * 10) / 10, // Round to 1 decimal place
       standardDeviation: Math.round(standardDeviation * 10) / 10,
-      failurePercentage: Math.round(failurePercentage * 10) / 10
+      failurePercentage: Math.round(failurePercentage * 10) / 10,
+      averageTime: Math.round(averageTime * 10) / 10
     });
   };
 
@@ -909,10 +938,10 @@ const ExamGradingPage: React.FC = () => {
     }
   }, [examSessions]);
 
-  // Recalculate statistics when exam sessions change
+  // Recalculate statistics when exam sessions or actual graded scores change
   useEffect(() => {
     calculateStatistics();
-  }, [examSessions]);
+  }, [examSessions, actualGradedScores]);
 
   // Bulk export functions
   const handleBulkGradesExport = async () => {
@@ -1163,6 +1192,7 @@ const ExamGradingPage: React.FC = () => {
           <div className={styles.statNumber}>{statisticsData.failurePercentage}%</div>
           <div className={styles.statLabel}>אחוז נכשלים (מתחת ל60)</div>
         </div>
+      
       </div>
 
       {/* Exam Sessions Table */}
