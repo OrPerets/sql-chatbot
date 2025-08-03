@@ -294,6 +294,14 @@ const AdminPage: React.FC = () => {
            <BarChart3 size={20} />
            <span>ציונים לפי שאלה</span>
          </button>
+         
+         <button
+           onClick={() => router.push('/admin/cheat-detection')}
+           className={styles.quickActionButton}
+         >
+           <Shield size={20} />
+           <span>חשד להעתקה</span>
+         </button>
        </div>
      </div>
 

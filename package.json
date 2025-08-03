@@ -16,6 +16,7 @@
     "@types/three": "^0.177.0",
     "alasql": "^4.5.2",
     "cytoscape": "^3.30.2",
+    "jszip": "^3.10.1",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.445.0",
     "mongodb": "^6.18.0",
