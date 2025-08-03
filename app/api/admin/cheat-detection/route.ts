@@ -72,8 +72,8 @@ function calculateJaccardSimilarity(text1: string, text2: string): number {
   if (tokens1.size === 0 || tokens2.size === 0) return 0;
 
   // Calculate intersection and union
-  const intersection = new Set([...tokens1].filter(x => tokens2.has(x)));
-  const union = new Set([...tokens1, ...tokens2]);
+  const intersection = new Set(Array.from(tokens1).filter(x => tokens2.has(x)));
+  const union = new Set([...Array.from(tokens1), ...Array.from(tokens2)]);
 
   return intersection.size / union.size;
 }
