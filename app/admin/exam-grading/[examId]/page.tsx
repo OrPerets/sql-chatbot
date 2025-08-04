@@ -213,28 +213,27 @@ const ExamGradingPage: React.FC = () => {
     }
   }, [examData, examId]);
 
-  // Separate effect for recalculating totals when deleted questions change
+  // Effect for recalculating totals when question grades or deleted questions change
   useEffect(() => {
-    if (examData?.answers && questionGrades.length > 0) {
-      // Only recalculate when there are actual grade changes, not on initial load
-      // Calculate total score based on current grades (excluding deleted questions)
+    if ((examData?.answers || examData?.mergedAnswers) && questionGrades.length > 0) {
+      // Always calculate total score based on current grades (excluding deleted questions)
       const totalCurrentScore = questionGrades
         .filter(grade => !deletedQuestions.has(grade.questionIndex))
         .reduce((sum, grade) => sum + grade.score, 0);
       
-      // Only update totalScore if we're actively grading (not loading saved data)
-      // This preserves the saved totalScore (like 37) when loading existing grades
-      if (initializedExamId === examId) {
-        setTotalScore(totalCurrentScore);
-        
-        // Calculate total max score based on actual question points (excluding deleted questions)
-        const totalMaxScore = examData.answers
-          .filter(answer => !deletedQuestions.has(answer.questionIndex))
-          .reduce((sum, answer) => sum + (answer.questionDetails?.points || 1), 0);
-        setMaxScore(totalMaxScore);
-      }
+      // Always update totalScore to match the sum of individual scores
+      setTotalScore(totalCurrentScore);
+      
+      // Calculate total max score based on actual question points (excluding deleted questions)
+      const answersSource = examData.mergedAnswers || examData.answers;
+      const totalMaxScore = answersSource
+        .filter(answer => !deletedQuestions.has(answer.questionIndex))
+        .reduce((sum, answer) => sum + (answer.questionDetails?.points || 1), 0);
+      setMaxScore(totalMaxScore);
+      
+      console.log(`📊 Recalculated totals: ${totalCurrentScore}/${totalMaxScore} (${questionGrades.length} grades, ${deletedQuestions.size} deleted)`);
     }
-  }, [deletedQuestions, questionGrades, examData, initializedExamId, examId]);
+  }, [deletedQuestions, questionGrades, examData, examId]);
 
   const fetchExamData = async () => {
     try {
@@ -315,19 +314,16 @@ const ExamGradingPage: React.FC = () => {
             console.log('⚠️ No existing question grades found in response');
           }
           
-          // Load overall feedback and scores
+          // Load overall feedback and grade letter only
+          // Note: totalScore and maxScore will be recalculated from individual question scores
           if (gradeData.overallFeedback) {
             setOverallFeedback(gradeData.overallFeedback);
-          }
-          if (gradeData.totalScore !== undefined) {
-            setTotalScore(gradeData.totalScore);
-          }
-          if (gradeData.maxScore !== undefined) {
-            setMaxScore(gradeData.maxScore);
           }
           if (gradeData.grade) {
             setGrade(gradeData.grade);
           }
+          
+          console.log(`📊 Loaded grades - stored total: ${gradeData.totalScore}, will recalculate from individual scores`);
         } else {
           console.log('No existing grade data found - response not ok');
           // Set deleted questions from exam data only
