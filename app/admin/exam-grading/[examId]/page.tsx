@@ -233,7 +233,7 @@ const ExamGradingPage: React.FC = () => {
       
       console.log(`📊 Recalculated totals: ${totalCurrentScore}/${totalMaxScore} (${questionGrades.length} grades, ${deletedQuestions.size} deleted)`);
     }
-  }, [deletedQuestions, questionGrades, examData, examId]);
+  }, [deletedQuestions, questionGrades]); // Removed examData and examId to prevent infinite loop
 
   const fetchExamData = async () => {
     try {
@@ -628,7 +628,7 @@ const ExamGradingPage: React.FC = () => {
     setActiveCommentBank({ questionIndex: null });
   };
 
-  // Save individual question grade
+  // Save individual question grade using unified sync
   const saveQuestionGrade = async (uniqueKey: string) => {
     try {
       setSavingQuestions(prev => new Set([...Array.from(prev), uniqueKey]));
@@ -638,56 +638,33 @@ const ExamGradingPage: React.FC = () => {
         throw new Error('No grade found for this answer');
       }
       
-      // Instead of individual question save, we'll save the entire current state
-      // This ensures persistence and compatibility with existing backend
-      const allGrades = questionGrades.filter(grade => !deletedQuestions.has(grade.questionIndex));
-      
-      const gradeData = {
-        gradedBy: 'admin',
-        totalScore,
-        maxScore,
-        percentage: maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0,
-        grade: '',
-        questionGrades: allGrades.map(grade => ({
-          questionIndex: grade.questionIndex,
-          score: grade.score,
-          maxScore: grade.maxScore,
-          feedback: grade.feedback
-        })),
-        overallFeedback,
-        deletedQuestions: Array.from(deletedQuestions),
-        partialSave: true,
-        savedUniqueKey: uniqueKey,
-        timestamp: new Date().toISOString()
-      };
+      console.log('Saving grade using unified sync:', {
+        examId,
+        questionIndex: currentGrade.questionIndex,
+        score: currentGrade.score,
+        feedback: currentGrade.feedback
+      });
 
-      console.log('Saving grade data:', gradeData);
-
-      // Try final exam endpoint first, then regular exam
-      let response = await fetch(`/api/admin/final-exam/${examId}/grade`, {
+      // Use unified grade sync to ensure consistency across all systems
+      const response = await fetch('/api/admin/unified-grade-sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(gradeData),
+        body: JSON.stringify({
+          action: 'sync_grade',
+          examId,
+          questionIndex: currentGrade.questionIndex,
+          grade: currentGrade.score,
+          feedback: currentGrade.feedback || ''
+        }),
       });
 
       if (!response.ok) {
-        // Try regular exam endpoint
-        response = await fetch(`/api/admin/exam/${examId}/grade`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(gradeData),
-        });
-      }
-
-      if (!response.ok) {
-        console.error('Save failed with status:', response.status);
+        console.error('Unified sync failed with status:', response.status);
         const errorText = await response.text();
         console.error('Error response:', errorText);
-        throw new Error('Failed to save question grade');
+        throw new Error('Failed to save question grade via unified sync');
       }
 
       const result = await response.json();
@@ -781,42 +758,41 @@ const ExamGradingPage: React.FC = () => {
     try {
       setSaving(true);
       
-      const gradeData = {
-        gradedBy: 'admin', // TODO: Get from current user
+      console.log('Saving complete exam using unified sync:', {
+        examId,
+        totalQuestions: questionGrades.filter(grade => !deletedQuestions.has(grade.questionIndex)).length,
         totalScore,
-        maxScore,
-        percentage: calculatePercentage(),
-        grade: grade || getGradeLetter(calculatePercentage()),
-        questionGrades: questionGrades.filter(grade => !deletedQuestions.has(grade.questionIndex)),
-        overallFeedback,
-        deletedQuestions: Array.from(deletedQuestions),
-        review: {
-          totalScore,
-          maxScore,
-          percentage: calculatePercentage(),
-          grade: grade || getGradeLetter(calculatePercentage()),
-          feedback: overallFeedback
-        }
-      };
+        maxScore
+      });
 
-      const response = await fetch(`/api/admin/exam/${examId}/grade`, {
+      // Use unified grade sync to save all exam grades and ensure consistency
+      const response = await fetch('/api/admin/unified-grade-sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(gradeData),
+        body: JSON.stringify({
+          action: 'sync_exam',
+          examId
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save grade');
+        console.error('Unified exam sync failed with status:', response.status);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error('Failed to save exam grades via unified sync');
       }
 
+      const result = await response.json();
+      console.log('Exam sync successful:', result);
+
       // Show success message and redirect
-      alert('הציון נשמר בהצלחה!');
+      alert('הציון נשמר בהצלחה באמצעות סנכרון מאוחד!');
       router.push('/admin/exam-grading');
     } catch (err) {
-      console.error('Error saving grade:', err);
-      setError('Failed to save grade');
+      console.error('Error saving exam grade:', err);
+      setError('Failed to save exam grade via unified sync');
     } finally {
       setSaving(false);
     }
