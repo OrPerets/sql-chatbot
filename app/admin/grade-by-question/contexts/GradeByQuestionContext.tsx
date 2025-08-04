@@ -388,15 +388,17 @@ export function GradeByQuestionProvider({ children }: GradeByQuestionProviderPro
     }
   }, []);
 
-  // Save grade
+  // Save grade with unified sync
   const saveGrade = useCallback(async (examId: string, questionIndex: number, grade: number, feedback: string) => {
     try {
       dispatch({ type: 'SET_SAVING_GRADE', payload: true });
 
-      const response = await fetch('/api/admin/grade-answer', {
+      // Use unified grade sync to ensure consistency across all systems
+      const response = await fetch('/api/admin/unified-grade-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'sync_grade',
           examId,
           questionIndex,
           grade,
@@ -408,6 +410,8 @@ export function GradeByQuestionProvider({ children }: GradeByQuestionProviderPro
         throw new Error('Failed to save grade');
       }
 
+      const result = await response.json();
+      
       const answerId = `${examId}-${questionIndex}`;
       dispatch({ type: 'ADD_PROCESSED_ANSWER', payload: answerId });
       
@@ -416,7 +420,11 @@ export function GradeByQuestionProvider({ children }: GradeByQuestionProviderPro
         refreshQuestionCompletion(state.selectedQuestion.question.id);
       }
       
-      showMessage('Grade saved successfully', 'success');
+      showMessage('Grade saved and synced successfully', 'success');
+      
+      // Log sync details for debugging
+      console.log('Grade sync result:', result);
+      
     } catch (err) {
       console.error('Error saving grade:', err);
       showMessage('Error saving grade', 'error');

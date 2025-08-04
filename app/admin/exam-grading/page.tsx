@@ -764,7 +764,7 @@ const ExamGradingPage: React.FC = () => {
                 </td>
                 <td class="col-answer">
                   <div class="col-answer-content">
-                    ${q.studentAnswer || 'לא נענתה'}
+                    ${(q.studentAnswer || 'לא נענתה').replace(/\n/g, '<br>').replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;')}
                   </div>
                 </td>
                 <td class="col-score">
@@ -809,51 +809,44 @@ const ExamGradingPage: React.FC = () => {
     if (examIds.length === 0) return;
     
     setLoadingGrades(new Set(examIds));
+    console.log(`🔄 Fetching grades for ${examIds.length} exams...`);
     
     const results = await Promise.allSettled(
       examIds.map(async (examId) => {
         try {
-          // Try final exam first, then regular exam for manual grades
-          let gradeResponse = await fetch(`/api/admin/final-exam/${examId}/grade`);
+          // Use the same logic as individual exam page - check /grade endpoints with fallback
+          let gradeResponse = await fetch(`/api/admin/final-exam/${examId}/grade`, {
+            cache: 'no-cache',
+            headers: { 'Cache-Control': 'no-cache' }
+          });
+          
+          // If primary source fails, try the other source (grades might be saved in either location)
           if (!gradeResponse.ok) {
-            gradeResponse = await fetch(`/api/admin/exam/${examId}/grade`);
+            console.log(`⚠️ Primary grade source failed for ${examId}, trying alternate source...`);
+            gradeResponse = await fetch(`/api/admin/exam/${examId}/grade`, {
+              cache: 'no-cache',
+              headers: { 'Cache-Control': 'no-cache' }
+            });
+            
+            if (gradeResponse.ok) {
+              console.log(`✅ Found grade data in alternate source (exam) for ${examId}`);
+            }
           }
           
           if (gradeResponse.ok) {
             const gradeData = await gradeResponse.json();
+            console.log(`📊 Grade data for ${examId}:`, {
+              source: gradeData.dataSource,
+              totalScore: gradeData.totalScore,
+              questionGrades: gradeData.questionGrades?.length || 0
+            });
+            
             if (gradeData && gradeData.totalScore !== undefined) {
-              return { examId, score: gradeData.totalScore };
+              return { examId, score: gradeData.totalScore, source: gradeData.dataSource || 'unknown' };
             }
           }
           
-          // If no manual grade exists, try to calculate from individual question grades
-          let examResponse = await fetch(`/api/admin/final-exam/${examId}/for-grading`);
-          if (!examResponse.ok) {
-            examResponse = await fetch(`/api/admin/exam/${examId}/for-grading`);
-          }
-          
-          if (examResponse.ok) {
-            const examData = await examResponse.json();
-            // Calculate total score from individual question grades
-            let totalScore = 0;
-            let hasGradedQuestions = false;
-            
-            if (examData && examData.answers && Array.isArray(examData.answers)) {
-              totalScore = examData.answers.reduce((sum, answer) => {
-                const score = answer.gradedScore || answer.score || (answer.isCorrect ? (answer.questionDetails?.points || 1) : 0);
-                if (answer.gradedScore !== undefined || answer.score !== undefined) {
-                  hasGradedQuestions = true;
-                }
-                return sum + score;
-              }, 0);
-            }
-            
-            // Only return score if we found actual graded questions or it's non-zero
-            if (hasGradedQuestions || totalScore > 0) {
-              return { examId, score: totalScore };
-            }
-          }
-          
+          console.log(`⚠️ No grade data found for exam ${examId}`);
           return null;
         } catch (error) {
           console.error(`Error fetching grade for exam ${examId}:`, error);
@@ -875,10 +868,201 @@ const ExamGradingPage: React.FC = () => {
     setLoadingGrades(new Set());
   };
 
+  // Enhanced refresh function with sync capabilities
+  const refreshGradesWithSync = async () => {
+    console.log('🔄 Starting enhanced grade refresh with sync...');
+    
+    // First, sync any exams that might need it
+    const visibleExams = examSessions.filter(session => session.status === 'completed');
+    setLoadingGrades(new Set(visibleExams.map(exam => exam._id)));
+    
+    let syncCount = 0;
+    for (const exam of visibleExams) {
+      try {
+        const syncResponse = await fetch('/api/admin/unified-grade-sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'sync_exam',
+            examId: exam._id
+          }),
+        });
+        
+        if (syncResponse.ok) {
+          syncCount++;
+        }
+      } catch (error) {
+        console.error(`Failed to sync exam ${exam._id}:`, error);
+      }
+    }
+    
+    console.log(`✅ Synced ${syncCount} exams`);
+    
+    // Then refresh the grades
+    await fetchGradedScores();
+    
+    console.log('🎉 Grade refresh and sync complete!');
+  };
+
   // Simplified refresh grades function
   const refreshGrades = () => {
     setActualGradedScores({});
     fetchGradedScores();
+  };
+  
+  // Validation function to debug grade synchronization
+  const validateGradeSync = async (examId: string, studentName?: string) => {
+    try {
+      console.log(`🔍 Validating grade sync for exam ${examId} (${studentName})`);
+      
+      // 1. Check finalExams.review data
+      const examResponse = await fetch(`/api/admin/final-exam/${examId}/for-grading`);
+      if (examResponse.ok) {
+        const examData = await examResponse.json();
+        console.log('📊 Final Exam Data:', {
+          hasReview: !!examData.review,
+          reviewData: examData.review,
+          isGraded: examData.graded,
+          totalQuestions: examData.answers?.length || 0
+        });
+        
+        if (examData.review?.questionGrades) {
+          console.log('📝 Question Grades:', examData.review.questionGrades.map(qg => ({
+            questionIndex: qg.questionIndex,
+            score: qg.score,
+            maxScore: qg.maxScore,
+            feedback: qg.feedback ? 'Has feedback' : 'No feedback'
+          })));
+        }
+      }
+      
+      // 2. Check examGrades collection
+      const gradeResponse = await fetch(`/api/admin/final-exam/${examId}/grade`);
+      if (gradeResponse.ok) {
+        const gradeData = await gradeResponse.json();
+        console.log('🏆 Exam Grades Collection:', gradeData);
+      }
+      
+      // 3. Check what the report API returns
+      const reportResponse = await fetch(`/api/admin/final-exam/${examId}/report`);
+      if (reportResponse.ok) {
+        const reportData = await reportResponse.json();
+        console.log('📄 Report Data:', {
+          totalPointsAwarded: reportData.summary.totalPointsAwarded,
+          totalPossiblePoints: reportData.summary.totalPossiblePoints,
+          questionsCount: reportData.questions.length,
+          gradedQuestionsCount: reportData.questions.filter(q => q.isGraded).length
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Error validating grade sync:', error);
+    }
+  };
+
+  // Bulk validation function for all visible exams
+  const validateAllGrades = async () => {
+    console.log('🚀 Starting bulk validation for all visible exams...');
+    console.log('='.repeat(80));
+    
+    const results = {
+      total: sortedSessions.length,
+      withGrades: 0,
+      withoutGrades: 0,
+      errors: 0,
+      details: [] as any[]
+    };
+    
+    for (let i = 0; i < sortedSessions.length; i++) {
+      const session = sortedSessions[i];
+      const studentInfo = `${session.studentName || 'Unknown'} (${session.studentId || 'No ID'})`;
+      
+      try {
+        console.log(`\n📋 [${i + 1}/${sortedSessions.length}] Checking: ${studentInfo}`);
+        
+        // Check finalExams.review data
+        const examResponse = await fetch(`/api/admin/final-exam/${session._id}/for-grading`);
+        let examData = null;
+        let hasGrades = false;
+        let totalScore = 0;
+        let questionCount = 0;
+        let gradedQuestionCount = 0;
+        
+        if (examResponse.ok) {
+          examData = await examResponse.json();
+          
+          if (examData.review?.questionGrades?.length > 0) {
+            hasGrades = true;
+            totalScore = examData.review.totalScore || 0;
+            questionCount = examData.answers?.length || 0;
+            gradedQuestionCount = examData.review.questionGrades.length;
+            
+            console.log(`  ✅ Has grades: ${totalScore} points (${gradedQuestionCount}/${questionCount} questions graded)`);
+            results.withGrades++;
+          } else {
+            console.log(`  ⚠️  No grades found in review system`);
+            results.withoutGrades++;
+          }
+        } else {
+          console.log(`  ❌ Failed to fetch exam data`);
+          results.errors++;
+        }
+        
+        // Store detailed results
+        results.details.push({
+          studentName: session.studentName,
+          studentId: session.studentId,
+          examId: session._id,
+          hasGrades,
+          totalScore,
+          questionCount,
+          gradedQuestionCount,
+          displayedScore: actualGradedScores[session._id],
+          syncStatus: hasGrades && actualGradedScores[session._id] === totalScore ? 'SYNCED' : 'NEEDS_ATTENTION'
+        });
+        
+        // Small delay to avoid overwhelming the server
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (error) {
+        console.error(`  ❌ Error checking ${studentInfo}:`, error);
+        results.errors++;
+      }
+    }
+    
+    // Summary report
+    console.log('\n' + '='.repeat(80));
+    console.log('📊 BULK VALIDATION SUMMARY');
+    console.log('='.repeat(80));
+    console.log(`Total Exams Checked: ${results.total}`);
+    console.log(`✅ With Grades: ${results.withGrades}`);
+    console.log(`⚠️  Without Grades: ${results.withoutGrades}`);
+    console.log(`❌ Errors: ${results.errors}`);
+    
+    // Detailed breakdown
+    const gradedExams = results.details.filter(d => d.hasGrades);
+    const syncIssues = results.details.filter(d => d.syncStatus === 'NEEDS_ATTENTION');
+    
+    if (gradedExams.length > 0) {
+      console.log('\n📝 GRADED EXAMS DETAILS:');
+      gradedExams.forEach(exam => {
+        console.log(`  ${exam.studentName}: ${exam.totalScore} points (${exam.gradedQuestionCount}/${exam.questionCount} questions) - ${exam.syncStatus}`);
+      });
+    }
+    
+    if (syncIssues.length > 0) {
+      console.log('\n⚠️  SYNC ISSUES DETECTED:');
+      syncIssues.forEach(exam => {
+        console.log(`  ${exam.studentName}: Backend=${exam.totalScore}, Display=${exam.displayedScore}`);
+      });
+    } else {
+      console.log('\n✅ All graded exams are properly synchronized!');
+    }
+    
+    console.log('\n' + '='.repeat(80));
+    console.log('🎯 Validation complete! Check individual entries above for details.');
+    
+    return results;
   };
 
   const analyzeExamForAIPatterns = async (examId: string) => {
@@ -948,10 +1132,9 @@ const ExamGradingPage: React.FC = () => {
     setBulkExportLoading(prev => ({ ...prev, grades: true }));
     
     try {
-      // Send only the currently filtered exam sessions to export
+      // Send only the currently filtered exam sessions to export (grades will be fetched fresh from DB)
       const exportData = {
-        examSessions: sortedSessions, // Use the already filtered and sorted sessions
-        actualGradedScores // Include the computed grades
+        examSessions: sortedSessions // Export will fetch fresh grades directly from database
       };
       
       const response = await fetch('/api/admin/bulk-export/grades', {
@@ -1165,10 +1348,29 @@ const ExamGradingPage: React.FC = () => {
               </>
             )}
           </button>
+          
+          <button
+            onClick={validateAllGrades}
+            className={styles.bulkExportButton}
+            disabled={examSessions.length === 0}
+            style={{ backgroundColor: '#9c27b0' }}
+          >
+            🔍 בדוק סנכרון ציונים (כל הבחינות)
+          </button>
+          
+          <button
+            onClick={refreshGradesWithSync}
+            className={styles.bulkExportButton}
+            disabled={loadingGrades.size > 0}
+            style={{ backgroundColor: '#2196f3' }}
+          >
+            {loadingGrades.size > 0 ? '🔄 מעדכן...' : '🔄 רענן וסנכרן ציונים'}
+          </button>
         </div>
         <div className={styles.bulkExportInfo}>
           <p>• ייצוא ציונים: קובץ CSV עם תעודת זהות, שם ופירוט ציונים (כולל בחינות שתוקנו לפי שאלה)</p>
           <p>• ייצוא דוחות: קובץ ZIP עם כל הדוחות האישיים בפורמט HTML (רק בחינות עם ציונים)</p>
+          <p>• בדיקת סנכרון: בודק את כל הבחינות ומציג דוח מפורט ב-Console (פתח בF12)</p>
           <p>💡 <strong>עצה:</strong> לצפייה נכונה בעברית ב-Excel, פתח את הקובץ דרך &quot;נתונים → מטקסט/CSV&quot; ובחר קידוד UTF-8</p>
         </div>
       </div>
@@ -1265,9 +1467,21 @@ const ExamGradingPage: React.FC = () => {
                   </td> */}
                   <td className={styles.totalPointsCell}>
                     {actualGradedScores[session._id] !== undefined ? (
-                      <span className={styles.totalPoints}>
-                        {actualGradedScores[session._id]}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className={styles.totalPoints}>
+                          {actualGradedScores[session._id]}
+                        </span>
+                        <span 
+                          style={{ 
+                            fontSize: '0.8em', 
+                            color: '#28a745', 
+                            fontWeight: 'bold'
+                          }}
+                          title="צוין באמצעות מערכת הציון לפי שאלה"
+                        >
+                          ✓ מצוין
+                        </span>
+                      </div>
                     ) : (
                       <span className={styles.notAvailable}>לא זמין</span>
                     )}
@@ -1287,9 +1501,9 @@ const ExamGradingPage: React.FC = () => {
                       <button
                         onClick={() => handleDownloadReport(session._id, session.studentName, session.studentId, 'print')}
                         className={styles.reportButton}
-                        disabled={!session.graded || reportLoading.has(session._id)}
+                        disabled={(!session.graded && !actualGradedScores[session._id]) || reportLoading.has(session._id)}
                         title={
-                          !session.graded 
+                          (!session.graded && !actualGradedScores[session._id]) 
                             ? 'יש לסיים את הבדיקה לפני הורדת הדוח'
                             : reportLoading.has(session._id)
                             ? 'מכין דוח...'
@@ -1311,9 +1525,9 @@ const ExamGradingPage: React.FC = () => {
                       <button
                         onClick={() => handleDownloadReport(session._id, session.studentName, session.studentId, 'html')}
                         className={styles.htmlButton}
-                        disabled={!session.graded || reportLoading.has(session._id)}
+                        disabled={(!session.graded && !actualGradedScores[session._id]) || reportLoading.has(session._id)}
                         title={
-                          !session.graded 
+                          (!session.graded && !actualGradedScores[session._id]) 
                             ? 'יש לסיים את הבדיקה לפני הורדת הדוח'
                             : reportLoading.has(session._id)
                             ? 'מכין דוח...'
@@ -1324,16 +1538,6 @@ const ExamGradingPage: React.FC = () => {
                         HTML
                       </button>
                     </div>
-                    {/* Temporary debug button for specific student */}
-                    {/* {session.studentId === '207749219' && (
-                      <button
-                        onClick={() => debugStudentGrade(session._id, session.studentId)}
-                        className={styles.gradeButton}
-                        style={{ marginLeft: '5px', background: '#ff6b6b' }}
-                      >
-                        🐛 Debug
-                      </button>
-                    )} */}
                   </td>
                 </tr>
               ))

@@ -5,10 +5,10 @@ const SERVER_BASE = config.serverUrl;
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🏁 Starting bulk grades export from filtered exam-grading data...');
+    console.log('🏁 Starting bulk grades export with fresh database data...');
     
     // Get the filtered exam sessions from the request body
-    const { examSessions, actualGradedScores } = await request.json();
+    const { examSessions } = await request.json();
     
     if (!examSessions || !Array.isArray(examSessions)) {
       throw new Error('No exam sessions provided');
@@ -16,22 +16,65 @@ export async function POST(request: NextRequest) {
     
     console.log(`📊 Received ${examSessions.length} filtered exam sessions for export`);
 
-    // Create export data using the pre-filtered exam sessions and computed grades
-    const validGrades = examSessions
+    // Get fresh grades from database for each exam
+    const freshGrades = await Promise.allSettled(
+      examSessions.map(async (session: any) => {
+        try {
+          // Use the same logic as individual exam page - check /grade endpoints with fallback
+          let gradeResponse = await fetch(`${SERVER_BASE}/admin/final-exam/${session._id}/grade`);
+          
+          // If primary source fails, try the other source (grades might be saved in either location)
+          if (!gradeResponse.ok) {
+            console.log(`⚠️ Primary grade source failed for ${session._id}, trying alternate source...`);
+            gradeResponse = await fetch(`${SERVER_BASE}/admin/exam/${session._id}/grade`);
+            
+            if (gradeResponse.ok) {
+              console.log(`✅ Found grade data in alternate source (exam) for ${session._id}`);
+            }
+          }
+          
+          if (gradeResponse.ok) {
+            const gradeData = await gradeResponse.json();
+            console.log(`📊 CSV Export - Grade data for ${session._id}:`, {
+              source: gradeData.dataSource,
+              totalScore: gradeData.totalScore,
+              questionGrades: gradeData.questionGrades?.length || 0
+            });
+            
+            if (gradeData && gradeData.totalScore !== undefined) {
+              return { 
+                ...session, 
+                finalGrade: gradeData.totalScore, 
+                gradeSource: gradeData.dataSource || 'unknown'
+              };
+            }
+          }
+          
+          // No grade found
+          return { ...session, finalGrade: 0, source: 'no-grade' };
+        } catch (error) {
+          console.error(`Error fetching grade for exam ${session._id}:`, error);
+          return { ...session, finalGrade: 0, source: 'error' };
+        }
+      })
+    );
+
+    // Process the results and create export data
+    const validGrades = freshGrades
+      .filter((result) => result.status === 'fulfilled' && result.value)
+      .map((result: any) => result.value)
       .filter((session: any) => session.studentName && session.studentName !== 'לא צוין')
       .map((session: any) => {
-        // Use the computed grade from actualGradedScores, or fall back to session score
-        const finalGrade = actualGradedScores[session._id] !== undefined 
-          ? actualGradedScores[session._id] 
-          : session.score || 0;
+        console.log(`📊 Export data for ${session.studentName}: Grade=${session.finalGrade}, Source=${session.gradeSource}`);
         
         return {
           studentId: session.studentId || 'לא צוין',
           studentName: session.studentName || 'לא צוין',
           email: session.studentEmail || '',
-          finalGrade: finalGrade,
+          finalGrade: session.finalGrade || 0,
           examDate: session.startTime || new Date().toISOString(),
-          examId: session._id
+          examId: session._id,
+          gradeSource: session.gradeSource || 'unknown'
         };
       })
       .sort((a, b) => a.studentName.localeCompare(b.studentName, 'he'));
@@ -40,7 +83,7 @@ export async function POST(request: NextRequest) {
 
     // Generate CSV content with UTF-8 BOM for proper Hebrew display
     const BOM = '\uFEFF'; // UTF-8 Byte Order Mark
-    const csvHeader = 'תעודת זהות,שם סטודנט,ציון סופי,תאריך מבחן,מזהה מבחן\n';
+    const csvHeader = 'תעודת זהות,שם סטודנט,ציון סופי,תאריך מבחן,מזהה מבחן,מקור הציון\n';
     const csvRows = validGrades.map(grade => {
       const formatDate = (dateString: string) => {
         try {
@@ -50,7 +93,7 @@ export async function POST(request: NextRequest) {
         }
       };
       
-      return `"${grade.studentId}","${grade.studentName}","${grade.finalGrade}","${formatDate(grade.examDate)}","${grade.examId}"`;
+      return `"${grade.studentId}","${grade.studentName}","${grade.finalGrade}","${formatDate(grade.examDate)}","${grade.examId}","${grade.gradeSource}"`;
     }).join('\n');
 
     const csvContent = BOM + csvHeader + csvRows;

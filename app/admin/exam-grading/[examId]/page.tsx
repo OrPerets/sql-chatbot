@@ -124,25 +124,53 @@ const ExamGradingPage: React.FC = () => {
 
   useEffect(() => {
     // Initialize question grades when exam data loads (only once per exam)
-    if (examData?.answers && initializedExamId !== examId) {
+    // Check for both answers (regular exams) and mergedAnswers (final exams)
+    if ((examData?.answers || examData?.mergedAnswers) && initializedExamId !== examId) {
       console.log('🔄 Initializing grades for exam:', examId);
+      console.log('📊 Exam data has mergedAnswers:', !!examData.mergedAnswers);
+      console.log('📊 Exam data has answers:', !!examData.answers);
+      console.log('📊 Exam data has existingGrades:', !!examData.existingGrades);
       
-      // Get unique answers
-      const uniqueAnswers = getUniqueAnswers(examData.answers);
+      // Get unique answers (prioritize mergedAnswers for finalExams)
+      const answersSource = examData.mergedAnswers || examData.answers;
+      const uniqueAnswers = getUniqueAnswers(answersSource);
+      console.log('📊 Found unique answers:', uniqueAnswers.length);
       
       // Create a map of existing grades by unique key from loaded data
       const existingGradesMap = new Map();
       if (examData.existingGrades && Array.isArray(examData.existingGrades)) {
-        console.log('🔄 Found existing grades:', examData.existingGrades);
-        examData.existingGrades.forEach((grade, index) => {
-          // For existing grades, we need to match them to answers
-          // We'll use the array index to match since we don't have unique keys in old data
-          const answer = uniqueAnswers[index];
-          if (answer) {
-            const uniqueKey = createUniqueKey(answer._id, answer.questionIndex);
-            existingGradesMap.set(uniqueKey, grade);
+        console.log('🔄 Found existing grades:', examData.existingGrades.length);
+        console.log('📊 Existing grades preview:', examData.existingGrades.slice(0, 3));
+        
+        // NEW: Try to match by questionIndex first (more reliable)
+        examData.existingGrades.forEach((grade) => {
+          if (grade.questionIndex !== undefined) {
+            // Find the answer with matching questionIndex
+            const matchingAnswer = uniqueAnswers.find(answer => answer.questionIndex === grade.questionIndex);
+            if (matchingAnswer) {
+              const uniqueKey = createUniqueKey(matchingAnswer._id, matchingAnswer.questionIndex);
+              existingGradesMap.set(uniqueKey, grade);
+              console.log(`📊 Mapped grade for question ${grade.questionIndex}: score=${grade.score}, feedback="${grade.feedback?.substring(0, 50)}..."`);
+            }
           }
         });
+        
+        // FALLBACK: If no questionIndex matching worked, try array index matching
+        if (existingGradesMap.size === 0) {
+          console.log('⚠️ No questionIndex matches found, falling back to array index matching...');
+          examData.existingGrades.forEach((grade, index) => {
+            const answer = uniqueAnswers[index];
+            if (answer) {
+              const uniqueKey = createUniqueKey(answer._id, answer.questionIndex);
+              existingGradesMap.set(uniqueKey, grade);
+              console.log(`📊 Fallback mapped grade for index ${index} (question ${answer.questionIndex}): score=${grade.score}`);
+            }
+          });
+        }
+        
+        console.log(`✅ Total grades mapped: ${existingGradesMap.size} out of ${examData.existingGrades.length} available`);
+      } else {
+        console.log('⚠️ No existing grades found in exam data');
       }
 
       // Create grade objects for ALL questions with unique keys
@@ -221,15 +249,40 @@ const ExamGradingPage: React.FC = () => {
       
       // Load any existing grade data BEFORE setting exam data
       try {
-        const gradeResponse = await fetch(`/api/admin/${isFinalExam ? 'final-exam' : 'exam'}/${examId}/grade`, {
+        console.log(`📊 Loading grade data for ${isFinalExam ? 'final exam' : 'regular exam'}: ${examId}`);
+        
+        let gradeResponse = await fetch(`/api/admin/${isFinalExam ? 'final-exam' : 'exam'}/${examId}/grade`, {
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache'
           }
         });
+        
+        // If primary source fails, try the other source (grades might be saved in either location)
+        if (!gradeResponse.ok) {
+          console.log(`⚠️ Primary grade source failed, trying alternate source...`);
+          const alternateEndpoint = isFinalExam ? 'exam' : 'final-exam';
+          gradeResponse = await fetch(`/api/admin/${alternateEndpoint}/${examId}/grade`, {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache'
+            }
+          });
+          
+          if (gradeResponse.ok) {
+            console.log(`✅ Found grade data in alternate source (${alternateEndpoint})`);
+          }
+        }
+        
         if (gradeResponse.ok) {
           const gradeData = await gradeResponse.json();
           console.log('✅ Successfully loaded grade data:', gradeData);
+          console.log('📊 Grade data source:', gradeData.dataSource);
+          console.log('📊 Question grades count:', gradeData.questionGrades?.length || 0);
+          console.log('📊 Total score:', gradeData.totalScore);
+          if (gradeData.questionGrades?.length > 0) {
+            console.log('📊 First few question grades:', gradeData.questionGrades.slice(0, 3));
+          }
           
           // Load existing deleted questions
           if (gradeData.deletedQuestions && Array.isArray(gradeData.deletedQuestions)) {

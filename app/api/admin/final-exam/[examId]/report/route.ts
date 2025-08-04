@@ -39,17 +39,29 @@ export async function GET(
     
     const examData = await examResponse.json();
     
-    // Fetch grading data
-    const gradeResponse = await fetch(`${SERVER_BASE}/admin/${isFinalExam ? 'final-exam' : 'exam'}/${examId}/grade`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    
+    // Fetch grading data - prioritize finalExams.review over examGrades
     let gradeData = null;
-    if (gradeResponse.ok) {
-      gradeData = await gradeResponse.json();
+    
+    // For final exams, check if grades are stored in the exam's review field
+    if (isFinalExam && examData.review && examData.review.questionGrades) {
+      gradeData = {
+        questionGrades: examData.review.questionGrades,
+        totalScore: examData.review.totalScore || 0,
+        grade: examData.review.percentage ? `${examData.review.percentage}%` : '',
+        overallFeedback: examData.review.feedback || ''
+      };
+    } else {
+      // Fallback to examGrades collection
+      const gradeResponse = await fetch(`${SERVER_BASE}/admin/${isFinalExam ? 'final-exam' : 'exam'}/${examId}/grade`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (gradeResponse.ok) {
+        gradeData = await gradeResponse.json();
+      }
     }
     
     // Filter unique answers to avoid duplicates
@@ -78,11 +90,23 @@ export async function GET(
         const questionPoints = answer.questionDetails?.points || 1;
         let score = 0;
         let feedback = '';
+        let isGraded = false;
         
         // Get grading data if available
-        if (gradeData?.questionGrades && gradeData.questionGrades[index]) {
-          score = gradeData.questionGrades[index].score || 0;
-          feedback = gradeData.questionGrades[index].feedback || '';
+        if (gradeData?.questionGrades) {
+          // Find the matching question grade by questionIndex instead of array index
+          const questionGrade = gradeData.questionGrades.find(qg => 
+            qg.questionIndex === answer.questionIndex || qg.questionIndex === index
+          );
+          
+          if (questionGrade) {
+            score = questionGrade.score || 0;
+            feedback = questionGrade.feedback || '';
+            isGraded = true;
+          } else if (answer.isCorrect) {
+            // Fallback to auto-grading if no manual grade exists
+            score = questionPoints;
+          }
         } else if (answer.isCorrect) {
           // Fallback to auto-grading if no manual grade exists
           score = questionPoints;
@@ -94,8 +118,8 @@ export async function GET(
           studentAnswer: answer.answer || answer.studentAnswer || answer.response || '',
           maxPoints: questionPoints,
           pointsAwarded: score,
-          feedback: feedback || (score === questionPoints ? '✅ תשובה נכונה' : ''),
-          isGraded: gradeData?.questionGrades && gradeData.questionGrades[index] ? true : false
+          feedback: feedback || (score === questionPoints && !isGraded ? '✅ תשובה נכונה' : ''),
+          isGraded: isGraded
         };
       }),
       summary: {
