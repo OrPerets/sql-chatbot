@@ -34,6 +34,7 @@ interface ExamSession {
 interface ExamData {
   session: ExamSession;
   answers: ExamAnswer[];
+  mergedAnswers?: ExamAnswer[]; // For final exams
   existingGrades?: QuestionGrade[];
 }
 
