@@ -215,20 +215,26 @@ const ExamGradingPage: React.FC = () => {
 
   // Separate effect for recalculating totals when deleted questions change
   useEffect(() => {
-    if (examData?.answers) {
-      // Calculate total max score based on actual question points (excluding deleted questions)
-      const totalMaxScore = examData.answers
-        .filter(answer => !deletedQuestions.has(answer.questionIndex))
-        .reduce((sum, answer) => sum + (answer.questionDetails?.points || 1), 0);
-      setMaxScore(totalMaxScore);
-      
+    if (examData?.answers && questionGrades.length > 0) {
+      // Only recalculate when there are actual grade changes, not on initial load
       // Calculate total score based on current grades (excluding deleted questions)
       const totalCurrentScore = questionGrades
         .filter(grade => !deletedQuestions.has(grade.questionIndex))
         .reduce((sum, grade) => sum + grade.score, 0);
-      setTotalScore(totalCurrentScore);
+      
+      // Only update totalScore if we're actively grading (not loading saved data)
+      // This preserves the saved totalScore (like 37) when loading existing grades
+      if (initializedExamId === examId) {
+        setTotalScore(totalCurrentScore);
+        
+        // Calculate total max score based on actual question points (excluding deleted questions)
+        const totalMaxScore = examData.answers
+          .filter(answer => !deletedQuestions.has(answer.questionIndex))
+          .reduce((sum, answer) => sum + (answer.questionDetails?.points || 1), 0);
+        setMaxScore(totalMaxScore);
+      }
     }
-  }, [deletedQuestions, questionGrades, examData]);
+  }, [deletedQuestions, questionGrades, examData, initializedExamId, examId]);
 
   const fetchExamData = async () => {
     try {
