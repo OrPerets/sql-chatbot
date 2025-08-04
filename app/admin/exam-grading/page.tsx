@@ -1309,9 +1309,7 @@ const ExamGradingPage: React.FC = () => {
 
       {/* Bulk Export Controls */}
       <div className={styles.bulkExportSection}>
-        <h3 className={styles.bulkExportTitle}>
-          📤 ייצוא דתא
-        </h3>
+       
         <div className={styles.bulkExportButtons}>
           <button
             onClick={handleBulkGradesExport}
