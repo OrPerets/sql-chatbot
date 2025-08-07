@@ -254,14 +254,18 @@ export function GradeByQuestionProvider({ children }: GradeByQuestionProviderPro
       }
       dispatch({ type: 'SET_ERROR', payload: '' });
 
-      // Use forceTab if provided, otherwise use state.activeTab
-      const activeTab = forceTab !== undefined ? forceTab : state.activeTab;
+      let activeTab = forceTab !== undefined ? forceTab : state.activeTab;
 
-      // Don't fetch if no tab is selected
       if (!activeTab) {
-        console.warn('🚨 No active tab selected, skipping fetch');
-        dispatch({ type: 'SET_LOADING', payload: false });
-        return;
+        const savedTab = sessionStorage.getItem('gradeByQuestionActiveTab') as 'moed-a' | 'moed-b' | null;
+        if (savedTab && (savedTab === 'moed-a' || savedTab === 'moed-b')) {
+          dispatch({ type: 'SET_ACTIVE_TAB', payload: savedTab });
+          activeTab = savedTab;
+        } else {
+          console.warn('🚨 No active tab selected, skipping fetch');
+          dispatch({ type: 'SET_LOADING', payload: false });
+          return;
+        }
       }
 
       console.log(`🚀 Fetching questions for ${activeTab}, page ${page}...`);
