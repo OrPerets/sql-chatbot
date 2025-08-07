@@ -266,7 +266,9 @@ export function GradeByQuestionProvider({ children }: GradeByQuestionProviderPro
 
       console.log(`🚀 Fetching questions for ${activeTab}, page ${page}...`);
 
+      const moed = activeTab === 'moed-a' ? 'a' : 'b';
       const queryParams = new URLSearchParams({
+        moed,
         page: page.toString(),
         limit: state.pagination.questionsPerPage.toString(),
         includeGradingStatus: 'true'
@@ -284,15 +286,7 @@ export function GradeByQuestionProvider({ children }: GradeByQuestionProviderPro
         queryParams.append('gradingStatus', state.gradingStatusFilter);
       }
 
-      // Use different endpoints based on active tab
-      let apiEndpoint: string;
-      if (activeTab === 'moed-a') {
-        // For מועד א - use FinalExams-based questions
-        apiEndpoint = `/api/admin/questions-with-answers?${queryParams.toString()}`;
-      } else {
-        // For מועד ב - use regular questions collection (existing)
-        apiEndpoint = `/api/admin/questions-optimized?${queryParams.toString()}`;
-      }
+      const apiEndpoint = `/api/admin/questions?${queryParams.toString()}`;
 
       const response = await fetch(apiEndpoint, {
         cache: 'no-store',
@@ -359,6 +353,21 @@ export function GradeByQuestionProvider({ children }: GradeByQuestionProviderPro
     }, 4000);
   }, []);
 
+  // Fetch comment bank
+  const fetchCommentBank = useCallback(async (questionId: number) => {
+    try {
+      dispatch({ type: 'SET_LOADING_COMMENTS', payload: true });
+      const response = await fetch(`/api/admin/comment-bank?questionId=${questionId}&limit=50`);
+      if (!response.ok) throw new Error('Failed to fetch comments');
+      const data = await response.json();
+      dispatch({ type: 'SET_COMMENT_BANK_ENTRIES', payload: data.comments || [] });
+    } catch (err) {
+      console.error('Error fetching comment bank entries:', err);
+    } finally {
+      dispatch({ type: 'SET_LOADING_COMMENTS', payload: false });
+    }
+  }, []);
+
   // Fetch question answers with pagination
   const fetchQuestionAnswers = useCallback(async (questionId: number) => {
     try {
@@ -367,7 +376,8 @@ export function GradeByQuestionProvider({ children }: GradeByQuestionProviderPro
 
       console.log(`🔄 Fetching optimized answers for question ${questionId}...`);
 
-      const response = await fetch(`/api/admin/question/${questionId}/answers-optimized?page=1&limit=50`, {
+      const moed = state.activeTab === 'moed-a' ? 'a' : 'b';
+      const response = await fetch(`/api/admin/question/${questionId}/answers?moed=${moed}&page=1&limit=50`, {
         cache: 'no-store',
         headers: {
           'Content-Type': 'application/json',
@@ -414,7 +424,7 @@ export function GradeByQuestionProvider({ children }: GradeByQuestionProviderPro
     } finally {
       dispatch({ type: 'SET_QUESTIONS_LOADING', payload: false });
     }
-  }, []);
+  }, [state.activeTab, fetchCommentBank]);
 
   // Save grade with unified sync
   const saveGrade = useCallback(async (examId: string, questionIndex: number, grade: number, feedback: string) => {
@@ -422,15 +432,15 @@ export function GradeByQuestionProvider({ children }: GradeByQuestionProviderPro
       dispatch({ type: 'SET_SAVING_GRADE', payload: true });
 
       // Use unified grade sync to ensure consistency across all systems
-      const response = await fetch('/api/admin/unified-grade-sync', {
+      const response = await fetch('/api/admin/grade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'sync_grade',
+          type: 'single',
           examId,
           questionIndex,
-          grade,
-          feedback,
+          score: grade,
+          feedback
         }),
       });
 
@@ -494,21 +504,6 @@ export function GradeByQuestionProvider({ children }: GradeByQuestionProviderPro
       console.error('Error refreshing question completion:', error);
     }
   }, [state.questions, dispatch]);
-
-  // Fetch comment bank
-  const fetchCommentBank = useCallback(async (questionId: number) => {
-    try {
-      dispatch({ type: 'SET_LOADING_COMMENTS', payload: true });
-      const response = await fetch(`/api/admin/comment-bank?questionId=${questionId}&limit=50`);
-      if (!response.ok) throw new Error('Failed to fetch comments');
-      const data = await response.json();
-      dispatch({ type: 'SET_COMMENT_BANK_ENTRIES', payload: data.comments || [] });
-    } catch (err) {
-      console.error('Error fetching comment bank entries:', err);
-    } finally {
-      dispatch({ type: 'SET_LOADING_COMMENTS', payload: false });
-    }
-  }, []);
 
   // Set active tab
   const setActiveTab = useCallback(async (tab: 'moed-a' | 'moed-b' | null) => {
