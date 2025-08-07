@@ -11,96 +11,81 @@ import { ExamMetricsTracker, ComprehensiveMetrics } from '../utils/examMetricsTr
 // NUCLEAR OPTION: Database schema outside component to prevent re-renders
 const DATABASE_SCHEMA = [
   {
-    name: 'AirBases',
-    nameHe: 'בסיסי חיל האוויר',
+    name: 'Couriers',
+    nameHe: 'שליחים',
     columns: [
-      { name: 'base_id', type: 'מזהה ייחודי של הבסיס' },
-      { name: 'base_name', type: 'שם הבסיס (רמת דוד, חצרים)' },
-      { name: 'base_code', type: 'קוד הבסיס (3 אותיות)' },
-      { name: 'location', type: 'אזור גיאוגרפי' },
-      { name: 'established_year', type: 'שנת הקמה' },
-      { name: 'runways_count', type: 'מספר מסלולי נחיתה' },
-      { name: 'personnel_capacity', type: 'מספר מקסימלי של אנשי צוות' }
+      { name: 'courier_id', type: 'מזהה ייחודי' },
+      { name: 'full_name', type: 'שם מלא' },
+      { name: 'vehicle_type', type: 'סוג רכב (אופניים, קטנוע, רכב)' },
+      { name: 'rating', type: 'דירוג ממוצע' },
+      { name: 'employment_date', type: 'תאריך התחלת עבודה' }
     ]
   },
   {
-    name: 'Squadrons',
-    nameHe: 'טייסות',
+    name: 'Customers',
+    nameHe: 'לקוחות',
     columns: [
-      { name: 'squadron_id', type: 'מזהה ייחודי של הטייסת' },
-      { name: 'squadron_name', type: 'שם הטייסת' },
-      { name: 'squadron_number', type: 'מספר הטייסת' },
-      { name: 'base_id', type: 'בסיס הטייסת (מפתח זר)' },
-      { name: 'aircraft_type', type: 'סוג המטוס העיקרי' },
-      { name: 'established_date', type: 'תאריך הקמת הטייסת' },
-      { name: 'active_status', type: 'האם הטייסת פעילה' }
+      { name: 'customer_id', type: 'מזהה ייחודי' },
+      { name: 'full_name', type: 'שם מלא' },
+      { name: 'city', type: 'עיר מגורים' },
+      { name: 'registration_date', type: 'תאריך הרשמה' },
+      { name: 'vip_status', type: 'סטטוס VIP (כן/לא)' }
     ]
   },
   {
-    name: 'Pilots',
-    nameHe: 'טייסים',
+    name: 'Restaurants',
+    nameHe: 'מסעדות',
     columns: [
-      { name: 'pilot_id', type: 'מזהה ייחודי של הטייס' },
-      { name: 'first_name', type: 'שם פרטי' },
-      { name: 'last_name', type: 'שם משפחה' },
-      { name: 'rank', type: 'דרגה צבאית' },
-      { name: 'squadron_id', type: 'הטייסת (מפתח זר)' },
-      { name: 'flight_hours', type: 'שעות טיסה מצטברות' },
-      { name: 'specialization', type: 'התמחות' },
-      { name: 'service_start_date', type: 'תאריך תחילת שירות' }
+      { name: 'restaurant_id', type: 'מזהה ייחודי' },
+      { name: 'name', type: 'שם המסעדה' },
+      { name: 'location', type: 'כתובת מלאה' },
+      { name: 'cuisine_type', type: 'סוג מטבח' },
+      { name: 'open_hours', type: 'שעות פתיחה' }
     ]
   },
   {
-    name: 'Aircraft',
-    nameHe: 'כלי טיס',
+    name: 'Orders',
+    nameHe: 'הזמנות',
     columns: [
-      { name: 'aircraft_id', type: 'מזהה ייחודי של כלי הטיס' },
-      { name: 'aircraft_type', type: 'סוג המטוס (F-16, F-35)' },
-      { name: 'tail_number', type: 'מספר זנב' },
-      { name: 'squadron_id', type: 'הטייסת (מפתח זר)' },
-      { name: 'manufacture_year', type: 'שנת ייצור' },
-      { name: 'last_maintenance', type: 'תאריך תחזוקה אחרונה' },
-      { name: 'flight_hours_total', type: 'שעות טיסה מצטברות' },
-      { name: 'operational_status', type: 'סטטוס תפעולי' }
+      { name: 'order_id', type: 'מזהה ייחודי' },
+      { name: 'order_time', type: 'שעת ההזמנה' },
+      { name: 'delivery_time', type: 'שעת המשלוח בפועל' },
+      { name: 'delay_minutes', type: 'עיכוב בדקות' },
+      { name: 'cost', type: 'עלות' },
+      { name: 'courier_id', type: 'מפתח זר לCouriers' },
+      { name: 'customer_id', type: 'מפתח זר לCustomers' },
+      { name: 'restaurant_id', type: 'מפתח זר לRestaurants' }
     ]
   },
   {
-    name: 'Weapons',
-    nameHe: 'כלי נשק ותחמושת',
+    name: 'CourierShifts',
+    nameHe: 'משמרות שליחים',
     columns: [
-      { name: 'weapon_id', type: 'מזהה ייחודי של כלי הנשק' },
-      { name: 'weapon_name', type: 'שם כלי הנשק' },
-      { name: 'weapon_type', type: 'סוג (טיל, פצצה, תותח)' },
-      { name: 'base_id', type: 'בסיס אחסון (מפתח זר)' },
-      { name: 'quantity_available', type: 'כמות זמינה' },
-      { name: 'unit_cost', type: 'עלות יחידה באלפי ש"ח' },
-      { name: 'minimum_stock', type: 'מלאי מינימום' }
+      { name: 'courier_id', type: 'מפתח זר ל־Couriers' },
+      { name: 'shift_date', type: 'תאריך המשמרת' },
+      { name: 'start_time', type: 'שעת התחלה' },
+      { name: 'end_time', type: 'שעת סיום' },
+      { name: 'dispatch_center_id', type: 'מפתח זר לDispatchCenters' }
     ]
   },
   {
-    name: 'Missions',
-    nameHe: 'משימות ותפעול',
+    name: 'DispatchCenters',
+    nameHe: 'מרכזי שילוח',
     columns: [
-      { name: 'mission_id', type: 'מזהה ייחודי של המשימה' },
-      { name: 'mission_name', type: 'שם המשימה' },
-      { name: 'mission_date', type: 'תאריך המשימה' },
-      { name: 'squadron_id', type: 'הטייסת (מפתח זר)' },
-      { name: 'pilot_id', type: 'הטייס הראשי (מפתח זר)' },
-      { name: 'aircraft_id', type: 'כלי הטיס (מפתח זר)' },
-      { name: 'mission_duration', type: 'משך המשימה בשעות' },
-      { name: 'mission_status', type: 'סטטוס (הושלמה, בביצוע, בוטלה)' }
+      { name: 'dispatch_center_id', type: 'מזהה ייחודי (מפתח ראשי)' },
+      { name: 'region', type: 'אזור גאוגרפי' },
+      { name: 'manager_name', type: 'שם מנהל' }
     ]
   },
   {
-    name: 'Maintenance',
-    nameHe: 'תחזוקה',
+    name: 'Complaints',
+    nameHe: 'תלונות לקוח',
     columns: [
-      { name: 'maintenance_id', type: 'מזהה ייחודי של התחזוקה' },
-      { name: 'aircraft_id', type: 'כלי הטיס (מפתח זר)' },
-      { name: 'maintenance_type', type: 'סוג התחזוקה' },
-      { name: 'start_date', type: 'תאריך התחלה' },
-      { name: 'end_date', type: 'תאריך סיום התחזוקה' },
-      { name: 'cost', type: 'עלות התחזוקה באלפי ש"ח' }
+      { name: 'complaint_id', type: 'מזהה ייחודי (מפתח ראשי)' },
+      { name: 'order_id', type: 'מפתח זר לOrders' },
+      { name: 'reason', type: 'סיבת התלונה' },
+      { name: 'resolved_flag', type: 'האם נפתרה' },
+      { name: 'compensation_amount', type: 'פיצוי כספי' }
     ]
   }
 ];
@@ -128,6 +113,16 @@ interface ExamSession {
   startTime: string;
   totalQuestions: number;
   currentQuestionIndex: number;
+  isResuming?: boolean;
+  resumeData?: {
+    totalTimeSpent: number;
+    answeredQuestions: number;
+    answers: any[];
+    currentQuestionData?: {
+      currentAnswer: string;
+      timeSpent: number;
+    };
+  };
 }
 
 interface User {
@@ -273,7 +268,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
     const downloadScenarioPDF = () => {
       const link = document.createElement('a');
       link.href = '/DB.pdf';
-      link.download = 'Air_Force_Database_Schema.pdf';
+      link.download = 'Wolt_Delivery_Database_Schema.pdf';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -282,7 +277,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
     return (
       <div className={styles.schemaSidebar}>
         <div className={styles.sidebarHeader}>
-          <h3 className={styles.sidebarTitle}>מערכת ניהול חיל האוויר</h3>
+          <h3 className={styles.sidebarTitle}>מערכת ניהול משלוחים</h3>
           <button 
             className={styles.toggleSidebarBtn}
             onClick={props.onToggle}
@@ -408,7 +403,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
           onKeyDown={handleKeyDown}
         >
           <div className={styles.modalHeader}>
-            <h2 className={styles.modalTitle}>תרחיש: מערכת ניהול חיל האוויר הישראלי</h2>
+            <h2 className={styles.modalTitle}>תרחיש: מערכת ניהול משלוחים - Wolt</h2>
             <button className={styles.modalClose} onClick={handleClose}>
               ❌
             </button>
@@ -421,60 +416,51 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
                   <div className={styles.scenarioColumn}>
                     <p>
                       <strong>היסטוריה והקמה:</strong><br />
-                      חיל האוויר הישראלי הוקם ביום 28 במאי 1948, יום לאחר הכרזת העצמאות, כאשר הטייסת הראשונה הורכבה מ-9 מטוסי אביה צ'כיים.
+                      Wolt היא חברת שליחויות בינלאומית שהוקמה בהלסינקי, פינלנד, בשנת 2014, והחלה לפעול בישראל בשנת 2018. מאז כניסתה לשוק המקומי, Wolt פועלת בעשרות ערים בישראל.
                     </p>
                     
                     <p>
-                      <strong>התפתחות לאורך השנים:</strong><br />
-                      מאז ועד היום, חיל האוויר התפתח להיות אחד הכוחות האוויריים המתקדמים והיעילים בעולם.
-                    </p>
-                    
-                    <p>
-                      <strong>השתתפות במלחמות:</strong><br />
-                      במשך עשרות השנים, חיל האוויר השתתף במלחמות ישראל:
-                      <br />• מלחמת העצמאות (1948)
-                      <br />• מלחמת ששת הימים (1967)
-                      <br />• מלחמת יום הכיפורים (1973)
-                      <br />• מלחמת לבנון הראשונה (1982)
-                      <br />• מבצעים מודרניים: "חומת מגן" (2002), "עמוד ענן" (2012)
+                      <strong>שירותי החברה:</strong><br />
+                      החברה מציעה שירות משלוחים מהיר ממסעדות, סופרמרקטים וחנויות קמעונאיות באמצעות שליחים עצמאיים, ומתמחה במתן חוויית משתמש איכותית.
                     </p>
                     
                     <p>
                       <strong>פיתוח טכנולוגי:</strong><br />
-                      החל משנת 1976, חיל האוויר החל לקלוט את מטוסי ה-F-16 הראשונים, מה שהפך אותו לחיל האוויר הראשון מחוץ לארה"ב שהפעיל מטוס זה.
+                      כדי לשפר את התפעול ולהבטיח חוויית משתמש איכותית, Wolt פיתחה מערכת טכנולוגית לניהול הזמנות ומשלוחים בזמן אמת.
                     </p>
                     
                     <p>
-                      בשנת 2016, ישראל הפכה למדינה הראשונה מחוץ לארה"ב שקיבלה את מטוסי ה-F-35 המתקדמים.
+                      <strong>מעקב ובקרה:</strong><br />
+                      המערכת עוקבת אחר זמני הכנה, זמני משלוח, זמינות שליחים, משמרות, תלונות לקוח ופרמטרים לוגיסטיים נוספים.
                     </p>
                   </div>
                   
                   <div className={styles.scenarioColumn}>
                     <p>
-                      <strong>מצב נוכחי:</strong><br />
-                      כיום, חיל האוויר מונה כ-34,000 איש, המפעילים מעל 460 כלי טיס מסוגים שונים, הפרוסים על פני 8 בסיסים עיקריים ברחבי הארץ.
+                      <strong>אתגרים מרכזיים:</strong><br />
+                      אחד האתגרים המרכזיים עמו מתמודדת החברה הוא ניהול עומסים בזמני שיא: עיכובים באיסוף ובהגעה, חוסר תיאום בין זמינות שליחים לשעות פעילות המסעדות.
                     </p>
                     
                     <p>
-                      <strong>תחומי אחריות:</strong><br />
-                      החיל אחראי על הגנה אווירית, תקיפות אסטרטגיות, סיוע קרוב, חילוץ והצלה, ומשימות מודיעין אוויריות.
+                      <strong>בעיות תפעוליות:</strong><br />
+                      פערים בין הביקוש להזמנות לבין מספר השליחים הפעילים, ריבוי תלונות מצד לקוחות על עיכובים חוזרים, שירות לקוי או שליחים שלא השלימו את המשלוח.
                     </p>
                     
                     <p>
                       <strong>מערכת מסד הנתונים:</strong><br />
-                      מערכת מסד הנתונים של חיל האוויר פותחה בשנת 1995 ועברה שדרוגים משמעותיים בשנים 2005, 2012, ו-2020.
+                      מערכת מסד הנתונים של Wolt פותחה בשנת 2018 ועברה שדרוגים משמעותיים בשנים 2020, 2022, ו-2024 להתמודדות עם הגידול בנפח ההזמנות.
                     </p>
                     
                     <p>
                       <strong>תחומי פעילות המערכת:</strong>
                     </p>
                     <ul>
-                      <li>תכנון משימות ותפעול מבצעי</li>
-                      <li>ניהול משאבי אנוש (טייסים, טכנאים, קצינים)</li>
-                      <li>מעקב אחר מצב כלי הטיס ותחזוקתם</li>
-                      <li>ניהול מלאי כלי נשק ותחמושת</li>
-                      <li>תכנון אימונים וקורסים</li>
-                      <li>ניתוח ביצועים ויעילות תפעולית</li>
+                      <li>ניהול הזמנות ומעקב בזמן אמת</li>
+                      <li>ניהול משמרות וזמינות שליחים</li>
+                      <li>מעקב אחר ביצועים ודירוגי שליחים</li>
+                      <li>ניהול תלונות לקוחות ופיצויים</li>
+                      <li>תיאום בין מסעדות למרכזי שילוח</li>
+                      <li>ניתוח נתונים לשיפור התפעול</li>
                     </ul>
                   </div>
                 </div>
@@ -499,15 +485,16 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
               <div className={styles.modalDbNotes}>
                 <h3 className={styles.modalSectionTitle}>יחסים בין הטבלאות</h3>
                 <ul className={styles.modalNotesList}>
-                  <li>כל בסיס מכיל מספר טייסות (יחס 1:N)</li>
-                  <li>כל טייס משרת בטייסת אחת (יחס N:1)</li>
-                  <li>כל טייסת ממוקמת בבסיס אחד (יחס N:1)</li>
-                  <li>כל כלי טיס משויך לטייסת אחת (יחס N:1)</li>
-                  <li>כלי נשק מאוחסנים בבסיסים שונים (יחס N:1)</li>
-                  <li>כל משימה כוללת טייסת ספציפית (יחס 1:1)</li>
-                  <li>כל משימה כוללת טייס ספציפי (יחס 1:1)</li>
-                  <li>כל משימה כוללת כלי טיס ספציפי (יחס 1:1)</li>
-                  <li>כל כלי טיס עובר תחזוקות מרובות (יחס 1:N)</li>
+                  <li>כל הזמנה משויכת לשליח אחד (יחס N:1)</li>
+                  <li>כל הזמנה משויכת ללקוח אחד (יחס N:1)</li>
+                  <li>כל הזמנה משויכת למסעדה אחת (יחס N:1)</li>
+                  <li>שליח יכול לעבוד במשמרות מרובות (יחס 1:N)</li>
+                  <li>כל משמרת מתבצעת במרכז שילוח אחד (יחס N:1)</li>
+                  <li>מרכז שילוח מנהל מספר משמרות (יחס 1:N)</li>
+                  <li>תלונה מתייחסת להזמנה ספציפית (יחס N:1)</li>
+                  <li>לקוח יכול להגיש מספר תלונות (יחס 1:N)</li>
+                  <li>מסעדה יכולה לקבל מספר הזמנות (יחס 1:N)</li>
+                  <li>מפתח מורכב: CourierShifts (courier_id, shift_date)</li>
                 </ul>
               </div>
             </div>
@@ -560,8 +547,8 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
   }, [currentQuestion, currentQuestionIndex, examSession.examId, studentAnswer, difficulty, user]);
 
   // Load the current question
-  const loadQuestion = useCallback(async (questionIndex: number) => {
-    console.log(`Loading question ${questionIndex}`);
+  const loadQuestion = useCallback(async (questionIndex: number, resumeData?: any) => {
+    console.log(`Loading question ${questionIndex}`, resumeData ? 'with resume data' : '');
     setIsLoading(true);
     setError('');
     
@@ -611,10 +598,53 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
       const factor = 1 + (extraTimePercentage / 100);
       const serverTimeLimit = Math.round(serverBaseTimeLimit * factor);
       setMaxTime(serverTimeLimit);
-      setQuestionStartTime(new Date());
-      questionStartTimeRef.current = new Date();
-      setTimeElapsed(0);
-      setStudentAnswer('');
+      
+      // Handle state restoration for resumed exams
+      let restoredAnswer = '';
+      let timeSpentOnQuestion = 0;
+      
+      if (examSession.isResuming || resumeData) {
+        try {
+          // First check if there's resume data provided
+          if (resumeData && resumeData.currentAnswer) {
+            restoredAnswer = resumeData.currentAnswer;
+            timeSpentOnQuestion = resumeData.timeSpent || 0;
+            console.log(`Restored state from resume data: answer="${restoredAnswer}", timeSpent=${timeSpentOnQuestion}s`);
+          } else {
+            // Check for auto-saved answer for this question
+            const autoSaveResponse = await fetch(`${SERVER_BASE}/exam/${examSession.examId}/auto-save/${questionIndex}?studentId=${user.id}`);
+            if (autoSaveResponse.ok) {
+              const autoSaveData = await autoSaveResponse.json();
+              if (autoSaveData.studentAnswer) {
+                restoredAnswer = autoSaveData.studentAnswer;
+                timeSpentOnQuestion = autoSaveData.timeSpent || 0;
+                console.log(`Restored auto-saved answer for question ${questionIndex}: "${restoredAnswer}", timeSpent=${timeSpentOnQuestion}s`);
+              }
+            }
+          }
+        } catch (error) {
+          console.log('No auto-save data found for this question, starting fresh');
+        }
+      }
+      
+      // Set the restored answer and time
+      setStudentAnswer(restoredAnswer);
+      setTimeElapsed(timeSpentOnQuestion);
+      
+      // Set start time accounting for already spent time
+      const now = new Date();
+      const adjustedStartTime = new Date(now.getTime() - (timeSpentOnQuestion * 1000));
+      setQuestionStartTime(adjustedStartTime);
+      questionStartTimeRef.current = adjustedStartTime;
+      
+      console.log(`Question ${questionIndex} state restored:`, {
+        timeSpent: timeSpentOnQuestion,
+        answerLength: restoredAnswer.length,
+        maxTime: serverTimeLimit,
+        timeElapsed: timeSpentOnQuestion,
+        isResuming: examSession.isResuming,
+        hasResumeData: !!resumeData
+      });
       
       // Initialize comprehensive metrics tracker for new question
       if (metricsTrackerRef.current) {
@@ -631,7 +661,7 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
     } finally {
       setIsLoading(false);
     }
-  }, [examSession.examId, user.id]);
+  }, [examSession.examId, user.id, examSession.isResuming, extraTimePercentage]);
 
   // Fetch extra time for student
   useEffect(() => {
@@ -665,10 +695,19 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
   // Load first question only after extraTimePercentage is fetched and ready
   useEffect(() => {
     if (!firstQuestionLoadedRef.current && extraTimeLoaded) {
-      loadQuestion(0);
+      // If this is a resumed exam, start from the current question index
+      const startingQuestionIndex = examSession.isResuming ? examSession.currentQuestionIndex : 0;
+      setCurrentQuestionIndex(startingQuestionIndex);
+      
+      // Pass resume data if available
+      const resumeData = examSession.isResuming && examSession.resumeData?.currentQuestionData 
+        ? examSession.resumeData.currentQuestionData 
+        : undefined;
+      
+      loadQuestion(startingQuestionIndex, resumeData);
       firstQuestionLoadedRef.current = true;
     }
-  }, [extraTimeLoaded, loadQuestion]);
+  }, [extraTimeLoaded, loadQuestion, examSession.isResuming, examSession.currentQuestionIndex, examSession.resumeData]);
 
   // Update maxTime only when currentQuestion, extraTimeLoaded, and extraTimePercentage are ready
   useEffect(() => {
@@ -1014,12 +1053,12 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
   const downloadScenarioHTML = () => {
     const modal = modalContentRef.current;
     if (modal && showScenarioModal) {
-      const html = `<!DOCTYPE html><html lang="he"><head><meta charset='utf-8'><title>תרחיש: מערכת ניהול חיל האוויר הישראלי</title><style>body{font-family:Arial,sans-serif;direction:rtl;background:#f8fafc;margin:0;padding:2em;}h2{color:#131137;}p,li{color:#374151;}ul{padding-right:1.5em;}div{box-sizing:border-box;}@media(max-width:600px){body{padding:0.5em;}}</style></head><body>${modal.innerHTML}</body></html>`;
+      const html = `<!DOCTYPE html><html lang="he"><head><meta charset='utf-8'><title>תרחיש: מערכת ניהול משלוחים - Wolt</title><style>body{font-family:Arial,sans-serif;direction:rtl;background:#f8fafc;margin:0;padding:2em;}h2{color:#131137;}p,li{color:#374151;}ul{padding-right:1.5em;}div{box-sizing:border-box;}@media(max-width:600px){body{padding:0.5em;}}</style></head><body>${modal.innerHTML}</body></html>`;
       const blob = new Blob([html], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'תרחיש_מערכת_ניהול_חיל_האוויר.html';
+      a.download = 'תרחיש_מערכת_ניהול_משלוחים_Wolt.html';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1042,6 +1081,13 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
           </div>
           <span className={styles.progressText}>
             שאלה {currentQuestionIndex + 1} מתוך {examSession.totalQuestions}
+            {examSession.isResuming && (
+              <span className={styles.resumeIndicator}>
+                {examSession.resumeData?.answeredQuestions > 0 
+                  ? ` (המשך - ${examSession.resumeData.answeredQuestions} שאלות נענו)`
+                  : ' (המשך)'}
+              </span>
+            )}
           </span>
         </div>
 

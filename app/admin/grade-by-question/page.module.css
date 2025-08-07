@@ -121,6 +121,36 @@
   animation: spin 1s linear infinite;
 }
 
+.exportButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(40, 167, 69, 0.9);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.exportButton:hover {
+  background: rgba(30, 126, 52, 0.95);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+}
+
+.exportButton:disabled {
+  background: rgba(255, 255, 255, 0.1);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .toggleButton {
   display: flex;
   align-items: center;
@@ -2539,4 +2569,138 @@
   color: #742a2a;
   border: 1px solid #feb2b2;
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+}
+
+/* Tabs Styles */
+.tabsContainer {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 15px 20px;
+  margin: 20px 40px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.tab {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 16px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.tab:hover {
+  background: #e9ecef;
+  transform: translateY(-1px);
+}
+
+.activeTab {
+  background: #007bff !important;
+  color: white !important;
+  border-color: #007bff !important;
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+}
+
+.tabDescription {
+  font-size: 14px;
+  color: #6c757d;
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* Initial State Styles */
+.initialStateContainer {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 40px;
+  margin: 20px 40px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.initialStateContent {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.initialStateIcon {
+  color: #6c757d;
+  margin-bottom: 20px;
+}
+
+.initialStateContent h2 {
+  margin: 0 0 10px 0;
+  color: #2c3e50;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.initialStateContent p {
+  margin: 0 0 30px 0;
+  color: #6c757d;
+  font-size: 16px;
+}
+
+.moedOptions {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.moedButton {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 2px solid #dee2e6;
+  border-radius: 12px;
+  padding: 20px 30px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 250px;
+  text-align: center;
+}
+
+.moedButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  border-color: #007bff;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+}
+
+.moedButtonTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.moedButtonDesc {
+  font-size: 14px;
+  color: #6c757d;
+  line-height: 1.4;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: white;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 5px;
+  font-weight: 400;
 } 

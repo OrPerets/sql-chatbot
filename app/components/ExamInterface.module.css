@@ -71,6 +71,16 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
+.resumeIndicator {
+  color: #10b981;
+  font-weight: 600;
+  font-size: 0.8rem;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 8px;
+}
+
 .timerSection {
   flex: 0 0 auto;
   margin: 0 2rem; /* Reduced from 2.5rem */

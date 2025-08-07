@@ -87,27 +87,153 @@ const ExamGradingPage: React.FC = () => {
   };
 
   // Helper function to get unique answers (filter duplicates based on question text)
+  // IMPROVED: Prioritize versions that have grades when dealing with duplicates
+  // CONSERVATIVE: Only filter out truly impossible cases to preserve all legitimate questions
   const getUniqueAnswers = (answers: ExamAnswer[]) => {
     if (!answers) return [];
     
-    const uniqueAnswers = answers.filter((answer, index, arr) => {
-      const firstOccurrence = arr.findIndex(a => a.questionText.trim() === answer.questionText.trim());
-      const isUnique = index === firstOccurrence;
+    // CONSERVATIVE FILTER: Only remove clearly impossible cases
+    const cleanAnswers = answers.filter(answer => {
+      // Only filter if we have BOTH impossible grade AND clear evidence of corruption
+      const existingGrade = examData?.existingGrades?.find(grade => 
+        grade.questionIndex === answer.questionIndex
+      );
       
-      // Debug logging for duplicates
-      if (!isUnique) {
-        console.log(`🔄 Filtering duplicate question: "${answer.questionText.substring(0, 50)}..." (index ${index}, first occurrence at ${firstOccurrence})`);
+      // VERY CONSERVATIVE: Only filter if maxScore=1 AND score>6 (clearly impossible)
+      if (existingGrade && existingGrade.maxScore === 1 && existingGrade.score > 6) {
+        console.log(`🚨 CLEARLY IMPOSSIBLE: Filtering out obviously corrupted grade: questionIndex ${answer.questionIndex} (${existingGrade.score}/${existingGrade.maxScore})`);
+        console.log(`   Question: "${answer.questionText?.substring(0, 50)}..."`);
+        return false; // Only remove clearly impossible cases
       }
       
-      return isUnique;
+      return true; // Keep everything else - better to show too much than too little
     });
     
-    console.log(`📊 Original answers: ${answers.length}, Unique answers: ${uniqueAnswers.length}, Filtered: ${answers.length - uniqueAnswers.length}`);
+    console.log(`🧹 CORRUPTION FILTER: ${answers.length} → ${cleanAnswers.length} answers (removed ${answers.length - cleanAnswers.length} corrupted)`);
+    
+    // Group answers by question text
+    const questionGroups = new Map();
+    
+    cleanAnswers.forEach((answer, index) => {
+      const questionText = answer.questionText?.trim() || '';
+      if (!questionGroups.has(questionText)) {
+        questionGroups.set(questionText, []);
+      }
+      questionGroups.get(questionText).push({ ...answer, originalIndex: index });
+    });
+    
+    const uniqueAnswers = [];
+    let filteredDuplicates = 0;
+    
+    questionGroups.forEach((duplicates, questionText) => {
+      if (duplicates.length === 1) {
+        // No duplicates, keep as is
+        uniqueAnswers.push(duplicates[0]);
+      } else {
+        // Handle duplicates: prioritize the one with the HIGHEST grade
+        console.log(`🔄 Found ${duplicates.length} duplicates for: "${questionText.substring(0, 50)}..."`);
+        
+        // Find all duplicates with grades and their scores
+        const duplicatesWithGrades = duplicates.map(duplicate => {
+          const grade = examData?.existingGrades?.find(grade => 
+            grade.questionIndex === duplicate.questionIndex
+          );
+          return {
+            ...duplicate,
+            grade: grade,
+            hasGrade: !!grade,
+            score: grade?.score || 0,
+            maxScore: grade?.maxScore || 0
+          };
+        });
+        
+        // Sort by: 1) Has grade (true first), 2) Score (highest first), 3) Original order
+        // BUT FILTER OUT problematic questions with maxScore=1 and score>1 (bad data)
+        const validDuplicates = duplicatesWithGrades.filter(duplicate => {
+          if (duplicate.grade && duplicate.grade.maxScore === 1 && duplicate.grade.score > 1) {
+            console.log(`⚠️ Filtering out problematic question: questionIndex ${duplicate.questionIndex} (${duplicate.score}/${duplicate.maxScore})`);
+            return false;
+          }
+          return true;
+        });
+        
+        const sortedDuplicates = validDuplicates.sort((a, b) => {
+          // First priority: has grade vs no grade
+          if (a.hasGrade !== b.hasGrade) {
+            return b.hasGrade ? 1 : -1;
+          }
+          // Second priority: if both have grades, compare scores
+          if (a.hasGrade && b.hasGrade) {
+            return b.score - a.score;
+          }
+          // Third priority: maintain original order
+          return 0;
+        });
+        
+        // Determine if we should use grades based on whether valid duplicates exist
+        const allFilteredOut = validDuplicates.length === 0;
+        const bestCandidate = sortedDuplicates.length > 0 ? sortedDuplicates[0] : duplicates[0];
+        
+        if (allFilteredOut) {
+          // ALL duplicates were problematic - use fallback WITHOUT any grade to avoid bad data
+          console.log(`🚨 ALL duplicates filtered as problematic! QuestionIndices: ${duplicates.map(d => d.questionIndex).join(', ')}`);
+          console.log(`🔄 Using ungraded fallback: questionIndex ${bestCandidate.questionIndex}`);
+          console.log(`   ⚠️ Filtered out ${duplicatesWithGrades.length} problematic questions`);
+        } else {
+          // At least one valid duplicate exists - safe to use grades
+          const candidateHasGrade = bestCandidate.hasGrade || examData?.existingGrades?.some(grade => 
+            grade.questionIndex === bestCandidate.questionIndex
+          );
+          
+          if (candidateHasGrade) {
+            const candidateGrade = bestCandidate.grade || examData?.existingGrades?.find(grade => 
+              grade.questionIndex === bestCandidate.questionIndex
+            );
+            console.log(`✅ Prioritizing questionIndex ${bestCandidate.questionIndex} (score: ${candidateGrade?.score || 0}/${candidateGrade?.maxScore || 0})`);
+            console.log(`   💬 Feedback: "${candidateGrade?.feedback || 'אין הערה'}"`);
+            
+            if (validDuplicates.length !== duplicatesWithGrades.length) {
+              console.log(`   ⚠️ Filtered out ${duplicatesWithGrades.length - validDuplicates.length} problematic questions`);
+            }
+            
+            // Log all graded versions for comparison
+            const allGradedVersions = sortedDuplicates.filter(d => d.hasGrade);
+            if (allGradedVersions.length > 1) {
+              console.log(`   📊 All graded versions:`);
+              allGradedVersions.forEach(version => {
+                console.log(`      questionIndex ${version.questionIndex}: ${version.score}/${version.maxScore}`);
+              });
+            }
+          } else {
+            console.log(`⚠️ No valid grade found for duplicates. QuestionIndices: ${duplicates.map(d => d.questionIndex).join(', ')}`);
+            console.log(`📍 Using questionIndex ${bestCandidate.questionIndex} (fallback to first occurrence)`);
+          }
+        }
+        
+        uniqueAnswers.push(bestCandidate);
+        filteredDuplicates += duplicates.length - 1;
+      }
+    });
+    
+    console.log(`📊 After corruption filter: ${cleanAnswers.length}, Unique answers: ${uniqueAnswers.length}, Filtered duplicates: ${filteredDuplicates}`);
     return uniqueAnswers;
   };
 
-  // Get unique answers for rendering
-  const uniqueAnswers = examData?.answers ? getUniqueAnswers(examData.answers) : [];
+  // Get unique answers for rendering (handle both answers from API and mergedAnswers fallback)
+  const answersSource = examData?.answers || examData?.mergedAnswers;
+  const uniqueAnswers = answersSource ? getUniqueAnswers(answersSource) : [];
+  
+  // Debug: log what we received from API
+  if (examData) {
+    console.log('📊 API Response Debug:', {
+      hasAnswers: !!examData.answers,
+      answersCount: examData.answers?.length || 0,
+      hasMergedAnswers: !!examData.mergedAnswers,
+      mergedAnswersCount: examData.mergedAnswers?.length || 0,
+      hasExistingGrades: !!examData.existingGrades,
+      existingGradesCount: examData.existingGrades?.length || 0
+    });
+  }
 
   // Comment Bank state
   const [commentBankEntries, setCommentBankEntries] = useState<{[questionIndex: number]: CommentBankEntry[]}>({});
@@ -125,17 +251,18 @@ const ExamGradingPage: React.FC = () => {
 
   useEffect(() => {
     // Initialize question grades when exam data loads (only once per exam)
-    // Check for both answers (regular exams) and mergedAnswers (final exams)
+    // Check for both answers (from getFinalExamForGrading) and mergedAnswers (fallback)
     if ((examData?.answers || examData?.mergedAnswers) && initializedExamId !== examId) {
       console.log('🔄 Initializing grades for exam:', examId);
-      console.log('📊 Exam data has mergedAnswers:', !!examData.mergedAnswers);
       console.log('📊 Exam data has answers:', !!examData.answers);
+      console.log('📊 Exam data has mergedAnswers:', !!examData.mergedAnswers);
       console.log('📊 Exam data has existingGrades:', !!examData.existingGrades);
       
-      // Get unique answers (prioritize mergedAnswers for finalExams)
-      const answersSource = examData.mergedAnswers || examData.answers;
-      const uniqueAnswers = getUniqueAnswers(answersSource);
-      console.log('📊 Found unique answers:', uniqueAnswers.length);
+      // Get unique answers (prioritize answers from API, fallback to mergedAnswers)
+      const answersSource = examData.answers || examData.mergedAnswers;
+      const uniqueAnswersForInit = getUniqueAnswers(answersSource);
+      console.log('📊 Found unique answers:', uniqueAnswersForInit.length);
+      console.log('📊 Source used:', examData.answers ? 'answers' : 'mergedAnswers');
       
       // Create a map of existing grades by unique key from loaded data
       const existingGradesMap = new Map();
@@ -147,7 +274,7 @@ const ExamGradingPage: React.FC = () => {
         examData.existingGrades.forEach((grade) => {
           if (grade.questionIndex !== undefined) {
             // Find the answer with matching questionIndex
-            const matchingAnswer = uniqueAnswers.find(answer => answer.questionIndex === grade.questionIndex);
+            const matchingAnswer = uniqueAnswersForInit.find(answer => answer.questionIndex === grade.questionIndex);
             if (matchingAnswer) {
               const uniqueKey = createUniqueKey(matchingAnswer._id, matchingAnswer.questionIndex);
               existingGradesMap.set(uniqueKey, grade);
@@ -160,7 +287,7 @@ const ExamGradingPage: React.FC = () => {
         if (existingGradesMap.size === 0) {
           console.log('⚠️ No questionIndex matches found, falling back to array index matching...');
           examData.existingGrades.forEach((grade, index) => {
-            const answer = uniqueAnswers[index];
+            const answer = uniqueAnswersForInit[index];
             if (answer) {
               const uniqueKey = createUniqueKey(answer._id, answer.questionIndex);
               existingGradesMap.set(uniqueKey, grade);
@@ -175,18 +302,31 @@ const ExamGradingPage: React.FC = () => {
       }
 
       // Create grade objects for ALL questions with unique keys
-      const allGrades = uniqueAnswers.map(answer => {
+      const allGrades = uniqueAnswersForInit.map(answer => {
         const uniqueKey = createUniqueKey(answer._id, answer.questionIndex);
         const existing = existingGradesMap.get(uniqueKey);
         const questionPoints = answer.questionDetails?.points || 1;
         
+        // CONSERVATIVE GRADE DISPLAY: Fix display but don't hide questions
         if (existing) {
+          // Fix display issues for impossible grades but KEEP the questions visible
+          let displayScore = existing.score;
+          let displayMaxScore = questionPoints;
+          let displayFeedback = existing.feedback || '';
+          
+          // Only fix clearly impossible maxScore displays (maxScore=1 but score>6)
+          if (existing.maxScore === 1 && existing.score > 6) {
+            console.log(`🔧 DISPLAY FIX: Correcting impossible maxScore display for questionIndex ${answer.questionIndex} (${existing.score}/1 → ${existing.score}/${questionPoints})`);
+            // Keep the score but fix the maxScore for proper display
+            displayMaxScore = Math.max(questionPoints, existing.score);
+          }
+          
           return {
             uniqueKey,
             questionIndex: answer.questionIndex,
-            score: existing.score,
-            maxScore: questionPoints,
-            feedback: existing.feedback || ''
+            score: displayScore,
+            maxScore: displayMaxScore,
+            feedback: displayFeedback
           };
         } else {
           return {
@@ -205,7 +345,7 @@ const ExamGradingPage: React.FC = () => {
 
       // Analyze answers for AI patterns (only once)
       const aiAnalysisResults: {[questionIndex: number]: TrapDetection} = {};
-      uniqueAnswers.forEach(answer => {
+      uniqueAnswersForInit.forEach(answer => {
         const analysis = detectAITraps(answer.studentAnswer);
         aiAnalysisResults[answer.questionIndex] = analysis;
       });
@@ -252,6 +392,34 @@ const ExamGradingPage: React.FC = () => {
       }
       
       const data = await response.json();
+      
+      // CRITICAL FIX: If no existing grades in API response, force load them separately
+      if (!data.existingGrades || data.existingGrades.length === 0) {
+        console.log('🚨 CRITICAL: No grades in for-grading response - attempting direct grade fetch...');
+        
+        try {
+          // Try both grade endpoints to find existing grades
+          const endpoints = [`/api/admin/final-exam/${examId}/grade`, `/api/admin/exam/${examId}/grade`];
+          
+          for (const endpoint of endpoints) {
+            try {
+              const gradeResp = await fetch(endpoint);
+              if (gradeResp.ok) {
+                const gradeData = await gradeResp.json();
+                if (gradeData.questionGrades && gradeData.questionGrades.length > 0) {
+                  data.existingGrades = gradeData.questionGrades;
+                  console.log(`✅ BACKUP SUCCESS: Loaded ${gradeData.questionGrades.length} grades from ${endpoint}`);
+                  break;
+                }
+              }
+            } catch (endpointErr) {
+              console.log(`⚠️ ${endpoint} failed:`, endpointErr.message);
+            }
+          }
+        } catch (backupErr) {
+          console.log('❌ Backup grade loading failed:', backupErr.message);
+        }
+      }
       
       // Load any existing grade data BEFORE setting exam data
       try {
@@ -789,6 +957,8 @@ const ExamGradingPage: React.FC = () => {
 
       // Show success message and redirect
       alert('הציון נשמר בהצלחה באמצעות סנכרון מאוחד!');
+      // Clear the stored tab so it doesn't interfere later
+      sessionStorage.removeItem('examGradingActiveTab');
       router.push('/admin/exam-grading');
     } catch (err) {
       console.error('Error saving exam grade:', err);
@@ -831,7 +1001,11 @@ const ExamGradingPage: React.FC = () => {
       {/* Header */}
       <div className={styles.header}>
         <button 
-          onClick={() => router.push('/admin/exam-grading')}
+          onClick={() => {
+            // Clear the stored tab so it doesn't interfere later
+            sessionStorage.removeItem('examGradingActiveTab');
+            router.push('/admin/exam-grading');
+          }}
           className={styles.backButton}
         >
           <ArrowLeft size={20} />

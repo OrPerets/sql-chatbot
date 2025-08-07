@@ -28,9 +28,17 @@ interface ExamSession {
 }
 
 const ExamGradingPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'moed-a' | 'moed-b' | null>(null);
   const [examSessions, setExamSessions] = useState<ExamSession[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Filter out lecturers and assistants
+  const EXCLUDED_USERS = new Set([
+    "304993082", // אור פרץ
+    "315661033", // נעם ניר  
+    "035678622"  // רואי זרחיה
+  ]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'in_progress' | 'timeout' | 'ai_suspicious'>('all');
   const [aiAnalysisLoading, setAiAnalysisLoading] = useState<Set<string>>(new Set());
@@ -71,6 +79,43 @@ const ExamGradingPage: React.FC = () => {
   });
   
   const router = useRouter();
+
+  // Helper function to filter out lecturers and assistants
+  const filterOutStaff = (sessions: ExamSession[]) => {
+    const originalCount = sessions.length;
+    const filtered = sessions.filter(session => {
+      // Check both studentId and studentEmail for exclusion
+      const studentId = session.studentId;
+      const studentEmail = session.studentEmail;
+      
+      // Filter by student ID if available
+      if (studentId && EXCLUDED_USERS.has(studentId)) {
+        console.log(`🚫 Filtered out lecturer/assistant: ${session.studentName || 'Unknown'} (ID: ${studentId})`);
+        return false;
+      }
+      
+      // Also filter by email patterns for these specific users
+      if (studentEmail) {
+        const email = studentEmail.toLowerCase();
+        if (email.includes('or.perez') || 
+            email.includes('orperez') ||
+            email.includes('roey.zarchia') ||
+            email.includes('roeyza') ||
+            email.includes('nir.naam') ||
+            email.includes('naam')) {
+          console.log(`🚫 Filtered out lecturer/assistant by email: ${session.studentName || 'Unknown'} (${studentEmail})`);
+          return false;
+        }
+      }
+      
+      return true;
+    });
+    
+    const filteredCount = filtered.length;
+    console.log(`👥 Staff filtering: ${originalCount} → ${filteredCount} exams (removed ${originalCount - filteredCount} staff members)`);
+    
+    return filtered;
+  };
 
   // Calculate statistics for completed exams using actual graded scores
   const calculateStatistics = () => {
@@ -136,44 +181,67 @@ const ExamGradingPage: React.FC = () => {
     });
   };
 
+  // Restore active tab from session storage on load
   useEffect(() => {
-    fetchExamSessions();
+    const savedTab = sessionStorage.getItem('examGradingActiveTab') as 'moed-a' | 'moed-b';
+    if (savedTab && (savedTab === 'moed-a' || savedTab === 'moed-b')) {
+      setActiveTab(savedTab);
+    }
   }, []);
+
+  useEffect(() => {
+    // Only fetch data if a tab is selected
+    if (activeTab) {
+      fetchExamSessions();
+    }
+  }, [activeTab]);
 
   const fetchExamSessions = async () => {
     try {
       setLoading(true);
-      // First try to fetch from FinalExams collection via local API
-      const response = await fetch('/api/admin/final-exams');
-      if (!response.ok) {
-        // If FinalExams doesn't exist, initialize it first
-        if (response.status === 500) {
-          console.log('Initializing FinalExams collection...');
-          const initResponse = await fetch('/api/admin/final-exams', {
-            method: 'POST'
-          });
-          if (initResponse.ok) {
-            // Try fetching again after initialization
-            const retryResponse = await fetch('/api/admin/final-exams');
-            if (retryResponse.ok) {
-              const data = await retryResponse.json();
-              const sessions = data.exams || data;
-              setExamSessions(sessions);
-              // Note: Bulk AI analysis removed to reduce database load
-              return;
+      setError('');
+      
+      if (activeTab === 'moed-a') {
+        // Fetch from FinalExams collection (current implementation)
+        const response = await fetch('/api/admin/final-exams');
+        if (!response.ok) {
+          // If FinalExams doesn't exist, initialize it first
+          if (response.status === 500) {
+            console.log('Initializing FinalExams collection...');
+            const initResponse = await fetch('/api/admin/final-exams', {
+              method: 'POST'
+            });
+            if (initResponse.ok) {
+              // Try fetching again after initialization
+              const retryResponse = await fetch('/api/admin/final-exams');
+              if (retryResponse.ok) {
+                const data = await retryResponse.json();
+                const sessions = data.exams || data;
+                const filteredSessions = filterOutStaff(sessions);
+                setExamSessions(filteredSessions);
+                return;
+              }
             }
           }
+          throw new Error('Failed to fetch final exams');
         }
-        throw new Error('Failed to fetch final exams');
+        const data = await response.json();
+        const sessions = data.exams || data;
+        const filteredSessions = filterOutStaff(sessions);
+        setExamSessions(filteredSessions);
+      } else if (activeTab === 'moed-b') {
+        // Fetch from examSessions collection
+        const response = await fetch('/api/admin/exam-sessions');
+        if (!response.ok) {
+          throw new Error('Failed to fetch exam sessions');
+        }
+        const sessions = await response.json();
+        const filteredSessions = filterOutStaff(sessions);
+        setExamSessions(filteredSessions);
       }
-      const data = await response.json();
-      const sessions = data.exams || data;
-      setExamSessions(sessions);
-      // Note: Bulk AI analysis removed to reduce database load
-      // AI analysis can be run manually if needed
     } catch (err) {
-      console.error('Error fetching final exams:', err);
-      setError('Failed to load final exams');
+      console.error('Error fetching exam data:', err);
+      setError(`Failed to load ${activeTab === 'moed-a' ? 'final exams' : 'exam sessions'}`);
     } finally {
       setLoading(false);
     }
@@ -281,6 +349,10 @@ const ExamGradingPage: React.FC = () => {
   };
 
   const handleGradeExam = (examId: string) => {
+    // Store the current tab in session storage so we can return to the right tab
+    if (activeTab) {
+      sessionStorage.setItem('examGradingActiveTab', activeTab);
+    }
     router.push(`/admin/exam-grading/${examId}`);
   };
 
@@ -1230,10 +1302,125 @@ const ExamGradingPage: React.FC = () => {
     }
   };
 
+  // Show initial interface without loading when no tab is selected
+  if (!activeTab) {
+    return (
+      <div className={styles.container}>
+        {/* Header */}
+        <div className={styles.header}>
+          <button 
+            onClick={() => router.push('/admin')}
+            className={styles.backButton}
+          >
+            <ArrowLeft size={20} />
+            חזרה לממשק ניהול
+          </button>
+          <h1 className={styles.title}>
+            <FileText size={24} />
+            בדיקה וציונים - בחינות סופיות
+          </h1>
+          <div className={styles.subtitle}>
+            מציג בחינות מאוחדות - בחינה אחת לכל סטודנט (מעדיף מבחן מקורי על פני חזרה)
+          </div>
+        </div>
+
+        {/* Tabs Navigation */}
+        <div className={styles.tabsContainer}>
+          <div className={styles.tabs}>
+            <button
+              className={styles.tab}
+              onClick={() => setActiveTab('moed-a')}
+            >
+              מועד א 2025
+            </button>
+            <button
+              className={styles.tab}
+              onClick={() => setActiveTab('moed-b')}
+            >
+              מועד ב 2025
+            </button>
+          </div>
+          <div className={styles.tabDescription}>
+            בחר מועד כדי לצפות ברשימת הבחינות
+          </div>
+        </div>
+
+        {/* Initial State Message */}
+        <div className={styles.initialStateContainer}>
+          <div className={styles.initialStateContent}>
+            <FileText size={48} className={styles.initialStateIcon} />
+            <h2>בחר מועד בחינה</h2>
+            <p>כדי להתחיל, בחר את המועד הרצוי:</p>
+            <div className={styles.moedOptions}>
+              <button 
+                className={styles.moedButton}
+                onClick={() => setActiveTab('moed-a')}
+              >
+                <div className={styles.moedButtonTitle}>מועד א 2025</div>
+                <div className={styles.moedButtonDesc}>בחינות מאוחדות עם ציון עליון</div>
+              </button>
+              <button 
+                className={styles.moedButton}
+                onClick={() => setActiveTab('moed-b')}
+              >
+                <div className={styles.moedButtonTitle}>מועד ב 2025</div>
+                <div className={styles.moedButtonDesc}>בחינות רגילות מהמערכת</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>טוען בחינות סופיות...</div>
+        {/* Header */}
+        <div className={styles.header}>
+          <button 
+            onClick={() => router.push('/admin')}
+            className={styles.backButton}
+          >
+            <ArrowLeft size={20} />
+            חזרה לממשק ניהול
+          </button>
+          <h1 className={styles.title}>
+            <FileText size={24} />
+            בדיקה וציונים - בחינות סופיות
+          </h1>
+          <div className={styles.subtitle}>
+            מציג בחינות מאוחדות - בחינה אחת לכל סטודנט (מעדיף מבחן מקורי על פני חזרה)
+          </div>
+        </div>
+
+        {/* Tabs Navigation */}
+        <div className={styles.tabsContainer}>
+          <div className={styles.tabs}>
+            <button
+              className={`${styles.tab} ${activeTab === 'moed-a' ? styles.activeTab : ''}`}
+              onClick={() => setActiveTab('moed-a')}
+            >
+              מועד א 2025
+            </button>
+            <button
+              className={`${styles.tab} ${activeTab === 'moed-b' ? styles.activeTab : ''}`}
+              onClick={() => setActiveTab('moed-b')}
+            >
+              מועד ב 2025
+            </button>
+          </div>
+          <div className={styles.tabDescription}>
+            {activeTab === 'moed-a' 
+              ? 'בחינות מועד א (FinalExams) - בחינות מאוחדות עם ציון עליון' 
+              : 'בחינות מועד ב (ExamSessions) - בחינות רגילות מהמערכת'
+            }
+          </div>
+        </div>
+
+        <div className={styles.loading}>
+          טוען {activeTab === 'moed-a' ? 'בחינות מועד א' : 'בחינות מועד ב'}...
+        </div>
       </div>
     );
   }
@@ -1255,6 +1442,32 @@ const ExamGradingPage: React.FC = () => {
         </h1>
         <div className={styles.subtitle}>
           מציג בחינות מאוחדות - בחינה אחת לכל סטודנט (מעדיף מבחן מקורי על פני חזרה)
+        </div>
+      </div>
+
+      {/* Tabs Navigation */}
+      <div className={styles.tabsContainer}>
+        <div className={styles.tabs}>
+          <button
+            className={`${styles.tab} ${activeTab === 'moed-a' ? styles.activeTab : ''}`}
+            onClick={() => setActiveTab('moed-a')}
+          >
+            מועד א 2025
+          </button>
+          <button
+            className={`${styles.tab} ${activeTab === 'moed-b' ? styles.activeTab : ''}`}
+            onClick={() => setActiveTab('moed-b')}
+          >
+            מועד ב 2025
+          </button>
+        </div>
+        <div className={styles.tabDescription}>
+          {activeTab === 'moed-a' 
+            ? 'בחינות מועד א (FinalExams) - בחינות מאוחדות עם ציון עליון' 
+            : activeTab === 'moed-b'
+            ? 'בחינות מועד ב (ExamSessions) - בחינות רגילות מהמערכת'
+            : 'בחר מועד כדי לצפות ברשימת הבחינות'
+          }
         </div>
       </div>
 

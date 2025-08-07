@@ -77,6 +77,9 @@ interface PaginationInfo {
 
 // State interface
 interface GradeByQuestionState {
+  // Exam type selection
+  activeTab: 'moed-a' | 'moed-b' | null;
+  
   // Questions state
   questions: Question[];
   selectedQuestion: QuestionWithAnswers | null;
@@ -109,6 +112,7 @@ interface GradeByQuestionState {
 
 // Action types
 type GradeByQuestionAction =
+  | { type: 'SET_ACTIVE_TAB'; payload: 'moed-a' | 'moed-b' | null }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_QUESTIONS_LOADING'; payload: boolean }
   | { type: 'SET_SAVING_GRADE'; payload: boolean }
@@ -131,6 +135,7 @@ type GradeByQuestionAction =
 
 // Initial state
 const initialState: GradeByQuestionState = {
+  activeTab: null,
   questions: [],
   selectedQuestion: null,
   pagination: {
@@ -140,7 +145,7 @@ const initialState: GradeByQuestionState = {
     hasMore: false,
     questionsPerPage: 10
   },
-  loading: true,
+  loading: false,
   questionsLoading: false,
   savingGrade: false,
   searchTerm: '',
@@ -159,6 +164,8 @@ const initialState: GradeByQuestionState = {
 // Reducer
 function gradeByQuestionReducer(state: GradeByQuestionState, action: GradeByQuestionAction): GradeByQuestionState {
   switch (action.type) {
+    case 'SET_ACTIVE_TAB':
+      return { ...state, activeTab: action.payload };
     case 'SET_LOADING':
       return { ...state, loading: action.payload };
     case 'SET_QUESTIONS_LOADING':
@@ -219,7 +226,8 @@ interface GradeByQuestionContextType {
   dispatch: React.Dispatch<GradeByQuestionAction>;
   
   // Action creators for complex operations
-  fetchQuestions: (page?: number, preserveCurrentQuestion?: boolean) => Promise<void>;
+  setActiveTab: (tab: 'moed-a' | 'moed-b' | null) => void;
+  fetchQuestions: (page?: number, preserveCurrentQuestion?: boolean, forceTab?: 'moed-a' | 'moed-b' | null) => Promise<void>;
   fetchQuestionAnswers: (questionId: number) => Promise<void>;
   saveGrade: (examId: string, questionIndex: number, grade: number, feedback: string) => Promise<void>;
   fetchCommentBank: (questionId: number) => Promise<void>;
@@ -239,14 +247,24 @@ export function GradeByQuestionProvider({ children }: GradeByQuestionProviderPro
   const [state, dispatch] = useReducer(gradeByQuestionReducer, initialState);
 
   // Fetch questions with pagination
-  const fetchQuestions = useCallback(async (page: number = 1, preserveCurrentQuestion: boolean = false) => {
+  const fetchQuestions = useCallback(async (page: number = 1, preserveCurrentQuestion: boolean = false, forceTab?: 'moed-a' | 'moed-b' | null) => {
     try {
       if (!preserveCurrentQuestion) {
         dispatch({ type: 'SET_LOADING', payload: true });
       }
       dispatch({ type: 'SET_ERROR', payload: '' });
 
-      console.log(`🚀 Fetching optimized questions page ${page}...`);
+      // Use forceTab if provided, otherwise use state.activeTab
+      const activeTab = forceTab !== undefined ? forceTab : state.activeTab;
+
+      // Don't fetch if no tab is selected
+      if (!activeTab) {
+        console.warn('🚨 No active tab selected, skipping fetch');
+        dispatch({ type: 'SET_LOADING', payload: false });
+        return;
+      }
+
+      console.log(`🚀 Fetching questions for ${activeTab}, page ${page}...`);
 
       const queryParams = new URLSearchParams({
         page: page.toString(),
@@ -266,7 +284,17 @@ export function GradeByQuestionProvider({ children }: GradeByQuestionProviderPro
         queryParams.append('gradingStatus', state.gradingStatusFilter);
       }
 
-      const response = await fetch(`/api/admin/questions-optimized?${queryParams.toString()}`, {
+      // Use different endpoints based on active tab
+      let apiEndpoint: string;
+      if (activeTab === 'moed-a') {
+        // For מועד א - use FinalExams-based questions
+        apiEndpoint = `/api/admin/questions-with-answers?${queryParams.toString()}`;
+      } else {
+        // For מועד ב - use regular questions collection (existing)
+        apiEndpoint = `/api/admin/questions-optimized?${queryParams.toString()}`;
+      }
+
+      const response = await fetch(apiEndpoint, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -482,6 +510,22 @@ export function GradeByQuestionProvider({ children }: GradeByQuestionProviderPro
     }
   }, []);
 
+  // Set active tab
+  const setActiveTab = useCallback(async (tab: 'moed-a' | 'moed-b' | null) => {
+    dispatch({ type: 'SET_ACTIVE_TAB', payload: tab });
+    // Clear existing data when switching tabs
+    if (tab) {
+      dispatch({ type: 'SET_QUESTIONS', payload: [] });
+      dispatch({ type: 'SET_SELECTED_QUESTION', payload: null });
+      // Immediately fetch questions for the new tab
+      try {
+        await fetchQuestions(1, false, tab);
+      } catch (error) {
+        console.error('Error fetching questions after tab change:', error);
+      }
+    }
+  }, [fetchQuestions]);
+
   // Reset to questions list
   const resetToQuestionsList = useCallback(() => {
     dispatch({ type: 'RESET_GRADING_SESSION' });
@@ -492,6 +536,7 @@ export function GradeByQuestionProvider({ children }: GradeByQuestionProviderPro
   const contextValue: GradeByQuestionContextType = {
     state,
     dispatch,
+    setActiveTab,
     fetchQuestions,
     fetchQuestionAnswers,
     saveGrade,

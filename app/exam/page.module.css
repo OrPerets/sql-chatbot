@@ -1122,6 +1122,33 @@
   box-shadow: 0 8px 25px rgba(19, 17, 55, 0.4);
 }
 
+.errorButtons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.resumeButton {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 50%, #6ee7b7 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+  position: relative;
+  z-index: 1;
+}
+
+.resumeButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+}
+
 /* Enhanced responsive design for smaller screens */
 @media (max-width: 768px) {
   .mainContent {

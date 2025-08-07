@@ -16,78 +16,12 @@ const students = {
   "304993082": {"name": "אור פרץ", "id": "304993082"},
   "315661033": {"name": "נעם ניר", "id": "315661033"},
   "035678622": {"name": "רואי זרחיה", "id": "035678622"},
-  "211359807": { "name": "בן מיכאל נועם", "id": "211359807" },
-  "314652769": { "name": "בן משה יעל", "id": "314652769" },
-  "211395207": { "name": "בקר ירדן", "id": "211395207" },
-  "207767187": { "name": "גלר לירז", "id": "207767187" },
-  "318521895": { "name": "חמו עמית", "id": "318521895" },
-  "318379948": { "name": "כהן תומר", "id": "318379948" },
-  "207271313": { "name": "לוי אורן", "id": "207271313" },
-  "211419718": { "name": "לס מאיה", "id": "211419718" },
-  "322210485": { "name": "לסקו עדי", "id": "322210485" },
-  "212343735": { "name": "לרר עדי", "id": "212343735" },
-  "313334989": { "name": "לשם אריאל", "id": "313334989" },
-  "208581454": { "name": "מדיני עומר", "id": "208581454" },
-  "207767732": { "name": "מדר נוי", "id": "207767732" },
-  "318643301": { "name": "מוסקוביץ אלון", "id": "318643301" },
-  "209895259": { "name": "מוצניק אופיר יהודית", "id": "209895259" },
-  "206574329": { "name": "מורבסקי עודד", "id": "206574329" },
-  "208295337": { "name": "מזרחי לירון", "id": "208295337" },
-  "322517962": { "name": "מיכאלי עילי", "id": "322517962" },
-  "318222585": { "name": "מירקין עמר", "id": "318222585" },
-  "322640616": { "name": "מלמוד יואב", "id": "322640616" },
-  "209520220": { "name": "מרד עמית", "id": "209520220" },
-  "206913923": { "name": "נאור גיא", "id": "206913923" },
-  "208540591": { "name": "נוה אדם", "id": "208540591" },
-  "209362730": { "name": "נחשון אלמוג", "id": "209362730" },
-  "212323281": { "name": "נחשון רינו", "id": "212323281" },
-  "322402769": { "name": "סוויד ליהי", "id": "322402769" },
-  "211423868": { "name": "סולימן עידו", "id": "211423868" },
-  "313360364": { "name": "סטרול נדב", "id": "313360364" },
-  "327363032": { "name": "סיידה לינור", "id": "327363032" },
-  "322623976": { "name": "סירקיס תמר", "id": "322623976" },
-  "211829437": { "name": "סלע ענבל", "id": "211829437" },
-  "322755745": { "name": "סמואי ליאור", "id": "322755745" },
-  "324264597": { "name": "סעיד ג׳וליה", "id": "324264597" },
-  "322990516": { "name": "סקורי שני", "id": "322990516" },
-  "318960044": { "name": "סקורניק עומר", "id": "318960044" },
-  "212203020": { "name": "עזר אופיר", "id": "212203020" },
-  "318672037": { "name": "עזריה נועם", "id": "318672037" },
-  "206490054": { "name": "פדלון אורן", "id": "206490054" },
-  "207686387": { "name": "פוריה שירי", "id": "207686387" },
-  "314653866": { "name": "פחטר תומר", "id": "314653866" },
-  "211788591": { "name": "פלגי ליאור", "id": "211788591" },
-  "207749219": { "name": "פלד תומר", "id": "207749219" },
-  "324173681": { "name": "פסח עומר", "id": "324173681" },
-  "316598549": { "name": "פרבר שחר", "id": "316598549" },
-  "211646047": { "name": "פרס נועם", "id": "211646047" },
-  "318930120": { "name": "פרץ ליאה רחל", "id": "318930120" },
-  "206362451": { "name": "צור יונתן", "id": "206362451" },
-  "322657743": { "name": "ציבר דנה", "id": "322657743" },
-  "206578163": { "name": "קדוש חן", "id": "206578163" },
-  "318897964": { "name": "קוזנץ מישל", "id": "318897964" },
-  "323097766": { "name": "קומציה ניבאל", "id": "323097766" },
-  "209313287": { "name": "קירקפטריק ליאם", "id": "209313287" },
-  "322697566": { "name": "קמיר דנה", "id": "322697566" },
-  "207003070": { "name": "קרשטיין בר", "id": "207003070" },
-  "206633232": { "name": "רוז נדב", "id": "206633232" },
-  "322658717": { "name": "רוס מיקה", "id": "322658717" },
-  "318986908": { "name": "רוש אורי", "id": "318986908" },
-  "207488115": { "name": "רז יותם", "id": "207488115" },
-  "316410612": { "name": "רחמים אליאב", "id": "316410612" },
-  "322211400": { "name": "ריזנברג קרן", "id": "322211400" },
-  "312395502": { "name": "ריטל אודליה", "id": "312395502" },
-  "208583807": { "name": "רייפנברג עומר", "id": "208583807" },
-  "319099594": { "name": "רם נגה", "id": "319099594" },
-  "322620964": { "name": "שירי יובל", "id": "322620964" },
-  "314078833": { "name": "שכטר רומי", "id": "314078833" },
-  "319090262": { "name": "שלו רועי", "id": "319090262" },
-  "209238708": { "name": "שלמה גיא", "id": "209238708" },
-  "322547068": { "name": "שמאי אילאיל", "id": "322547068" },
-  "209222116": { "name": "שמש אלמוג", "id": "209222116" },
-  "207688862": { "name": "שרייבר ישי שלמה", "id": "207688862" },
-  "207917899": { "name": "ששון תומר", "id": "207917899" },
-  "211994348": { "name": "תירוש דון", "id": "211994348" }
+  "207917899": {"name": "תומר ששון", "id": "207917899"},
+  "324264597": {"name": "ג׳וליה סעיד", "id": "324264597"},
+  "319090262": {"name": "רועי שלו", "id": "319090262"},
+  "209222116": {"name": "אלמוג שמש", "id": "209222116"},
+  "207688862": {"name": "ישי שלמה שרייבר", "id": "207688862"},
+  "208295337": {"name": "לירון מזרחי", "id": "208295337"},
 };
 
 // Student ID verification component
@@ -98,7 +32,7 @@ const StudentIdVerification = ({ onStudentVerified }: { onStudentVerified: (stud
 
   // Get current date in Hebrew format - updated to 17.7.25
   const getCurrentDate = () => {
-    return "17.7.25";
+    return "10.8.25";
   };
 
   const handleVerifyId = () => {
@@ -486,11 +420,11 @@ const DatabaseDescription = ({ onContinue, user }: { onContinue: () => void, use
       {/* <div className={styles.scenarioHeader}>
         <h3 className={styles.scenarioTitle}>תרחיש: מערכת ניהול חיל האוויר הישראלי</h3> */}
 
-      {/* GENERIC SCENARIO FOR EXAM SCREENSHOTS */}
+      {/* WOLT DELIVERY SCENARIO */}
       <div className={styles.scenarioHeader}>
-        <h3 className={styles.scenarioTitle}>מסד נתונים כללי</h3>
+        <h3 className={styles.scenarioTitle}>מערכת ניהול משלוחים - Wolt</h3>
         <div className={styles.scenarioDescription}>
-          <p>מסד נתונים המכיל מספר טבלאות המקושרות ביניהן באמצעות מפתחות זרים.</p>
+          <p>מסד נתונים של Wolt לניהול הזמנות, שליחים, מסעדות ותלונות לקוחות.</p>
         </div>
       </div>
 
@@ -499,179 +433,150 @@ const DatabaseDescription = ({ onContinue, user }: { onContinue: () => void, use
           <div className={styles.scenarioColumn}>
             <p>
               <strong>היסטוריה והקמה:</strong><br />
-              חיל האוויר הישראלי הוקם ביום 28 במאי 1948, יום לאחר הכרזת העצמאות, כאשר הטייסת הראשונה הורכבה מ-9 מטוסי אביה צ'כיים.
+              Wolt היא חברת שליחויות בינלאומית שהוקמה בהלסינקי, פינלנד, בשנת 2014, והחלה לפעול בישראל בשנת 2018. מאז כניסתה לשוק המקומי, Wolt פועלת בעשרות ערים בישראל.
             </p>
             
             <p>
-              <strong>התפתחות לאורך השנים:</strong><br />
-              מאז ועד היום, חיל האוויר התפתח להיות אחד הכוחות האוויריים המתקדמים והיעילים בעולם.
-            </p>
-            
-            <p>
-              <strong>השתתפות במלחמות:</strong><br />
-              במשך עשרות השנים, חיל האוויר השתתף במלחמות ישראל:
-              <br />• מלחמת העצמאות (1948)
-              <br />• מלחמת ששת הימים (1967)
-              <br />• מלחמת יום הכיפורים (1973)
-              <br />• מלחמת לבנון הראשונה (1982)
-              <br />• מבצעים מודרניים: "חומת מגן" (2002), "עמוד ענן" (2012)
+              <strong>שירותי החברה:</strong><br />
+              החברה מציעה שירות משלוחים מהיר ממסעדות, סופרמרקטים וחנויות קמעונאיות באמצעות שליחים עצמאיים, ומתמחה במתן חוויית משתמש איכותית.
             </p>
             
             <p>
               <strong>פיתוח טכנולוגי:</strong><br />
-              החל משנת 1976, חיל האוויר החל לקלוט את מטוסי ה-F-16 הראשונים, מה שהפך אותו לחיל האוויר הראשון מחוץ לארה"ב שהפעיל מטוס זה.
+              כדי לשפר את התפעול ולהבטיח חוויית משתמש איכותית, Wolt פיתחה מערכת טכנולוגית לניהול הזמנות ומשלוחים בזמן אמת.
             </p>
             
             <p>
-              בשנת 2016, ישראל הפכה למדינה הראשונה מחוץ לארה"ב שקיבלה את מטוסי ה-F-35 המתקדמים.
+              <strong>מעקב ובקרה:</strong><br />
+              המערכת עוקבת אחר זמני הכנה, זמני משלוח, זמינות שליחים, משמרות, תלונות לקוח ופרמטרים לוגיסטיים נוספים.
             </p>
           </div>
           
           <div className={styles.scenarioColumn}>
             <p>
-              <strong>מצב נוכחי:</strong><br />
-              כיום, חיל האוויר מונה כ-34,000 איש, המפעילים מעל 460 כלי טיס מסוגים שונים, הפרוסים על פני 8 בסיסים עיקריים ברחבי הארץ.
+              <strong>אתגרים מרכזיים:</strong><br />
+              אחד האתגרים המרכזיים עמו מתמודדת החברה הוא ניהול עומסים בזמני שיא: עיכובים באיסוף ובהגעה, חוסר תיאום בין זמינות שליחים לשעות פעילות המסעדות.
             </p>
             
             <p>
-              <strong>תחומי אחריות:</strong><br />
-              החיל אחראי על הגנה אווירית, תקיפות אסטרטגיות, סיוע קרוב, חילוץ והצלה, ומשימות מודיעין אוויריות.
+              <strong>בעיות תפעוליות:</strong><br />
+              פערים בין הביקוש להזמנות לבין מספר השליחים הפעילים, ריבוי תלונות מצד לקוחות על עיכובים חוזרים, שירות לקוי או שליחים שלא השלימו את המשלוח.
             </p>
             
             <p>
               <strong>מערכת מסד הנתונים:</strong><br />
-              מערכת מסד הנתונים של חיל האוויר פותחה בשנת 1995 ועברה שדרוגים משמעותיים בשנים 2005, 2012, ו-2020.
+              מערכת מסד הנתונים של Wolt פותחה בשנת 2018 ועברה שדרוגים משמעותיים בשנים 2020, 2022, ו-2024 להתמודדות עם הגידול בנפח ההזמנות.
             </p>
             
             <p>
               <strong>תחומי פעילות המערכת:</strong>
             </p>
             <ul>
-              <li>תכנון משימות ותפעול מבצעי</li>
+              <li>ניהול הזמנות ומעקב בזמן אמת</li>
               
-              <li>ניהול משאבי אנוש (טייסים, טכנאים, קצינים)</li>
+              <li>ניהול משמרות וזמינות שליחים</li>
               
-              <li>מעקב אחר מצב כלי הטיס ותחזוקתם</li>
+              <li>מעקב אחר ביצועים ודירוגי שליחים</li>
               
-              <li>ניהול מלאי כלי נשק ותחמושת</li>
+              <li>ניהול תלונות לקוחות ופיצויים</li>
               
-              <li>תכנון אימונים וקורסים</li>
+              <li>תיאום בין מסעדות למרכזי שילוח</li>
               
-              <li>ניתוח ביצועים ויעילות תפעולית</li>
+              <li>ניתוח נתונים לשיפור התפעול</li>
             </ul>
           </div>
         </div>
       </div>
       
+      <div className={styles.tableNote}>
+        <p><strong>הערה:</strong> הטבלאות המלאות של מערכת Wolt יופיעו בצד ימין במהלך הבחינה עם כל הפרטים הטכניים.</p>
+      </div>
+      
       <div className={styles.tablesGrid}>
         <div className={styles.tableCard}>
-          <h3 className={styles.tableName}>טבלת AirBases (בסיסי חיל האוויר)</h3>
+          <h3 className={styles.tableName}>טבלת Couriers (שליחים)</h3>
           <div className={styles.tableSchema}>
             <div className={styles.column}>
-              <span className={styles.columnType}>מזהה ייחודי של הבסיס</span>
-              <span className={styles.columnName}>base_id</span>
+              <span className={styles.columnType}>מזהה ייחודי</span>
+              <span className={styles.columnName}>courier_id</span>
             </div>
             <div className={styles.column}>
-              <span className={styles.columnType}>שם הבסיס (רמת דוד, חצרים)</span>
-              <span className={styles.columnName}>base_name</span>
+              <span className={styles.columnType}>שם מלא</span>
+              <span className={styles.columnName}>full_name</span>
             </div>
             <div className={styles.column}>
-              <span className={styles.columnType}>קוד הבסיס (3 אותיות)</span>
-              <span className={styles.columnName}>base_code</span>
+              <span className={styles.columnType}>סוג רכב (אופניים, קטנוע, רכב)</span>
+              <span className={styles.columnName}>vehicle_type</span>
             </div>
             <div className={styles.column}>
-              <span className={styles.columnType}>אזור גיאוגרפי</span>
+              <span className={styles.columnType}>דירוג ממוצע</span>
+              <span className={styles.columnName}>rating</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>תאריך התחלת עבודה</span>
+              <span className={styles.columnName}>employment_date</span>
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.tableCard}>
+          <h3 className={styles.tableName}>טבלת Customers (לקוחות)</h3>
+          <div className={styles.tableSchema}>
+            <div className={styles.column}>
+              <span className={styles.columnType}>מזהה ייחודי</span>
+              <span className={styles.columnName}>customer_id</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>שם מלא</span>
+              <span className={styles.columnName}>full_name</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>עיר מגורים</span>
+              <span className={styles.columnName}>city</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>תאריך הרשמה</span>
+              <span className={styles.columnName}>registration_date</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>סטטוס VIP (כן/לא)</span>
+              <span className={styles.columnName}>vip_status</span>
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.tableCard}>
+          <h3 className={styles.tableName}>טבלת Restaurants (מסעדות)</h3>
+          <div className={styles.tableSchema}>
+            <div className={styles.column}>
+              <span className={styles.columnType}>מזהה ייחודי</span>
+              <span className={styles.columnName}>restaurant_id</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>שם המסעדה</span>
+              <span className={styles.columnName}>name</span>
+            </div>
+            <div className={styles.column}>
+              <span className={styles.columnType}>כתובת מלאה</span>
               <span className={styles.columnName}>location</span>
             </div>
             <div className={styles.column}>
-              <span className={styles.columnType}>שנת הקמה</span>
-              <span className={styles.columnName}>established_year</span>
+              <span className={styles.columnType}>סוג מטבח</span>
+              <span className={styles.columnName}>cuisine_type</span>
             </div>
             <div className={styles.column}>
-              <span className={styles.columnType}>מספר מסלולי נחיתה</span>
-              <span className={styles.columnName}>runways_count</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>מספר מקסימלי של אנשי צוות</span>
-              <span className={styles.columnName}>personnel_capacity</span>
+              <span className={styles.columnType}>שעות פתיחה</span>
+              <span className={styles.columnName}>open_hours</span>
             </div>
           </div>
         </div>
 
         <div className={styles.tableCard}>
-          <h3 className={styles.tableName}>טבלת Squadrons (טייסות)</h3>
+          <h3 className={styles.tableName}>טבלת Orders (הזמנות)</h3>
           <div className={styles.tableSchema}>
             <div className={styles.column}>
-              <span className={styles.columnType}>מזהה ייחודי של הטייסת</span>
-              <span className={styles.columnName}>squadron_id</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>שם הטייסת (טייסת הנץ)</span>
-              <span className={styles.columnName}>squadron_name</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>מספר הטייסת ההיסטורי</span>
-              <span className={styles.columnName}>squadron_number</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>קוד הבסיס (מפתח זר)</span>
-              <span className={styles.columnName}>base_id</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>סוג כלי הטיס העיקרי</span>
-              <span className={styles.columnName}>aircraft_type</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>התמחות עיקרית</span>
-              <span className={styles.columnName}>mission_type</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>מספר הטייסים הפעילים</span>
-              <span className={styles.columnName}>active_pilots</span>
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.tableCard}>
-          <h3 className={styles.tableName}>טבלת Pilots (טייסים)</h3>
-          <div className={styles.tableSchema}>
-            <div className={styles.column}>
-              <span className={styles.columnType}>מזהה ייחודי של הטייס</span>
-              <span className={styles.columnName}>pilot_id</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>שם פרטי ומשפחה</span>
-              <span className={styles.columnName}>pilot_name</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>דרגה צבאית</span>
-              <span className={styles.columnName}>rank</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>הטייסת (מפתח זר)</span>
-              <span className={styles.columnName}>squadron_id</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>שנות ניסיון בטיסה</span>
-              <span className={styles.columnName}>experience_years</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>שעות טיסה מצטברות</span>
-              <span className={styles.columnName}>flight_hours</span>
-            </div>
-            <div className={styles.column}>
-              <span className={styles.columnType}>משכורת חודשית</span>
-              <span className={styles.columnName}>salary</span>
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.tableCard}>
-          <h3 className={styles.tableName}>טבלת Aircraft (כלי טיס)</h3>
-          <div className={styles.tableSchema}>
-            <div className={styles.column}>
-              <span className={styles.columnType}>מזהה ייחודי של כלי הטיס</span>
-              <span className={styles.columnName}>aircraft_id</span>
+              <span className={styles.columnType}>מזהה ייחודי</span>
+              <span className={styles.columnName}>order_id</span>
             </div>
             <div className={styles.column}>
               <span className={styles.columnType}>סוג כלי הטיס (F-16I, F-35I)</span>
@@ -802,21 +707,22 @@ const DatabaseDescription = ({ onContinue, user }: { onContinue: () => void, use
           </div>
         </div>
       </div>
-
+{/* 
       <div className={styles.dbNotes}>
         <h3 className={styles.sectionTitle}>יחסים בין הטבלאות</h3>
         <ul className={styles.notesList}>
-          <li>כל בסיס מכיל מספר טייסות (יחס 1:N)</li>
-          <li>כל טייס משרת בטייסת אחת (יחס N:1)</li>
-          <li>כל טייסת ממוקמת בבסיס אחד (יחס N:1)</li>
-          <li>כל כלי טיס משויך לטייסת אחת (יחס N:1)</li>
-          <li>כלי נשק מאוחסנים בבסיסים שונים (יחס N:1)</li>
-          <li>כל משימה כוללת טייסת ספציפית (יחס 1:1)</li>
-          <li>כל משימה כוללת טייס ספציפי (יחס 1:1)</li>
-          <li>כל משימה כוללת כלי טיס ספציפי (יחס 1:1)</li>
-          <li>כל כלי טיס עובר תחזוקות מרובות (יחס 1:N)</li>
+          <li>כל הזמנה משויכת לשליח אחד (יחס N:1)</li>
+          <li>כל הזמנה משויכת ללקוח אחד (יחס N:1)</li>
+          <li>כל הזמנה משויכת למסעדה אחת (יחס N:1)</li>
+          <li>שליח יכול לעבוד במשמרות מרובות (יחס 1:N)</li>
+          <li>כל משמרת מתבצעת במרכז שילוח אחד (יחס N:1)</li>
+          <li>מרכז שילוח מנהל מספר משמרות (יחס 1:N)</li>
+          <li>תלונה מתייחסת להזמנה ספציפית (יחס N:1)</li>
+          <li>לקוח יכול להגיש מספר תלונות (יחס 1:N)</li>
+          <li>מסעדה יכולה לקבל מספר הזמנות (יחס 1:N)</li>
+          <li>מפתח מורכב: CourierShifts (courier_id, shift_date)</li>
         </ul>
-      </div>
+      </div> */}
 
       <button onClick={handleStartExam} className={styles.continueButton}>
         התחל עבודה
@@ -996,9 +902,27 @@ const ExamPage = () => {
       const activeData = await activeResponse.json();
       
       if (activeResponse.ok && activeData.hasActiveSession) {
-        // Student has an active session
-        setError('יש לך בחינה פעילה. אנא פנה למנהל הבחינה.');
-        return;
+        // Student has an active session - show resume option instead of error
+        const session = activeData.session;
+        if (session.canResume) {
+          // Can resume the exam
+          let resumeMessage = `יש לך בחינה פעילה. שאלה ${session.currentQuestionIndex + 1} מתוך ${session.totalQuestions}.`;
+          if (session.answeredQuestions > 0) {
+            resumeMessage += ` ${session.answeredQuestions} שאלות כבר נענו.`;
+          }
+          if (session.hasAutoSaveForCurrent) {
+            resumeMessage += ' נמצאה תשובה שמורה עבור השאלה הנוכחית.';
+          }
+          resumeMessage += ' לחץ "המשך בחינה" כדי להמשיך מהמקום בו עצרת.';
+          setError(resumeMessage);
+          // Store session info for resumption
+          sessionStorage.setItem('resumeExamSession', JSON.stringify(session));
+          return;
+        } else {
+          // Exam is completed or cannot be resumed
+          setError('יש לך בחינה שהושלמה. אנא פנה למנהל הבחינה.');
+          return;
+        }
       }
       
       // Reset the global timer when a new exam session starts
@@ -1076,6 +1000,85 @@ const ExamPage = () => {
     console.log('Exam completed with results:', results);
   }, []);
 
+  const handleResumeExam = useCallback(async () => {
+    const resumeSessionData = sessionStorage.getItem('resumeExamSession');
+    if (!resumeSessionData || !verifiedStudent) return;
+    
+    try {
+      setIsLoading(true);
+      const sessionInfo = JSON.parse(resumeSessionData);
+      
+      // Get detailed progress information from the server
+      const progressResponse = await fetch(`${SERVER_BASE}/exam/${sessionInfo.examId}/progress?studentId=${verifiedStudent.id}`);
+      if (!progressResponse.ok) {
+        throw new Error('Failed to get exam progress');
+      }
+      
+      const progressData = await progressResponse.json();
+      console.log('Resume exam with progress data:', progressData);
+      
+      // Check if there's an auto-saved answer for the current question
+      let currentQuestionData = null;
+      try {
+        const autoSaveResponse = await fetch(`${SERVER_BASE}/exam/${sessionInfo.examId}/auto-save/${progressData.currentQuestionIndex}?studentId=${verifiedStudent.id}`);
+        if (autoSaveResponse.ok) {
+          const autoSaveData = await autoSaveResponse.json();
+          currentQuestionData = {
+            currentAnswer: autoSaveData.studentAnswer || '',
+            timeSpent: autoSaveData.timeSpent || 0
+          };
+          console.log('Found auto-saved data for current question:', currentQuestionData);
+        }
+      } catch (error) {
+        console.log('No auto-save data for current question');
+      }
+      
+      // Create comprehensive exam session object with resume data
+      const examSession = {
+        examId: sessionInfo.examId,
+        studentEmail: verifiedStudent.email || `student_${verifiedStudent.id}@exam.local`,
+        examTitle: 'בחינת מיומנות SQL',
+        startTime: progressData.startTime,
+        totalQuestions: progressData.totalQuestions,
+        currentQuestionIndex: progressData.currentQuestionIndex,
+        studentId: verifiedStudent.id,
+        studentName: verifiedStudent.name,
+        isResuming: true,
+        resumeData: {
+          totalTimeSpent: progressData.totalTimeSpent,
+          answeredQuestions: progressData.answeredQuestions,
+          answers: progressData.answers,
+          currentQuestionData: currentQuestionData
+        }
+      };
+      
+      console.log(`Resuming exam: Question ${progressData.currentQuestionIndex + 1}/${progressData.totalQuestions}, ${progressData.answeredQuestions} questions completed`);
+      
+      // Adjust global timer to account for time already spent
+      const GLOBAL_TIMER_KEY = 'shenkar_exam_global_timer';
+      const existingTimer = localStorage.getItem(GLOBAL_TIMER_KEY);
+      if (existingTimer) {
+        const timerData = JSON.parse(existingTimer);
+        // Adjust start time to account for time already spent
+        const adjustedStartTime = Date.now() - (progressData.totalTimeSpent * 1000);
+        timerData.startTime = adjustedStartTime;
+        localStorage.setItem(GLOBAL_TIMER_KEY, JSON.stringify(timerData));
+        console.log(`Global timer adjusted for resume: ${progressData.totalTimeSpent}s already spent`);
+      }
+      
+      setExamSession(examSession);
+      setCurrentStep('exam');
+      setError('');
+      sessionStorage.removeItem('resumeExamSession');
+      
+    } catch (error) {
+      console.error('Error resuming exam:', error);
+      setError('שגיאה בחידוש העבודה. אנא נסה שוב.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [verifiedStudent]);
+
   if (isLoading) {
     return (
       <div className={styles.loadingContainer}>
@@ -1086,12 +1089,32 @@ const ExamPage = () => {
   }
 
   if (error) {
+    // Check if this is a resumable exam error
+    const resumeSessionData = sessionStorage.getItem('resumeExamSession');
+    const canResume = resumeSessionData && error.includes('המשך בחינה');
+    
     return (
       <div className={styles.errorContainer}>
         <div className={styles.errorMessage}>{error}</div>
-        <button onClick={() => setError('')} className={styles.retryButton}>
-          נסה שוב
-        </button>
+        <div className={styles.errorButtons}>
+          {canResume ? (
+            <>
+              <button onClick={handleResumeExam} className={styles.resumeButton}>
+                המשך בחינה
+              </button>
+              <button onClick={() => {
+                setError('');
+                sessionStorage.removeItem('resumeExamSession');
+              }} className={styles.retryButton}>
+                ביטול
+              </button>
+            </>
+          ) : (
+            <button onClick={() => setError('')} className={styles.retryButton}>
+              נסה שוב
+            </button>
+          )}
+        </div>
       </div>
     );
   }

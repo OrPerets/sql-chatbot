@@ -1,0 +1,1531 @@
+[
+  {
+    "examId": "687899089502ade90c6bf3b4",
+    "studentName": "סקורניק עומר",
+    "studentEmail": "student_318960044@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים, הדרגות שלהם, שעות הטיסה שלהם וההתמחות שלהם ...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          0,
+          11
+        ],
+        "gradedIndices": [
+          11
+        ],
+        "ungradedIndices": [
+          0
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה עבור כלל הבסיסים, את שם הבסיס, כמות הטייסות בבסיס ואת שעות ה...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          4,
+          5,
+          6
+        ],
+        "gradedIndices": [
+          6
+        ],
+        "ungradedIndices": [
+          4,
+          5
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878999e9502ade90c6bf3b8",
+    "studentName": "מדיני עומר",
+    "studentEmail": "student_208581454@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים, הדרגות שלהם, שעות הטיסה שלהם וההתמחות שלהם ...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          0,
+          11,
+          5
+        ],
+        "gradedIndices": [
+          0
+        ],
+        "ungradedIndices": [
+          11,
+          5
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את מספר המשימות שבוצעו על ידי כל טייס, רק עבור טייסים שביצעו...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          2,
+          3,
+          4
+        ],
+        "gradedIndices": [
+          2
+        ],
+        "ungradedIndices": [
+          3,
+          4
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "68789d0f4f90194d70402a0e",
+    "studentName": "סוויד ליהי",
+    "studentEmail": "student_322402769@exam.local",
+    "duplicates": [
+      {
+        "questionText": "הציג את המידע הקיים על כל כלי טיס שיוצר אחרי שנת 2005 ועדיין לא עברו תחזוקה גדול...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          2,
+          3,
+          4
+        ],
+        "gradedIndices": [
+          4
+        ],
+        "ungradedIndices": [
+          2,
+          3
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים, דרגתם והמשכורת שלהם רק עבור מקרים בהם משכור...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          5,
+          6,
+          7
+        ],
+        "gradedIndices": [
+          7
+        ],
+        "ungradedIndices": [
+          5,
+          6
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "68789aed9bcd7bbf61e443b0",
+    "studentName": "סקורי שני",
+    "studentEmail": "student_322990516@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים, הדרגות שלהם, שעות הטיסה שלהם וההתמחות שלהם ...",
+        "totalCopies": 4,
+        "gradedCopies": 1,
+        "ungradedCopies": 3,
+        "questionIndices": [
+          1,
+          10,
+          11,
+          4
+        ],
+        "gradedIndices": [
+          11
+        ],
+        "ungradedIndices": [
+          1,
+          10,
+          4
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמציגה את שמות המשימות שהושלמו ושמשך הביצוע שלהן (מתחילה לסיום) עולה...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          5,
+          6,
+          7
+        ],
+        "gradedIndices": [
+          7
+        ],
+        "ungradedIndices": [
+          5,
+          6
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "68789c4df82396ca15a4ce8a",
+    "studentName": "לשם אריאל",
+    "studentEmail": "student_313334989@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את כמות כלי הנשק היקרים (עלות מעל 500 אלפי ש״ח) בחלוקה לפי כ...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          0,
+          1,
+          2
+        ],
+        "gradedIndices": [
+          2
+        ],
+        "ungradedIndices": [
+          0,
+          1
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "68789c6ff82396ca15a4ce8c",
+    "studentName": "מורבסקי עודד",
+    "studentEmail": "student_206574329@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את כלי הטיס שיוצרו אחרי שנת 2010, עם המהירות המרבית והטווח ש...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          0,
+          1,
+          2
+        ],
+        "gradedIndices": [
+          2
+        ],
+        "ungradedIndices": [
+          0,
+          1
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "68789d359bcd7bbf61e443b8",
+    "studentName": "סטרול נדב",
+    "studentEmail": "student_313360364@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמציגה את שמות המשימות שהושלמו ושמשך הביצוע שלהן (מתחילה לסיום) עולה...",
+        "totalCopies": 3,
+        "gradedCopies": 2,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          10,
+          11,
+          12
+        ],
+        "gradedIndices": [
+          10,
+          12
+        ],
+        "ungradedIndices": [
+          11
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "68789db89502ade90c6bf3d5",
+    "studentName": "שמש אלמוג",
+    "studentEmail": "student_209222116@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמציגה את סוגי כלי הטיס שמופעלים ביותר מטייסת אחת ואת מספר הטייסות ה...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          2,
+          3
+        ],
+        "gradedIndices": [
+          3
+        ],
+        "ungradedIndices": [
+          2
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את כלי הטיס שיוצרו אחרי שנת 2010, עם המהירות המרבית והטווח ש...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          4,
+          5
+        ],
+        "gradedIndices": [
+          5
+        ],
+        "ungradedIndices": [
+          4
+        ]
+      },
+      {
+        "questionText": "הציגו את שמות הבסיסים שהפער בניסיון בין הטייס המנוסה ביותר לטייס הצעיר ביותר עול...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          7,
+          8,
+          9
+        ],
+        "gradedIndices": [
+          9
+        ],
+        "ungradedIndices": [
+          7,
+          8
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמציגה את שמות כלי הנשק שהכמות במלאי שלהם נמוכה מהממוצע לסוג הנשק של...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          11,
+          12
+        ],
+        "gradedIndices": [
+          11
+        ],
+        "ungradedIndices": [
+          12
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "68789df69bcd7bbf61e443c1",
+    "studentName": "סמואי ליאור",
+    "studentEmail": "student_322755745@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסות ואת שמות הבסיסים שלהן שמתמחות במשימות מסוג '...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          4,
+          5,
+          6
+        ],
+        "gradedIndices": [
+          6
+        ],
+        "ungradedIndices": [
+          4,
+          5
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמציגה את שמות המשימות שהושלמו ושמשך הביצוע שלהן (מתחילה לסיום) עולה...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          10,
+          11,
+          12
+        ],
+        "gradedIndices": [
+          10
+        ],
+        "ungradedIndices": [
+          11,
+          12
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "68789f449502ade90c6bf3dc",
+    "studentName": "מדר נוי",
+    "studentEmail": "student_207767732@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים, הדרגות שלהם, שעות הטיסה שלהם וההתמחות שלהם ...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          1,
+          2
+        ],
+        "gradedIndices": [
+          1
+        ],
+        "ungradedIndices": [
+          2
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "68789f424f90194d70402a12",
+    "studentName": "רייפנברג עומר",
+    "studentEmail": "student_208583807@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמציגה את שמות כלי הנשק שהכמות במלאי שלהם נמוכה מהממוצע לסוג הנשק של...",
+        "totalCopies": 4,
+        "gradedCopies": 1,
+        "ungradedCopies": 3,
+        "questionIndices": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "gradedIndices": [
+          8
+        ],
+        "ungradedIndices": [
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את הבסיסים עם יותר מ-2 מסלולים ואת כמות הטייסות הפעילות בכל ...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          10,
+          11,
+          9
+        ],
+        "gradedIndices": [
+          11
+        ],
+        "ungradedIndices": [
+          10,
+          9
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a044de2a2cd3a4d2e80e",
+    "studentName": "מלמוד יואב",
+    "studentEmail": "student_322640616@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים, הדרגות שלהם, שעות הטיסה שלהם וההתמחות שלהם ...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          1,
+          11,
+          9
+        ],
+        "gradedIndices": [
+          9
+        ],
+        "ungradedIndices": [
+          1,
+          11
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים עם יותר מ-3 שנות ניסיון ואת הערך הכולל של המ...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          6,
+          7
+        ],
+        "gradedIndices": [
+          7
+        ],
+        "ungradedIndices": [
+          6
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "68789f494f90194d70402a14",
+    "studentName": "לס מאיה",
+    "studentEmail": "student_211419718@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את רק את שמות המשימות הפעילות ואת שמות הטייסים המבצעים שלהן,...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          0,
+          1
+        ],
+        "gradedIndices": [
+          0
+        ],
+        "ungradedIndices": [
+          1
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את כלי הטיס שיוצרו אחרי שנת 2010, עם המהירות המרבית והטווח ש...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          3,
+          4,
+          5
+        ],
+        "gradedIndices": [
+          5
+        ],
+        "ungradedIndices": [
+          3,
+          4
+        ]
+      },
+      {
+        "questionText": "כתוב ביטוי באלגברת יחסים שמחזיר את שמות כלי הנשק המאוחסנים בבסיסים שבהם משרתים ט...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          10,
+          11,
+          12
+        ],
+        "gradedIndices": [
+          12
+        ],
+        "ungradedIndices": [
+          10,
+          11
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a0a3dd197423090e00d6",
+    "studentName": "קרשטיין בר",
+    "studentEmail": "student_207003070@exam.local",
+    "duplicates": [
+      {
+        "questionText": "הצג את פרטי הנשק בעל הטווח הקצר ביותר מכל בסיס, רק עבור בסיסים עם יותר מ-3 מסלול...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          3,
+          4
+        ],
+        "gradedIndices": [
+          3
+        ],
+        "ungradedIndices": [
+          4
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את מספר הטייסים הפעילים בכל בסיס (יש להציג גם את שם הבסיס בת...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          7,
+          8,
+          9
+        ],
+        "gradedIndices": [
+          7
+        ],
+        "ungradedIndices": [
+          8,
+          9
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a0b2dd197423090e00d7",
+    "studentName": "תירוש דון",
+    "studentEmail": "student_211994348@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים, הדרגות שלהם, שעות הטיסה שלהם וההתמחות שלהם ...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          0,
+          10
+        ],
+        "gradedIndices": [
+          10
+        ],
+        "ungradedIndices": [
+          0
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את כלי הטיס שיוצרו בין השנים 2010-2020, עם המהירות המרבית וה...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          5,
+          6,
+          7
+        ],
+        "gradedIndices": [
+          7
+        ],
+        "ungradedIndices": [
+          5,
+          6
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a0f1fd62cb89f25413fc",
+    "studentName": "פלגי ליאור",
+    "studentEmail": "student_211788591@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את כלי הטיס ואת שמות הטייסות שלהן, כולל כלי טיס שאין להם טיי...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          0,
+          11
+        ],
+        "gradedIndices": [
+          11
+        ],
+        "ungradedIndices": [
+          0
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמציגה את שמות המשימות שהושלמו ושמשך הביצוע שלהן (מתחילה לסיום) עולה...",
+        "totalCopies": 4,
+        "gradedCopies": 1,
+        "ungradedCopies": 3,
+        "questionIndices": [
+          4,
+          5,
+          6,
+          8
+        ],
+        "gradedIndices": [
+          8
+        ],
+        "ungradedIndices": [
+          4,
+          5,
+          6
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a0f8fd62cb89f25413fd",
+    "studentName": "צור יונתן",
+    "studentEmail": "student_206362451@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שם כלי הטיס שעברו תחזוקה בכל החודשים בשנה הנוכחית ואת העל...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          2,
+          3
+        ],
+        "gradedIndices": [
+          3
+        ],
+        "ungradedIndices": [
+          2
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים, הדרגות שלהם ושמות הטייסות שלהן, עבור טייסים...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          4,
+          5,
+          6
+        ],
+        "gradedIndices": [
+          6
+        ],
+        "ungradedIndices": [
+          4,
+          5
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים ושמות הבסיסים שלהם, רק עבור טייסים עם כמות ש...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          10,
+          8,
+          9
+        ],
+        "gradedIndices": [
+          10
+        ],
+        "ungradedIndices": [
+          8,
+          9
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a0fede2a2cd3a4d2e811",
+    "studentName": "פסח עומר",
+    "studentEmail": "student_324173681@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים, הדרגות שלהם, שעות הטיסה שלהם וההתמחות שלהם ...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          3,
+          7
+        ],
+        "gradedIndices": [
+          3
+        ],
+        "ungradedIndices": [
+          7
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a11a559dbb459f5eb4e0",
+    "studentName": "מוסקוביץ אלון",
+    "studentEmail": "student_318643301@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמציגה את שמות המשימות שהושלמו ושמשך הביצוע שלהן (מתחילה לסיום) עולה...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          12,
+          3
+        ],
+        "gradedIndices": [
+          12
+        ],
+        "ungradedIndices": [
+          3
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את רק את שמות המשימות הפעילות ואת שמות הטייסים המבצעים שלהן,...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          7,
+          8,
+          9
+        ],
+        "gradedIndices": [
+          9
+        ],
+        "ungradedIndices": [
+          7,
+          8
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a112de2a2cd3a4d2e813",
+    "studentName": "לרר עדי",
+    "studentEmail": "student_212343735@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים עם יותר מ-3 שנות ניסיון ואת הערך הכולל של המ...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          2,
+          3,
+          4
+        ],
+        "gradedIndices": [
+          2
+        ],
+        "ungradedIndices": [
+          3,
+          4
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמציגה את שמות המשימות שהושלמו ושמשך הביצוע שלהן (מתחילה לסיום) עולה...",
+        "totalCopies": 3,
+        "gradedCopies": 2,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          7,
+          8,
+          9
+        ],
+        "gradedIndices": [
+          7,
+          9
+        ],
+        "ungradedIndices": [
+          8
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a12b559dbb459f5eb4e3",
+    "studentName": "רוס מיקה",
+    "studentEmail": "student_322658717@exam.local",
+    "duplicates": [
+      {
+        "questionText": "בשאלה זו עליכם לחשב ולהציג את היעילות התפעולית של כל אחת מהטייסות, תחשיב היעילות...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          5,
+          6
+        ],
+        "gradedIndices": [
+          6
+        ],
+        "ungradedIndices": [
+          5
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a145559dbb459f5eb4e5",
+    "studentName": "מיכאלי עילי",
+    "studentEmail": "student_322517962@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את מספר המשימות שבוצעו על ידי כל טייס, רק עבור טייסים שביצעו...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          0,
+          1
+        ],
+        "gradedIndices": [
+          1
+        ],
+        "ungradedIndices": [
+          0
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את כלי הטיס שיוצרו אחרי שנת 2010, עם המהירות המרבית והטווח ש...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          4,
+          5,
+          6
+        ],
+        "gradedIndices": [
+          6
+        ],
+        "ungradedIndices": [
+          4,
+          5
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a145fd62cb89f2541402",
+    "studentName": "ציבר דנה",
+    "studentEmail": "student_322657743@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמציגה את שמות המשימות שהושלמו ושמשך הביצוע שלהן (מתחילה לסיום) עולה...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          1,
+          2,
+          3
+        ],
+        "gradedIndices": [
+          1
+        ],
+        "ungradedIndices": [
+          2,
+          3
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את כמות כלי הטיס בכל טייסת (יש לוודא שלא מפספסים שום טייסת),...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          4,
+          5,
+          6
+        ],
+        "gradedIndices": [
+          6
+        ],
+        "ungradedIndices": [
+          4,
+          5
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שם כלי הטיס שעברו תחזוקה בכל החודשים בשנה הנוכחית ואת העל...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          10,
+          11
+        ],
+        "gradedIndices": [
+          10
+        ],
+        "ungradedIndices": [
+          11
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a14ede2a2cd3a4d2e815",
+    "studentName": "רז יותם",
+    "studentEmail": "student_207488115@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את הבסיסים עם יותר מ-2 מסלולים ואת כמות הטייסות הפעילות בכל ...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          1,
+          11,
+          8
+        ],
+        "gradedIndices": [
+          11
+        ],
+        "ungradedIndices": [
+          1,
+          8
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a15b03f8316e62c052f1",
+    "studentName": "קוזנץ מישל",
+    "studentEmail": "student_318897964@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את המשימות שהתבצעו בין השנים 2021 ל 2023 (כולל הקצוות) ובשני...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          1,
+          2,
+          3
+        ],
+        "gradedIndices": [
+          3
+        ],
+        "ungradedIndices": [
+          1,
+          2
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את כלי הטיס שיוצרו לאחר 2015 ואת שמות הטייסות והבסיסים המפעי...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          5,
+          6,
+          7
+        ],
+        "gradedIndices": [
+          7
+        ],
+        "ungradedIndices": [
+          5,
+          6
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a15fde2a2cd3a4d2e816",
+    "studentName": "פחטר תומר",
+    "studentEmail": "student_314653866@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים, הדרגות שלהם, שעות הטיסה שלהם וההתמחות שלהם ...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          1,
+          6
+        ],
+        "gradedIndices": [
+          6
+        ],
+        "ungradedIndices": [
+          1
+        ]
+      },
+      {
+        "questionText": "כתבו ביטוי באלגברת יחסים שמחזיר את שמות הטייסות שכל הטייסים שלהן בעלי רמת סיווג ...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          10,
+          11,
+          12
+        ],
+        "gradedIndices": [
+          12
+        ],
+        "ungradedIndices": [
+          10,
+          11
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a166de2a2cd3a4d2e817",
+    "studentName": "סירקיס תמר",
+    "studentEmail": "student_322623976@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסות ואת שמות הבסיסים שלהן שמתמחות במשימות מסוג '...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          2,
+          3,
+          6
+        ],
+        "gradedIndices": [
+          6
+        ],
+        "ungradedIndices": [
+          2,
+          3
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה עבור כל טייסת ועבור כל טייס את הטייסים שמשרתים בטייסות שבהן ...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          4,
+          5
+        ],
+        "gradedIndices": [
+          5
+        ],
+        "ungradedIndices": [
+          4
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את כלי הטיס שיוצרו אחרי שנת 2010, עם המהירות המרבית והטווח ש...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          8,
+          9
+        ],
+        "gradedIndices": [
+          9
+        ],
+        "ungradedIndices": [
+          8
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a17ffd62cb89f2541407",
+    "studentName": "נחשון רינו",
+    "studentEmail": "student_212323281@exam.local",
+    "duplicates": [
+      {
+        "questionText": "הציגו את שמות הבסיסים שהפער בניסיון בין הטייס המנוסה ביותר לטייס הצעיר ביותר עול...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          5,
+          6,
+          7
+        ],
+        "gradedIndices": [
+          7
+        ],
+        "ungradedIndices": [
+          5,
+          6
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a190fd62cb89f254140b",
+    "studentName": "סיידה לינור",
+    "studentEmail": "student_327363032@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים, הדרגות שלהם, שעות הטיסה שלהם וההתמחות שלהם ...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          2,
+          5
+        ],
+        "gradedIndices": [
+          5
+        ],
+        "ungradedIndices": [
+          2
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים ושמות הטייסות שלהם, כאשר יוצגו כל שמות הטייס...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          11,
+          6,
+          9
+        ],
+        "gradedIndices": [
+          11
+        ],
+        "ungradedIndices": [
+          6,
+          9
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a18cde2a2cd3a4d2e81a",
+    "studentName": "שלמה גיא",
+    "studentEmail": "student_209238708@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את כלי הטיס שיוצרו אחרי שנת 2010, עם המהירות המרבית והטווח ש...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          7,
+          8
+        ],
+        "gradedIndices": [
+          8
+        ],
+        "ungradedIndices": [
+          7
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a1c1fd62cb89f254140f",
+    "studentName": "נאור גיא",
+    "studentEmail": "student_206913923@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמציגה את שמות הבסיסים שיש בהם לפחות אחד מכל סוגי כלי הנשק השונים הק...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          3,
+          4,
+          5
+        ],
+        "gradedIndices": [
+          5
+        ],
+        "ungradedIndices": [
+          3,
+          4
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a232de2a2cd3a4d2e820",
+    "studentName": "פלד תומר",
+    "studentEmail": "student_207749219@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את כלי הטיס ואת שמות הטייסות שלהן, כולל כלי טיס שאין להם טיי...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          0,
+          5
+        ],
+        "gradedIndices": [
+          5
+        ],
+        "ungradedIndices": [
+          0
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את כלי הטיס מסוג F-16I ו-F-35I ואת שמות הטייסות המפעילות אות...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          1,
+          11
+        ],
+        "gradedIndices": [
+          11
+        ],
+        "ungradedIndices": [
+          1
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים, הדרגות שלהם, שעות הטיסה שלהם וההתמחות שלהם ...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          10,
+          12,
+          4
+        ],
+        "gradedIndices": [
+          12
+        ],
+        "ungradedIndices": [
+          10,
+          4
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a334dd197423090e00ef",
+    "studentName": "נחשון אלמוג",
+    "studentEmail": "student_209362730@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את כלי הטיס שיוצרו בין השנים 2010-2020, עם המהירות המרבית וה...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          0,
+          1
+        ],
+        "gradedIndices": [
+          1
+        ],
+        "ungradedIndices": [
+          0
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים ושמות הבסיסים שלהם, רק עבור טייסים עם כמות ש...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          4,
+          5,
+          6
+        ],
+        "gradedIndices": [
+          6
+        ],
+        "ungradedIndices": [
+          4,
+          5
+        ]
+      },
+      {
+        "questionText": "כתבו ביטוי באלגברת יחסים המחזיר את שמות המשימות שבוצעו על ידי טייסים (יש להציג ג...",
+        "totalCopies": 5,
+        "gradedCopies": 1,
+        "ungradedCopies": 4,
+        "questionIndices": [
+          10,
+          11,
+          7,
+          8,
+          9
+        ],
+        "gradedIndices": [
+          11
+        ],
+        "ungradedIndices": [
+          10,
+          7,
+          8,
+          9
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a371fd62cb89f2541413",
+    "studentName": "בן משה יעל",
+    "studentEmail": "student_314652769@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את הבסיסים עם יותר מ-2 מסלולים ואת כמות הטייסות הפעילות בכל ...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          3,
+          4,
+          5
+        ],
+        "gradedIndices": [
+          5
+        ],
+        "ungradedIndices": [
+          3,
+          4
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את רק את שמות המשימות הפעילות ואת שמות הטייסים המבצעים שלהן,...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          10,
+          11,
+          12
+        ],
+        "gradedIndices": [
+          12
+        ],
+        "ungradedIndices": [
+          10,
+          11
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a7fd3164c48de1e6ba4c",
+    "studentName": "רם נגה",
+    "studentEmail": "student_319099594@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את כלי הטיס שיוצרו אחרי שנת 2010, עם המהירות המרבית והטווח ש...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          0,
+          1
+        ],
+        "gradedIndices": [
+          1
+        ],
+        "ungradedIndices": [
+          0
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878a7e32c796f9cd66e406c",
+    "studentName": "ריזנברג קרן",
+    "studentEmail": "student_322211400@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את כמות כלי הנשק היקרים (עלות מעל 500 אלפי ש״ח) בחלוקה לפי כ...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          0,
+          11
+        ],
+        "gradedIndices": [
+          11
+        ],
+        "ungradedIndices": [
+          0
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את כלי הטיס שיוצרו אחרי שנת 2010, עם המהירות המרבית והטווח ש...",
+        "totalCopies": 2,
+        "gradedCopies": 1,
+        "ungradedCopies": 1,
+        "questionIndices": [
+          12,
+          7
+        ],
+        "gradedIndices": [
+          12
+        ],
+        "ungradedIndices": [
+          7
+        ]
+      }
+    ]
+  },
+  {
+    "examId": "6878aab95a528da4e4aca440",
+    "studentName": "שמאי אילאיל",
+    "studentEmail": "student_322547068@exam.local",
+    "duplicates": [
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים עם יותר מ-3 שנות ניסיון ואת הערך הכולל של המ...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          0,
+          1,
+          8
+        ],
+        "gradedIndices": [
+          8
+        ],
+        "ungradedIndices": [
+          0,
+          1
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים שמשרתים בבסיס 'RMD' ומשכורתם מעל 17,000 ש״ח....",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          2,
+          3,
+          4
+        ],
+        "gradedIndices": [
+          2
+        ],
+        "ungradedIndices": [
+          3,
+          4
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמציגה את שמות הבסיסים שיש בהם גם טייסים וגם כלי נשק, ואת יחס עלות ה...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          5,
+          6,
+          7
+        ],
+        "gradedIndices": [
+          7
+        ],
+        "ungradedIndices": [
+          5,
+          6
+        ]
+      },
+      {
+        "questionText": "כתוב שאילתה שמחזירה את שמות הטייסים, דרגתם והמשכורת שלהם רק עבור מקרים בהם משכור...",
+        "totalCopies": 3,
+        "gradedCopies": 1,
+        "ungradedCopies": 2,
+        "questionIndices": [
+          10,
+          11,
+          9
+        ],
+        "gradedIndices": [
+          11
+        ],
+        "ungradedIndices": [
+          10,
+          9
+        ]
+      }
+    ]
+  }
+]
