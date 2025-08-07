@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, BarChart3, RefreshCw, Clock, Download } from 'lucide-react';
 import { GradeByQuestionProvider, useGradeByQuestion } from './contexts/GradeByQuestionContext';
+import config from '../../config';
 import QuestionList from './components/QuestionList';
 import QuestionDetail from './components/QuestionDetail';
 import GradeToolbar from './components/GradeToolbar';
@@ -303,6 +304,9 @@ const MainContent: React.FC = () => {
 const GradeByQuestionPageContent: React.FC = () => {
   const router = useRouter();
   const { state, setActiveTab, fetchQuestions, showMessage } = useGradeByQuestion();
+  
+  // Debug: Log the server URL being used
+  console.log('🔧 Grade-by-Question Debug: Server URL =', config.serverUrl);
 
   // Filter out lecturers and assistants (same as exam-grading page)
   const EXCLUDED_USERS = new Set([

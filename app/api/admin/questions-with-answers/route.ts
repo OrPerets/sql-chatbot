@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     const questionId = searchParams.get('questionId');
     
     console.log(`🚀 FinalExams Questions API: fetching page ${page} with ${limit} questions${questionId ? ` (questionId: ${questionId})` : ''}`);
+    console.log(`🔧 Debug: Connecting to server: ${SERVER_BASE}`);
     
     // Build query parameters for the backend server
     const queryParams = new URLSearchParams({
