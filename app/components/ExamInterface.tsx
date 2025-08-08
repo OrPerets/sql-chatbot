@@ -99,7 +99,7 @@ declare global {
 const SERVER_BASE = config.serverUrl;
 
 interface Question {
-  id: number;
+  id: string | number;
   question: string;
   difficulty: string;
   solution_example?: string;
@@ -573,7 +573,14 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
 
       const data = await response.json();
       console.log(`Question ${questionIndex} loaded:`, data.question, `difficulty: ${data.difficulty}`);
-      setCurrentQuestion(data.question);
+      // Normalize server response into a rich Question object
+      setCurrentQuestion({
+        id: (data.questionId ?? (data.question && data.question.id)) as string | number,
+        question: typeof data.question === 'string' ? data.question : (data.question?.question ?? ''),
+        difficulty: data.difficulty,
+        solution_example: data.solution_example,
+        expected_keywords: data.expected_keywords,
+      });
       
       // Safely handle difficulty value with fallback
       const validDifficulties = ['easy', 'medium', 'hard', 'algebra'];
@@ -650,8 +657,9 @@ const ExamInterface: React.FC<ExamInterfaceProps> = ({ examSession, user, onComp
       if (metricsTrackerRef.current) {
         metricsTrackerRef.current.cleanup();
       }
+      const normalizedQuestionId = (data.questionId ?? data.question?.id ?? `q-${questionIndex}`).toString();
       metricsTrackerRef.current = new ExamMetricsTracker(
-        data.question.id.toString(),
+        normalizedQuestionId,
         user.id.toString(),
         examSession.examId
       );
