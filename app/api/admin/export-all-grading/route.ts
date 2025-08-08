@@ -3,6 +3,12 @@ import config from '../../../config';
 import * as XLSX from 'xlsx';
 import { MongoClient } from 'mongodb';
 
+// Ensure this route is never statically generated or cached at build time
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const runtime = 'nodejs';
+export const maxDuration = 60; // Vercel Node.js serverless max duration
+
 const SERVER_BASE = config.serverUrl;
 
 // MongoDB connection URL - using the same credentials as mentor server
@@ -53,6 +59,12 @@ const QUESTIONS_TIMEOUT = 15000; // 15 seconds for questions fetch
 
 export async function GET(request: NextRequest) {
   try {
+    // Fast path: allow deploying without hitting DB during static export by short-circuiting when running in Vercel build/export
+    // Detect Next.js export/static generation environment
+    if (process.env.NEXT_PHASE === 'phase-export' || process.env.VERCEL === '1' && process.env.NEXT_PRIVATE_BUILD_WORKER) {
+      return new NextResponse(JSON.stringify({ ok: true }), { status: 200 });
+    }
+
     console.log('🚀 Starting DIRECT DATABASE export...');
     
     // Connect directly to MongoDB with increased timeout and better error handling
