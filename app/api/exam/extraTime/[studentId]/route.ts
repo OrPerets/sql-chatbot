@@ -28,19 +28,26 @@ export async function GET(
 
     if (!response.ok) {
       if (response.status === 404) {
-        // No extra time found for this student
-        return NextResponse.json({
-          studentId,
-          percentage: 0,
-          hasExtraTime: false
-        }, {
-          status: 200,
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
+        // Emergency override: add +30 minutes (25%) even if not found in backend
+        const emergencyExtraMinutes = 30;
+        const baseMinutes = 120;
+        const emergencyExtraPercentage = Math.round((emergencyExtraMinutes / baseMinutes) * 100); // 25
+
+        return NextResponse.json(
+          {
+            studentId,
+            percentage: emergencyExtraPercentage,
+            hasExtraTime: emergencyExtraPercentage > 0
+          },
+          {
+            status: 200,
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
           }
-        });
+        );
       }
       
       const errorData = await response.json();
@@ -52,19 +59,30 @@ export async function GET(
 
     const extraTimeData = await response.json();
 
-    return NextResponse.json({
-      studentId,
-      percentage: extraTimeData.percentage || 0,
-      hasExtraTime: extraTimeData.percentage > 0,
-      createdAt: extraTimeData.createdAt
-    }, {
-      status: 200,
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+    // Emergency override: add +30 minutes (25%) to whatever the backend provides
+    const emergencyExtraMinutes = 30;
+    const baseMinutes = 120;
+    const emergencyExtraPercentage = Math.round((emergencyExtraMinutes / baseMinutes) * 100); // 25
+
+    const backendPercentage = extraTimeData.percentage || 0;
+    const combinedPercentage = backendPercentage + emergencyExtraPercentage;
+
+    return NextResponse.json(
+      {
+        studentId,
+        percentage: combinedPercentage,
+        hasExtraTime: combinedPercentage > 0,
+        createdAt: extraTimeData.createdAt
+      },
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       }
-    });
+    );
 
   } catch (error) {
     console.error('Error fetching extra time:', error);
