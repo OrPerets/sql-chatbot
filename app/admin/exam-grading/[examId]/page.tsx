@@ -5,6 +5,9 @@ import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Save, CheckCircle, XCircle, Clock, User, FileText, AlertTriangle, AlertCircle, Info, Eye, Trash2, Check, X } from 'lucide-react';
 import styles from './page.module.css';
 import { detectAITraps, getSuspicionColor, getSuspicionIcon, TrapDetection } from '../../../utils/trapDetector';
+import config from '../../../config';
+
+const SERVER_BASE = config.serverUrl;
 
 interface ExamAnswer {
   _id: string;
@@ -378,13 +381,19 @@ const ExamGradingPage: React.FC = () => {
   const fetchExamData = async () => {
     try {
       setLoading(true);
-      // Try fetching from FinalExams first, fall back to regular exams
-      let response = await fetch(`/api/admin/final-exam/${examId}/for-grading`);
+      // Try fetching from FinalExams first (direct to deployed server), fall back to regular exams
+      let response = await fetch(`${SERVER_BASE}/admin/final-exam/${examId}/for-grading`, {
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' }
+      });
       let isFinalExam = true;
       
       if (!response.ok) {
         // Fall back to original exam endpoint
-        response = await fetch(`/api/admin/exam/${examId}/for-grading`);
+        response = await fetch(`${SERVER_BASE}/admin/exam/${examId}/for-grading`, {
+          cache: 'no-store',
+          headers: { 'Content-Type': 'application/json' }
+        });
         isFinalExam = false;
         if (!response.ok) {
           throw new Error('Failed to fetch exam data');
@@ -399,7 +408,7 @@ const ExamGradingPage: React.FC = () => {
         
         try {
           // Try both grade endpoints to find existing grades
-          const endpoints = [`/api/admin/final-exam/${examId}/grade`, `/api/admin/exam/${examId}/grade`];
+          const endpoints = [`${SERVER_BASE}/admin/final-exam/${examId}/grade`, `${SERVER_BASE}/admin/exam/${examId}/grade`];
           
           for (const endpoint of endpoints) {
             try {
@@ -425,22 +434,18 @@ const ExamGradingPage: React.FC = () => {
       try {
         console.log(`📊 Loading grade data for ${isFinalExam ? 'final exam' : 'regular exam'}: ${examId}`);
         
-        let gradeResponse = await fetch(`/api/admin/${isFinalExam ? 'final-exam' : 'exam'}/${examId}/grade`, {
+        let gradeResponse = await fetch(`${SERVER_BASE}/admin/${isFinalExam ? 'final-exam' : 'exam'}/${examId}/grade`, {
           cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache'
-          }
+          headers: { 'Cache-Control': 'no-cache', 'Content-Type': 'application/json' }
         });
         
         // If primary source fails, try the other source (grades might be saved in either location)
         if (!gradeResponse.ok) {
           console.log(`⚠️ Primary grade source failed, trying alternate source...`);
           const alternateEndpoint = isFinalExam ? 'exam' : 'final-exam';
-          gradeResponse = await fetch(`/api/admin/${alternateEndpoint}/${examId}/grade`, {
+          gradeResponse = await fetch(`${SERVER_BASE}/admin/${alternateEndpoint}/${examId}/grade`, {
             cache: 'no-store',
-            headers: {
-              'Cache-Control': 'no-cache'
-            }
+            headers: { 'Cache-Control': 'no-cache', 'Content-Type': 'application/json' }
           });
           
           if (gradeResponse.ok) {

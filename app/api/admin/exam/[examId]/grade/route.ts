@@ -41,15 +41,28 @@ export async function GET(
   try {
     const { examId } = params;
     
-    const response = await fetch(`${SERVER_BASE}/admin/exam/${examId}/grade`, {
+    let response = await fetch(`${SERVER_BASE}/admin/exam/${examId}/grade`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
     });
 
+    // Fallback: try final-exam grade endpoint if regular exam not found
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const status = response.status;
+      try {
+        const alt = await fetch(`${SERVER_BASE}/admin/final-exam/${examId}/grade`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (alt.ok) {
+          const data = await alt.json();
+          return NextResponse.json(data);
+        }
+      } catch {}
+      // If both fail, pass through original status
+      return NextResponse.json({ error: 'Grade not found' }, { status });
     }
 
     const data = await response.json();

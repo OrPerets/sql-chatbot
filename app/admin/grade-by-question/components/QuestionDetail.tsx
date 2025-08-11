@@ -1,9 +1,8 @@
 "use client";
 
 import React, { memo, useCallback, useMemo } from 'react';
-import { ArrowLeft, Users, CheckCircle, Clock, AlertTriangle, Database } from 'lucide-react';
+import { ArrowLeft, Users, CheckCircle } from 'lucide-react';
 import { useGradeByQuestion, StudentAnswer } from '../contexts/GradeByQuestionContext';
-import { detectAITraps, createHighlightedText } from '../../../utils/trapDetector';
 import styles from '../page.module.css';
 
 // Database schema for validation (moved from main component)
@@ -140,43 +139,8 @@ const getDifficultyText = (difficulty: string) => {
   }
 };
 
-// Schema validation function
-const validateSchema = (answer: string) => {
-  const upperAnswer = answer.toUpperCase();
-  let hasInvalidTables = false;
-  let hasInvalidColumns = false;
-  const invalidItems: string[] = [];
-
-  const validTableNames = new Set(DATABASE_SCHEMA.map(table => table.name.toUpperCase()));
-  const tableColumnMap = new Map<string, Set<string>>();
-  
-  DATABASE_SCHEMA.forEach(table => {
-    const columns = new Set(table.columns.map(col => col.name.toUpperCase()));
-    tableColumnMap.set(table.name.toUpperCase(), columns);
-  });
-
-  const tableMatches = upperAnswer.match(/FROM\s+(\w+)|JOIN\s+(\w+)|UPDATE\s+(\w+)|INSERT\s+INTO\s+(\w+)|DELETE\s+FROM\s+(\w+)/gi);
-  const referencedTables = new Set<string>();
-  
-  if (tableMatches) {
-    tableMatches.forEach(match => {
-      const tableNameMatch = match.match(/(?:FROM|JOIN|UPDATE|INTO)\s+(\w+)/i);
-      if (tableNameMatch) {
-        referencedTables.add(tableNameMatch[1].toUpperCase());
-      }
-    });
-  }
-
-  referencedTables.forEach(tableName => {
-    // Allow "SQUARDRON" as a valid alternative to "SQUADRONS"
-    if (!validTableNames.has(tableName) && tableName !== 'SQUARDRON') {
-      hasInvalidTables = true;
-      invalidItems.push(`טבלה לא קיימת: ${tableName}`);
-    }
-  });
-
-  return { hasInvalidTables, hasInvalidColumns, invalidItems };
-};
+// Schema/AI detection removed
+const validateSchema = (_answer: string) => ({ hasInvalidTables: false, hasInvalidColumns: false, invalidItems: [] as string[] });
 
 // Student Navigation Component
 const StudentNavigation = memo(() => {
@@ -282,23 +246,10 @@ const CurrentAnswerDisplay = memo(() => {
     if (!currentAnswer) return;
 
     try {
-      const aiAnalysis = detectAITraps(currentAnswer.studentAnswer);
-      const schemaValidation = validateSchema(currentAnswer.studentAnswer);
-      
-      let finalGrade = state.currentGrade;
-      let finalFeedback = state.currentFeedback;
-      
-      // Auto-apply schema validation penalties for AI-suspicious answers
-      if (aiAnalysis.isAISuspicious && (schemaValidation.hasInvalidTables || schemaValidation.hasInvalidColumns)) {
-        finalGrade = 0;
-        const schemaMessage = "יש שימוש בתשובה בעמודות / טבלאות שלא קיימות בבסיס הנתונים.";
-        finalFeedback = finalFeedback ? `${finalFeedback}\n${schemaMessage}` : schemaMessage;
-      }
-
-      await saveGrade(currentAnswer.examId, currentAnswer.questionIndex, finalGrade, finalFeedback);
+      await saveGrade(currentAnswer.examId, currentAnswer.questionIndex, state.currentGrade, state.currentFeedback);
 
       // Auto-save to comment bank if feedback is provided
-      if (finalFeedback && finalFeedback.trim()) {
+      if (state.currentFeedback && state.currentFeedback.trim()) {
         try {
           await fetch('/api/admin/comment-bank', {
             method: 'POST',
@@ -307,9 +258,9 @@ const CurrentAnswerDisplay = memo(() => {
               questionId: state.selectedQuestion!.question.id,
               questionText: state.selectedQuestion!.question.question,
               difficulty: state.selectedQuestion!.question.difficulty,
-              score: finalGrade,
+              score: state.currentGrade,
               maxScore: state.selectedQuestion!.question.points,
-              feedback: finalFeedback,
+              feedback: state.currentFeedback,
               gradedBy: 'admin'
             }),
           });
@@ -358,8 +309,7 @@ const CurrentAnswerDisplay = memo(() => {
     );
   }
 
-  const aiAnalysis = detectAITraps(currentAnswer.studentAnswer);
-  const schemaValidation = validateSchema(currentAnswer.studentAnswer);
+  // AI/cheat detection removed
 
   return (
     <div className={styles.currentAnswerSection}>
@@ -380,45 +330,13 @@ const CurrentAnswerDisplay = memo(() => {
         </div>
       </div>
 
-      {/* AI Detection and Schema Validation */}
-      {(aiAnalysis.isAISuspicious || schemaValidation.hasInvalidTables || schemaValidation.hasInvalidColumns) && (
-        <div className={styles.aiSuspicionBanner}>
-          <div className={styles.aiSuspicionHeader}>
-            <AlertTriangle size={20} />
-            <span>⚠️ חשוד בשימוש ב-AI 
-              {aiAnalysis.isAISuspicious && ` (ציון חשד: ${aiAnalysis.suspicionScore})`}
-              {(schemaValidation.hasInvalidTables || schemaValidation.hasInvalidColumns) && ' - שימוש בעמודות/טבלאות לא קיימות'}
-            </span>
-          </div>
-          
-          {(schemaValidation.hasInvalidTables || schemaValidation.hasInvalidColumns) && (
-            <div className={styles.aiSuspicionDetails}>
-              <div className={styles.aiDetailsTitle}>שגיאות סכמה שנמצאו:</div>
-              <ul className={styles.trapsList}>
-                {schemaValidation.invalidItems.map((item, index) => (
-                  <li key={index} className={`${styles.trapItem} ${styles.trapHigh}`}>
-                    <div className={styles.trapDescription}>
-                      <strong>{item}</strong>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
+      {/* AI/cheat detection banner removed */}
 
       {/* Answer Content */}
       <div className={styles.answerContent}>
         <div className={styles.answerText}>
           <strong>תשובת הסטודנט:</strong>
-          <pre className={styles.answerQuery}>
-            {aiAnalysis.isAISuspicious && aiAnalysis.highlightedText ? (
-              <div dangerouslySetInnerHTML={{ __html: aiAnalysis.highlightedText }} />
-            ) : (
-              currentAnswer.studentAnswer
-            )}
-          </pre>
+          <pre className={styles.answerQuery}>{currentAnswer.studentAnswer}</pre>
         </div>
       </div>
 

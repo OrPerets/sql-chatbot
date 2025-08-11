@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, FileText, Clock, User, CheckCircle, XCircle, AlertTriangle, AlertCircle, Info, Download } from 'lucide-react';
 import styles from './page.module.css';
 import { analyzeExamForAI, getSuspicionColor, getSuspicionIcon } from '../../utils/trapDetector';
+import config from '../../config';
+
+const SERVER_BASE = config.serverUrl;
 
 interface ExamSession {
   _id: string;
@@ -203,17 +206,15 @@ const ExamGradingPage: React.FC = () => {
       
       if (activeTab === 'moed-a') {
         // Fetch from FinalExams collection (current implementation)
-        const response = await fetch('/api/admin/final-exams');
+        const response = await fetch(`${SERVER_BASE}/admin/final-exams`, { cache: 'no-store', headers: { 'Content-Type': 'application/json' } });
         if (!response.ok) {
           // If FinalExams doesn't exist, initialize it first
           if (response.status === 500) {
             console.log('Initializing FinalExams collection...');
-            const initResponse = await fetch('/api/admin/final-exams', {
-              method: 'POST'
-            });
+            const initResponse = await fetch(`${SERVER_BASE}/admin/initialize-final-exams`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
             if (initResponse.ok) {
               // Try fetching again after initialization
-              const retryResponse = await fetch('/api/admin/final-exams');
+               const retryResponse = await fetch(`${SERVER_BASE}/admin/final-exams`, { cache: 'no-store', headers: { 'Content-Type': 'application/json' } });
               if (retryResponse.ok) {
                 const data = await retryResponse.json();
                 const sessions = data.exams || data;
@@ -231,7 +232,7 @@ const ExamGradingPage: React.FC = () => {
         setExamSessions(filteredSessions);
       } else if (activeTab === 'moed-b') {
         // Fetch from examSessions collection
-        const response = await fetch('/api/admin/exam-sessions');
+        const response = await fetch(`${SERVER_BASE}/admin/exam-sessions`, { cache: 'no-store', headers: { 'Content-Type': 'application/json' } });
         if (!response.ok) {
           throw new Error('Failed to fetch exam sessions');
         }
