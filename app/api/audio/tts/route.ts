@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
           voice: voice as any,
           input: processedText,
           speed: Math.max(0.5, Math.min(1.5, Number(speed) || 1.0)),
-          format: format as any,
+          response_format: format as any,
         });
 
         const arrayBuf = await resp.arrayBuffer();
