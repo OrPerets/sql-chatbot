@@ -1,0 +1,184 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.title {
+  text-align: center;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 10px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.description {
+  text-align: center;
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.9);
+  max-width: 800px;
+  margin: 0 auto 40px auto;
+  line-height: 1.6;
+}
+
+.avatarContainer {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 40px;
+}
+
+.controls {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+  backdrop-filter: blur(10px);
+}
+
+.section {
+  margin-bottom: 30px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.section h3 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 15px;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 8px;
+}
+
+.section p {
+  margin: 5px 0;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.buttonGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.button {
+  background: #f3f4f6;
+  border: 2px solid #d1d5db;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: capitalize;
+  color: #374151;
+}
+
+.button:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.button:disabled {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.button:disabled:hover {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+  transform: none;
+  box-shadow: none;
+}
+
+.active {
+  background: #4f46e5 !important;
+  border-color: #4338ca !important;
+  color: white !important;
+}
+
+.active:hover {
+  background: #4338ca !important;
+  border-color: #3730a3 !important;
+}
+
+.primaryButton {
+  background: #10b981;
+  border-color: #059669;
+  color: white;
+  font-size: 16px;
+  padding: 14px 28px;
+  grid-column: 1 / -1;
+  justify-self: center;
+  min-width: 200px;
+}
+
+.primaryButton:hover {
+  background: #059669;
+  border-color: #047857;
+}
+
+.primaryButton:disabled {
+  background: #9ca3af;
+  border-color: #6b7280;
+  color: white;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .container {
+    padding: 15px;
+  }
+  
+  .title {
+    font-size: 2rem;
+  }
+  
+  .description {
+    font-size: 1rem;
+  }
+  
+  .controls {
+    padding: 20px;
+  }
+  
+  .buttonGrid {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 8px;
+  }
+  
+  .button {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  
+  .primaryButton {
+    font-size: 14px;
+    padding: 12px 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .buttonGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+} 

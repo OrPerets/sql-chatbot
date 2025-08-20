@@ -1,0 +1,741 @@
+/* Michael Chat Avatar - Elegant circular design based on demo */
+
+.michaelChatAvatar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: fit-content;
+  margin: 0 auto;
+  padding: 10px;
+}
+
+.avatarContainer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.avatarWrapper {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Size variants */
+.small .avatarWrapper {
+  width: 80px;
+  height: 80px;
+}
+
+.medium .avatarWrapper {
+  width: 120px;
+  height: 120px;
+}
+
+.large .avatarWrapper {
+  width: 160px;
+  height: 160px;
+}
+
+/* Avatar states */
+.avatarContainer.idle .avatarWrapper {
+  transform: scale(1);
+  box-shadow: 
+    0 8px 32px rgba(59, 130, 246, 0.15),
+    0 2px 8px rgba(59, 130, 246, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  animation: gentleFloat 4s ease-in-out infinite;
+}
+
+.avatarContainer.thinking .avatarWrapper {
+  transform: scale(1.02);
+  box-shadow: 
+    0 12px 40px rgba(168, 85, 247, 0.25),
+    0 4px 12px rgba(168, 85, 247, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  animation: thinkingPulse 1.5s ease-in-out infinite;
+}
+
+.avatarContainer.listening .avatarWrapper {
+  transform: scale(1.05);
+  box-shadow: 
+    0 16px 48px rgba(34, 197, 94, 0.3),
+    0 6px 16px rgba(34, 197, 94, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  animation: listeningPulse 0.8s ease-in-out infinite alternate;
+}
+
+.avatarContainer.talking .avatarWrapper {
+  transform: scale(1.08);
+  box-shadow: 
+    0 20px 56px rgba(239, 68, 68, 0.35),
+    0 8px 20px rgba(239, 68, 68, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  animation: talkingBounce 0.6s ease-in-out infinite alternate;
+}
+
+/* Animation keyframes */
+@keyframes gentleFloat {
+  0%, 100% {
+    transform: scale(1) translateY(0);
+  }
+  50% {
+    transform: scale(1) translateY(-3px);
+  }
+}
+
+@keyframes thinkingPulse {
+  0%, 100% {
+    transform: scale(1.02) rotate(0deg);
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    transform: scale(1.04) rotate(1deg);
+    filter: hue-rotate(10deg);
+  }
+}
+
+@keyframes listeningPulse {
+  0% {
+    transform: scale(1.05);
+    box-shadow: 
+      0 16px 48px rgba(34, 197, 94, 0.3),
+      0 6px 16px rgba(34, 197, 94, 0.2);
+  }
+  100% {
+    transform: scale(1.08);
+    box-shadow: 
+      0 20px 56px rgba(34, 197, 94, 0.4),
+      0 8px 20px rgba(34, 197, 94, 0.3);
+  }
+}
+
+@keyframes talkingBounce {
+  0% {
+    transform: scale(1.08) translateY(0) rotate(-0.5deg);
+  }
+  100% {
+    transform: scale(1.1) translateY(-4px) rotate(0.5deg);
+  }
+}
+
+/* Avatar image and Lottie container */
+.fallbackAvatar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.avatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.lottieContainer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  border-radius: 50%;
+  overflow: hidden;
+  mix-blend-mode: multiply;
+  opacity: 0.8;
+}
+
+.lottieAnimation {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+/* State indicators */
+.listeningIndicator {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 
+    0 4px 16px rgba(34, 197, 94, 0.4),
+    0 0 0 3px rgba(34, 197, 94, 0.2);
+  animation: indicatorPulse 1s ease-in-out infinite;
+  z-index: 10;
+}
+
+.micIcon {
+  position: relative;
+  z-index: 2;
+}
+
+.soundWaves {
+  position: absolute;
+  display: flex;
+  gap: 1px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.wave {
+  width: 2px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 1px;
+  animation: waveMotion 0.8s ease-in-out infinite;
+}
+
+.wave:nth-child(1) { animation-delay: 0s; }
+.wave:nth-child(2) { animation-delay: 0.1s; }
+.wave:nth-child(3) { animation-delay: 0.2s; }
+.wave:nth-child(4) { animation-delay: 0.3s; }
+
+@keyframes waveMotion {
+  0%, 100% { height: 8px; opacity: 0.4; }
+  50% { height: 16px; opacity: 1; }
+}
+
+.thinkingIndicator {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 
+    0 4px 16px rgba(168, 85, 247, 0.4),
+    0 0 0 3px rgba(168, 85, 247, 0.2);
+  animation: thinkingIndicatorSpin 2s linear infinite;
+  z-index: 10;
+}
+
+.thinkingDots {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.dot {
+  width: 3px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  animation: dotBounce 1.4s ease-in-out infinite both;
+}
+
+.dot:nth-child(1) { animation-delay: -0.32s; }
+.dot:nth-child(2) { animation-delay: -0.16s; }
+.dot:nth-child(3) { animation-delay: 0s; }
+
+@keyframes dotBounce {
+  0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+  40% { transform: scale(1.2); opacity: 1; }
+}
+
+@keyframes thinkingIndicatorSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.talkingIndicator {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 
+    0 4px 16px rgba(239, 68, 68, 0.4),
+    0 0 0 3px rgba(239, 68, 68, 0.2);
+  animation: talkingIndicatorPulse 0.6s ease-in-out infinite alternate;
+  z-index: 10;
+}
+
+.speakerIcon {
+  position: relative;
+  z-index: 2;
+}
+
+.speechWaves {
+  position: absolute;
+  display: flex;
+  gap: 1px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.speechWave {
+  width: 2px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 1px;
+  animation: speechWaveMotion 0.4s ease-in-out infinite;
+}
+
+.speechWave:nth-child(1) { animation-delay: 0s; }
+.speechWave:nth-child(2) { animation-delay: 0.1s; }
+.speechWave:nth-child(3) { animation-delay: 0.2s; }
+
+@keyframes speechWaveMotion {
+  0%, 100% { height: 10px; opacity: 0.5; }
+  50% { height: 18px; opacity: 1; }
+}
+
+@keyframes talkingIndicatorPulse {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.1); }
+}
+
+@keyframes indicatorPulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+/* Hebrew State Indicator - Elegant Gray Gradient Design */
+.stateIndicator {
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, 
+    rgba(148, 163, 184, 0.95) 0%, 
+    rgba(100, 116, 139, 0.95) 50%, 
+    rgba(71, 85, 105, 0.95) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 8px 32px rgba(71, 85, 105, 0.3),
+    0 4px 12px rgba(71, 85, 105, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  animation: elegantStateEntry 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  min-width: 80px;
+  white-space: nowrap;
+  direction: rtl;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  letter-spacing: 0.3px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Elegant shimmer effect for state indicator */
+.stateIndicator::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent
+  );
+  animation: shimmerSlide 2s ease-in-out infinite;
+  border-radius: 20px;
+}
+
+/* Enhanced entry animation */
+@keyframes elegantStateEntry {
+  0% {
+    opacity: 0;
+    transform: translateY(15px) scale(0.8);
+    filter: blur(4px);
+  }
+  60% {
+    transform: translateY(-2px) scale(1.05);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
+}
+
+/* Shimmer animation */
+@keyframes shimmerSlide {
+  0% {
+    left: -100%;
+  }
+  50% {
+    left: 100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* State-specific styling */
+.stateIndicator[data-state="thinking"] {
+  background: linear-gradient(135deg, 
+    rgba(168, 85, 247, 0.95) 0%, 
+    rgba(147, 51, 234, 0.95) 50%, 
+    rgba(126, 34, 206, 0.95) 100%);
+  box-shadow: 
+    0 8px 32px rgba(168, 85, 247, 0.4),
+    0 4px 12px rgba(168, 85, 247, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  animation: elegantStateEntry 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), 
+             thinkingGlow 2s ease-in-out infinite;
+}
+
+.stateIndicator[data-state="talking"] {
+  background: linear-gradient(135deg, 
+    rgba(34, 197, 94, 0.95) 0%, 
+    rgba(22, 163, 74, 0.95) 50%, 
+    rgba(21, 128, 61, 0.95) 100%);
+  box-shadow: 
+    0 8px 32px rgba(34, 197, 94, 0.4),
+    0 4px 12px rgba(34, 197, 94, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  animation: elegantStateEntry 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
+             talkingPulse 1.5s ease-in-out infinite;
+}
+
+.stateIndicator[data-state="listening"] {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.95) 0%, 
+    rgba(37, 99, 235, 0.95) 50%, 
+    rgba(29, 78, 216, 0.95) 100%);
+  box-shadow: 
+    0 8px 32px rgba(59, 130, 246, 0.4),
+    0 4px 12px rgba(59, 130, 246, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  animation: elegantStateEntry 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
+             listeningBreathe 2s ease-in-out infinite;
+}
+
+/* State-specific animations */
+@keyframes thinkingGlow {
+  0%, 100% {
+    box-shadow: 
+      0 8px 32px rgba(168, 85, 247, 0.4),
+      0 4px 12px rgba(168, 85, 247, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 12px 40px rgba(168, 85, 247, 0.6),
+      0 6px 16px rgba(168, 85, 247, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+}
+
+@keyframes talkingPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+@keyframes listeningBreathe {
+  0%, 100% {
+    opacity: 0.95;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.01);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .small .avatarWrapper {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .medium .avatarWrapper {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .large .avatarWrapper {
+    width: 140px;
+    height: 140px;
+  }
+  
+  .stateIndicator {
+    font-size: 12px;
+    padding: 4px 10px;
+    min-width: 60px;
+  }
+
+  .listeningIndicator,
+  .thinkingIndicator,
+  .talkingIndicator {
+    width: 28px;
+    height: 28px;
+    top: -6px;
+  }
+
+  .listeningIndicator { right: -6px; }
+  .thinkingIndicator { left: -6px; }
+  .talkingIndicator { right: -6px; }
+
+  .audioPrompt {
+    margin-top: 6px;
+    padding: 10px 14px;
+  }
+
+  .audioPromptContent {
+    font-size: 12px;
+    gap: 6px;
+  }
+
+  .audioPromptButton {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+}
+
+/* Enhanced Voice Controls */
+.voiceControls {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  align-items: center;
+  justify-content: center;
+}
+
+.voiceButton,
+.settingsButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.voiceButton {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+}
+
+.voiceButton:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 
+    0 8px 24px rgba(59, 130, 246, 0.4),
+    0 4px 8px rgba(59, 130, 246, 0.2);
+}
+
+.voiceButton:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.voiceButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.voiceButton.stopButton {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  animation: playingPulse 1.5s ease-in-out infinite;
+}
+
+.voiceButton.playButton {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.settingsButton {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  color: white;
+}
+
+.settingsButton:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 
+    0 8px 24px rgba(107, 114, 128, 0.4),
+    0 4px 8px rgba(107, 114, 128, 0.2);
+  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+}
+
+.settingsButton:active {
+  transform: translateY(0) scale(0.98);
+}
+
+@keyframes playingPulse {
+  0%, 100% {
+    box-shadow: 
+      0 8px 24px rgba(239, 68, 68, 0.4),
+      0 4px 8px rgba(239, 68, 68, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 12px 32px rgba(239, 68, 68, 0.6),
+      0 6px 12px rgba(239, 68, 68, 0.3);
+  }
+}
+
+/* Button ripple effect */
+.voiceButton::before,
+.settingsButton::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+.voiceButton:hover::before,
+.settingsButton:hover::before {
+  width: 100%;
+  height: 100%;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .avatarWrapper {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .stateIndicator {
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+  }
+
+  .voiceControls {
+    filter: brightness(0.9);
+  }
+}
+
+/* Audio Permission Prompt */
+.audioPrompt {
+  margin-top: 8px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, 
+    rgba(239, 68, 68, 0.95) 0%, 
+    rgba(220, 38, 38, 0.95) 50%, 
+    rgba(185, 28, 28, 0.95) 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 8px 32px rgba(239, 68, 68, 0.3),
+    0 4px 12px rgba(239, 68, 68, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(20px);
+  animation: audioPromptSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-align: center;
+}
+
+.audioPromptContent {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.audioPromptButton {
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+  color: #ef4444;
+  border: none;
+  border-radius: 12px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 4px 16px rgba(255, 255, 255, 0.3),
+    0 2px 4px rgba(255, 255, 255, 0.2);
+}
+
+.audioPromptButton:hover {
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 
+    0 6px 20px rgba(255, 255, 255, 0.4),
+    0 3px 6px rgba(255, 255, 255, 0.3);
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+.audioPromptButton:active {
+  transform: translateY(0) scale(0.98);
+}
+
+@keyframes audioPromptSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+    filter: blur(4px);
+  }
+  60% {
+    transform: translateY(-2px) scale(1.02);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
+} 

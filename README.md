@@ -1,73 +1,220 @@
-# OpenAI Assistants API Quickstart
+# SQL ChatBot with 3D Michael Avatar
 
-A quick-start template using the OpenAI [Assistants API](https://platform.openai.com/docs/assistants/overview) with [Next.js](https://nextjs.org/docs).
-<br/>
-<br/>
-![OpenAI Assistants API Quickstart](https://github.com/openai/openai-assistants-quickstart/assets/27232/755e85e9-3ea4-421f-b202-3b0c435ea270)
+A comprehensive SQL learning platform with an intelligent 3D teaching assistant named Michael.
 
-## Quickstart Setup
+## 🎭 Avatar Features
 
-### 1. Clone repo
+### Smart Michael Avatar System
+Our advanced avatar system provides a seamless experience with intelligent fallback mechanisms:
 
-```shell
-git clone https://github.com/openai/openai-assistants-quickstart.git
-cd openai-assistants-quickstart
+- **3D Michael Avatar**: Realistic 3D character using TalkingHead library
+- **Smart Fallback**: Graceful degradation to Lottie animations if 3D fails
+- **State Synchronization**: Speaking, listening, and thinking states work across both avatar types
+- **Progressive Enhancement**: Zero breaking changes to existing functionality
+
+### Avatar Modes
+
+1. **3D Mode** (Primary)
+   - Realistic 3D character with facial expressions
+   - Advanced lip-sync and gesture capabilities
+   - Professional teaching pose and movements
+   - Hebrew and English TTS integration
+
+2. **2D Mode** (Fallback)
+   - Smooth Lottie animations
+   - Proven reliability and performance
+   - Enhanced voice synthesis
+   - Rich visual feedback
+
+### Configuration Options
+
+```typescript
+<SmartMichaelAvatar
+  text="שלום! אני מיכל"
+  autoPlay={true}
+  size="medium"
+  isListening={false}
+  isThinking={false}
+  preferMichael={true}      // Try 3D first
+  fallbackToLottie={true}   // Graceful fallback
+  loadTimeout={5000}        // 5 second timeout
+/>
 ```
 
-### 2. Set your [OpenAI API key](https://platform.openai.com/api-keys)
+## 🚀 Getting Started
 
-```shell
-export OPENAI_API_KEY="sk_..."
-```
+### Prerequisites
 
-(or in `.env.example` and rename it to `.env`).
+- Node.js 18+ 
+- npm or yarn
+- Modern browser with WebGL support (for 3D avatar)
 
-### 3. Install dependencies
+### Installation
 
-```shell
+```bash
+# Install dependencies
 npm install
-```
 
-### 4. Run
-
-```shell
+# Start development server
 npm run dev
+
+# Visit the avatar test page
+http://localhost:3000/test-michael-integration
 ```
 
-### 5. Navigate to [http://localhost:3000](http://localhost:3000).
+### Environment Flags (Feature Gates)
 
-## Deployment
+Add the following to your `.env.local` (all default OFF):
 
-You can deploy this project to Vercel or any other platform that supports Next.js.
+```
+NEXT_PUBLIC_AVATAR_ENABLED=0
+NEXT_PUBLIC_VOICE_ENABLED=0
+FEATURE_AVATAR=0
+FEATURE_VOICE=0
+```
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fopenai%2Fopenai-assistants-quickstart&env=OPENAI_API_KEY,OPENAI_ASSISTANT_ID&envDescription=API%20Keys%20and%20Instructions&envLink=https%3A%2F%2Fgithub.com%2Fopenai%2Fopenai-assistants-quickstart%2Fblob%2Fmain%2F.env.example)
+Usage:
+- Set `NEXT_PUBLIC_AVATAR_ENABLED=1` to render the 3D avatar UI.
+- Set `NEXT_PUBLIC_VOICE_ENABLED=1` to enable voice controls and playback on the client.
+- Set `FEATURE_VOICE=1` on the server to enable `/api/audio/tts`, `/api/audio/transcribe`, and legacy `/api/tts`.
+- Keep flags at 0 to instantly disable avatar/voice for rollback.
 
-## Overview
+Required when enabling voice:
+```
+OPENAI_API_KEY=your_key
+OPENAI_ASSISTANT_ID=optional_if_used
+```
 
-This project is intended to serve as a template for using the Assistants API in Next.js with [streaming](https://platform.openai.com/docs/assistants/overview/step-4-create-a-run), tool use ([code interpreter](https://platform.openai.com/docs/assistants/tools/code-interpreter) and [file search](https://platform.openai.com/docs/assistants/tools/file-search)), and [function calling](https://platform.openai.com/docs/assistants/tools/function-calling). While there are multiple pages to demonstrate each of these capabilities, they all use the same underlying assistant with all capabilities enabled.
+## 🛠 Implementation Architecture
 
-The main logic for chat will be found in the `Chat` component in `app/components/chat.tsx`, and the handlers starting with `api/assistants/threads` (found in `api/assistants/threads/...`). Feel free to start your own project and copy some of this logic in! The `Chat` component itself can be copied and used directly, provided you copy the styling from `app/components/chat.module.css` as well.
+### Smart Loading Strategy
 
-### Pages
+1. **Loading Phase**: Attempts to load 3D Michael avatar
+2. **Timeout Protection**: Configurable timeout prevents hanging
+3. **Graceful Fallback**: Seamless switch to Lottie if 3D fails
+4. **Error Recovery**: Retry mechanisms and user feedback
 
-- Basic Chat Example: [http://localhost:3000/examples/basic-chat](http://localhost:3000/examples/basic-chat)
-- Function Calling Example: [http://localhost:3000/examples/function-calling](http://localhost:3000/examples/function-calling)
-- File Search Example: [http://localhost:3000/examples/file-search](http://localhost:3000/examples/file-search)
-- Full-featured Example: [http://localhost:3000/examples/all](http://localhost:3000/examples/all)
+### Zero Breaking Changes
 
-### Main Components
+The implementation uses a **progressive enhancement** approach:
 
-- `app/components/chat.tsx` - handles chat rendering, [streaming](https://platform.openai.com/docs/assistants/overview?context=with-streaming), and [function call](https://platform.openai.com/docs/assistants/tools/function-calling/quickstart?context=streaming&lang=node.js) forwarding
-- `app/components/file-viewer.tsx` - handles uploading, fetching, and deleting files for [file search](https://platform.openai.com/docs/assistants/tools/file-search)
+- Existing `MichaelChatAvatar` continues working
+- New `SmartMichaelAvatar` provides enhanced capabilities
+- Backward compatibility maintained
+- Gradual migration path available
 
-### Endpoints
+### File Structure
 
-- `api/assistants` - `POST`: create assistant (only used at startup)
-- `api/assistants/threads` - `POST`: create new thread
-- `api/assistants/threads/[threadId]/messages` - `POST`: send message to assistant
-- `api/assistants/threads/[threadId]/actions` - `POST`: inform assistant of the result of a function it decided to call
-- `api/assistants/files` - `GET`/`POST`/`DELETE`: fetch, upload, and delete assistant files for file search
+```
+app/
+├── components/
+│   ├── SmartMichaelAvatar.tsx     # Smart hybrid component
+│   ├── SimpleMichaelAvatar.tsx    # 3D avatar component
+│   ├── michael-chat-avatar.tsx    # Original Lottie avatar
+│   └── chat.tsx                   # Main chat interface
+├── lib/
+│   └── talkinghead/              # TalkingHead library
+│       ├── talkinghead.mjs
+│       └── lipsync-*.mjs
+└── test-michael-integration/     # Demo page
+```
 
-## Feedback
+## 🎯 Key Benefits
 
-Let us know if you have any thoughts, questions, or feedback in [this form](https://docs.google.com/forms/d/e/1FAIpQLScn_RSBryMXCZjCyWV4_ebctksVvQYWkrq90iN21l1HLv3kPg/viewform?usp=sf_link)!
+✅ **Zero Breaking Changes**: Current system continues working  
+✅ **Progressive Enhancement**: 3D avatar is an upgrade, not replacement  
+✅ **Bulletproof Fallbacks**: Always shows working avatar  
+✅ **Future Proof**: Easy to add more avatar options  
+✅ **Performance Conscious**: Loads 3D only when beneficial  
+
+## 🧪 Testing
+
+Visit `/test-michael-integration` to:
+
+- Test 3D avatar loading
+- Verify fallback mechanisms  
+- Adjust timeout settings
+- Test different avatar states
+- Simulate loading failures
+
+## 🔧 Configuration
+
+### Avatar Preferences
+
+Users can configure avatar behavior through the smart component props:
+
+- `preferMichael`: Enable/disable 3D avatar attempt
+- `fallbackToLottie`: Allow fallback to 2D animations
+- `loadTimeout`: Maximum time to wait for 3D loading
+
+### Performance Optimization
+
+- Dynamic imports prevent SSR issues
+- Lazy loading of 3D components
+- Timeout-based resource management
+- Memory cleanup on component unmount
+- Draco mesh compression enabled in avatar loader
+- Long-lived immutable caching headers for media (.glb, .ktx2, .mp3/.opus)
+- Scripts for asset compression (gltfpack); texture pipeline follow-up (ktx2)
+
+#### Asset Compression Scripts
+
+```
+npm run compress:glb
+```
+
+Note: Add `basisu`/`toktx` for KTX2 texture compression as a follow-up.
+
+## 📝 Development Notes
+
+### TypeScript Considerations
+
+The TalkingHead library is JavaScript-based, so we use type assertions for compatibility:
+
+```typescript
+const head: any = new (TalkingHead as any)(element, options);
+```
+
+### Browser Compatibility
+
+- **3D Avatar**: Modern browsers with WebGL support
+- **2D Fallback**: All browsers with basic Canvas support
+- **Progressive Enhancement**: Graceful degradation on older browsers
+
+## 🎨 Customization
+
+### Adding New Avatar Models
+
+1. Place GLB file in `public/avatars/`
+2. Update `SimpleMichaelAvatar.tsx` with new URL
+3. Test loading and fallback behavior
+
+### Extending State Management
+
+The avatar system supports these states:
+- `idle`: Default state
+- `speaking`: Active speech
+- `listening`: Microphone active  
+- `thinking`: Processing user input
+
+Add new states by updating the state type and switch statements.
+
+## 🔍 Troubleshooting
+
+### 3D Avatar Not Loading
+
+1. Check browser WebGL support
+2. Verify GLB file accessibility
+3. Check console for loading errors
+4. Confirm timeout settings
+
+### Fallback Not Working  
+
+1. Verify `fallbackToLottie={true}`
+2. Check Lottie animation files
+3. Test timeout configuration
+4. Review error handling logs
+
+---
+
+Built with ❤️ for effective SQL learning

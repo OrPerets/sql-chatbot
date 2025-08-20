@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import styles from "./chat.module.css";
+import "./mobile-optimizations.css";
 import { AssistantStream } from "openai/lib/AssistantStream";
 import Markdown from "react-markdown";
 // @ts-expect-error - no types for this yet
@@ -14,6 +15,12 @@ import { useRouter } from 'next/navigation';
 import config from "../config";
 import Modal from "./modal";
 import SQLQueryEditorComponent from "./query-vizualizer";
+import ImageUpload from "./image-upload";
+import { fileToBase64 } from "../utils/parseImage";
+// import AudioRecorder from "./audio-recorder"; // Clean version: hide audio recorder button
+import MichaelAvatarDirect from "./MichaelAvatarDirect";
+import { enhancedTTS } from "@/app/utils/enhanced-tts";
+import OpenAI from "openai";
 
 export const maxDuration = 50;
 
@@ -27,6 +34,7 @@ type MessageProps = {
   text: string;
   feedback: "like" | "dislike" | null;
   onFeedback?: (feedback: "like" | "dislike" | null) => void;
+  hasImage?: boolean;
 };
 
 // Add these types
@@ -39,12 +47,14 @@ type ChatSession = {
 const UserMessage = ({ text }: { text: string }) => {
   return <div className={styles.userMessage}>{text}</div>;
 };
-const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedback: "like" | "dislike" | null; onFeedback?: (feedback: "like" | "dislike" | null) => void }) => {
+const AssistantMessage = ({ text, feedback, onFeedback, autoPlaySpeech, onPlayMessage }: { text: string; feedback: "like" | "dislike" | null; onFeedback?: (feedback: "like" | "dislike" | null) => void; autoPlaySpeech?: boolean; onPlayMessage?: () => void }) => {
   const [activeFeedback, setActiveFeedback] = useState(feedback);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [showPlayTooltip, setShowPlayTooltip] = useState(false);  // Separate state for play button tooltip
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [copied, setCopied] = useState(false);  // Tooltip state
   const [copiedText, setCopiedText] =  useState("העתק שאילתה")
+  const [playTooltipText, setPlayTooltipText] = useState("השמע הודעה זו");
 
 
   const handleLike = () => {
@@ -57,6 +67,23 @@ const AssistantMessage = ({ text, feedback, onFeedback }: { text: string; feedba
     const newFeedback = activeFeedback === "dislike" ? null : "dislike"; // Toggle dislike
     setActiveFeedback(newFeedback);
     onFeedback && onFeedback(newFeedback);
+  };
+
+  const handlePlayMessage = () => {
+    console.log('🔊 handlePlayMessage called', {
+      onPlayMessage: !!onPlayMessage,
+      text: text?.substring(0, 50) + '...',
+      autoPlaySpeech
+    });
+    if (onPlayMessage) {
+      onPlayMessage();
+      setPlayTooltipText("משמיע...");
+      setTimeout(() => {
+        setPlayTooltipText("השמע הודעה זו");
+      }, 1500);
+    } else {
+      console.error('❌ onPlayMessage callback is not defined!');
+    }
   };
 
   const copyToClipboard = (textToCopy) => {
@@ -127,6 +154,25 @@ const copyQueryToClipboard = (text) => {
       <Markdown>{text}</Markdown>
       {/* <Markdown components={renderers} >{text}</Markdown> */}
       <div className={styles.feedbackButtons}>
+        {!autoPlaySpeech && (
+          <button
+            onClick={handlePlayMessage}
+            className={`${styles.feedbackButton} ${styles.playMessageButton}`}
+            onMouseEnter={() => setShowPlayTooltip(true)}
+            onMouseLeave={() => setShowPlayTooltip(false)}
+            style={{
+              marginLeft: "5px"
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+            {showPlayTooltip && (
+              <div className={styles.tooltip}>{playTooltipText}</div>
+            )}
+          </button>
+        )}
         <button
           onClick={handleLike}
           className={`${styles.feedbackButton} ${activeFeedback === "like" ? styles.positive : ""}`}
@@ -171,12 +217,12 @@ const CodeMessage = ({ text }: { text: string }) => {
   );
 };
 
-const Message = ({ role, text, feedback, onFeedback }: MessageProps) => {
+const Message = ({ role, text, feedback, onFeedback, hasImage, autoPlaySpeech, onPlayMessage }: MessageProps & { autoPlaySpeech?: boolean; onPlayMessage?: () => void }) => {
   switch (role) {
     case "user":
       return <UserMessage text={text} />;
     case "assistant":
-      return <AssistantMessage text={text} feedback={feedback} onFeedback={onFeedback} />;
+      return <AssistantMessage text={text} feedback={feedback} onFeedback={onFeedback} autoPlaySpeech={autoPlaySpeech} onPlayMessage={onPlayMessage} />;
     case "code":
       return <CodeMessage text={text} />;
     default:
@@ -198,6 +244,10 @@ const Chat = ({
   const [userInput, setUserInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [inputDisabled, setInputDisabled] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imageProcessing, setImageProcessing] = useState(false);
   const [threadId, setThreadId] = useState("");
   const [user, setUser] = useState(null);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
@@ -213,6 +263,70 @@ const Chat = ({
   const [loadingMessages, setLoadingMessages] = useState(false); // Add loading state
   // Add SQL mode state
   const [sqlMode, setSqlMode] = useState<'none' | 'create' | 'insert'>('none');
+  // Add audio and speech state
+  const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
+  const [autoPlaySpeech, setAutoPlaySpeech] = useState(false);
+  const enableAvatar = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1';
+  const enableVoice = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_VOICE_ENABLED === '1';
+  // Add sidebar visibility state
+  // Check if we're on mobile to default sidebar to closed
+  const [sidebarVisible, setSidebarVisible] = useState(() => {
+    // Default to closed on mobile devices
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 768; // Open on desktop (>=768px), closed on mobile (<768px)
+    }
+    return true; // Default to open during SSR
+  });
+  // Add speech timeout for debouncing
+  // Add state to track when assistant message is complete and ready for speech
+  const [isAssistantMessageComplete, setIsAssistantMessageComplete] = useState(false);
+  const [shouldSpeak, setShouldSpeak] = useState(false);
+  const [lastSpokenMessageId, setLastSpokenMessageId] = useState<string>("");
+  const [currentAssistantMessageId, setCurrentAssistantMessageId] = useState<string>("");
+
+  // Add state for progressive speech
+  const [streamingText, setStreamingText] = useState<string>("");
+  const [hasStartedSpeaking, setHasStartedSpeaking] = useState(false);
+  const streamingTextRef = useRef<string>("");
+  const progressiveSpeechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Add state for manual speech playback
+  const [isManualSpeech, setIsManualSpeech] = useState(false);
+
+  // State for user typing detection
+  const [isUserTyping, setIsUserTyping] = useState(false);
+  const userTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Exercise-related state
+  const [currentExercise, setCurrentExercise] = useState(null);
+  const [userPoints, setUserPoints] = useState(0);
+  const [isExerciseMode, setIsExerciseMode] = useState(false);
+  const [showSolutionButton, setShowSolutionButton] = useState(false);
+  const [pointsAnimation, setPointsAnimation] = useState(null);
+  const [exerciseAttempts, setExerciseAttempts] = useState(0);
+  const [showExerciseModal, setShowExerciseModal] = useState(false);
+  const [exerciseAnswer, setExerciseAnswer] = useState("");
+
+  // Memoized avatar state calculation to prevent multiple renders
+  const avatarState = useMemo(() => {
+    // Priority order: thinking > listening > speaking > userWriting > idle
+    const currentState = isThinking ? 'thinking' 
+                        : isRecording ? 'listening' 
+                        : (enableAvatar && enableVoice && shouldSpeak && isAssistantMessageComplete) ? 'speaking'
+                        : isUserTyping ? 'userWriting'
+                        : 'idle';
+    console.log('🎭 Avatar state calculation:', {
+      isThinking,
+      isRecording,
+      shouldSpeak,
+      autoPlaySpeech,
+      isAssistantMessageComplete,
+      isUserTyping,
+      calculatedState: currentState,
+      textLength: lastAssistantMessage?.length || 0
+    });
+    return currentState;
+  }, [isThinking, isRecording, shouldSpeak, isAssistantMessageComplete, isUserTyping, lastAssistantMessage?.length, enableAvatar, enableVoice]);
 
   const router = useRouter();
 
@@ -258,6 +372,137 @@ const Chat = ({
     }
   };
 
+  // Handle audio transcription
+  const handleAudioTranscription = (transcription: string) => {
+    setUserInput(transcription);
+    setEstimatedCost(calculateCost(transcription));
+  };
+
+  // Handle user typing detection
+  const handleUserTyping = () => {
+    console.log('✍️ User is typing...');
+    
+    // Set typing state to true
+    setIsUserTyping(true);
+    
+    // Clear existing timeout
+    if (userTypingTimeoutRef.current) {
+      clearTimeout(userTypingTimeoutRef.current);
+    }
+    
+    // Set timeout to detect when user stops typing (after 2 seconds of inactivity)
+    userTypingTimeoutRef.current = setTimeout(() => {
+      console.log('✋ User stopped typing');
+      setIsUserTyping(false);
+    }, 2000);
+  };
+
+  // Exercise-related functions
+  const startExercise = async () => {
+    // Clean version: open simple “coming soon” modal (no server fetch)
+    setCurrentExercise(null);
+    setIsExerciseMode(true);
+    setShowSolutionButton(false);
+    setExerciseAttempts(0);
+    setExerciseAnswer("");
+    setShowExerciseModal(true);
+  };
+
+  const submitExerciseAnswer = async () => {
+    if (!currentExercise || !exerciseAnswer.trim()) return;
+
+    try {
+      const user = JSON.parse(localStorage.getItem("currentUser"));
+      const response = await fetch(`${SERVER_BASE}/submitExerciseAnswer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.email,
+          exerciseId: currentExercise.id,
+          answerText: exerciseAnswer
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.correct) {
+        // Success - show points animation and close modal
+        setUserPoints(result.totalPoints);
+        setPointsAnimation(result.pointsAwarded);
+        setIsExerciseMode(false);
+        setCurrentExercise(null);
+        setShowExerciseModal(false);
+        setExerciseAnswer("");
+        setExerciseAttempts(0);
+        setShowSolutionButton(false);
+        
+        // Hide animation after 3 seconds
+        setTimeout(() => setPointsAnimation(null), 3000);
+        
+        // Show success message in chat without triggering TTS
+        appendMessage("assistant", `✅ ${result.feedback}`);
+      } else {
+        // Incorrect answer - show in modal
+        setExerciseAttempts(result.failedAttempts || 1);
+        if (result.showSolution) {
+          setShowSolutionButton(true);
+        }
+        // Don't close modal, show feedback within modal
+      }
+    } catch (error) {
+      console.error('Error submitting exercise answer:', error);
+    }
+  };
+
+  const showSolution = async () => {
+    if (!currentExercise) return;
+
+    try {
+      const response = await fetch(`${SERVER_BASE}/getExerciseSolution/${currentExercise.id}`);
+      const result = await response.json();
+      
+      // Show solution in modal, then close modal and add to chat
+      setIsExerciseMode(false);
+      setCurrentExercise(null);
+      setShowSolutionButton(false);
+      setShowExerciseModal(false);
+      setExerciseAnswer("");
+      
+      const solutionMessage = `💡 **פתרון לתרגול**\n\n\`\`\`sql\n${result.solution}\n\`\`\`\n\nתוכל לנסות תרגול חדש!`;
+      appendMessage("assistant", solutionMessage);
+    } catch (error) {
+      console.error('Error getting solution:', error);
+    }
+  };
+
+  // Load user points on component mount
+  useEffect(() => {
+    const loadUserPoints = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem("currentUser"));
+        if (user) {
+          const response = await fetch(`${SERVER_BASE}/getUserPoints/${user.email}`);
+          const userPointsData = await response.json();
+          setUserPoints(userPointsData.points || 0);
+        }
+      } catch (error) {
+        console.error('Error loading user points:', error);
+      }
+    };
+
+    loadUserPoints();
+  }, []);
+
+  // Toggle sidebar visibility
+  const toggleSidebar = () => {
+    setSidebarVisible(prev => !prev);
+  };
+
+  // Debounced speech function - only speaks after text has stopped changing
+  // Speech is now handled by the avatar component, no need for separate debounced speech
+
   // automatically scroll to bottom of chat
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollToBottom = () => {
@@ -295,6 +540,24 @@ useEffect(() => {
   loadChatSessions();
 }, []);
 
+  // Handle window resize for responsive sidebar behavior
+  useEffect(() => {
+    const handleResize = () => {
+      const isMobile = window.innerWidth < 768;
+      // Auto-close sidebar on mobile, auto-open on desktop
+      setSidebarVisible(!isMobile);
+    };
+
+    // Set initial state based on current window size
+    handleResize();
+
+    // Add resize listener
+    window.addEventListener('resize', handleResize);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
 const updateUserBalance = async (value) => {
   const response = await fetch(UPDATE_BALANCE, {
     method: 'POST',
@@ -331,13 +594,85 @@ const updateUserBalance = async (value) => {
     createThread();
   }, []);
 
+  // Cleanup speech and typing detection on unmount
+  useEffect(() => {
+    return () => {
+      enhancedTTS.stop();
+      
+      if (userTypingTimeoutRef.current) {
+        clearTimeout(userTypingTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Modified useEffect for progressive speech
+  useEffect(() => {
+    const messageId = currentAssistantMessageId || (lastAssistantMessage ? lastAssistantMessage.substring(0,50) : "");
+    
+    console.log('👀 Watching lastAssistantMessage change:', {
+      isDone,
+      autoPlaySpeech,
+      lastAssistantMessageLength: lastAssistantMessage?.length || 0,
+      lastAssistantMessage: lastAssistantMessage?.substring(0, 50) + '...',
+      shouldSpeak,
+      hasStartedSpeaking,
+      streamingTextLength: streamingText?.length || 0,
+      isManualSpeech
+    });
+
+    // Handle manual speech playback (when clicking play button)
+    if (isManualSpeech && shouldSpeak && lastAssistantMessage) {
+      console.log('🎤 MANUAL: Triggering manual speech playback');
+      return; // Let the avatar component handle the speech
+    }
+
+    // Progressive speech: Start speaking earlier and also on completion
+    const canStartByLength = lastAssistantMessage && lastAssistantMessage.length > 10;
+    const canStartOnDone = isDone && lastAssistantMessage && lastAssistantMessage.length > 0;
+    if (autoPlaySpeech && (canStartByLength || canStartOnDone) && !hasStartedSpeaking && lastSpokenMessageId !== messageId) {
+      console.log('🎤 PROGRESSIVE: Starting speech early with partial text');
+      setLastSpokenMessageId(messageId);
+      setHasStartedSpeaking(true);
+      setShouldSpeak(true);
+      setIsAssistantMessageComplete(true);
+    }
+    
+    // Handle completion of streaming
+    if (isDone && hasStartedSpeaking) {
+      console.log('✅ PROGRESSIVE: Message streaming completed, speech already in progress');
+      // We don't need to trigger new speech since it's already started
+    }
+    
+    // Reset for new messages
+    if (!lastAssistantMessage || lastAssistantMessage.length === 0) {
+      console.log('🔄 PROGRESSIVE: Resetting speech state for new message');
+      setHasStartedSpeaking(false);
+      setShouldSpeak(false);
+    }
+
+  }, [lastAssistantMessage, isDone, autoPlaySpeech, shouldSpeak, lastSpokenMessageId, hasStartedSpeaking, isManualSpeech]);
+
   const sendMessage = async (text) => { 
+    setImageProcessing(true);
+    
     // Add SQL tags based on mode
     let messageWithTags = text;
     if (sqlMode === 'create') {
       messageWithTags = `<create_table>${text}`;
     } else if (sqlMode === 'insert') {
       messageWithTags = `<insert_values>${text}`;
+    }
+
+    // Process image if one is selected
+    let imageData = null;
+    if (selectedImage) {
+      try {
+        imageData = await fileToBase64(selectedImage);
+      } catch (error) {
+        console.error("Error converting image to base64:", error);
+        setImageProcessing(false);
+        return;
+      }
     }
 
     // if (currentBalance - estimatedCost < 0) {
@@ -398,14 +733,17 @@ const updateUserBalance = async (value) => {
         method: "POST",
         body: JSON.stringify({
           content: messageWithTags, // Send message with tags to AI
+          imageData: imageData, // Send image data if available
         }),
       }
     );
     const stream = AssistantStream.fromReadableStream(response.body);
     handleReadableStream(stream);
 
-    // Reset SQL mode after sending
+    // Reset SQL mode and image after sending
     setSqlMode('none');
+    setSelectedImage(null);
+    setImageProcessing(false);
 
   };
 
@@ -424,6 +762,12 @@ const updateUserBalance = async (value) => {
   // Add a function to load messages for a specific chat
 const loadChatMessages = (chatId: string) => {
   setLoadingMessages(true); // Set loading to true before fetching
+  // Reset speech state when loading existing chat
+  setLastAssistantMessage("");
+  setLastSpokenMessageId("");
+  setShouldSpeak(false);
+  setIsAssistantMessageComplete(false);
+  
   fetch(`${SERVER_BASE}/chat-sessions/${chatId}/messages`, {
     method: 'GET',
     headers: {
@@ -457,15 +801,35 @@ const loadChatMessages = (chatId: string) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!userInput.trim()) return;
+    if (!userInput.trim() && !selectedImage) return;
+    
+    // Clear typing state when user submits message
+    if (userTypingTimeoutRef.current) {
+      clearTimeout(userTypingTimeoutRef.current);
+    }
+    setIsUserTyping(false);
+    console.log('📤 User submitted message, clearing typing state');
+    
+    // Display message with image info if present
+    const displayText = selectedImage 
+      ? `${userInput}${userInput ? '\n' : ''}[תמונה מצורפת: ${selectedImage.name}]`
+      : userInput;
+    
+    // Check if we're in exercise mode (but exercises are now handled in modal)
+    if (isExerciseMode && currentExercise) {
+      // In exercise mode, regular chat is disabled
+      return;
+    }
+    
     sendMessage(userInput);
     // Always show the user message in the UI, regardless of balance
     setMessages((prevMessages) => [
       ...prevMessages,
-      { role: "user", text: userInput },
+      { role: "user", text: displayText, hasImage: !!selectedImage },
     ]);
     setUserInput("");
     setInputDisabled(true);
+    setIsThinking(true);
     scrollToBottom();
   };
 
@@ -473,15 +837,38 @@ const loadChatMessages = (chatId: string) => {
 
   // textCreated - create new assistant message
   const handleTextCreated = () => {
-    setIsDone(false)
+    setIsDone(false);
+    setIsThinking(false); // Stop thinking when assistant starts responding
+    setHasStartedSpeaking(false); // Reset for new message
+    streamingTextRef.current = "";
+    setStreamingText("");
+    // Create a stable message id for this assistant message
+    setCurrentAssistantMessageId(`${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    // If voice is enabled and we are currently speaking, stop to avoid overlap with the new message
+    if (enableVoice && enhancedTTS.isSpeaking()) {
+      enhancedTTS.stop();
+    }
+    
+    // Clear any pending progressive speech
+    if (progressiveSpeechTimeoutRef.current) {
+      clearTimeout(progressiveSpeechTimeoutRef.current);
+      progressiveSpeechTimeoutRef.current = null;
+    }
+    
     appendMessage("assistant", "");
   };
 
   // textDelta - append text to last assistant message
   const handleTextDelta = (delta) => {
     if (delta.value != null) {
-      appendToLastMessage(delta.value);
-    };
+      const text = delta.value;
+      
+      // Update streaming text for progressive speech
+      streamingTextRef.current += text;
+      setStreamingText(streamingTextRef.current);
+      
+      appendToLastMessage(text);
+    }
     if (delta.annotations != null) {
       annotateLastMessage(delta.annotations);
     }
@@ -519,12 +906,14 @@ const loadChatMessages = (chatId: string) => {
       })
     );
     setInputDisabled(true);
+    setIsThinking(true); // Set thinking when processing tool calls
     submitActionResult(runId, toolCallOutputs);
   };
 
   // handleRunCompleted - re-enable the input form
   const handleRunCompleted = () => {
     setInputDisabled(false);
+    setIsThinking(false); // Stop thinking when run is completed
   };
 
    // New function to handle message changes
@@ -554,8 +943,16 @@ const loadChatMessages = (chatId: string) => {
 
 
   const endStreamResponse = () => {
-    setIsDone(true)
-  }
+    setInputDisabled(false);
+    setIsThinking(false);
+    setIsDone(true);
+    
+    // Clear progressive speech timeout when stream ends
+    if (progressiveSpeechTimeoutRef.current) {
+      clearTimeout(progressiveSpeechTimeoutRef.current);
+      progressiveSpeechTimeoutRef.current = null;
+    }
+  };
 
   useEffect(() => {
     const storedUser = localStorage.getItem("currentUser");
@@ -611,12 +1008,23 @@ const loadChatMessages = (chatId: string) => {
         ...lastMessage,
         text: lastMessage.text + text,
       };
+      
+      // Update last assistant message for speech synthesis if it's an assistant message
+      if (lastMessage.role === 'assistant') {
+        setLastAssistantMessage(updatedLastMessage.text);
+      }
+      
       return [...prevMessages.slice(0, -1), updatedLastMessage];
     });
   };
 
   const appendMessage = (role, text) => {
     setMessages((prevMessages) => [...prevMessages, { role, text }]);
+    
+    // Track last assistant message for speech synthesis
+    if (role === 'assistant') {
+      setLastAssistantMessage(text);
+    }
   };
 
   const annotateLastMessage = (annotations) => {
@@ -659,13 +1067,44 @@ const loadChatMessages = (chatId: string) => {
   const openNewChat = () => {
     setCurrentChatId(null);
     setMessages([]);
+    setLastAssistantMessage("");
+    setLastSpokenMessageId(""); // Reset spoken message tracking
+    setShouldSpeak(false);
+    setIsAssistantMessageComplete(false);
+    setHasStartedSpeaking(false); // Reset progressive speech state
+    setStreamingText("");
+    streamingTextRef.current = "";
+    
+    // Clear any pending progressive speech
+    if (progressiveSpeechTimeoutRef.current) {
+      clearTimeout(progressiveSpeechTimeoutRef.current);
+      progressiveSpeechTimeoutRef.current = null;
+    }
   }
 
 return (
   <div className={styles.main}>
-    
-    <Sidebar chatSessions={chatSessions} onChatSelect={loadChatMessages} handleLogout={handleLogout} onNewChat={openNewChat} currentUser={currentUser}/>
-    <div className={styles.container}>
+    {sidebarVisible && (
+      <Sidebar 
+        chatSessions={chatSessions} 
+        onChatSelect={loadChatMessages} 
+        handleLogout={handleLogout} 
+        onNewChat={openNewChat} 
+        currentUser={currentUser}
+        onToggleSidebar={toggleSidebar}
+      />
+    )}
+         <div className={`${styles.container} ${!sidebarVisible ? styles.containerFullWidth : ''}`}>
+      {!sidebarVisible && (
+        <button
+          className={styles.openSidebarButton}
+          onClick={toggleSidebar}
+          title="פתח צד"
+          aria-label="Open Sidebar"
+        >
+          ☰
+        </button>
+      )}
       <div className={styles.chatContainer}>
         <div className={styles.messages} style={{direction:"rtl"}}>
           {loadingMessages ? (
@@ -678,7 +1117,35 @@ return (
                   role={msg.role}
                   text={msg.text}
                   feedback={msg.feedback}
+                  hasImage={msg.hasImage}
                   onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
+                  autoPlaySpeech={msg.role === 'assistant' ? (enableVoice && autoPlaySpeech) : undefined}
+                  onPlayMessage={msg.role === 'assistant' ? () => {
+                    console.log('🎤 Playing individual message:', msg.text.substring(0, 50) + '...');
+                    if (!enableVoice) return;
+                    // Stop any current speech
+                    enhancedTTS.stop();
+                    // Reset speech states first
+                    setShouldSpeak(false);
+                    setIsAssistantMessageComplete(false);
+                    setHasStartedSpeaking(false);
+                    
+                    // Use setTimeout to ensure state changes are processed
+                    setTimeout(() => {
+                      // Set the text to the avatar for speaking
+                      setLastAssistantMessage(msg.text);
+                      // Set a new manual id and mark as spoken to avoid auto trigger
+                      const manualId = `manual-${Date.now()}`;
+                      setCurrentAssistantMessageId(manualId);
+                      setLastSpokenMessageId(manualId);
+                      setShouldSpeak(true);
+                      setIsAssistantMessageComplete(true);
+                      setHasStartedSpeaking(true);
+                      setIsManualSpeech(true);  // Mark as manual speech
+                      // Clear thinking state
+                      setIsThinking(false);
+                    }, 100);
+                  } : undefined}
                 />
               ))}
               {inputDisabled && (
@@ -700,7 +1167,7 @@ return (
           style={{direction:"rtl"}}
           className={`${styles.inputForm} ${styles.clearfix}`}
         >
-          <div className={styles.inputContainer}>
+          <div className={`${styles.inputContainer} ${isExerciseMode ? styles.exerciseMode : ''}`}>
             {/* Added for query cost estimation: Shows estimated cost while typing */}
             {userInput && isTokenBalanceVisible && (
               <div className={styles.costPopup}>
@@ -708,42 +1175,9 @@ return (
               </div>
             )}
             
-            {/* SQL Mode Button */}
-            <button
-              type="button"
-              onClick={toggleSqlMode}
-              className={styles.sqlModeButton}
-              style={{
-                position: 'absolute',
-                top: '10px',
-                left: '10px',
-                padding: '6px 12px',
-                backgroundColor: getSqlModeColor(),
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                fontSize: '12px',
-                cursor: 'pointer',
-                zIndex: 1000,
-                transition: 'background-color 0.2s ease'
-              }}
-              title="לחץ כדי לעבור בין מצבי CREATE TABLE ו-INSERT VALUES"
-            >
-              {getSqlModeLabel()}
-            </button>
-
             {/* SQL Mode Indicator in textarea */}
             {sqlMode !== 'none' && (
-              <div style={{
-                position: 'absolute',
-                top: '15px',
-                right: '20px',
-                color: getSqlModeColor(),
-                fontSize: '12px',
-                fontWeight: 'bold',
-                zIndex: 999,
-                pointerEvents: 'none'
-              }}>
+              <div className={styles.sqlModeIndicator}>
                 מצב {sqlMode === 'create' ? 'CREATE TABLE' : 'INSERT VALUES'} פעיל
               </div>
             )}
@@ -756,6 +1190,9 @@ return (
                 setEstimatedCost(calculateCost(e.target.value));
                 e.target.style.height = 'auto';
                 e.target.style.height = e.target.scrollHeight + 'px';
+                
+                // Detect user typing for avatar state
+                handleUserTyping();
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && e.shiftKey) {
@@ -766,48 +1203,163 @@ return (
                   handleSubmit(e);
                 }
               }}
-              placeholder={sqlMode !== 'none' ? `מצב ${getSqlModeLabel()} פעיל - הקלד את השאילתה שלך...` : "הקלד כאן..."}
+              placeholder={
+                isExerciseMode 
+                  ? "הקלד את תשובת ה-SQL שלך כאן..." 
+                  : sqlMode !== 'none' 
+                    ? `מצב ${getSqlModeLabel()} פעיל - הקלד את השאילתה שלך...` 
+                    : "הקלד כאן..."
+              }
               style={{
-                height: sqlMode !== 'none' ? "80px" : "55px", // Increase height when SQL mode is active
-                minHeight: sqlMode !== 'none' ? "80px" : "55px", // Increase minimum height as well
-                resize: "none",
-                overflowY: "hidden",
-                paddingTop: sqlMode !== 'none' ? '35px' : '15px', // Add top padding when SQL mode is active
-                paddingRight: sqlMode !== 'none' ? '220px' : '20px' // Add right padding for the indicator
+                paddingTop: sqlMode !== 'none' ? '35px' : '16px',
+                paddingRight: '20px',
+                paddingBottom: '16px',
+                paddingLeft: '50px'
               }}
             />
+            
+            {/* Send Button */}
+            <button
+              type="submit"
+              className={styles.sendButton}
+              disabled={inputDisabled || imageProcessing || (!userInput.trim() && !selectedImage)}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M15 18V6M9 12l6-6 6 6" transform="rotate(90 12 12)" />
+              </svg>
+            </button>
+
+            {/* Action Buttons Row */}
+            <div className={styles.actionButtons}>
+              {/* Audio Recorder - hidden for clean version */}
+              {/* {enableVoice && (
+                <AudioRecorder
+                  onTranscription={handleAudioTranscription}
+                  disabled={inputDisabled || imageProcessing}
+                  onRecordingStateChange={setIsRecording}
+                />
+              )} */}
+
+
+              {/* Exercise Button */}
+              <button
+                type="button"
+                className={`${styles.actionButton} ${styles.exerciseActionButton} ${isExerciseMode ? styles.actionButtonActive : ''}`}
+                onClick={startExercise}
+                disabled={inputDisabled}
+                title="קבל תרגול SQL חדש"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+                {/* <span className={styles.actionButtonText}>תרגול</span> */}
+              </button>
+
+              {/* Attachment Button */}
+              <button
+                type="button"
+                className={styles.actionButton}
+                onClick={() => document.getElementById('imageInput')?.click()}
+                disabled={inputDisabled || imageProcessing}
+                title="Attach image"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.49"/>
+                </svg>
+                {selectedImage && <span className={styles.attachmentDot}></span>}
+              </button>
+
+              {/* CREATE/INSERT Mode Button */}
+              <button
+                type="button"
+                className={`${styles.actionButton} ${sqlMode !== 'none' ? styles.actionButtonActive : ''}`}
+                onClick={toggleSqlMode}
+                title="לחץ כדי לעבור בין מצבי CREATE TABLE ו-INSERT VALUES"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 3v18M3 12h18"/>
+                </svg>
+                <span className={styles.actionButtonText}>
+                  {sqlMode === 'create' ? 'CREATE' : sqlMode === 'insert' ? 'INSERT' : 'SQL'}
+                </span>
+              </button>
+
+            </div>
+
+
+
+            {/* Hidden file input */}
+            <input
+              id="imageInput"
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) setSelectedImage(file);
+              }}
+              style={{ display: 'none' }}
+              disabled={inputDisabled || imageProcessing}
+            />
+
+            {/* Image Preview */}
+            {selectedImage && (
+              <div className={styles.imagePreview}>
+                <img 
+                  src={URL.createObjectURL(selectedImage)} 
+                  alt="Preview" 
+                  className={styles.previewImage}
+                />
+                <button
+                  type="button"
+                  onClick={() => setSelectedImage(null)}
+                  className={styles.removeImageButton}
+                  disabled={inputDisabled || imageProcessing}
+                >
+                  ×
+                </button>
+              </div>
+            )}
           </div>
-          <button // Button is now *outside* the inputContainer
-            type="submit"
-            className={styles.button}
-            disabled={inputDisabled}
-            style={{
-              width: "40px",
-              height: "40px", // Fixed height (adjust as needed)
-              // marginTop: "0.5%",
-              // Consider adding other positioning styles as necessary, e.g.,
-              position: "relative", // Or "relative" depending on your layout
-              bottom: 10, // Example position
-              left: "50px",
-              right: "10px",  // Example position
-            }}
-          >
-            	<svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="20"
-    height="20"
-    viewBox="0 4 28 25"
-    fill="none"
-    stroke="white"
-    strokeWidth="4"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={styles.arrowIcon}
-  >
-    <path d="M15 30V9M8 12l7-7 7 7" />
-    </svg>
-    
-          </button>
         </form>
       </div>
       {/* <button
@@ -826,11 +1378,56 @@ return (
     
     <div className={styles.rightColumn}>
       <div className={styles.avatarSection}>
-        <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "100px", height: "100px"}}/>
-        {/* Moved user info below the avatar */}
+        {enableAvatar ? (
+        <MichaelAvatarDirect
+          text={lastAssistantMessage}
+          state={avatarState}
+          size="medium"
+          progressiveMode={enableVoice && !isDone}
+          isStreaming={enableVoice && !isDone}
+          onSpeakingStart={() => {
+            console.log('🎤 Michael started speaking');
+            if (enableVoice) setShouldSpeak(true);
+          }}
+          onSpeakingEnd={() => {
+            console.log('🎤 Michael finished speaking');
+            if (enableVoice) setShouldSpeak(false);
+            setIsAssistantMessageComplete(false);
+            setHasStartedSpeaking(false);
+            setIsManualSpeech(false);  // Reset manual speech flag
+          }}
+        />
+        ) : null}
+        
+        {/* User info below the avatar */}
         <div className={styles.userInfo}>
           <div className={styles.nickname}>
-            היי {currentUser}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', }}>
+              <span>היי {currentUser}</span>
+              {/* Clean version: hide auto audio toggle under avatar */}
+              {/*
+              <button
+                className={`${styles.audioToggle} ${autoPlaySpeech ? styles.audioToggleOn : styles.audioToggleOff}`}
+                onClick={() => enableVoice && setAutoPlaySpeech(!autoPlaySpeech)}
+                title={autoPlaySpeech ? "השבת קול אוטומטי" : "הפעל קול אוטומטי"}
+              >
+                {autoPlaySpeech ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                    <line x1="17" y1="9" x2="23" y2="15"></line>
+                  </svg>
+                )}
+              </button>
+              */}
+
+            </div>
             {isTokenBalanceVisible && (
             <div>
               יתרה נוכחית: ₪{currentBalance}
@@ -840,9 +1437,156 @@ return (
         </div>
       </div>
     </div>
+    {/* Exercise Modal */}
+    <Modal isOpen={showExerciseModal} onClose={() => {
+      setShowExerciseModal(false);
+      setIsExerciseMode(false);
+      setCurrentExercise(null);
+      setExerciseAnswer("");
+      setShowSolutionButton(false);
+    }}>
+      <div className={styles.exerciseModal}>
+        <button
+          className={styles.exerciseCloseButton}
+          onClick={() => {
+            setShowExerciseModal(false);
+            setIsExerciseMode(false);
+            setCurrentExercise(null);
+            setExerciseAnswer("");
+            setShowSolutionButton(false);
+          }}
+          title="סגור תרגול"
+        >
+          ×
+        </button>
+        <div className={styles.exerciseHeader}>
+          <h2>🎓 תרגול SQL</h2>
+          {userPoints > 0 && (
+            <div className={styles.pointsIndicator}>
+              {userPoints} נקודות
+            </div>
+          )}
+        </div>
+        
+        {currentExercise && (
+          <>
+            <div className={styles.exerciseContent}>
+              <div className={styles.exerciseDifficulty}>
+                דרגת קושי: {currentExercise.difficulty === 'easy' ? 'קל' : currentExercise.difficulty === 'medium' ? 'בינוני' : 'קשה'} 
+                ({currentExercise.points} נקודות)
+              </div>
+              
+              <div className={styles.exerciseQuestion}>
+                {currentExercise.question}
+              </div>
+              
+              <div className={styles.exerciseSqlEditor}>
+                <textarea
+                  className={styles.exerciseTextarea}
+                  value={exerciseAnswer}
+                  onChange={(e) => setExerciseAnswer(e.target.value)}
+                  placeholder="הקלד את שאילתת ה-SQL שלך כאן..."
+                  rows={8}
+                  style={{
+                    fontFamily: 'Courier New, monospace',
+                    fontSize: '14px',
+                    width: '100%',
+                    height: '100%',
+                    border: 'none',
+                    outline: 'none',
+                    resize: 'none',
+                    padding: '10px',
+                    background: 'transparent',
+                    color: '#374151'
+                  }}
+                />
+              </div>
+              
+              {/* SQL Helper Buttons */}
+              <div className={styles.sqlHelperButtons}>
+                <button
+                  type="button"
+                  className={styles.sqlHelperButton}
+                  onClick={() => setExerciseAnswer(prev => prev + '\nSELECT * FROM ')}
+                >
+                  SELECT
+                </button>
+                <button
+                  type="button"
+                  className={styles.sqlHelperButton}
+                  onClick={() => setExerciseAnswer(prev => prev + '\nWHERE ')}
+                >
+                  WHERE
+                </button>
+                <button
+                  type="button"
+                  className={styles.sqlHelperButton}
+                  onClick={() => setExerciseAnswer(prev => prev + '\nGROUP BY ')}
+                >
+                  GROUP BY
+                </button>
+                <button
+                  type="button"
+                  className={styles.sqlHelperButton}
+                  onClick={() => setExerciseAnswer(prev => prev + '\nORDER BY ')}
+                >
+                  ORDER BY
+                </button>
+                <button
+                  type="button"
+                  className={styles.sqlHelperButton}
+                  onClick={() => setExerciseAnswer(prev => prev + '\nJOIN ')}
+                >
+                  JOIN
+                </button>
+              </div>
+              
+              <div className={styles.exerciseActions}>
+                <button
+                  className={styles.submitExerciseButton}
+                  onClick={submitExerciseAnswer}
+                  disabled={!exerciseAnswer.trim()}
+                >
+                  שלח תשובה
+                </button>
+                
+                {showSolutionButton && (
+                  <button
+                    className={styles.showSolutionButton}
+                    onClick={showSolution}
+                  >
+                    הצג פתרון
+                  </button>
+                )}
+              </div>
+              
+              {exerciseAttempts > 0 && (
+                <div className={styles.exerciseFeedback}>
+                  כמעט! נסה לבדוק אם שכחת משהו בשאילתה.
+                  {exerciseAttempts >= 2 && " אתה יכול לראות את הפתרון בכפתור למעלה."}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+        {!currentExercise && (
+          <div className={styles.exerciseContent} style={{ textAlign: 'center', padding: '24px', width: '100%' }}>
+            בקרוב ...
+          </div>
+        )}
+      </div>
+    </Modal>
+
     <Modal isOpen={showModal} onClose={toggleModal}>
         <SQLQueryEditorComponent toggleModal={toggleModal} />
       </Modal>
+
+    {/* Points Animation */}
+    {pointsAnimation && (
+      <div className={styles.pointsAnimation}>
+        +{pointsAnimation} 🎉
+      </div>
+    )}
   </div>
 );
 };

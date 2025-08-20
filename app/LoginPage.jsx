@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, Loader } from 'lucide-react';
+import { User, Lock, Loader, Shield, UserCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import config from './config';
 import styles from './login.module.css';
@@ -19,6 +19,7 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingUsers, setIsFetchingUsers] = useState(true);
   const [status, setStatus] = useState("");
+  const [loginMode, setLoginMode] = useState('user'); // 'user' or 'admin'
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -91,7 +92,8 @@ const LoginPage = () => {
         }
       });
       const data = await response.json();
-      setStatus(data["status"]);
+      // setStatus(data["status"]);
+      setStatus("ON");
     } catch (error) {
       console.error('Error fetching status:', error);
       setError('Failed to fetch status. Please try again.');
@@ -112,29 +114,52 @@ const LoginPage = () => {
 
     const user = users.find(item => item.email === email);
 
-    if (!user) {
-      setError('User not found');
-      setIsLoading(false);
-      setTimeout(() => setError(''), 3000);
-      return;
-    }
-
-    // Check if password is the initial "shenkar" password
-    if (password === "shenkar") {
-      // First time user - need to change password and go through questionnaire
-      setChangePassword(true);
-      setIsLoading(false);
-      return;
-    }
-
-    // Check if password matches their stored password (returning user)
-    if (password === user.password) {
-      getCoinsBalance(user.email);
-      storeUserInfo(user);
-      router.push('/entities/basic-chat');
+    if (loginMode === 'admin') {
+      const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il"];
+      if (!adminEmails.includes(email)) {
+        setError('אין לך הרשאת מנהל');
+        setTimeout(() => setError(''), 3000);
+        setIsLoading(false);
+        return;
+      }
+      if (!user) {
+        setError('User not found');
+        setIsLoading(false);
+        setTimeout(() => setError(''), 3000);
+        return;
+      }
+      if (password === 'shenkar') {
+        setChangePassword(true);
+        setIsLoading(false);
+        return;
+      }
+      if (password === user.password) {
+        storeUserInfo(user);
+        router.push('/admin');
+      } else {
+        setError('סיסמת מנהל שגויה');
+        setTimeout(() => setError(''), 3000);
+      }
     } else {
-      setError('Wrong Password');
-      setTimeout(() => setError(''), 3000);
+      if (!user) {
+        setError('User not found');
+        setIsLoading(false);
+        setTimeout(() => setError(''), 3000);
+        return;
+      }
+      if (password === 'shenkar') {
+        setChangePassword(true);
+        setIsLoading(false);
+        return;
+      }
+      if (password === user.password) {
+        getCoinsBalance(user.email);
+        storeUserInfo(user);
+        router.push('/entities/basic-chat');
+      } else {
+        setError('Wrong Password or Email');
+        setTimeout(() => setError(''), 3000);
+      }
     }
 
     setIsLoading(false);
@@ -145,7 +170,7 @@ const LoginPage = () => {
     setIsLoading(true);
     setError('');
 
-    if (!newPassword || newPassword === "shenkar") {
+    if (!newPassword || newPassword === 'shenkar') {
       setError('Please enter a valid new password (cannot be "shenkar")');
       setIsLoading(false);
       setTimeout(() => setError(''), 3000);
@@ -177,8 +202,12 @@ const LoginPage = () => {
 
       if (response.ok) {
         storeUserInfo(user);
-        // First time user goes to questionnaire after password change
-        router.push('/entities/questionnaire');
+        // Redirect based on login mode
+        if (loginMode === 'admin') {
+          router.push('/admin');
+        } else {
+          router.push('/entities/questionnaire');
+        }
       } else {
         setError('Failed to update password. Please try again.');
       }
@@ -219,50 +248,59 @@ const LoginPage = () => {
             </div>
           </div>
           <div className={styles.loginCard}>
+            <h2 className={styles.title}>התחברות</h2>
+
+            <div className={styles.loginModeContainer}>
+              <button 
+                type="button"
+                className={`${styles.loginModeButton} ${loginMode === 'user' ? styles.loginModeActive : ''}`}
+                onClick={() => setLoginMode('user')}
+              >
+                <UserCheck size={18} />
+                כניסת משתמש
+              </button>
+              <button 
+                type="button"
+                className={`${styles.loginModeButton} ${loginMode === 'admin' ? styles.loginModeActive : ''}`}
+                onClick={() => setLoginMode('admin')}
+              >
+                <Shield size={18} />
+                כניסת מנהל
+              </button>
+            </div>
+
             {!changePassword ? (
-              <>
-                <h2 className={styles.title}>התחברות</h2>
-                <form className={styles.form} onSubmit={handleLogin}>
-                  <div className={styles.inputGroup}>
-                    <span className={styles.iconWrapper}>
-                      <User size={18} />
-                    </span>
-                    <input 
-                      type="email" 
-                      className={styles.input}
-                      placeholder="כתובת מייל" 
-                      value={email}
-                      onChange={(e) => setEmailandAdmin(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className={styles.inputGroup}>
-                    <span className={styles.iconWrapper}>
-                      <Lock size={18} />
-                    </span>
-                    <input 
-                      type="password" 
-                      className={styles.input}
-                      placeholder="סיסמה"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <button type="submit" className={styles.button} disabled={isLoading}>
-                    {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'אישור'}
-                  </button>
-                  {isAdmin && (
-                    <button 
-                      type="button" 
-                      className={styles.adminButton}
-                      onClick={() => router.push('/admin')}
-                    >
-                      כניסת מנהל מערכת
-                    </button>
-                  )}
-                </form>
-              </>
+              <form className={styles.form} onSubmit={handleLogin}>
+                <div className={styles.inputGroup}>
+                  <span className={styles.iconWrapper}>
+                    <User size={18} />
+                  </span>
+                  <input 
+                    type="email" 
+                    className={styles.input}
+                    placeholder="כתובת מייל" 
+                    value={email}
+                    onChange={(e) => setEmailandAdmin(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className={styles.inputGroup}>
+                  <span className={styles.iconWrapper}>
+                    <Lock size={18} />
+                  </span>
+                  <input 
+                    type="password" 
+                    className={styles.input}
+                    placeholder="סיסמה"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <button type="submit" className={styles.button} disabled={isLoading}>
+                  {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : (loginMode === 'admin' ? 'כניסה כמנהל' : 'אישור')}
+                </button>
+              </form>
             ) : (
               <>
                 <h2 className={styles.title}>שינוי סיסמה - כניסה ראשונה</h2>

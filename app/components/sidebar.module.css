@@ -1,5 +1,5 @@
 .sidebar {
-  width: 650px;
+  width: 320px;
   height: 100%;
   background: linear-gradient(135deg, rgba(245, 245, 245, 0.95) 0%, rgba(250, 250, 250, 0.9) 100%);
   padding: 24px;
@@ -44,9 +44,11 @@
 .header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 24px;
   position: relative;
   animation: fadeInDown 0.6s ease-out;
+  height: 48px;
 }
 
 @keyframes fadeInDown {
@@ -65,19 +67,18 @@
 }
 
 .userIcon {
-  background: linear-gradient(135deg, rgba(245, 73, 148, 1) 0%, rgba(245, 100, 148, 1) 100%);
+  background: linear-gradient(135deg, rgba(52, 73, 94, 1) 0%, rgba(44, 62, 80, 1) 100%);
   border-radius: 50%;
-  width: 52px;
-  height: 52px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   cursor: pointer;
   color: white;
-  font-size: 20px;
-  margin-left: 45px;
-  box-shadow: 0 4px 16px rgba(245, 73, 148, 0.3), 0 2px 8px rgba(245, 73, 148, 0.2);
+  font-size: 16px;
+  box-shadow: 0 4px 16px rgba(52, 73, 94, 0.3), 0 2px 8px rgba(52, 73, 94, 0.2);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   border: 2px solid rgba(255, 255, 255, 0.2);
@@ -85,7 +86,7 @@
 
 .userIcon:hover {
   transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 6px 24px rgba(245, 73, 148, 0.4), 0 4px 12px rgba(245, 73, 148, 0.3);
+  box-shadow: 0 6px 24px rgba(52, 73, 94, 0.4), 0 4px 12px rgba(52, 73, 94, 0.3);
 }
 
 .userIcon:active {
@@ -144,11 +145,13 @@
 .sidebarTitle {
   font-size: 1.3rem;
   font-weight: 700;
-  text-align: center;
-  margin-left: 25%;
+  text-align: right;
+  margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   color: #2c3e50;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  padding-right: 8px;
 }
 
 .sidebarList {
@@ -262,8 +265,8 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 56px;
-  height: 56px;
+  width: 50px;
+  height: 50px;
   background: linear-gradient(135deg, rgba(33, 79, 149, 1) 0%, rgba(33, 100, 149, 1) 100%);
   color: white;
   border: none;
@@ -288,4 +291,38 @@
 
 .newChatButton:active {
   transform: translateY(-1px) scale(1.02);
+}
+
+.headerButtons {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.closeButton {
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: none;
+}
+
+.closeButton:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #374151;
+  transform: scale(1.05);
+}
+
+.closeButton:active {
+  transform: scale(0.95);
 }
