@@ -94,6 +94,8 @@
   align-items: center;
   margin-bottom: 1.5rem;
   font-size: 22px;
+  width: 50%;
+  height: 25%;
 }
 
 .logoImage {

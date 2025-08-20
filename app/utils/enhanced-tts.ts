@@ -118,10 +118,21 @@ class EnhancedTTSService {
     }
   }
 
+  private isDebug(): boolean {
+    return typeof window !== 'undefined' && (process.env.NEXT_PUBLIC_DEBUG_VOICE === '1');
+  }
+
+  private dlog(...args: any[]): void {
+    if (this.isDebug()) {
+      // eslint-disable-next-line no-console
+      console.log(...args);
+    }
+  }
+
   // Test audio playback with user gesture
   async testAudioPlayback(): Promise<boolean> {
     try {
-      console.log('🎵 Testing audio playback capability...');
+      this.dlog('🎵 Testing audio playback capability...');
       
       // Create a silent audio element to test autoplay
       const testAudio = new Audio();
@@ -131,14 +142,14 @@ class EnhancedTTSService {
       const playPromise = testAudio.play();
       if (playPromise !== undefined) {
         await playPromise;
-        console.log('✅ Audio playback test successful!');
+        this.dlog('✅ Audio playback test successful!');
         this.audioUnlocked = true;
         return true;
       }
       
       return false;
     } catch (error) {
-      console.warn('⚠️ Audio playback test failed:', error);
+      if (this.isDebug()) console.warn('⚠️ Audio playback test failed:', error);
       this.audioUnlocked = false;
       return false;
     }
@@ -198,18 +209,28 @@ class EnhancedTTSService {
     // Create request key for client-side deduplication
     const requestKey = `${text}_${selectedVoice}_${options.speed || 1.0}_${options.enhanceProsody !== false}_${options.characterStyle || 'university_ta'}`;
     
+    // Try cache first
+    const cacheKey = this.getCacheKey(text, { ...options, voice: selectedVoice });
+    if (this.audioCache.has(cacheKey)) {
+      this.dlog('🗄️ EnhancedTTS: Cache hit for audio');
+      return this.audioCache.get(cacheKey)!;
+    }
+
     // Check if same request is already pending
     if (this.pendingRequests.has(requestKey)) {
-      console.log('🔄 Client-side: Duplicate TTS request detected - reusing pending promise');
+      this.dlog('🔄 Client-side: Duplicate TTS request detected - reusing pending promise');
       return await this.pendingRequests.get(requestKey)!;
     }
     
-    console.log(`🎤 Generating OpenAI TTS: voice=${selectedVoice}, language=${language}`);
+    this.dlog(`🎤 Generating OpenAI TTS: voice=${selectedVoice}, language=${language}`);
     
     // Create the promise and store it
     const requestPromise = (async (): Promise<string> => {
       try {
-        const response = await fetch('/api/audio/tts', {
+        const base = process.env.NEXT_PUBLIC_SERVER_BASE || '';
+        const primaryUrl = `${base}/api/audio/tts`;
+        this.dlog('🔈 TTS fetch →', primaryUrl);
+        let response = await fetch(primaryUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -223,6 +244,26 @@ class EnhancedTTSService {
             character_style: options.characterStyle || 'university_ta'
           }),
         });
+        // Fallback to local route if server base failed
+        if (!response.ok) {
+          this.dlog('⚠️ TTS primary failed status:', response.status);
+          try {
+            const localUrl = `/api/audio/tts`;
+            this.dlog('🔁 Trying local TTS →', localUrl);
+            response = await fetch(localUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                text,
+                voice: selectedVoice,
+                speed: options.speed || 1.0,
+                format: 'mp3',
+                enhance_prosody: options.enhanceProsody !== false,
+                character_style: options.characterStyle || 'university_ta'
+              }),
+            });
+          } catch {}
+        }
 
         if (!response.ok) {
           throw new Error(`TTS API error: ${response.status}`);
@@ -230,8 +271,13 @@ class EnhancedTTSService {
 
         // Convert response to blob URL
         const audioBlob = await response.blob();
+        if (!audioBlob || audioBlob.size === 0) {
+          throw new Error('Empty audio received from TTS endpoint');
+        }
         const audioUrl = URL.createObjectURL(audioBlob);
-        console.log(`✅ OpenAI TTS audio generated: ${audioBlob.size} bytes`);
+        this.dlog(`✅ OpenAI TTS audio generated: ${audioBlob.size} bytes`);
+        // Cache blob URL
+        this.audioCache.set(cacheKey, audioUrl);
         return audioUrl;
       } finally {
         // Clean up pending request
@@ -306,7 +352,7 @@ class EnhancedTTSService {
 
   // Enhanced speak method with progressive support
   async speak(text: string, options: TTSOptions = {}): Promise<void> {
-    console.log('🎤 Enhanced TTS speak called:', {
+    this.dlog('🎤 Enhanced TTS speak called:', {
       textLength: text?.length || 0,
       progressiveMode: options.progressiveMode,
       isCurrentlySpeaking: this.isCurrentlySpeaking,
@@ -314,8 +360,13 @@ class EnhancedTTSService {
     });
 
     if (!text || text.trim().length === 0) {
-      console.log('❌ No text provided to Enhanced TTS');
+      this.dlog('❌ No text provided to Enhanced TTS');
       return;
+    }
+
+    // Try to unlock audio up front (best-effort)
+    if (!this.audioUnlocked) {
+      try { await this.testAudioPlayback(); } catch {}
     }
 
     // Handle progressive mode
@@ -329,7 +380,7 @@ class EnhancedTTSService {
 
   // New method for progressive speech handling
   private async handleProgressiveSpeech(text: string, options: TTSOptions): Promise<void> {
-    console.log('🔄 PROGRESSIVE TTS: Handling progressive speech', {
+    this.dlog('🔄 PROGRESSIVE TTS: Handling progressive speech', {
       newTextLength: text.length,
       currentStreamingLength: this.streamingText.length,
       lastSpokenPosition: this.lastSpokenPosition,
@@ -350,7 +401,7 @@ class EnhancedTTSService {
     this.progressiveTimeout = setTimeout(async () => {
       // If we're not currently speaking and have enough new text, start speaking
       if (!this.isCurrentlySpeaking && text.length > this.lastSpokenPosition + 30) {
-        console.log('🎤 PROGRESSIVE TTS: Starting/continuing speech');
+        this.dlog('🎤 PROGRESSIVE TTS: Starting/continuing speech');
         await this.speakProgressiveChunk();
       }
     }, 300); // Wait 300ms to accumulate text
@@ -359,7 +410,7 @@ class EnhancedTTSService {
   // New method to speak progressive chunks
   private async speakProgressiveChunk(): Promise<void> {
     if (this.isCurrentlySpeaking || !this.currentOptions || this.isGeneratingAudio) {
-      console.log('🚫 PROGRESSIVE TTS: Already speaking/generating or no options, skipping chunk', {
+      this.dlog('🚫 PROGRESSIVE TTS: Already speaking/generating or no options, skipping chunk', {
         isCurrentlySpeaking: this.isCurrentlySpeaking,
         isGeneratingAudio: this.isGeneratingAudio,
         hasOptions: !!this.currentOptions
@@ -381,13 +432,13 @@ class EnhancedTTSService {
 
     // Ensure we have meaningful content to speak (not just a few characters)
     if (!textToSpeak.trim() || textToSpeak.trim().length < 10) {
-      console.log('❌ PROGRESSIVE TTS: Not enough new content to speak');
+      this.dlog('❌ PROGRESSIVE TTS: Not enough new content to speak');
       // Check again later
       this.scheduleNextProgressiveCheck();
       return;
     }
 
-    console.log('🔄 PROGRESSIVE TTS: Speaking chunk:', {
+    this.dlog('🔄 PROGRESSIVE TTS: Speaking chunk:', {
       from: this.lastSpokenPosition,
       to: fullText.length,
       chunkLength: textToSpeak.length,
@@ -397,10 +448,22 @@ class EnhancedTTSService {
     try {
       this.isCurrentlySpeaking = true;
       this.isGeneratingAudio = true;
-      this.currentOptions.onStart?.();
 
       // Generate and play audio for this chunk
-      const audioUrl = await this.generateOpenAITTS(textToSpeak, this.currentOptions);
+      let audioUrl: string | null = null;
+      try {
+        audioUrl = await this.generateOpenAITTS(textToSpeak, this.currentOptions);
+      } catch (genErr) {
+        if (this.isDebug()) console.warn('⚠️ PROGRESSIVE TTS: OpenAI TTS generation failed, falling back to browser TTS:', genErr);
+        await this.generateBrowserTTS(textToSpeak, this.currentOptions);
+        // Simulate completion pathway
+        this.isCurrentlySpeaking = false;
+        this.isGeneratingAudio = false;
+        this.lastSpokenPosition = fullText.length;
+        this.currentOptions.onEnd?.();
+        this.resetProgressiveState();
+        return;
+      }
       
       // Update position BEFORE playing to prevent duplicate processing
       const spokenUpTo = fullText.length;
@@ -408,34 +471,35 @@ class EnhancedTTSService {
       // Mark generation as complete but still speaking
       this.isGeneratingAudio = false;
       
-      await this.playAudioUrl(audioUrl, {
+      await this.playAudioUrl(audioUrl!, {
         ...this.currentOptions,
         onEnd: () => {
-          console.log('🎤 PROGRESSIVE TTS: Chunk completed, updating position');
+          this.dlog('🎤 PROGRESSIVE TTS: Chunk completed, updating position');
           this.isCurrentlySpeaking = false;
           this.lastSpokenPosition = spokenUpTo;
           
           // Check if there's more content to speak
           if (this.progressiveMode && this.streamingText.length > spokenUpTo) {
-            console.log('🔄 PROGRESSIVE TTS: More content available, scheduling next chunk');
+            this.dlog('🔄 PROGRESSIVE TTS: More content available, scheduling next chunk');
             this.scheduleNextProgressiveCheck();
           } else if (!this.progressiveMode || this.streamingText === fullText) {
-            console.log('✅ PROGRESSIVE TTS: All content spoken or progressive mode ended');
+            this.dlog('✅ PROGRESSIVE TTS: All content spoken or progressive mode ended');
             this.currentOptions.onEnd?.();
             this.resetProgressiveState();
           }
         },
-        onError: (error) => {
-          console.error('❌ PROGRESSIVE TTS: Chunk error:', error);
+        onError: async (error) => {
+          if (this.isDebug()) console.error('❌ PROGRESSIVE TTS: Chunk play error, attempting browser TTS fallback:', error);
           this.isCurrentlySpeaking = false;
           this.isGeneratingAudio = false;
+          try { await this.generateBrowserTTS(textToSpeak, this.currentOptions!); } catch {}
           this.resetProgressiveState();
-          this.currentOptions.onError?.(error instanceof Error ? error : new Error(String(error)));
+          this.currentOptions?.onError?.(error instanceof Error ? error : new Error(String(error)));
         }
       });
 
     } catch (error) {
-      console.error('❌ PROGRESSIVE TTS: Error in progressive chunk:', error);
+      if (this.isDebug()) console.error('❌ PROGRESSIVE TTS: Error in progressive chunk:', error);
       this.isCurrentlySpeaking = false;
       this.isGeneratingAudio = false;
       this.resetProgressiveState();
@@ -472,19 +536,19 @@ class EnhancedTTSService {
 
   // Standard speech handling (existing implementation)
   private async handleStandardSpeech(text: string, options: TTSOptions): Promise<void> {
-    // ... existing speak implementation ...
+    // Ensure progressive state is reset
     // Ensure progressive state is reset
     this.resetProgressiveState();
 
     // Apply global speech lock
     if (this.globalSpeechLock) {
-      console.log('🔒 Enhanced TTS: Global speech lock active, rejecting new request');
+      this.dlog('🔒 Enhanced TTS: Global speech lock active, rejecting new request');
       throw new Error('Speech lock active - another speech operation in progress');
     }
 
     // Check if already speaking
     if (this.isCurrentlySpeaking) {
-      console.log('🔄 Enhanced TTS: Already speaking, stopping current speech');
+      this.dlog('🔄 Enhanced TTS: Already speaking, stopping current speech');
       this.stop();
       // Wait briefly for cleanup
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -501,19 +565,23 @@ class EnhancedTTSService {
 
     try {
       this.isCurrentlySpeaking = true;
-      options.onStart?.();
       
       if (options.useOpenAI !== false) {
-        console.log('🎯 Enhanced TTS: Using OpenAI TTS for high-quality speech');
-        const audioUrl = await this.generateOpenAITTS(text, options);
-        await this.playAudioUrl(audioUrl, options);
+        this.dlog('🎯 Enhanced TTS: Using OpenAI TTS for high-quality speech');
+        try {
+          const audioUrl = await this.generateOpenAITTS(text, options);
+          await this.playAudioUrl(audioUrl, options);
+        } catch (e) {
+          if (this.isDebug()) console.warn('⚠️ OpenAI TTS failed, falling back to browser TTS', e);
+          await this.generateBrowserTTS(text, options);
+        }
       } else {
-        console.log('🎯 Enhanced TTS: Using browser TTS fallback');
+        this.dlog('🎯 Enhanced TTS: Using browser TTS fallback');
         await this.generateBrowserTTS(text, options);
       }
       
     } catch (error) {
-      console.error('❌ Enhanced TTS: Speech failed:', error);
+      if (this.isDebug()) console.error('❌ Enhanced TTS: Speech failed:', error);
       options.onError?.(error instanceof Error ? error : new Error(String(error)));
     } finally {
       this.isCurrentlySpeaking = false;
@@ -540,26 +608,47 @@ class EnhancedTTSService {
       let playbackStarted = false;
       
       this.currentAudio.onloadedmetadata = () => {
-        console.log('🎵 Enhanced TTS: Audio metadata loaded, duration:', this.currentAudio?.duration);
+        this.dlog('🎵 Enhanced TTS: Audio metadata loaded, duration:', this.currentAudio?.duration);
         audioLoaded = true;
       };
       
+      const fireStart = (() => {
+        let fired = false;
+        return () => {
+          if (!fired) {
+            fired = true;
+            try { options.onStart?.(); } catch {}
+          }
+        };
+      })();
+
       this.currentAudio.oncanplaythrough = () => {
-        console.log('🎵 Enhanced TTS: Audio can play through without interruption');
+        this.dlog('🎵 Enhanced TTS: Audio can play through without interruption');
         if (!playbackStarted) {
           playbackStarted = true;
           // Start playback with a slight delay to ensure smooth start
           setTimeout(() => {
-            this.currentAudio?.play().catch((err) => {
-              console.error('❌ Enhanced TTS: Play failed:', err);
-              reject(err);
-            });
+            const p = this.currentAudio?.play();
+            if (p && typeof (p as any).then === 'function') {
+              (p as Promise<void>).then(() => {
+                fireStart();
+              }).catch((err: any) => {
+                if (this.isDebug()) console.error('❌ Enhanced TTS: Play failed:', err);
+                reject(err);
+              });
+            } else {
+              fireStart();
+            }
           }, 50);
         }
       };
+
+      this.currentAudio.onplay = () => {
+        fireStart();
+      };
       
       this.currentAudio.onended = () => {
-        console.log('🎵 Enhanced TTS: Audio playback completed naturally');
+        this.dlog('🎵 Enhanced TTS: Audio playback completed naturally');
         // Add a small delay before cleanup to ensure the last bit of audio is heard
         setTimeout(() => {
           this.currentAudio = null;
@@ -570,7 +659,7 @@ class EnhancedTTSService {
       // Handle potential interruptions
       this.currentAudio.onpause = () => {
         if (!this.currentAudio?.ended) {
-          console.warn('⚠️ Enhanced TTS: Audio was paused unexpectedly');
+          if (this.isDebug()) console.warn('⚠️ Enhanced TTS: Audio was paused unexpectedly');
         }
       };
       
@@ -581,7 +670,7 @@ class EnhancedTTSService {
 
   // Stop current speech
   stop(): void {
-    console.log('🛑 Enhanced TTS: Stop requested');
+    this.dlog('🛑 Enhanced TTS: Stop requested');
     
     // Reset progressive state
     this.resetProgressiveState();
@@ -606,7 +695,7 @@ class EnhancedTTSService {
 
   // Force unlock the global speech lock
   private releaseLock(reason: string): void {
-    console.log(`🔓 EnhancedTTS: Releasing global lock - ${reason}`);
+    this.dlog(`🔓 EnhancedTTS: Releasing global lock - ${reason}`);
     
     // Clear safety timeout
     if (this.globalTimeout) {
@@ -621,7 +710,7 @@ class EnhancedTTSService {
 
   // Public method to force unlock if stuck
   forceUnlock(): void {
-    console.log('⚡ EnhancedTTS: FORCE UNLOCK called');
+    this.dlog('⚡ EnhancedTTS: FORCE UNLOCK called');
     this.releaseLock('manual force unlock');
     this.stop();
   }

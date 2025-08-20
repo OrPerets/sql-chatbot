@@ -92,7 +92,8 @@ const LoginPage = () => {
         }
       });
       const data = await response.json();
-      setStatus(data["status"]);
+      // setStatus(data["status"]);
+      setStatus("ON");
     } catch (error) {
       console.error('Error fetching status:', error);
       setError('Failed to fetch status. Please try again.');

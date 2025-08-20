@@ -113,7 +113,8 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscription, disabled
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');
 
-      const response = await fetch('/api/audio/transcribe', {
+      const base = process.env.NEXT_PUBLIC_SERVER_BASE || '';
+      const response = await fetch(`${base}/api/audio/transcribe`, {
         method: 'POST',
         body: formData,
       });

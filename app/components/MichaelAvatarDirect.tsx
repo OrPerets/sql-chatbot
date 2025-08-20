@@ -148,6 +148,10 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
           enableEyeBlink: true,
           enableHeadMovement: true, // Enable head movement for better gesture support
           enableGestures: true, // Explicitly enable gestures
+          // Performance tuning
+          modelFPS: 24,
+          pixelRatio: 1,
+          antialias: false,
           
           // Avatar body configuration for proper gesture support
           body: 'M', // Male body for proper gesture animation
@@ -159,6 +163,12 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
           microphoneEnabled: false,
         });
       console.log('✅ TalkingHead instance created:', !!head);
+      // Ensure renderer pixel ratio is 1 for performance
+      try {
+        if ((head as any).renderer && typeof (head as any).renderer.setPixelRatio === 'function') {
+          (head as any).renderer.setPixelRatio(1);
+        }
+      } catch {}
       
       // Register TalkingHead with audio manager
       audioManager.setTalkingHeadActive(true);
@@ -166,9 +176,34 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
       headRef.current = head;
       console.log('✅ headRef set');
 
-      // Try multiple avatar loading strategies
-      console.log('🎭 Starting avatar loading process...');
-      await loadAvatarWithFallbacks(head);
+      // Prefer a robust ReadyPlayer.me avatar with ARKit morph targets
+      console.log('🎭 Loading ReadyPlayer.me avatar with ARKit morph targets...');
+      try {
+        await head.showAvatar({ 
+          url: 'https://models.readyplayer.me/68496fdfb85cb0b4ed9555ee.glb?morphTargets=ARKit,Oculus+Visemes&textureSizeLimit=1024&textureFormat=webp',
+          body: 'M',
+          avatarMood: 'neutral'
+        });
+        console.log('✅ RPM avatar loaded');
+      } catch (rpmErr) {
+        console.warn('⚠️ RPM load failed, trying local avatar with blink disabled', rpmErr);
+        try {
+          await head.showAvatar({ url: '/michael.glb', body: 'M', avatarMood: 'neutral' });
+          // Disable blink morph usage to prevent eyeBlinkLeft/Right errors on models lacking these targets
+          try {
+            (head as any).enableEyeBlink = false as any;
+            if ((head as any).limits) {
+              (head as any).limits.eyeBlinkLeft = () => ({ value: 0 });
+              (head as any).limits.eyeBlinkRight = () => ({ value: 0 });
+            }
+          } catch {}
+          console.log('✅ Local avatar loaded with blink disabled');
+        } catch (localErr) {
+          console.error('💥 Local avatar load failed, falling back to default:', localErr);
+          await head.showAvatar({ body: 'M', avatarMood: 'neutral' });
+          try { (head as any).enableEyeBlink = false as any; } catch {}
+        }
+      }
       console.log('✅ Avatar loading completed successfully!');
 
       if (head.scene && typeof head.scene.traverse === 'function') {
@@ -426,9 +461,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
     
     try {
       console.log('🎤 Starting OpenAI TTS speech process...');
-      setIsSpeaking(true);
       lastSpokenTextRef.current = text;
-      onSpeakingStart?.();
       
       // For OpenAI TTS, we don't need the audio context manager
       // since we're using HTML5 Audio element, not speechSynthesis
@@ -447,6 +480,8 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
         progressiveMode: progressiveMode, // Enable progressive speech if requested
         onStart: () => {
           console.log('🎤 Michael: Starting natural TTS speech...');
+          setIsSpeaking(true);
+          onSpeakingStart?.();
         },
         onEnd: () => {
           console.log('🤐 Michael: TTS speech ended naturally');
@@ -1550,20 +1585,13 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
     
     // Progressive mode: Handle text updates during streaming
     if (progressiveMode && state === 'speaking' && isInitialized && text && audioUnlocked) {
-      // Start speech or let enhanced TTS handle progressive updates
+      // Start speech once per message; enhanced TTS handles internal updates
       if (!isSpeaking && !speakingInProgress.current && text !== lastSpokenTextRef.current) {
         console.log('✅ PROGRESSIVE: Starting initial speech');
         speak(text);
         return;
       }
-      
-      // If already speaking, the enhanced TTS service will handle the progressive updates
-      if (isSpeaking && text.length > currentlySpeakingText.length) {
-        console.log('🔄 PROGRESSIVE: Text updated, letting enhanced TTS handle the update');
-        // Just call speak again - enhanced TTS will handle the progressive logic
-        speak(text);
-        return;
-      }
+      // Do NOT call speak on subsequent text length changes to avoid double audio
     }
     
     // Standard mode: Only speak when transitioning TO speaking state with new text

@@ -317,10 +317,6 @@ class TalkingHead {
       });
     })
 
-    // Initialize animation loop properties
-    this.isRunning = false;
-    this.animationId = null;
-
     // Dynamically pick up all the property names that we need in the code
     const names = new Set();
     Object.values(this.poseTemplates).forEach( x => {
@@ -711,38 +707,19 @@ class TalkingHead {
     };
     this.mtMaxDefault = 1;
     this.mtMaxExceptions = {};
-    // PATCH: Safe morph target limit functions that check for existence first
+    // Safe morph getter to prevent undefined access on models lacking certain targets
+    const _mtv = (k) => ( this.mtAvatar[k] && typeof this.mtAvatar[k].value === 'number' ? this.mtAvatar[k].value : 0 );
     this.mtLimits = {
-      eyeBlinkLeft: (v) => {
-        const eyesLookDown = this.mtAvatar['eyesLookDown'];
-        const browDownLeft = this.mtAvatar['browDownLeft'];
-        if (eyesLookDown && browDownLeft && typeof eyesLookDown.value === 'number' && typeof browDownLeft.value === 'number') {
-          return Math.max(v, (eyesLookDown.value + browDownLeft.value) / 2);
-        }
-        return v; // Fallback: return original value
-      },
-      eyeBlinkRight: (v) => {
-        const eyesLookDown = this.mtAvatar['eyesLookDown'];
-        const browDownRight = this.mtAvatar['browDownRight'];
-        if (eyesLookDown && browDownRight && typeof eyesLookDown.value === 'number' && typeof browDownRight.value === 'number') {
-          return Math.max(v, (eyesLookDown.value + browDownRight.value) / 2);
-        }
-        return v; // Fallback: return original value
-      }
+      eyeBlinkLeft: (v) => ( Math.max(v, ( _mtv('eyesLookDown') + _mtv('browDownLeft') ) / 2) ),
+      eyeBlinkRight: (v) => ( Math.max(v, ( _mtv('eyesLookDown') + _mtv('browDownRight') ) / 2 ) )
     };
-    
-    // PATCH: Safe morph target change handlers that check for existence first
     this.mtOnchange = {
       eyesLookDown: () => {
-        if (this.mtAvatar['eyeBlinkLeft']) this.mtAvatar['eyeBlinkLeft'].needsUpdate = true;
-        if (this.mtAvatar['eyeBlinkRight']) this.mtAvatar['eyeBlinkRight'].needsUpdate = true;
+        if ( this.mtAvatar['eyeBlinkLeft'] ) this.mtAvatar['eyeBlinkLeft'].needsUpdate = true;
+        if ( this.mtAvatar['eyeBlinkRight'] ) this.mtAvatar['eyeBlinkRight'].needsUpdate = true;
       },
-      browDownLeft: () => { 
-        if (this.mtAvatar['eyeBlinkLeft']) this.mtAvatar['eyeBlinkLeft'].needsUpdate = true; 
-      },
-      browDownRight: () => { 
-        if (this.mtAvatar['eyeBlinkRight']) this.mtAvatar['eyeBlinkRight'].needsUpdate = true; 
-      }
+      browDownLeft: () => { if ( this.mtAvatar['eyeBlinkLeft'] ) this.mtAvatar['eyeBlinkLeft'].needsUpdate = true; },
+      browDownRight: () => { if ( this.mtAvatar['eyeBlinkRight'] ) this.mtAvatar['eyeBlinkRight'].needsUpdate = true; }
     };
     this.mtRandomized = [
       'mouthDimpleLeft','mouthDimpleRight', 'mouthLeft', 'mouthPressLeft',
@@ -1578,36 +1555,26 @@ class TalkingHead {
       switch(mt) {
 
       case 'headRotateX':
-        // PATCH: Safe cross-reference check for bodyRotateX
-        const bodyRotateX = this.mtAvatar['bodyRotateX'];
-        this.poseDelta.props['Head.quaternion'].x = o.applied + (bodyRotateX ? bodyRotateX.applied : 0);
+        this.poseDelta.props['Head.quaternion'].x = o.applied + this.mtAvatar['bodyRotateX'].applied;
         break;
 
       case 'headRotateY':
-        // PATCH: Safe cross-reference check for bodyRotateY
-        const bodyRotateY = this.mtAvatar['bodyRotateY'];
-        this.poseDelta.props['Head.quaternion'].y = o.applied + (bodyRotateY ? bodyRotateY.applied : 0);
+        this.poseDelta.props['Head.quaternion'].y = o.applied + this.mtAvatar['bodyRotateY'].applied;
         break;
 
       case 'headRotateZ':
-        // PATCH: Safe cross-reference check for bodyRotateZ
-        const bodyRotateZ = this.mtAvatar['bodyRotateZ'];
-        this.poseDelta.props['Head.quaternion'].z = o.applied + (bodyRotateZ ? bodyRotateZ.applied : 0);
+        this.poseDelta.props['Head.quaternion'].z = o.applied + this.mtAvatar['bodyRotateZ'].applied;
         break;
 
       case 'bodyRotateX':
-        // PATCH: Safe cross-reference check for headRotateX
-        const headRotateX = this.mtAvatar['headRotateX'];
-        this.poseDelta.props['Head.quaternion'].x = o.applied + (headRotateX ? headRotateX.applied : 0);
+        this.poseDelta.props['Head.quaternion'].x = o.applied + this.mtAvatar['headRotateX'].applied;
         this.poseDelta.props['Spine1.quaternion'].x = o.applied/2;
         this.poseDelta.props['Spine.quaternion'].x = o.applied/8;
         this.poseDelta.props['Hips.quaternion'].x = o.applied/24;
         break;
 
       case 'bodyRotateY':
-        // PATCH: Safe cross-reference check for headRotateY
-        const headRotateY = this.mtAvatar['headRotateY'];
-        this.poseDelta.props['Head.quaternion'].y = o.applied + (headRotateY ? headRotateY.applied : 0);
+        this.poseDelta.props['Head.quaternion'].y = o.applied + this.mtAvatar['headRotateY'].applied;
         this.poseDelta.props['Spine1.quaternion'].y = o.applied/2;
         this.poseDelta.props['Spine.quaternion'].y = o.applied/2;
         this.poseDelta.props['Hips.quaternion'].y = o.applied/4;
@@ -1618,9 +1585,7 @@ class TalkingHead {
         break;
 
       case 'bodyRotateZ':
-        // PATCH: Safe cross-reference check for headRotateZ
-        const headRotateZ = this.mtAvatar['headRotateZ'];
-        this.poseDelta.props['Head.quaternion'].z = o.applied + (headRotateZ ? headRotateZ.applied : 0);
+        this.poseDelta.props['Head.quaternion'].z = o.applied + this.mtAvatar['headRotateZ'].applied;
         this.poseDelta.props['Spine1.quaternion'].z = o.applied/12;
         this.poseDelta.props['Spine.quaternion'].z = o.applied/12;
         this.poseDelta.props['Hips.quaternion'].z = o.applied/24;
@@ -2454,19 +2419,19 @@ class TalkingHead {
       e.y = Math.max(-0.9,Math.min(0.9, -2.5 * e.y));
 
       if ( isEyeContact ) {
-        // PATCH: Safe morph target assignments - check for existence first
-        if (this.mtAvatar['eyesLookDown']) Object.assign( this.mtAvatar['eyesLookDown'], { system: e.x < 0 ? -e.x : 0, needsUpdate: true });
-        if (this.mtAvatar['eyesLookUp']) Object.assign( this.mtAvatar['eyesLookUp'], { system: e.x < 0 ? 0 : e.x, needsUpdate: true });
-        if (this.mtAvatar['eyeLookInLeft']) Object.assign( this.mtAvatar['eyeLookInLeft'], { system: e.y < 0 ? -e.y : 0, needsUpdate: true });
-        if (this.mtAvatar['eyeLookOutLeft']) Object.assign( this.mtAvatar['eyeLookOutLeft'], { system: e.y < 0 ? 0 : e.y, needsUpdate: true });
-        if (this.mtAvatar['eyeLookInRight']) Object.assign( this.mtAvatar['eyeLookInRight'], { system: e.y < 0 ? 0 : e.y, needsUpdate: true });
-        if (this.mtAvatar['eyeLookOutRight']) Object.assign( this.mtAvatar['eyeLookOutRight'], { system: e.y < 0 ? -e.y : 0, needsUpdate: true });
+        // Safely assign only if targets exist on this model
+        const _mt = (k) => this.mtAvatar[k] || null;
+        const _sa = (k, obj) => { const t = _mt(k); if (t) Object.assign(t, obj); };
+        _sa('eyesLookDown', { system: e.x < 0 ? -e.x : 0, needsUpdate: true });
+        _sa('eyesLookUp',   { system: e.x < 0 ? 0 : e.x, needsUpdate: true });
+        _sa('eyeLookInLeft',  { system: e.y < 0 ? -e.y : 0, needsUpdate: true });
+        _sa('eyeLookOutLeft', { system: e.y < 0 ? 0 : e.y, needsUpdate: true });
+        _sa('eyeLookInRight',  { system: e.y < 0 ? 0 : e.y, needsUpdate: true });
+        _sa('eyeLookOutRight', { system: e.y < 0 ? -e.y : 0, needsUpdate: true });
 
         // Head move
         if ( isHeadMove ) {
-          // PATCH: Safe access to bodyRotateY.value with fallback
-          const bodyRotateY = this.mtAvatar['bodyRotateY'];
-          i = bodyRotateY ? -bodyRotateY.value : 0;
+          i = - this.mtAvatar['bodyRotateY'].value;
           j = this.gaussianRandom(-0.2,0.2);
           this.animQueue.push( this.animFactory({ name: "headmove",
             dt: [[1000,2000],[1000,2000,1,2],[1000,2000],[1000,2000,1,2]], vs: {
@@ -2476,10 +2441,7 @@ class TalkingHead {
         }
 
       } else {
-        // PATCH: Safe access to eye morph target values with fallback
-        const eyeLookInLeft = this.mtAvatar['eyeLookInLeft'];
-        const eyeLookOutLeft = this.mtAvatar['eyeLookOutLeft'];
-        i = (eyeLookInLeft && eyeLookOutLeft) ? (eyeLookInLeft.value - eyeLookOutLeft.value) : 0;
+        i = this.mtAvatar['eyeLookInLeft'].value - this.mtAvatar['eyeLookOutLeft'].value;
         j = this.gaussianRandom(-0.2,0.2);
         this.animQueue.push( this.animFactory({ name: "headmove",
           dt: [[1000,2000],[1000,2000,1,2],[1000,2000],[1000,2000,1,2]], vs: {
@@ -2499,9 +2461,8 @@ class TalkingHead {
     if ( this.viewName !== 'full' ) {
       i = this.mtRandomized[ Math.floor( Math.random() * this.mtRandomized.length ) ];
       j = this.mtAvatar[i];
-      // PATCH: Safe access to randomized morph target
       if ( j && !j.needsUpdate ) {
-        Object.assign(j,{ base: (this.mood.baseline[i] || 0) + ( 1 + vol/255 ) * Math.random() / 5, needsUpdate: true });
+        Object.assign(j,{ base: ( (this.mood && this.mood.baseline && this.mood.baseline[i]) || 0 ) + ( 1 + vol/255 ) * Math.random() / 5, needsUpdate: true });
       }
     }
 
@@ -3860,20 +3821,10 @@ class TalkingHead {
   */
   start() {
     if ( this.armature && this.isRunning === false ) {
-      // Try to resume audio context, but don't let it block animation
-      try {
-        if (this.audioCtx && this.audioCtx.state === 'suspended') {
-          this.audioCtx.resume().catch(err => {
-            console.warn('Audio context resume failed (this is normal for some browsers):', err);
-          });
-        }
-      } catch (err) {
-        console.warn('Audio context access failed (this is normal for some browsers):', err);
-      }
-      
+      this.audioCtx.resume();
       this.animTimeLast = performance.now();
       this.isRunning = true;
-      this.animationId = requestAnimationFrame( this.animate.bind(this) );
+      requestAnimationFrame( this.animate.bind(this) );
     }
   }
 
@@ -3882,21 +3833,7 @@ class TalkingHead {
   */
   stop() {
     this.isRunning = false;
-    if (this.animationId) {
-      cancelAnimationFrame(this.animationId);
-      this.animationId = null;
-    }
-    
-    // Try to suspend audio context, but don't let it block stopping
-    try {
-      if (this.audioCtx && this.audioCtx.state !== 'closed') {
-        this.audioCtx.suspend().catch(err => {
-          console.warn('Audio context suspend failed (this is normal for some browsers):', err);
-        });
-      }
-    } catch (err) {
-      console.warn('Audio context access failed during stop (this is normal for some browsers):', err);
-    }
+    this.audioCtx.suspend();
   }
 
   /**

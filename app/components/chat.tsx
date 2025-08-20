@@ -17,9 +17,8 @@ import Modal from "./modal";
 import SQLQueryEditorComponent from "./query-vizualizer";
 import ImageUpload from "./image-upload";
 import { fileToBase64 } from "../utils/parseImage";
-import AudioRecorder from "./audio-recorder";
+// import AudioRecorder from "./audio-recorder"; // Clean version: hide audio recorder button
 import MichaelAvatarDirect from "./MichaelAvatarDirect";
-import { simpleTTS } from "../utils/simpleTTS";
 import { enhancedTTS } from "@/app/utils/enhanced-tts";
 import OpenAI from "openai";
 
@@ -283,6 +282,7 @@ const Chat = ({
   const [isAssistantMessageComplete, setIsAssistantMessageComplete] = useState(false);
   const [shouldSpeak, setShouldSpeak] = useState(false);
   const [lastSpokenMessageId, setLastSpokenMessageId] = useState<string>("");
+  const [currentAssistantMessageId, setCurrentAssistantMessageId] = useState<string>("");
 
   // Add state for progressive speech
   const [streamingText, setStreamingText] = useState<string>("");
@@ -399,23 +399,13 @@ const Chat = ({
 
   // Exercise-related functions
   const startExercise = async () => {
-    try {
-      const user = JSON.parse(localStorage.getItem("currentUser"));
-      const response = await fetch(`${SERVER_BASE}/getRandomExercise/${user.email}`);
-      const exercise = await response.json();
-      
-      setCurrentExercise(exercise);
-      setIsExerciseMode(true);
-      setShowSolutionButton(false);
-      setExerciseAttempts(0);
-      setExerciseAnswer("");
-      setShowExerciseModal(true);
-      
-
-    } catch (error) {
-      console.error('Error starting exercise:', error);
-      appendMessage("assistant", "❌ שגיאה בטעינת התרגול. נסה שוב מאוחר יותר.");
-    }
+    // Clean version: open simple “coming soon” modal (no server fetch)
+    setCurrentExercise(null);
+    setIsExerciseMode(true);
+    setShowSolutionButton(false);
+    setExerciseAttempts(0);
+    setExerciseAnswer("");
+    setShowExerciseModal(true);
   };
 
   const submitExerciseAnswer = async () => {
@@ -607,9 +597,8 @@ const updateUserBalance = async (value) => {
   // Cleanup speech and typing detection on unmount
   useEffect(() => {
     return () => {
-      simpleTTS.stop();
+      enhancedTTS.stop();
       
-      // Clear typing detection timeout
       if (userTypingTimeoutRef.current) {
         clearTimeout(userTypingTimeoutRef.current);
       }
@@ -618,7 +607,7 @@ const updateUserBalance = async (value) => {
 
   // Modified useEffect for progressive speech
   useEffect(() => {
-    const messageId = lastAssistantMessage?.substring(0, 50) || "";
+    const messageId = currentAssistantMessageId || (lastAssistantMessage ? lastAssistantMessage.substring(0,50) : "");
     
     console.log('👀 Watching lastAssistantMessage change:', {
       isDone,
@@ -637,8 +626,10 @@ const updateUserBalance = async (value) => {
       return; // Let the avatar component handle the speech
     }
 
-    // Progressive speech: Start speaking when we have enough content (instead of waiting for completion)
-    if (autoPlaySpeech && lastAssistantMessage && lastAssistantMessage.length > 50 && !hasStartedSpeaking && lastSpokenMessageId !== messageId) {
+    // Progressive speech: Start speaking earlier and also on completion
+    const canStartByLength = lastAssistantMessage && lastAssistantMessage.length > 10;
+    const canStartOnDone = isDone && lastAssistantMessage && lastAssistantMessage.length > 0;
+    if (autoPlaySpeech && (canStartByLength || canStartOnDone) && !hasStartedSpeaking && lastSpokenMessageId !== messageId) {
       console.log('🎤 PROGRESSIVE: Starting speech early with partial text');
       setLastSpokenMessageId(messageId);
       setHasStartedSpeaking(true);
@@ -851,6 +842,12 @@ const loadChatMessages = (chatId: string) => {
     setHasStartedSpeaking(false); // Reset for new message
     streamingTextRef.current = "";
     setStreamingText("");
+    // Create a stable message id for this assistant message
+    setCurrentAssistantMessageId(`${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    // If voice is enabled and we are currently speaking, stop to avoid overlap with the new message
+    if (enableVoice && enhancedTTS.isSpeaking()) {
+      enhancedTTS.stop();
+    }
     
     // Clear any pending progressive speech
     if (progressiveSpeechTimeoutRef.current) {
@@ -1137,14 +1134,16 @@ return (
                     setTimeout(() => {
                       // Set the text to the avatar for speaking
                       setLastAssistantMessage(msg.text);
+                      // Set a new manual id and mark as spoken to avoid auto trigger
+                      const manualId = `manual-${Date.now()}`;
+                      setCurrentAssistantMessageId(manualId);
+                      setLastSpokenMessageId(manualId);
                       setShouldSpeak(true);
                       setIsAssistantMessageComplete(true);
                       setHasStartedSpeaking(true);
                       setIsManualSpeech(true);  // Mark as manual speech
                       // Clear thinking state
                       setIsThinking(false);
-                      // Force avatar to speaking state by temporarily setting a speaking message ID
-                      setLastSpokenMessageId(Date.now().toString());  // Use unique ID to force re-trigger
                     }, 100);
                   } : undefined}
                 />
@@ -1242,14 +1241,14 @@ return (
 
             {/* Action Buttons Row */}
             <div className={styles.actionButtons}>
-              {/* Audio Recorder */}
-              {enableVoice && (
+              {/* Audio Recorder - hidden for clean version */}
+              {/* {enableVoice && (
                 <AudioRecorder
                   onTranscription={handleAudioTranscription}
                   disabled={inputDisabled || imageProcessing}
                   onRecordingStateChange={setIsRecording}
                 />
-              )}
+              )} */}
 
 
               {/* Exercise Button */}
@@ -1384,7 +1383,7 @@ return (
           text={lastAssistantMessage}
           state={avatarState}
           size="medium"
-          progressiveMode={enableVoice}
+          progressiveMode={enableVoice && !isDone}
           isStreaming={enableVoice && !isDone}
           onSpeakingStart={() => {
             console.log('🎤 Michael started speaking');
@@ -1405,6 +1404,8 @@ return (
           <div className={styles.nickname}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px', }}>
               <span>היי {currentUser}</span>
+              {/* Clean version: hide auto audio toggle under avatar */}
+              {/*
               <button
                 className={`${styles.audioToggle} ${autoPlaySpeech ? styles.audioToggleOn : styles.audioToggleOff}`}
                 onClick={() => enableVoice && setAutoPlaySpeech(!autoPlaySpeech)}
@@ -1424,6 +1425,7 @@ return (
                   </svg>
                 )}
               </button>
+              */}
 
             </div>
             {isTokenBalanceVisible && (
@@ -1566,6 +1568,11 @@ return (
               )}
             </div>
           </>
+        )}
+        {!currentExercise && (
+          <div className={styles.exerciseContent} style={{ textAlign: 'center', padding: '24px', width: '100%' }}>
+            בקרוב ...
+          </div>
         )}
       </div>
     </Modal>
