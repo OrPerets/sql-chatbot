@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "compress:glb": "npx gltfpack -i public/avatars/michael.glb -o public/avatars/michael.min.glb -cc -kn -km",
+    "compress:textures": "echo 'Use basisu/toktx to compress textures to .ktx2'"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",

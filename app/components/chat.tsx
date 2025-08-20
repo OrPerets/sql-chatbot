@@ -266,7 +266,9 @@ const Chat = ({
   const [sqlMode, setSqlMode] = useState<'none' | 'create' | 'insert'>('none');
   // Add audio and speech state
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
-  const [autoPlaySpeech, setAutoPlaySpeech] = useState(true);
+  const [autoPlaySpeech, setAutoPlaySpeech] = useState(false);
+  const enableAvatar = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1';
+  const enableVoice = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_VOICE_ENABLED === '1';
   // Add sidebar visibility state
   // Check if we're on mobile to default sidebar to closed
   const [sidebarVisible, setSidebarVisible] = useState(() => {
@@ -310,7 +312,7 @@ const Chat = ({
     // Priority order: thinking > listening > speaking > userWriting > idle
     const currentState = isThinking ? 'thinking' 
                         : isRecording ? 'listening' 
-                        : (shouldSpeak && isAssistantMessageComplete) ? 'speaking'  // Removed autoPlaySpeech check
+                        : (enableAvatar && enableVoice && shouldSpeak && isAssistantMessageComplete) ? 'speaking'
                         : isUserTyping ? 'userWriting'
                         : 'idle';
     console.log('🎭 Avatar state calculation:', {
@@ -324,7 +326,7 @@ const Chat = ({
       textLength: lastAssistantMessage?.length || 0
     });
     return currentState;
-  }, [isThinking, isRecording, shouldSpeak, isAssistantMessageComplete, isUserTyping, lastAssistantMessage?.length]);  // Removed autoPlaySpeech from dependencies
+  }, [isThinking, isRecording, shouldSpeak, isAssistantMessageComplete, isUserTyping, lastAssistantMessage?.length, enableAvatar, enableVoice]);
 
   const router = useRouter();
 
@@ -1120,9 +1122,10 @@ return (
                   feedback={msg.feedback}
                   hasImage={msg.hasImage}
                   onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
-                  autoPlaySpeech={msg.role === 'assistant' ? autoPlaySpeech : undefined}
+                  autoPlaySpeech={msg.role === 'assistant' ? (enableVoice && autoPlaySpeech) : undefined}
                   onPlayMessage={msg.role === 'assistant' ? () => {
                     console.log('🎤 Playing individual message:', msg.text.substring(0, 50) + '...');
+                    if (!enableVoice) return;
                     // Stop any current speech
                     enhancedTTS.stop();
                     // Reset speech states first
@@ -1240,11 +1243,13 @@ return (
             {/* Action Buttons Row */}
             <div className={styles.actionButtons}>
               {/* Audio Recorder */}
-              <AudioRecorder
-                onTranscription={handleAudioTranscription}
-                disabled={inputDisabled || imageProcessing}
-                onRecordingStateChange={setIsRecording}
-              />
+              {enableVoice && (
+                <AudioRecorder
+                  onTranscription={handleAudioTranscription}
+                  disabled={inputDisabled || imageProcessing}
+                  onRecordingStateChange={setIsRecording}
+                />
+              )}
 
 
               {/* Exercise Button */}
@@ -1374,24 +1379,26 @@ return (
     
     <div className={styles.rightColumn}>
       <div className={styles.avatarSection}>
+        {enableAvatar ? (
         <MichaelAvatarDirect
           text={lastAssistantMessage}
           state={avatarState}
           size="medium"
-          progressiveMode={true}
-          isStreaming={!isDone}
+          progressiveMode={enableVoice}
+          isStreaming={enableVoice && !isDone}
           onSpeakingStart={() => {
             console.log('🎤 Michael started speaking');
-            setShouldSpeak(true);
+            if (enableVoice) setShouldSpeak(true);
           }}
           onSpeakingEnd={() => {
             console.log('🎤 Michael finished speaking');
-            setShouldSpeak(false);
+            if (enableVoice) setShouldSpeak(false);
             setIsAssistantMessageComplete(false);
             setHasStartedSpeaking(false);
             setIsManualSpeech(false);  // Reset manual speech flag
           }}
         />
+        ) : null}
         
         {/* User info below the avatar */}
         <div className={styles.userInfo}>
@@ -1400,7 +1407,7 @@ return (
               <span>היי {currentUser}</span>
               <button
                 className={`${styles.audioToggle} ${autoPlaySpeech ? styles.audioToggleOn : styles.audioToggleOff}`}
-                onClick={() => setAutoPlaySpeech(!autoPlaySpeech)}
+                onClick={() => enableVoice && setAutoPlaySpeech(!autoPlaySpeech)}
                 title={autoPlaySpeech ? "השבת קול אוטומטי" : "הפעל קול אוטומטי"}
               >
                 {autoPlaySpeech ? (

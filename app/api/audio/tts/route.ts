@@ -113,6 +113,11 @@ function enhanceTextWithSSML(text: string, options: {
 export async function POST(request: NextRequest) {
   try {
     console.log('OpenAI TTS API called');
+    // Feature flag guard
+    const featureVoiceEnabled = process.env.FEATURE_VOICE === '1';
+    if (!featureVoiceEnabled) {
+      return NextResponse.json({ error: 'Voice feature disabled' }, { status: 404 });
+    }
     
     // Check if OpenAI API key is configured
     if (!process.env.OPENAI_API_KEY) {

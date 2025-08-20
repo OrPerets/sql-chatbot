@@ -24,6 +24,13 @@ const nextConfig = {
           },
         ],
       },
+      {
+        source: '/:all*(gltf|glb|ktx2|basis|wasm|mp3|opus)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+          { key: 'Access-Control-Allow-Origin', value: '*' }
+        ],
+      },
     ];
   },
   // Reduce bundle size
@@ -40,6 +47,7 @@ const nextConfig = {
     bodyParser: {
       sizeLimit: '10mb',
     },
+    responseLimit: false,
   },
 };
 

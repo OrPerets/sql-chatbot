@@ -188,6 +188,10 @@ class EnhancedTTSService {
 
   // Generate speech using OpenAI TTS
   private async generateOpenAITTS(text: string, options: TTSOptions): Promise<string> {
+    // Client-side feature flag guard
+    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_VOICE_ENABLED !== '1') {
+      throw new Error('Voice feature disabled');
+    }
     const language = this.detectLanguage(text);
     const selectedVoice = this.selectVoice(language, options);
     

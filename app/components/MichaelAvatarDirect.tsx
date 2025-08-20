@@ -88,6 +88,11 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
   };
 
   const initializeAvatar = async () => {
+    const avatarFeature = typeof window !== 'undefined' && (process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1');
+    if (!avatarFeature) {
+      console.log('⚠️ Avatar feature disabled via flag');
+      return;
+    }
     console.log('🚀 initializeAvatar called');
     console.log('📊 avatarRef.current:', !!avatarRef.current);
     console.log('📊 headRef.current:', !!headRef.current);
@@ -138,6 +143,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
           useWebAudio: false, // Disable WebAudio API in TalkingHead
           
           // Visual configuration - enable gestures and animations
+          dracoEnabled: true,
           cameraView: "full", // Focus on head/face area
           enableEyeBlink: true,
           enableHeadMovement: true, // Enable head movement for better gesture support
