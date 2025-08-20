@@ -8,6 +8,10 @@ const execAsync = promisify(exec);
 
 export async function POST(request: NextRequest) {
   try {
+    const featureVoiceEnabled = process.env.FEATURE_VOICE === '1';
+    if (!featureVoiceEnabled) {
+      return NextResponse.json({ error: 'Voice feature disabled' }, { status: 404 });
+    }
     const { text, voice = 'Carmit', rate = 200 } = await request.json();
     
     if (!text || text.trim().length === 0) {
