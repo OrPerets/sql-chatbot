@@ -62,6 +62,29 @@ npm run dev
 http://localhost:3000/test-michael-integration
 ```
 
+### Environment Flags (Feature Gates)
+
+Add the following to your `.env.local` (all default OFF):
+
+```
+NEXT_PUBLIC_AVATAR_ENABLED=0
+NEXT_PUBLIC_VOICE_ENABLED=0
+FEATURE_AVATAR=0
+FEATURE_VOICE=0
+```
+
+Usage:
+- Set `NEXT_PUBLIC_AVATAR_ENABLED=1` to render the 3D avatar UI.
+- Set `NEXT_PUBLIC_VOICE_ENABLED=1` to enable voice controls and playback on the client.
+- Set `FEATURE_VOICE=1` on the server to enable `/api/audio/tts`, `/api/audio/transcribe`, and legacy `/api/tts`.
+- Keep flags at 0 to instantly disable avatar/voice for rollback.
+
+Required when enabling voice:
+```
+OPENAI_API_KEY=your_key
+OPENAI_ASSISTANT_ID=optional_if_used
+```
+
 ## 🛠 Implementation Architecture
 
 ### Smart Loading Strategy
@@ -130,6 +153,17 @@ Users can configure avatar behavior through the smart component props:
 - Lazy loading of 3D components
 - Timeout-based resource management
 - Memory cleanup on component unmount
+- Draco mesh compression enabled in avatar loader
+- Long-lived immutable caching headers for media (.glb, .ktx2, .mp3/.opus)
+- Scripts for asset compression (gltfpack); texture pipeline follow-up (ktx2)
+
+#### Asset Compression Scripts
+
+```
+npm run compress:glb
+```
+
+Note: Add `basisu`/`toktx` for KTX2 texture compression as a follow-up.
 
 ## 📝 Development Notes
 
