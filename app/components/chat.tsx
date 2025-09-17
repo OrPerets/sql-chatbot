@@ -19,8 +19,11 @@ import ImageUpload from "./image-upload";
 import { fileToBase64 } from "../utils/parseImage";
 // import AudioRecorder from "./audio-recorder"; // Clean version: hide audio recorder button
 import MichaelAvatarDirect from "./MichaelAvatarDirect";
+import VoiceModeCircle from "./VoiceModeCircle";
+import { AvatarIcon, MicIcon } from "./AvatarToggleIcons";
 import { enhancedTTS } from "@/app/utils/enhanced-tts";
 import OpenAI from "openai";
+import PracticeModal from "./PracticeModal";
 
 export const maxDuration = 50;
 
@@ -268,6 +271,21 @@ const Chat = ({
   const [autoPlaySpeech, setAutoPlaySpeech] = useState(false);
   const enableAvatar = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1';
   const enableVoice = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_VOICE_ENABLED === '1';
+  // Add avatar mode state with localStorage persistence
+  const [avatarMode, setAvatarMode] = useState<'avatar' | 'voice'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('avatarMode');
+      return (saved === 'voice' || saved === 'avatar') ? saved : 'avatar';
+    }
+    return 'avatar';
+  });
+
+  // Persist avatar mode changes to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('avatarMode', avatarMode);
+    }
+  }, [avatarMode]);
   // Add sidebar visibility state
   // Check if we're on mobile to default sidebar to closed
   const [sidebarVisible, setSidebarVisible] = useState(() => {
@@ -306,6 +324,10 @@ const Chat = ({
   const [exerciseAttempts, setExerciseAttempts] = useState(0);
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [exerciseAnswer, setExerciseAnswer] = useState("");
+  
+  // Practice-related state
+  const [showPracticeModal, setShowPracticeModal] = useState(false);
+  const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
 
   // Memoized avatar state calculation to prevent multiple renders
   const avatarState = useMemo(() => {
@@ -399,13 +421,17 @@ const Chat = ({
 
   // Exercise-related functions
   const startExercise = async () => {
-    // Clean version: open simple “coming soon” modal (no server fetch)
-    setCurrentExercise(null);
-    setIsExerciseMode(true);
-    setShowSolutionButton(false);
-    setExerciseAttempts(0);
-    setExerciseAnswer("");
-    setShowExerciseModal(true);
+    // Show disclaimer modal first
+    setShowDisclaimerModal(true);
+  };
+
+  const handleDisclaimerConfirm = () => {
+    setShowDisclaimerModal(false);
+    setShowPracticeModal(true);
+  };
+
+  const handleDisclaimerCancel = () => {
+    setShowDisclaimerModal(false);
   };
 
   const submitExerciseAnswer = async () => {
@@ -1379,24 +1405,67 @@ return (
     <div className={styles.rightColumn}>
       <div className={styles.avatarSection}>
         {enableAvatar ? (
-        <MichaelAvatarDirect
-          text={lastAssistantMessage}
-          state={avatarState}
-          size="medium"
-          progressiveMode={enableVoice && !isDone}
-          isStreaming={enableVoice && !isDone}
-          onSpeakingStart={() => {
-            console.log('🎤 Michael started speaking');
-            if (enableVoice) setShouldSpeak(true);
-          }}
-          onSpeakingEnd={() => {
-            console.log('🎤 Michael finished speaking');
-            if (enableVoice) setShouldSpeak(false);
-            setIsAssistantMessageComplete(false);
-            setHasStartedSpeaking(false);
-            setIsManualSpeech(false);  // Reset manual speech flag
-          }}
-        />
+          <>
+            {avatarMode === 'avatar' ? (
+              <MichaelAvatarDirect
+                text={lastAssistantMessage}
+                state={avatarState}
+                size="medium"
+                progressiveMode={enableVoice && !isDone}
+                isStreaming={enableVoice && !isDone}
+                onSpeakingStart={() => {
+                  console.log('🎤 Michael started speaking');
+                  if (enableVoice) setShouldSpeak(true);
+                }}
+                onSpeakingEnd={() => {
+                  console.log('🎤 Michael finished speaking');
+                  if (enableVoice) setShouldSpeak(false);
+                  setIsAssistantMessageComplete(false);
+                  setHasStartedSpeaking(false);
+                  setIsManualSpeech(false);  // Reset manual speech flag
+                }}
+              />
+            ) : (
+              <VoiceModeCircle
+                state={avatarState}
+                size="medium"
+                text={lastAssistantMessage}
+                onSpeakingStart={() => {
+                  console.log('🎤 Voice circle started speaking');
+                  if (enableVoice) setShouldSpeak(true);
+                }}
+                onSpeakingEnd={() => {
+                  console.log('🎤 Voice circle finished speaking');
+                  if (enableVoice) setShouldSpeak(false);
+                  setIsAssistantMessageComplete(false);
+                  setHasStartedSpeaking(false);
+                  setIsManualSpeech(false);
+                }}
+              />
+            )}
+            
+            {/* Toggle Button */}
+            {/* <div className={styles.avatarToggle}>
+              <button 
+                className={`${styles.toggleButton} ${avatarMode === 'avatar' ? styles.avatarActive : styles.voiceActive}`}
+                onClick={() => setAvatarMode(avatarMode === 'avatar' ? 'voice' : 'avatar')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setAvatarMode(avatarMode === 'avatar' ? 'voice' : 'avatar');
+                  }
+                }}
+                title={avatarMode === 'avatar' ? 'מצב קול' : 'מצב אווטאר'}
+                aria-label={avatarMode === 'avatar' ? 'Switch to voice mode' : 'Switch to avatar mode'}
+                aria-pressed={avatarMode === 'voice'}
+                role="switch"
+                aria-checked={avatarMode === 'voice'}
+                tabIndex={0}
+              >
+                {avatarMode === 'avatar' ? <MicIcon size={20} /> : <AvatarIcon size={20} />}
+              </button>
+            </div> */}
+          </>
         ) : null}
         
         {/* User info below the avatar */}
@@ -1587,6 +1656,58 @@ return (
         +{pointsAnimation} 🎉
       </div>
     )}
+
+    {/* Disclaimer Modal */}
+    {showDisclaimerModal && (
+      <div className={styles.modalOverlay}>
+        <div className={styles.disclaimerModal}>
+          <div className={styles.disclaimerContent}>
+            <div className={styles.disclaimerIcon}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </div>
+            <h3 className={styles.disclaimerTitle}>שימו לב</h3>
+            <p className={styles.disclaimerText}>
+              מייקל יכול ליצור שאלות ותשובות שלא נכללות בחומר הנלמד
+            </p>
+            <div className={styles.disclaimerActions}>
+              <button
+                className={styles.disclaimerCancelButton}
+                onClick={handleDisclaimerCancel}
+              >
+                ביטול
+              </button>
+              <button
+                className={styles.disclaimerConfirmButton}
+                onClick={handleDisclaimerConfirm}
+              >
+                אני מסכים, התחל תרגול
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Practice Modal */}
+    <PracticeModal
+      isOpen={showPracticeModal}
+      onClose={() => setShowPracticeModal(false)}
+      userId={user?.email || 'anonymous'}
+    />
   </div>
 );
 };

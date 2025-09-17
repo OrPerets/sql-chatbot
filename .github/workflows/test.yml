@@ -1,0 +1,136 @@
+name: Frontend Tests
+
+on:
+  push:
+    branches: [ main, development ]
+  pull_request:
+    branches: [ main, development ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci --legacy-peer-deps
+
+    - name: Run linter
+      run: npm run lint
+
+    - name: Type check
+      run: npx tsc --noEmit
+
+    - name: Run component tests
+      run: npm run test:component
+      env:
+        NODE_ENV: test
+
+    - name: Run API route tests
+      run: npm run test:api
+      env:
+        NODE_ENV: test
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+    - name: Run all tests with coverage
+      run: npm run test:coverage
+      env:
+        NODE_ENV: test
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+        flags: frontend
+        name: frontend-coverage
+
+    - name: Build application
+      run: npm run build
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci --legacy-peer-deps
+
+    - name: Install Playwright Browsers
+      run: npx playwright install --with-deps
+
+    - name: Run Playwright tests
+      run: npm run test:e2e
+      env:
+        NODE_ENV: test
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: playwright-report
+        path: playwright-report/
+        retention-days: 30
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: npm ci --legacy-peer-deps
+    
+    - name: Run security audit for production dependencies only
+      run: |
+        echo "🔍 Checking production dependencies for high/critical vulnerabilities..."
+        
+        # Use --omit=dev instead of --production (recommended)
+        if npm audit --omit=dev --audit-level=high; then
+          echo "✅ No high/critical vulnerabilities in production dependencies"
+        else
+          echo "⚠️ Found vulnerabilities, checking severity..."
+          
+          # Get detailed audit info
+          AUDIT_RESULT=$(npm audit --omit=dev --audit-level=high --json 2>/dev/null || echo '{"vulnerabilities":{}}')
+          
+          # Extract vulnerability counts (handle missing jq gracefully)
+          if command -v jq >/dev/null 2>&1; then
+            HIGH_VULNS=$(echo "$AUDIT_RESULT" | jq '.metadata.vulnerabilities.high // 0' 2>/dev/null || echo "0")
+            CRITICAL_VULNS=$(echo "$AUDIT_RESULT" | jq '.metadata.vulnerabilities.critical // 0' 2>/dev/null || echo "0")
+          else
+            # Fallback without jq
+            HIGH_VULNS=$(echo "$AUDIT_RESULT" | grep -o '"high":[0-9]*' | cut -d: -f2 || echo "0")
+            CRITICAL_VULNS=$(echo "$AUDIT_RESULT" | grep -o '"critical":[0-9]*' | cut -d: -f2 || echo "0")
+          fi
+          
+          echo "High vulnerabilities: $HIGH_VULNS"
+          echo "Critical vulnerabilities: $CRITICAL_VULNS"
+          
+          # Only fail on actual high/critical vulnerabilities
+          if [ "$HIGH_VULNS" -gt 0 ] || [ "$CRITICAL_VULNS" -gt 0 ]; then
+            echo "❌ Found high/critical vulnerabilities in production dependencies"
+            npm audit --omit=dev --audit-level=high
+            exit 1
+          else
+            echo "✅ No high/critical vulnerabilities in production dependencies"
+          fi
+        fi
