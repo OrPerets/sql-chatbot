@@ -2,6 +2,11 @@
 
 The SQL Chatbot combines a Next.js front-end with the provided Express + Assistants API backend to help students master SQL. This document captures the forward-looking plan for integrating advanced OpenAI capabilities that deliver richer tutoring, safer SQL experimentation, and better personalization for every learner.
 
+## Full Homework Exercise Rebuild Status
+
+- ✅ Sprint 0 removed the legacy "Full Homework Exercise" exam and grade-by-question implementation from the mentor server while leaving the practice modal untouched.
+- 📄 See `docs/sprint-0-discovery.md` for the teardown inventory, shared dependency notes, and follow-up tasks before rebuilding the module.
+
 ## Guiding Principles
 - **Pedagogy first**: Each feature must increase clarity, feedback quality, or motivation for SQL learners.
 - **Transparent AI**: Students and instructors should understand when and how AI suggestions are produced.
