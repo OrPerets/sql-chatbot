@@ -1445,7 +1445,7 @@ return (
             )}
             
             {/* Toggle Button */}
-            <div className={styles.avatarToggle}>
+            {/* <div className={styles.avatarToggle}>
               <button 
                 className={`${styles.toggleButton} ${avatarMode === 'avatar' ? styles.avatarActive : styles.voiceActive}`}
                 onClick={() => setAvatarMode(avatarMode === 'avatar' ? 'voice' : 'avatar')}
@@ -1464,7 +1464,7 @@ return (
               >
                 {avatarMode === 'avatar' ? <MicIcon size={20} /> : <AvatarIcon size={20} />}
               </button>
-            </div>
+            </div> */}
           </>
         ) : null}
         
