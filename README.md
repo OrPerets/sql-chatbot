@@ -1,220 +1,86 @@
-# SQL ChatBot with 3D Michael Avatar
+# SQL Chatbot OpenAI Enhancement Roadmap
 
-A comprehensive SQL learning platform with an intelligent 3D teaching assistant named Michael.
+The SQL Chatbot combines a Next.js front-end with the provided Express + Assistants API backend to help students master SQL. This document captures the forward-looking plan for integrating advanced OpenAI capabilities that deliver richer tutoring, safer SQL experimentation, and better personalization for every learner.
 
-## 🎭 Avatar Features
+## Guiding Principles
+- **Pedagogy first**: Each feature must increase clarity, feedback quality, or motivation for SQL learners.
+- **Transparent AI**: Students and instructors should understand when and how AI suggestions are produced.
+- **Secure data handling**: Database credentials, student submissions, and analytics stay protected across every API call.
+- **Incremental rollout**: Ship improvements behind feature flags with measurable success metrics before broad release.
 
-### Smart Michael Avatar System
-Our advanced avatar system provides a seamless experience with intelligent fallback mechanisms:
+## Top 5 OpenAI-powered Improvements
+Each initiative below highlights the relevant OpenAI features and lists the core tasks required to deliver the enhancement.
 
-- **3D Michael Avatar**: Realistic 3D character using TalkingHead library
-- **Smart Fallback**: Graceful degradation to Lottie animations if 3D fails
-- **State Synchronization**: Speaking, listening, and thinking states work across both avatar types
-- **Progressive Enhancement**: Zero breaking changes to existing functionality
+### 1. Multi-model Tutor Profiles & Smart Fallbacks
+**OpenAI capabilities**: Responses API with model selection (e.g., `gpt-4.1`, `gpt-4o-mini`, `o4-mini`), per-request `reasoning` toggles, and cost telemetry.
 
-### Avatar Modes
+**Learner benefit**: Students can pick between fast/explanatory/advanced tutors, while admins maintain guardrails on latency and token spend.
 
-1. **3D Mode** (Primary)
-   - Realistic 3D character with facial expressions
-   - Advanced lip-sync and gesture capabilities
-   - Professional teaching pose and movements
-   - Hebrew and English TTS integration
+**TODO**
+- [ ] Extend user settings UI and `/chat-sessions` payloads to store preferred model + reasoning level.
+- [ ] Update backend request builder to map selections to OpenAI Responses API parameters with safe defaults.
+- [ ] Implement automatic fallback ladder (e.g., 4o ➝ 4o-mini ➝ 4-mini) when rate limits or outages occur; persist fallback events for monitoring.
+- [ ] Surface model + reasoning metadata in the chat transcript so learners understand which tutor responded.
 
-2. **2D Mode** (Fallback)
-   - Smooth Lottie animations
-   - Proven reliability and performance
-   - Enhanced voice synthesis
-   - Rich visual feedback
+### 2. Schema-aware Function Calling for SQL Guidance
+**OpenAI capabilities**: Responses API `tool_choice='auto'`, JSON function calling, function result streaming.
 
-### Configuration Options
+**Learner benefit**: The assistant can inspect live schema snapshots, validate learner SQL, and produce tailored hints before executing anything on the database.
 
-```typescript
-<SmartMichaelAvatar
-  text="שלום! אני מיכל"
-  autoPlay={true}
-  size="medium"
-  isListening={false}
-  isThinking={false}
-  preferMichael={true}      // Try 3D first
-  fallbackToLottie={true}   // Graceful fallback
-  loadTimeout={5000}        // 5 second timeout
-/>
-```
+**TODO**
+- [ ] Design server-side tool schema (e.g., `describe_tables`, `explain_query`, `run_safe_example`) that expose read-only metadata via the Express server.
+- [ ] Register tool definitions with the assistant and implement execution handlers that call existing `DB` utilities.
+- [ ] Add guardrails to block destructive statements and sanitize parameters before any DB call.
+- [ ] Cache recent schema/function outputs per thread to reduce redundant DB hits and improve response times.
 
-## 🚀 Getting Started
+### 3. Retrieval-Augmented Explanations & Course Handouts
+**OpenAI capabilities**: Assistants API vector stores, file search, and re-ranking; `response_format` for structured citations.
 
-### Prerequisites
+**Learner benefit**: Answers reference official course materials, homework rubrics, and instructor notes, giving students trustworthy, citation-backed explanations.
 
-- Node.js 18+ 
-- npm or yarn
-- Modern browser with WebGL support (for 3D avatar)
+**TODO**
+- [ ] Ingest syllabi, lecture decks, and graded exemplar answers into an OpenAI vector store via the server’s admin tools.
+- [ ] Link chat threads to the appropriate retrieval index (per course, semester, or instructor) during assistant creation.
+- [ ] Update UI to display cited snippets with source metadata (lecture title, slide number, etc.) in the message bubble.
+- [ ] Build an indexing maintenance job that refreshes embeddings when instructors upload new content.
 
-### Installation
+### 4. Structured SQL Critique & Auto-Scoring Pipeline
+**OpenAI capabilities**: Responses API with JSON mode, parallel tool calls, and function calling for rubric checks.
 
-```bash
-# Install dependencies
-npm install
+**Learner benefit**: Students receive actionable, rubric-aligned feedback and automated scoring on practice and exam questions while instructors can audit AI rationale.
 
-# Start development server
-npm run dev
+**TODO**
+- [ ] Define a JSON critique schema (score, error categories, fix-it steps) and enforce it via `response_format`.
+- [ ] Combine OpenAI analysis with existing `/submitExerciseAnswer` logic to cross-validate keyword checks against AI rubric findings.
+- [ ] Persist critiques and scores alongside `DB.saveExamAnswer` results for instructor review dashboards.
+- [ ] Add an instructor moderation queue that highlights low-confidence critiques or model disagreements for manual override.
 
-# Visit the avatar test page
-http://localhost:3000/test-michael-integration
-```
+### 5. Real-time Voice & Streaming SQL Walkthroughs
+**OpenAI capabilities**: Responses API streaming, Realtime API for audio input/output, `audio.speech` TTS + `audio.transcriptions` STT.
 
-### Environment Flags (Feature Gates)
+**Learner benefit**: A hands-free tutoring mode where the assistant narrates step-by-step reasoning, listens to follow-up questions, and keeps the 3D Michael avatar in sync.
 
-Add the following to your `.env.local` (all default OFF):
+**TODO**
+- [ ] Upgrade the chat front-end to use server-sent events or websockets that relay streaming deltas from the Responses API.
+- [ ] Integrate the Realtime API to capture microphone input, transcribe via Whisper, and feed transcripts into the conversation thread.
+- [ ] Synchronize avatar state changes (thinking/speaking/listening) with streaming lifecycle events for natural interactions.
+- [ ] Provide a downloadable session recap (audio + transcript + SQL snippets) generated from streamed content once a conversation ends.
 
-```
-NEXT_PUBLIC_AVATAR_ENABLED=0
-NEXT_PUBLIC_VOICE_ENABLED=0
-FEATURE_AVATAR=0
-FEATURE_VOICE=0
-```
+## Milestones & Measurement
+1. **Foundation (Weeks 1–2)**: Ship model switcher + telemetry dashboard. KPI: ≥80% of beta users customize tutor profile without support tickets.
+2. **Guided SQL (Weeks 3–5)**: Release function calling + critique pipeline to a pilot class. KPI: 25% reduction in manual grading time; <5% incorrect AI critiques.
+3. **Knowledge Depth (Weeks 6–7)**: Turn on retrieval with instructor content. KPI: ≥60% of explanations cite at least one course artifact.
+4. **Immersive Mode (Weeks 8–10)**: Deploy streaming voice experience. KPI: 30% of active users complete at least one voice-guided session; CSAT ≥ 4.2/5.
 
-Usage:
-- Set `NEXT_PUBLIC_AVATAR_ENABLED=1` to render the 3D avatar UI.
-- Set `NEXT_PUBLIC_VOICE_ENABLED=1` to enable voice controls and playback on the client.
-- Set `FEATURE_VOICE=1` on the server to enable `/api/audio/tts`, `/api/audio/transcribe`, and legacy `/api/tts`.
-- Keep flags at 0 to instantly disable avatar/voice for rollback.
+## Risk Mitigation
+- Maintain feature flags for every new capability and provide instant rollback paths.
+- Log OpenAI request metadata (model, latency, token usage) to monitor cost and reliability.
+- Establish human-in-the-loop review for auto-scoring before releasing grades to students.
+- Document privacy impact assessments whenever new student data flows through OpenAI endpoints.
 
-Required when enabling voice:
-```
-OPENAI_API_KEY=your_key
-OPENAI_ASSISTANT_ID=optional_if_used
-```
+## Getting Involved
+- **Developers**: Track feature branches and tasks in the project board; pair on tool schema design and UI experiments.
+- **Instructors**: Curate the canonical course materials and provide feedback on AI-generated critiques.
+- **Students**: Opt into beta tests, report confusing explanations, and help evaluate new tutoring modes.
 
-## 🛠 Implementation Architecture
-
-### Smart Loading Strategy
-
-1. **Loading Phase**: Attempts to load 3D Michael avatar
-2. **Timeout Protection**: Configurable timeout prevents hanging
-3. **Graceful Fallback**: Seamless switch to Lottie if 3D fails
-4. **Error Recovery**: Retry mechanisms and user feedback
-
-### Zero Breaking Changes
-
-The implementation uses a **progressive enhancement** approach:
-
-- Existing `MichaelChatAvatar` continues working
-- New `SmartMichaelAvatar` provides enhanced capabilities
-- Backward compatibility maintained
-- Gradual migration path available
-
-### File Structure
-
-```
-app/
-├── components/
-│   ├── SmartMichaelAvatar.tsx     # Smart hybrid component
-│   ├── SimpleMichaelAvatar.tsx    # 3D avatar component
-│   ├── michael-chat-avatar.tsx    # Original Lottie avatar
-│   └── chat.tsx                   # Main chat interface
-├── lib/
-│   └── talkinghead/              # TalkingHead library
-│       ├── talkinghead.mjs
-│       └── lipsync-*.mjs
-└── test-michael-integration/     # Demo page
-```
-
-## 🎯 Key Benefits
-
-✅ **Zero Breaking Changes**: Current system continues working  
-✅ **Progressive Enhancement**: 3D avatar is an upgrade, not replacement  
-✅ **Bulletproof Fallbacks**: Always shows working avatar  
-✅ **Future Proof**: Easy to add more avatar options  
-✅ **Performance Conscious**: Loads 3D only when beneficial  
-
-## 🧪 Testing
-
-Visit `/test-michael-integration` to:
-
-- Test 3D avatar loading
-- Verify fallback mechanisms  
-- Adjust timeout settings
-- Test different avatar states
-- Simulate loading failures
-
-## 🔧 Configuration
-
-### Avatar Preferences
-
-Users can configure avatar behavior through the smart component props:
-
-- `preferMichael`: Enable/disable 3D avatar attempt
-- `fallbackToLottie`: Allow fallback to 2D animations
-- `loadTimeout`: Maximum time to wait for 3D loading
-
-### Performance Optimization
-
-- Dynamic imports prevent SSR issues
-- Lazy loading of 3D components
-- Timeout-based resource management
-- Memory cleanup on component unmount
-- Draco mesh compression enabled in avatar loader
-- Long-lived immutable caching headers for media (.glb, .ktx2, .mp3/.opus)
-- Scripts for asset compression (gltfpack); texture pipeline follow-up (ktx2)
-
-#### Asset Compression Scripts
-
-```
-npm run compress:glb
-```
-
-Note: Add `basisu`/`toktx` for KTX2 texture compression as a follow-up.
-
-## 📝 Development Notes
-
-### TypeScript Considerations
-
-The TalkingHead library is JavaScript-based, so we use type assertions for compatibility:
-
-```typescript
-const head: any = new (TalkingHead as any)(element, options);
-```
-
-### Browser Compatibility
-
-- **3D Avatar**: Modern browsers with WebGL support
-- **2D Fallback**: All browsers with basic Canvas support
-- **Progressive Enhancement**: Graceful degradation on older browsers
-
-## 🎨 Customization
-
-### Adding New Avatar Models
-
-1. Place GLB file in `public/avatars/`
-2. Update `SimpleMichaelAvatar.tsx` with new URL
-3. Test loading and fallback behavior
-
-### Extending State Management
-
-The avatar system supports these states:
-- `idle`: Default state
-- `speaking`: Active speech
-- `listening`: Microphone active  
-- `thinking`: Processing user input
-
-Add new states by updating the state type and switch statements.
-
-## 🔍 Troubleshooting
-
-### 3D Avatar Not Loading
-
-1. Check browser WebGL support
-2. Verify GLB file accessibility
-3. Check console for loading errors
-4. Confirm timeout settings
-
-### Fallback Not Working  
-
-1. Verify `fallbackToLottie={true}`
-2. Check Lottie animation files
-3. Test timeout configuration
-4. Review error handling logs
-
----
-
-Built with ❤️ for effective SQL learning
+Together, these enhancements leverage OpenAI’s latest APIs to deliver a safer, smarter, and more personalized SQL learning companion.
