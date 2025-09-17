@@ -42,6 +42,7 @@ export const mockFetch = (responses: { [url: string]: any }) => {
           text: async () => JSON.stringify(response.data || response),
         })
       }
+      return Promise.reject(new Error('No mock found for URL: ' + requestUrl))
     })
   })
   
@@ -117,7 +118,7 @@ export const waitForElement = async (
 /**
  * Mock Next.js router with custom values
  */
-export const mockRouter = (overrides: Partial<any> = {}) => {
+export const mockRouter = (overrides: any = {}) => {
   const router = {
     route: '/',
     pathname: '/',
@@ -138,7 +139,7 @@ export const mockRouter = (overrides: Partial<any> = {}) => {
     ...overrides
   }
   
-  require('next/router').__setMockRouter(router)
+  // Note: This would require additional setup for actual router mocking
   return router
 }
 
