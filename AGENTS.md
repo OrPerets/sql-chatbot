@@ -1,20 +1,39 @@
-# Full Homework Exercise Module Rebuild Guidelines
+# Full Homework Exercise Module Rebuild Guidelines (Exam & Grade-by-Question Pages)
 
-This document outlines the phased implementation plan for rebuilding the **Full Homework Exercise** module in Michael. The existing implementation must be fully removed before introducing the new solution. Follow the sprint structure below to deliver the new student (runner) and instructor/admin (builder) experiences while maintaining integration with the Node.js + MongoDB backend services.
+This document outlines the phased implementation plan for rebuilding the Full Homework Exercise module in Michael, focusing on the exam page and all admin pages related to grade-by-question.
+
+⚠️ Important: The practice option available through the Michael chat button must remain untouched and fully operational. This rebuild affects only the exam-related and grading-related flows.
+
+The existing exam/grade-by-question implementation must be fully removed before introducing the new solution. Follow the sprint structure below to deliver the new student (runner) and instructor/admin (builder) experiences while maintaining integration with the Node.js + MongoDB backend services.
+
+
+---
 
 ## Sprint 0 — Discovery & Teardown
-**Goal:** Understand current shortcomings and prepare the codebase for a complete rebuild.
+
+**Goal**: Understand current shortcomings and prepare the codebase for a complete rebuild of the exam and grade-by-question flows.
 
 **Deliverables:**
-- Documented assessment of the legacy module and related assets slated for removal.
-- Clean codebase without obsolete "Full Homework Exercise" files, routes, database schemas, or UI remnants.
+
+Documented assessment of the legacy exam and admin grading components slated for removal.
+
+Clean codebase without obsolete "Full Homework Exercise" exam-related files, routes, database schemas, or UI remnants.
+
+Michael’s practice option remains intact and unaffected.
+
 
 **Task Board:**
-- [ ] Inventory existing student/admin homework components, utilities, API endpoints, and fixtures.
-- [ ] Identify shared dependencies (datasets, auth hooks, telemetry) that must be retained.
-- [ ] Delete all legacy module source, tests, styles, and configuration entries.
-- [ ] Remove or migrate deprecated database collections or schemas (coordinate with backend team for MongoDB updates).
-- [ ] Confirm CI/test suite passes after removal and update documentation to mark the module as pending rebuild.
+
+[ ] Inventory existing student exam runner, admin grade-by-question components, utilities, API endpoints, and fixtures.
+
+[ ] Identify shared dependencies (datasets, auth hooks, telemetry) that must be retained.
+
+[ ] Delete all exam-specific legacy module source, tests, styles, and configuration entries.
+
+[ ] Remove or migrate deprecated database collections or schemas related to grading (coordinate with backend team for MongoDB updates).
+
+[ ] Confirm CI/test suite passes after removal and update documentation to mark the module as pending rebuild.
+
 
 ## Sprint 1 — Architecture & Foundations
 **Goal:** Establish the technical blueprint and baseline infrastructure for the new module.
