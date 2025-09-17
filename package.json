@@ -7,6 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:component": "jest --testPathPattern=components",
+    "test:api": "jest --testPathPattern=api",
     "compress:glb": "npx gltfpack -i public/avatars/michael.glb -o public/avatars/michael.min.glb -cc -kn -km",
     "compress:textures": "echo 'Use basisu/toktx to compress textures to .ktx2'"
   },
@@ -35,7 +42,15 @@
   "devDependencies": {
     "@types/node": "20.12.7",
     "@types/react": "18.2.79",
-    "typescript": "5.4.5"
+    "typescript": "5.4.5",
+    "@testing-library/react": "^14.1.2",
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/user-event": "^14.5.1",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "@playwright/test": "^1.40.0",
+    "msw": "^2.0.8",
+    "@types/jest": "^29.5.8"
   },
   "prettier": {
     "singleQuote": false
