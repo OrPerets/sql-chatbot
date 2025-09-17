@@ -13,26 +13,10 @@ The existing exam/grade-by-question implementation must be fully removed before 
 
 **Goal**: Understand current shortcomings and prepare the codebase for a complete rebuild of the exam and grade-by-question flows.
 
-**Deliverables:**
+Sprint 0 removed the legacy "Full Homework Exercise" exam and grade-by-question implementation from the mentor server while leaving the practice modal untouched.
 
-Documented assessment of the legacy exam and admin grading components slated for removal.
-
-Clean codebase without obsolete "Full Homework Exercise" exam-related files, routes, database schemas, or UI remnants.
-
-Michael’s practice option remains intact and unaffected.
-
-
-**Task Board:**
-
-[ ] Inventory existing student exam runner, admin grade-by-question components, utilities, API endpoints, and fixtures.
-
-[ ] Identify shared dependencies (datasets, auth hooks, telemetry) that must be retained.
-
-[ ] Delete all exam-specific legacy module source, tests, styles, and configuration entries.
-
-[ ] Remove or migrate deprecated database collections or schemas related to grading (coordinate with backend team for MongoDB updates).
-
-[ ] Confirm CI/test suite passes after removal and update documentation to mark the module as pending rebuild.
+See docs/sprint-0-discovery.md for the teardown inventory, shared dependency notes, and follow-up tasks before rebuilding the module.
+Guiding Principles
 
 
 ## Sprint 1 — Architecture & Foundations
