@@ -2,7 +2,16 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
- import { LogOut, Users, Settings, BarChart3, FileText, Search, Upload, ToggleLeft, Shield, Clock, Award, Database, BookOpen } from 'lucide-react';
+import { Users, Settings, BarChart3, FileText, Search, Upload, Shield, Clock, Award, Database, BookOpen } from 'lucide-react';
+import AdminLayout from './admin/AdminLayout';
+import StatsCard from './admin/StatsCard';
+import MissingAnswersAudit from './admin/MissingAnswersAudit';
+import ErrorBanner from './admin/ErrorBanner';
+import SkeletonCard from './admin/SkeletonCard';
+import SearchBar from './admin/SearchBar';
+import BulkActions from './admin/BulkActions';
+import UsersList from './admin/UsersList';
+import EnhancedSettingsToggle from './admin/EnhancedSettingsToggle';
 import styles from './admin_page.module.css';
 import config from '../config';
 
@@ -18,7 +27,7 @@ const AdminPage: React.FC = () => {
  const [currentUser, setCurrentUser] = useState(null);
  const [error, setError] = useState('');
  const [users, setUsers] = useState([]);
- const [classes, setClasses] = useState([{ id: 0, name: 'All classes' }]);
+ const [classes, setClasses] = useState([{ id: 0, name: 'כל הכיתות' }]);
  const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(true);
  const [isStatuseVisible, setIsStatusVisible] = useState(true);
  const [successMessage, setSuccessMessage] = useState('');
@@ -26,11 +35,8 @@ const AdminPage: React.FC = () => {
  const [isUploading, setIsUploading] = useState(false);
  const [uploadResult, setUploadResult] = useState<any>(null);
  const [activeTab, setActiveTab] = useState('dashboard');
- 
- // Missing answers state
- const [missingAnswersData, setMissingAnswersData] = useState<any>(null);
- const [checkingMissingAnswers, setCheckingMissingAnswers] = useState(false);
- const [fixingMissingAnswers, setFixingMissingAnswers] = useState(false);
+ const [loading, setLoading] = useState(true);
+ const [dismissedMessages, setDismissedMessages] = useState<string[]>([]);
 
  // Fetch initial token visibility state
  useEffect(() => {
@@ -43,6 +49,7 @@ const AdminPage: React.FC = () => {
  // Fetch users and classes data
  useEffect(() => {
    const fetchData = async () => {
+     setLoading(true);
      try {
        // Fetch users
        const usersResponse = await fetch(`${SERVER_BASE}/allUsers`);
@@ -61,7 +68,7 @@ const AdminPage: React.FC = () => {
        setUsers(usersData);
 
        try {
-         // Fetch classes if endpoint exists-- needs to add classes column to the users table
+         // Fetch classes if endpoint exists
          const classesResponse = await fetch(`${SERVER_BASE}/classes`);
          if (classesResponse.ok) {
            const classesData = await classesResponse.json();
@@ -69,7 +76,6 @@ const AdminPage: React.FC = () => {
          }
        } catch (classErr) {
          console.log('Classes endpoint not available yet');
-         // Continue with default class only
        }
      } catch (err) {
        console.error('Error fetching users:', err);
@@ -89,12 +95,13 @@ const AdminPage: React.FC = () => {
       const data = await response.json();
       if (data["status"] === 'ON') {
         setIsStatusVisible(true);
-      
       } else {
         setIsStatusVisible(false);
       }
     } catch (error) {
       setError('Failed to fetch status. Please try again.');
+    } finally {
+      setLoading(false);
     }
    };
 
@@ -189,225 +196,181 @@ const AdminPage: React.FC = () => {
    }
  };
 
- // Missing answers functions
- const checkMissingAnswers = async () => {
-   setCheckingMissingAnswers(true);
-   try {
-     const response = await fetch('/api/admin/check-missing-answers');
-     const data = await response.json();
-     setMissingAnswersData(data);
-     
-     if (data.questionsWithoutSolution > 0) {
-       setSuccessMessage(`נמצאו ${data.questionsWithoutSolution} שאלות ללא תשובות נכונות`);
-     } else {
-       setSuccessMessage('כל השאלות מכילות תשובות נכונות!');
-     }
-   } catch (error) {
-     console.error('Error checking missing answers:', error);
-     setError('שגיאה בבדיקת תשובות נכונות');
-   } finally {
-     setCheckingMissingAnswers(false);
-   }
+ // Message handlers
+ const handleSuccess = (message: string) => {
+   setSuccessMessage(message);
+   setTimeout(() => setSuccessMessage(''), 5000);
  };
 
- const fixMissingAnswers = async () => {
-   setFixingMissingAnswers(true);
-   try {
-     const response = await fetch('/api/admin/check-missing-answers', {
-       method: 'POST'
-     });
-     const data = await response.json();
-     setMissingAnswersData(data);
-     
-     if (data.fixedCount > 0) {
-       setSuccessMessage(`תוקנו ${data.fixedCount} שאלות בהצלחה!`);
-     } else {
-       setSuccessMessage('לא נמצאו שאלות לתיקון');
-     }
-   } catch (error) {
-     console.error('Error fixing missing answers:', error);
-     setError('שגיאה בתיקון תשובות נכונות');
-   } finally {
-     setFixingMissingAnswers(false);
-   }
+ const handleError = (message: string) => {
+   setError(message);
+ };
+
+ const dismissError = () => {
+   setError('');
+ };
+
+ const dismissSuccess = () => {
+   setSuccessMessage('');
  };
 
  const renderDashboard = () => (
    <div className={styles.dashboardSection}>
+     {/* Hero Section with System Overview */}
+     <div className={styles.heroSection}>
+       <div className={styles.heroContent}>
+         <div className={styles.heroText}>
+           <h1>ברוכים הבאים למערכת הניהול</h1>
+           <p>סקירה כללית של המערכת ופעולות מהירות</p>
+         </div>
+         <div className={styles.heroStats}>
+           <div className={styles.heroStat}>
+             <div className={styles.heroStatNumber}>{users.length}</div>
+             <div className={styles.heroStatLabel}>משתמשים פעילים</div>
+           </div>
+           <div className={styles.heroStat}>
+             <div className={styles.heroStatNumber}>{isStatuseVisible ? 'פעיל' : 'כבוי'}</div>
+             <div className={styles.heroStatLabel}>מצב מערכת</div>
+           </div>
+         </div>
+       </div>
+     </div>
+
+     {/* KPI Stats Grid */}
      <div className={styles.statsGrid}>
-       <div className={styles.statCard}>
-         <div className={styles.statIcon}>
-           <Users size={24} />
-         </div>
-         <div className={styles.statContent}>
-           <div className={styles.statNumber}>{users.length}</div>
-           <div className={styles.statLabel}>משתמשים רשומים</div>
-         </div>
-       </div>
-       
-       <div className={styles.statCard}>
-         <div className={styles.statIcon}>
-           <Database size={24} />
-         </div>
-         <div className={styles.statContent}>
-           <div className={styles.statNumber}>{classes.length - 1}</div>
-           <div className={styles.statLabel}>כיתות</div>
-         </div>
-       </div>
-       
-       <div className={styles.statCard}>
-         <div className={styles.statIcon}>
-           <Award size={24} />
-         </div>
-         <div className={styles.statContent}>
-           <div className={styles.statNumber}>
-             {users.reduce((sum, user) => sum + (user.coins || 0), 0)}
-           </div>
-           <div className={styles.statLabel}>מטבעות סה"כ</div>
-         </div>
-       </div>
+       {loading ? (
+         <>
+           <SkeletonCard variant="stat" />
+           <SkeletonCard variant="stat" />
+           <SkeletonCard variant="stat" />
+         </>
+       ) : (
+         <>
+           <StatsCard
+             icon={Users}
+             title="משתמשים רשומים"
+             value={users.length}
+             description='סה"כ משתמשים במערכת'
+             trend={{
+               value: 12,
+               label: "השבוע האחרון",
+               direction: "up"
+             }}
+             onClick={() => setActiveTab('users')}
+           />
+           <StatsCard
+             icon={Database}
+             title="כיתות"
+             value={classes.length - 1}
+             description="כיתות פעילות במערכת"
+             trend={{
+               value: 2,
+               label: "חודש זה",
+               direction: "up"
+             }}
+           />
+           <StatsCard
+             icon={Award}
+             title='מטבעות סה"כ'
+             value={users.reduce((sum, user) => sum + (user.coins || 0), 0)}
+             description="יתרת מטבעות כוללת"
+             trend={{
+               value: -5,
+               label: "השבוע האחרון",
+               direction: "down"
+             }}
+           />
+         </>
+       )}
      </div>
 
+     {/* Quick Actions */}
      <div className={styles.quickActions}>
-       <h3 className={styles.sectionTitle}>ממשק מבחנים</h3>
+       <div className={styles.sectionHeader}>
+         <h3 className={styles.sectionTitle}>פעולות מהירות</h3>
+         <p className={styles.sectionDescription}>גישה מהירה למודולים עיקריים</p>
+       </div>
        <div className={styles.actionButtons}>
-        <button
-          onClick={() => router.push('/homework/questions')}
-          className={styles.quickActionButton}
-        >
-          <FileText size={20} />
-          <span>בנק שאלות לשיעורי בית</span>
-        </button>
-        <button
-          onClick={() => router.push('/admin/homework')}
-          className={styles.quickActionButton}
-        >
-          <BookOpen size={20} />
-          <span>ניהול שיעורי בית</span>
-        </button>
-       {/* Exam-related quick actions removed during teardown (Sprint 0) */}
-      </div>
-     </div>
-
-     {/* Missing Correct Answers Section */}
-     <div className={styles.missingAnswersSection}>
-       <h3 className={styles.sectionTitle}>בדיקת תשובות נכונות</h3>
-       <div className={styles.missingAnswersCard}>
-         <div className={styles.missingAnswersHeader}>
+         <button
+           onClick={() => router.push('/homework/questions')}
+           className={styles.quickActionButton}
+         >
            <FileText size={20} />
-           <span>וודא שכל השאלות מכילות תשובות נכונות</span>
-         </div>
-         
-         <div className={styles.missingAnswersActions}>
-           <button
-             onClick={checkMissingAnswers}
-             disabled={checkingMissingAnswers}
-             className={styles.checkButton}
-           >
-             {checkingMissingAnswers ? 'בודק...' : 'בדוק תשובות חסרות'}
-           </button>
-           
-           {missingAnswersData && missingAnswersData.questionsWithoutSolution > 0 && (
-             <button
-               onClick={fixMissingAnswers}
-               disabled={fixingMissingAnswers}
-               className={styles.fixButton}
-             >
-               {fixingMissingAnswers ? 'מתקן...' : `תקן ${missingAnswersData.questionsWithoutSolution} שאלות`}
-             </button>
-           )}
-         </div>
-
-         {missingAnswersData && (
-           <div className={styles.missingAnswersResults}>
-             <div className={styles.resultsSummary}>
-               <p><strong>סה"כ שאלות:</strong> {missingAnswersData.totalQuestions}</p>
-               <p><strong>שאלות ללא תשובות נכונות:</strong> {missingAnswersData.questionsWithoutSolution || 0}</p>
-               {missingAnswersData.fixedCount > 0 && (
-                 <p><strong>תוקנו:</strong> {missingAnswersData.fixedCount}</p>
-               )}
-             </div>
-             
-             {missingAnswersData.missingAnswers && missingAnswersData.missingAnswers.length > 0 && (
-               <div className={styles.missingAnswersList}>
-                 <h4>שאלות שעדיין חסרות תשובות:</h4>
-                 <ul>
-                   {missingAnswersData.missingAnswers.map((q: any) => (
-                     <li key={q.id}>
-                       <strong>שאלה #{q.id}</strong> ({q.difficulty}): {q.question}
-                     </li>
-                   ))}
-                 </ul>
-               </div>
-             )}
+           <div className={styles.buttonContent}>
+             <span className={styles.buttonTitle}>בנק שאלות</span>
+             <span className={styles.buttonDescription}>ניהול וערכת שאלות</span>
            </div>
-         )}
+         </button>
+         <button
+           onClick={() => router.push('/admin/homework')}
+           className={styles.quickActionButton}
+         >
+           <BookOpen size={20} />
+           <div className={styles.buttonContent}>
+             <span className={styles.buttonTitle}>ניהול שיעורי בית</span>
+             <span className={styles.buttonDescription}>יצירה ומעקב אחר מטלות</span>
+           </div>
+         </button>
        </div>
      </div>
+
+     {/* Missing Answers Audit */}
+     <MissingAnswersAudit
+       onSuccess={handleSuccess}
+       onError={handleError}
+     />
    </div>
  );
 
  const renderSystemSettings = () => (
    <div className={styles.settingsSection}>
+     <div className={styles.sectionHeader}>
+       <h2 className={styles.sectionTitle}>הגדרות מערכת</h2>
+       <p className={styles.sectionDescription}>
+         ניהול הגדרות מערכת, מטבעות וירטואליים ומצב מייקל
+       </p>
+     </div>
+
      <div className={styles.settingsGrid}>
-       <div className={styles.settingCard}>
-         <div className={styles.settingHeader}>
-           <Shield size={20} />
-           <span>הגדרות מערכת</span>
-         </div>
-         <div className={styles.togglesContainer}>
-           <div className={styles.toggleItem}>
-             <label>
-               <span>מטבעות וירטואלים</span>
-               <div className={styles.toggle}>
-                 <input
-                   type="checkbox"
-                   checked={isTokenBalanceVisible}
-                   onChange={async (e) => {
-                     const newValue = e.target.checked;
-                     setIsTokenBalanceVisible(newValue);
-                     updateCoinsStatus(newValue)
-                   }}
-                 />
-                 <div className={styles.slider}>
-                   <span className={styles.on}></span>
-                   <span className={styles.off}></span>
-                 </div>
-               </div>
-             </label>
-           </div>
-           <div className={styles.toggleItem}>
-             <label>
-               <span>מייקל</span>
-               <div className={styles.toggle}>
-                 <input
-                   type="checkbox"
-                   checked={isStatuseVisible}
-                   onChange={async (e) => {
-                     const newValue = e.target.checked;
-                     setIsStatusVisible(newValue);
-                     try {
-                       await fetch(`${SERVER_BASE}/setStatus`, {
-                         method: 'POST',
-                         headers: {
-                           'Content-Type': 'application/json',
-                         },
-                         body: JSON.stringify({ newStatus: newValue ? "ON" : "OFF"})
-                       });
-                     } catch (error) {
-                       console.error('Error updating status:', error);
-                     }
-                   }}
-                 />
-                 <div className={styles.slider}>
-                   <span className={styles.on}></span>
-                   <span className={styles.off}></span>
-                 </div>
-               </div>
-             </label>
-           </div>
-         </div>
-       </div>
+       <EnhancedSettingsToggle
+         title="הגדרות מערכת"
+         icon={Shield}
+         items={[
+           {
+             id: 'virtual-coins',
+             label: 'מטבעות וירטואליים',
+             description: 'הצג יתרת מטבעות למשתמשים במערכת',
+             helpText: 'כאשר מופעל, משתמשים יכולים לראות את יתרת המטבעות שלהם ולקבל מטבעות עבור פעילויות. כאשר כבוי, המטבעות לא יוצגו בכלל.',
+             checked: isTokenBalanceVisible,
+             onChange: async (checked) => {
+               setIsTokenBalanceVisible(checked);
+               updateCoinsStatus(checked);
+             }
+           },
+           {
+             id: 'michael-ai',
+             label: 'מייקל AI',
+             description: 'הפעל או כבה את עוזר הבינה המלאכותית מייקל',
+             helpText: 'מייקל הוא עוזר AI שעוזר לתלמידים ללמוד SQL. כאשר מופעל, התלמידים יכולים לשאול שאלות ולקבל עזרה. כאשר כבוי, מייקל לא יהיה זמין.',
+             checked: isStatuseVisible,
+             onChange: async (checked) => {
+               setIsStatusVisible(checked);
+               try {
+                 await fetch(`${SERVER_BASE}/setStatus`, {
+                   method: 'POST',
+                   headers: {
+                     'Content-Type': 'application/json',
+                   },
+                   body: JSON.stringify({ newStatus: checked ? "ON" : "OFF"})
+                 });
+               } catch (error) {
+                 console.error('Error updating status:', error);
+                 setError('שגיאה בעדכון סטטוס מייקל');
+               }
+             }
+           }
+         ]}
+       />
 
        <div className={styles.settingCard}>
          <div className={styles.settingHeader}>
@@ -415,6 +378,16 @@ const AdminPage: React.FC = () => {
            <span>התאמות זמן בחינה</span>
          </div>
          <div className={styles.extraTimeManagement}>
+           <div className={styles.uploadInstructions}>
+             <h4>הוראות העלאה:</h4>
+             <ul>
+               <li>הקובץ חייב להכיל עמודות: ID (מספר זהות) ו-PERCENTAGE (אחוז זמן נוסף)</li>
+               <li>אחוז הזמן הנוסף חייב להיות בין 0 ל-100</li>
+               <li>במקרה של כפילויות, הרשומה האחרונה תתקבל</li>
+               <li>תמיכה בקבצי .xlsx ו-.csv</li>
+             </ul>
+           </div>
+           
            <div className={styles.fileUploadSection}>
              <input
                type="file"
@@ -439,6 +412,7 @@ const AdminPage: React.FC = () => {
                </div>
              )}
            </div>
+           
            <button
              onClick={handleUploadExtraTime}
              disabled={!selectedFile || isUploading}
@@ -446,6 +420,7 @@ const AdminPage: React.FC = () => {
            >
              {isUploading ? 'מעלה...' : 'העלה התאמות זמן'}
            </button>
+           
            {uploadResult && (
              <div className={`${styles.uploadResult} ${uploadResult.success ? styles.success : styles.error}`}>
                <div className={styles.uploadResultTitle}>
@@ -456,7 +431,7 @@ const AdminPage: React.FC = () => {
                </div>
                {uploadResult.summary && (
                  <div className={styles.uploadSummary}>
-                   <div>סה"כ רשומות: {uploadResult.summary.totalRecords}</div>
+                   <div>סה&quot;כ רשומות: {uploadResult.summary.totalRecords}</div>
                    <div>נוספו: {uploadResult.summary.inserted}</div>
                    <div>עודכנו: {uploadResult.summary.updated}</div>
                    <div>שגיאות: {uploadResult.summary.errors}</div>
@@ -464,15 +439,6 @@ const AdminPage: React.FC = () => {
                )}
              </div>
            )}
-           <div className={styles.uploadInstructions}>
-             <h4>הוראות:</h4>
-             <ul>
-               <li>הקובץ חייב להכיל עמודות: ID (מספר זהות) ו-PERCENTAGE (אחוז זמן נוסף)</li>
-               <li>אחוז הזמן הנוסף חייב להיות בין 0 ל-100</li>
-               <li>במקרה של כפילויות, הרשומה האחרונה תתקבל</li>
-               <li>תמיכה בקבצי .xlsx ו-.csv</li>
-             </ul>
-           </div>
          </div>
        </div>
      </div>
@@ -481,274 +447,119 @@ const AdminPage: React.FC = () => {
 
  const renderUserManagement = () => (
    <div className={styles.userManagementSection}>
-     {successMessage && <div className={styles.successMessage}>{successMessage}</div>}
-     
+     <div className={styles.sectionHeader}>
+       <h2 className={styles.sectionTitle}>ניהול משתמשים</h2>
+       <p className={styles.sectionDescription}>
+         ניהול משתמשים, יתרות מטבעות ופעולות מרובות
+       </p>
+     </div>
+
      <div className={styles.controlsContainer}>
        {selectedUsers.length > 0 && (
-         <div className={styles.bulkActions}>
-           <div className={styles.bulkActionsHeader}>
-             <span>פעולות על {selectedUsers.length} משתמשים נבחרים:</span>
-           </div>
-           <div className={styles.bulkActionsControls}>
-             <select
-               value={actionType}
-               onChange={(e) => setActionType(e.target.value)}
-               className={styles.actionSelect}
-             >
-               <option value="">בחר אפשרות</option>
-               {Object.keys(options).map(option => (
-                 <option key={option} value={option}>
-                   {options[option]}
-                 </option>
-               ))}
-             </select>
-            
-             {Object.keys(options).includes(actionType) && (
-               <input
-                 type="number"
-                 value={balanceAmount}
-                 onChange={(e) => setBalanceAmount(e.target.value)}
-                 placeholder="כמות"
-                 className={styles.balanceInput}
-               />
-             )}
-
-             <button
-               onClick={async () => {
-                 try {
-                   if (!actionType) {
-                     setError('Please select an action');
-                     return;
-                   }
-                   if (['add_balance', 'reduce_balance', 'set_balance'].includes(actionType) && !balanceAmount) {
-                     setError('Please enter an amount');
-                     return;
-                   }
-
-                   if (actionType === "reset_password") {
-                    await fetch(SERVER_BASE + '/updatePasswordToMany', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({ emails: selectedUsers})
-                   })
-                  } else {
-
-                   // Prepare the request body with the single action
-                   const requestBody = {
-                     users: selectedUsers,
-                     type: actionType,
-                     amount: parseInt(balanceAmount)
-                   };
-
-                   // Send request to server with multiple actions
-                   const response = await fetch(SERVER_BASE + '/admin/changeBalance', {
-                     method: 'POST',
-                     headers: {
-                       'Content-Type': 'application/json',
-                     },
-                     body: JSON.stringify(requestBody)
-                   });
-
-                   if (!response.ok) {
-                     const errorData = await response.json();
-                     throw new Error(errorData.error || 'Failed to perform bulk action');
-                   }
-                   }
-
-                   // Refresh users data after successful action
-                   const usersResponse = await fetch(`${SERVER_BASE}/allUsers`);
-                   const usersData = await usersResponse.json();
-                   setUsers(usersData);
-
-                   // Reset form and clear any previous errors
-                   setError('');
-                   setActionType('');
-                   setBalanceAmount('');
-                   setSelectedUsers([]);
-                   setSuccessMessage('הפעולה בוצעה בהצלחה! ✅');
-                   setTimeout(() => setSuccessMessage(''), 3000);
-                 } catch (err) {
-                   console.error('Error performing bulk action:', err);
-                   setError('Failed to perform action');
-                 }
-               }}
-               className={styles.actionButton}
-               disabled={!actionType}
-             >
-               אישור
-             </button>
-           </div>
-         </div>
+         <BulkActions
+           selectedUsers={selectedUsers}
+           onSuccess={() => {
+             handleSuccess('הפעולה בוצעה בהצלחה!');
+             setSelectedUsers([]);
+             // Refresh users data
+             fetchUsersData();
+           }}
+           onError={handleError}
+         />
        )}
-      
-       <div className={styles.searchContainer}>
-         <div className={styles.searchHeader}>
-           <Search size={20} />
-           <input
-             type="text"
-             placeholder="הכנס מילות חיפוש..."
-             value={searchTerm}
-             onChange={(e) => setSearchTerm(e.target.value)}
-             className={styles.searchInput}
-           />
-         </div>
-       </div>
+       
+       <SearchBar
+         searchTerm={searchTerm}
+         onSearchChange={setSearchTerm}
+         selectedClass={selectedClass}
+         onClassChange={setSelectedClass}
+         classes={classes}
+       />
 
-       <div className={styles.usersContainer}>
-         <div className={styles.usersHeader}>
-           <label className={styles.selectAllContainer}>
-             <input
-               type="checkbox"
-               checked={selectedUsers.length === users.filter(user =>
-                 (selectedClass === 0 || user.classId === selectedClass) &&
-                 (user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                 user.email.toLowerCase().includes(searchTerm.toLowerCase()))
-               ).length}
-               onChange={(e) => {
-                 const filteredUsers = users.filter(user =>
-                   (selectedClass === 0 || user.classId === selectedClass) &&
-                   (user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                   user.email.toLowerCase().includes(searchTerm.toLowerCase()))
-                 );
-                 setSelectedUsers(e.target.checked ? filteredUsers.map(u => u.email) : []);
-               }}
-             />
-             בחר הכל
-           </label>
-         </div>
-         <div className={styles.usersList}>
-           {(() => {
-             const filteredUsers = users.filter(user =>
-               (selectedClass === 0 || user.classId === selectedClass) &&
-               (user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-               user.email.toLowerCase().includes(searchTerm.toLowerCase()))
-             );
-
-             if (filteredUsers.length === 0) {
-               return (
-                 <div className={styles.noResults}>
-                   <div className={styles.noResultsIcon}>🔍</div>
-                   <div className={styles.noResultsText}>
-                     {searchTerm ? 'לא נמצאו תוצאות עבור החיפוש' : 'אין משתמשים להצגה'}
-                   </div>
-                   {searchTerm && (
-                     <div className={styles.noResultsSubtext}>
-                       נסה לחפש במילות חיפוש אחרות
-                     </div>
-                   )}
-                 </div>
-               );
-             }
-
-             return filteredUsers.map(user => (
-               <div key={user.id} className={styles.userCard}>
-                 <div className={styles.userInfo}>
-                   <div className={styles.userName}>{user.name || user.firstName}</div>
-                   <div className={styles.userEmail}>{user.email}</div>
-                 </div>
-                 <div className={styles.leftSection}>
-                   <div className={styles.userBalance}>
-                     <span className={styles.balanceLabel}>יתרה:</span>
-                     <span className={styles.balanceValue}>{user.coins}</span>
-                   </div>
-                   <input
-                     type="checkbox"
-                     checked={selectedUsers.includes(user.email)}
-                     onChange={(e) => {
-                       setSelectedUsers(prev =>
-                         e.target.checked
-                           ? [...prev, user.email]
-                           : prev.filter(email => email !== user.email)
-                       );
-                     }}
-                     className={styles.userCheckbox}
-                   />
-                 </div>
-               </div>
-             ));
-           })()}
-         </div>
-       </div>
+       <UsersList
+         users={users}
+         searchTerm={searchTerm}
+         selectedClass={selectedClass}
+         selectedUsers={selectedUsers}
+         onSelectionChange={setSelectedUsers}
+         loading={loading}
+       />
      </div>
    </div>
  );
 
- return error ? (
+ // Helper function to refresh users data
+ const fetchUsersData = async () => {
+   try {
+     const usersResponse = await fetch(`${SERVER_BASE}/allUsers`);
+     const usersData = await usersResponse.json();
+     
+     const coinsData = await fetch(`${SERVER_BASE}/getAllCoins`);
+     const coins = await coinsData.json();
+     usersData.forEach(user => {
+      let temp = coins.filter(item => item.user === user.email)
+      if (temp.length > 0) {
+        user.coins = temp[0]["coins"]
+      } else {
+        user.coins = 0;
+      }
+     });
+     setUsers(usersData);
+   } catch (err) {
+     console.error('Error fetching users:', err);
+     setError('שגיאה בטעינת נתוני משתמשים');
+   }
+ };
+
+ return error && !dismissedMessages.includes('main-error') ? (
    <div className={styles.adminContainer}>
-     <div className={styles.errorMessage}>{error}</div>
+     <ErrorBanner
+       message="שגיאה בגישה למערכת הניהול"
+       details={error}
+       type="error"
+       retryable
+       dismissible
+       onRetry={() => window.location.reload()}
+       onDismiss={() => {
+         setDismissedMessages(['main-error']);
+         setError('');
+       }}
+     />
    </div>
  ) : (
-   <div className={styles.adminContainer}>
-     {/* Sticky Navigation Header */}
-     <div className={styles.stickyNav}>
-       <div className={styles.navContent}>
-         <div className={styles.navLeft}>
-           <button 
-             onClick={handleLogout}
-             className={styles.logoutButton}
-           >
-             <LogOut size={20} />
-             יציאה
-           </button>
-         </div>
-         <div className={styles.navCenter}>
-           <BarChart3 size={24} />
-           <h1 className={styles.navTitle}>ממשק ניהול - Michael AI</h1>
-         </div>
-         <div className={styles.navRight}>
-           <div className={styles.userWelcome}>
-             <Users size={18} />
-             היי {currentUser}
-           </div>
-         </div>
-       </div>
-     </div>
+   <AdminLayout
+     activeTab={activeTab}
+     onTabChange={setActiveTab}
+     currentUser={currentUser}
+     onLogout={handleLogout}
+   >
+     {/* Success/Error Messages */}
+     {successMessage && (
+       <ErrorBanner
+         message={successMessage}
+         type="info"
+         dismissible
+         onDismiss={dismissSuccess}
+       />
+     )}
+     
+     {error && (
+       <ErrorBanner
+         message="שגיאה במערכת"
+         details={error}
+         type="error"
+         retryable
+         dismissible
+         onRetry={() => window.location.reload()}
+         onDismiss={dismissError}
+       />
+     )}
 
-     {/* Main Content */}
-     <div className={styles.mainContent}>
-       {/* Tab Navigation */}
-       <div className={styles.tabNavigation}>
-         <button
-           className={`${styles.tabButton} ${activeTab === 'dashboard' ? styles.activeTab : ''}`}
-           onClick={() => setActiveTab('dashboard')}
-         >
-           <BarChart3 size={18} />
-           <span>דשבורד</span>
-         </button>
-         <button
-           className={`${styles.tabButton} ${activeTab === 'settings' ? styles.activeTab : ''}`}
-           onClick={() => setActiveTab('settings')}
-         >
-           <Settings size={18} />
-           <span>הגדרות</span>
-         </button>
-         <button
-           className={`${styles.tabButton} ${activeTab === 'users' ? styles.activeTab : ''}`}
-           onClick={() => setActiveTab('users')}
-         >
-           <Users size={18} />
-         <span>ניהול משתמשים</span>
-        </button>
-        <button
-          type="button"
-          className={styles.tabButton}
-          onClick={() => router.push('/admin/homework')}
-        >
-          <FileText size={18} />
-          <span>ניהול שיעורי בית</span>
-        </button>
-      </div>
-
-       {/* Tab Content */}
-       <div className={styles.tabContent}>
-         {activeTab === 'dashboard' && renderDashboard()}
-         {activeTab === 'settings' && renderSystemSettings()}
-         {activeTab === 'users' && renderUserManagement()}
-       </div>
-     </div>
-   </div>
+     {/* Tab Content */}
+     {activeTab === 'dashboard' && renderDashboard()}
+     {activeTab === 'settings' && renderSystemSettings()}
+     {activeTab === 'users' && renderUserManagement()}
+   </AdminLayout>
  );
 };
 export default AdminPage;

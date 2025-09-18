@@ -624,7 +624,6 @@
   resize: none;
   line-height: 1.5;
   color: #374151;
-  placeholder-color: #9ca3af;
 }
 
 .textarea {
@@ -646,7 +645,6 @@
   resize: none;
   line-height: 1.5;
   color: #374151;
-  placeholder-color: #9ca3af;
 }
 
 .input:focus {
