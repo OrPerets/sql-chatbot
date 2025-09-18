@@ -1,0 +1,60 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-block: 32px;
+  padding-inline: 40px;
+  background: var(--homework-shell-background);
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.title {
+  margin: 0;
+  font-size: 2rem;
+  color: var(--homework-heading-color, #0c3a61);
+}
+
+.subtitle {
+  margin-block: 8px 0;
+  font-size: 1rem;
+  color: var(--homework-subheading-color, #3c678f);
+}
+
+.backLink {
+  align-self: center;
+  color: var(--homework-primary, #0e62bf);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+@media (max-width: 960px) {
+  .container {
+    padding-inline: 24px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .backLink {
+    align-self: flex-start;
+  }
+}

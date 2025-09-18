@@ -21,6 +21,7 @@
     "@monaco-editor/react": "^4.6.0",
     "@react-three/drei": "^10.1.2",
     "@react-three/fiber": "^9.1.2",
+    "@tanstack/react-query": "^5.62.8",
     "@types/nodemailer": "^6.4.17",
     "@types/three": "^0.177.0",
     "alasql": "^4.5.2",

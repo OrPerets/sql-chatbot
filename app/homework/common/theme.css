@@ -1,0 +1,35 @@
+:root {
+  --homework-shell-background: linear-gradient(180deg, #f5f9ff 0%, #ffffff 60%);
+  --homework-shell-padding-block: 32px;
+  --homework-shell-padding-inline: 32px;
+  --homework-shell-gap: 24px;
+
+  --homework-primary: #0e62bf;
+  --homework-primary-contrast: #ffffff;
+  --homework-primary-soft: rgba(14, 98, 191, 0.1);
+  --homework-secondary: #0c3a61;
+
+  --homework-heading-color: #123a63;
+  --homework-subheading-color: #3c678f;
+  --homework-text-primary: #1f2a37;
+  --homework-text-muted: #5d6a7c;
+  --homework-text-subtle: #64748b;
+
+  --homework-surface: #ffffff;
+  --homework-surface-alt: #f4f7fb;
+  --homework-border: rgba(12, 71, 124, 0.08);
+
+  --homework-shadow-lg: 0 16px 40px rgba(14, 53, 93, 0.08);
+  --homework-shadow-sidebar: 0 12px 32px rgba(12, 58, 97, 0.35);
+
+  --homework-radius-sm: 12px;
+  --homework-radius-md: 14px;
+  --homework-radius-lg: 20px;
+  --homework-radius-xl: 24px;
+
+  --homework-nav-hover-translate: 2px;
+}
+
+:root[dir="rtl"] {
+  --homework-nav-hover-translate: -2px;
+}

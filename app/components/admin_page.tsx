@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, Users, Settings, BarChart3, FileText, Search, Upload, ToggleLeft, Shield, Clock, Award, Database } from 'lucide-react';
+ import { LogOut, Users, Settings, BarChart3, FileText, Search, Upload, ToggleLeft, Shield, Clock, Award, Database, BookOpen } from 'lucide-react';
 import styles from './admin_page.module.css';
 import config from '../config';
 
@@ -271,38 +271,22 @@ const AdminPage: React.FC = () => {
      <div className={styles.quickActions}>
        <h3 className={styles.sectionTitle}>ממשק מבחנים</h3>
        <div className={styles.actionButtons}>
-         <button
-           onClick={() => router.push('/admin/questions')}
-           className={styles.quickActionButton}
-         >
-           <FileText size={20} />
-           <span>אישור שאלות</span>
-         </button>
-         
-         <button
-           onClick={() => router.push('/admin/exam-grading')}
-           className={styles.quickActionButton}
-         >
-           <Award size={20} />
-           <span>בדיקה וציונים</span>
-         </button>
-         
-         <button
-           onClick={() => router.push('/admin/grade-by-question')}
-           className={styles.quickActionButton}
-         >
-           <BarChart3 size={20} />
-           <span>ציונים לפי שאלה</span>
-         </button>
-         
-         <button
-           onClick={() => router.push('/admin/cheat-detection')}
-           className={styles.quickActionButton}
-         >
-           <Shield size={20} />
-           <span>חשד להעתקה</span>
-         </button>
-       </div>
+        <button
+          onClick={() => router.push('/homework/questions')}
+          className={styles.quickActionButton}
+        >
+          <FileText size={20} />
+          <span>בנק שאלות לשיעורי בית</span>
+        </button>
+        <button
+          onClick={() => router.push('/admin/homework')}
+          className={styles.quickActionButton}
+        >
+          <BookOpen size={20} />
+          <span>ניהול שיעורי בית</span>
+        </button>
+       {/* Exam-related quick actions removed during teardown (Sprint 0) */}
+      </div>
      </div>
 
      {/* Missing Correct Answers Section */}
@@ -745,9 +729,17 @@ const AdminPage: React.FC = () => {
            onClick={() => setActiveTab('users')}
          >
            <Users size={18} />
-           <span>ניהול משתמשים</span>
-         </button>
-       </div>
+         <span>ניהול משתמשים</span>
+        </button>
+        <button
+          type="button"
+          className={styles.tabButton}
+          onClick={() => router.push('/admin/homework')}
+        >
+          <FileText size={18} />
+          <span>ניהול שיעורי בית</span>
+        </button>
+      </div>
 
        {/* Tab Content */}
        <div className={styles.tabContent}>
@@ -760,6 +752,3 @@ const AdminPage: React.FC = () => {
  );
 };
 export default AdminPage;
-
-
-
