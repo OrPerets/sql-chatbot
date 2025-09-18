@@ -25,6 +25,7 @@ import { AvatarIcon, MicIcon } from "./AvatarToggleIcons";
 import { enhancedTTS } from "@/app/utils/enhanced-tts";
 import OpenAI from "openai";
 import PracticeModal from "./PracticeModal";
+import SqlQueryBuilder from "./SqlQueryBuilder/SqlQueryBuilder";
 
 export const maxDuration = 50;
 
@@ -318,8 +319,8 @@ const Chat = ({
   const [balanceError, setBalanceError] = useState(false);
   const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false); // Add loading state
-  // Add SQL mode state
-  const [sqlMode, setSqlMode] = useState<'none' | 'create' | 'insert'>('none');
+  // Add SQL Query Builder state
+  const [sqlBuilderOpen, setSqlBuilderOpen] = useState(false);
   // Add audio and speech state
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
   const [autoPlaySpeech, setAutoPlaySpeech] = useState(false);
@@ -442,34 +443,10 @@ const Chat = ({
       setShowModal(!showModal);
     };
 
-  // Function to cycle through SQL modes
-  const toggleSqlMode = () => {
-    setSqlMode(prev => {
-      switch (prev) {
-        case 'none': return 'create';
-        case 'create': return 'insert';
-        case 'insert': return 'none';
-        default: return 'none';
-      }
-    });
-  };
-
-  // Get SQL mode label for button
-  const getSqlModeLabel = () => {
-    switch (sqlMode) {
-      case 'create': return 'CREATE TABLE';
-      case 'insert': return 'INSERT VALUES';
-      default: return 'CREATE / INSERT';
-    }
-  };
-
-  // Get SQL mode color for button
-  const getSqlModeColor = () => {
-    switch (sqlMode) {
-      case 'create': return '#4CAF50'; // Green
-      case 'insert': return '#2196F3'; // Blue
-      default: return '#757575'; // Gray
-    }
+  // Handle SQL Query Builder
+  const handleQueryGenerated = (query: string) => {
+    setUserInput(prev => prev + (prev ? '\n' : '') + query);
+    setSqlBuilderOpen(false);
   };
 
   // Handle audio transcription
@@ -759,13 +736,8 @@ const updateUserBalance = async (value) => {
   const sendMessage = async (text) => { 
     setImageProcessing(true);
     
-    // Add SQL tags based on mode
+    // Message text is used as-is (SQL queries are now added directly by SqlQueryBuilder)
     let messageWithTags = text;
-    if (sqlMode === 'create') {
-      messageWithTags = `<create_table>${text}`;
-    } else if (sqlMode === 'insert') {
-      messageWithTags = `<insert_values>${text}`;
-    }
 
     // Process image if one is selected
     let imageData = null;
@@ -844,8 +816,7 @@ const updateUserBalance = async (value) => {
     const stream = AssistantStream.fromReadableStream(response.body);
     handleReadableStream(stream);
 
-    // Reset SQL mode and image after sending
-    setSqlMode('none');
+    // Reset image after sending
     setSelectedImage(null);
     setImageProcessing(false);
 
@@ -1279,12 +1250,6 @@ return (
               </div>
             )}
             
-            {/* SQL Mode Indicator in textarea */}
-            {sqlMode !== 'none' && (
-              <div className={styles.sqlModeIndicator}>
-                מצב {sqlMode === 'create' ? 'CREATE TABLE' : 'INSERT VALUES'} פעיל
-              </div>
-            )}
 
             <textarea
               className={styles.input}
@@ -1310,12 +1275,10 @@ return (
               placeholder={
                 isExerciseMode 
                   ? "הקלד את תשובת ה-SQL שלך כאן..." 
-                  : sqlMode !== 'none' 
-                    ? `מצב ${getSqlModeLabel()} פעיל - הקלד את השאילתה שלך...` 
-                    : "הקלד כאן..."
+                  : "הקלד כאן..."
               }
               style={{
-                paddingTop: sqlMode !== 'none' ? '35px' : '16px',
+                paddingTop: '16px',
                 paddingRight: '20px',
                 paddingBottom: '16px',
                 paddingLeft: '50px'
@@ -1403,12 +1366,12 @@ return (
                 {selectedImage && <span className={styles.attachmentDot}></span>}
               </button>
 
-              {/* CREATE/INSERT Mode Button */}
+              {/* SQL Query Builder Button */}
               <button
                 type="button"
-                className={`${styles.actionButton} ${sqlMode !== 'none' ? styles.actionButtonActive : ''}`}
-                onClick={toggleSqlMode}
-                title="לחץ כדי לעבור בין מצבי CREATE TABLE ו-INSERT VALUES"
+                className={styles.actionButton}
+                onClick={() => setSqlBuilderOpen(true)}
+                title="בנה שאילתת SQL"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -1421,11 +1384,10 @@ return (
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
-                  <path d="M12 3v18M3 12h18"/>
+                  <path d="M4 7h16M4 12h16M4 17h16"/>
+                  <path d="M2 3h20v18H2z"/>
                 </svg>
-                <span className={styles.actionButtonText}>
-                  {sqlMode === 'create' ? 'CREATE' : sqlMode === 'insert' ? 'INSERT' : 'SQL'}
-                </span>
+                <span className={styles.actionButtonText}>SQL</span>
               </button>
 
             </div>
@@ -1838,6 +1800,13 @@ return (
       isOpen={showPracticeModal}
       onClose={() => setShowPracticeModal(false)}
       userId={user?.email || 'anonymous'}
+    />
+
+    {/* SQL Query Builder Modal */}
+    <SqlQueryBuilder
+      isOpen={sqlBuilderOpen}
+      onClose={() => setSqlBuilderOpen(false)}
+      onQueryGenerated={handleQueryGenerated}
     />
   </div>
 );
