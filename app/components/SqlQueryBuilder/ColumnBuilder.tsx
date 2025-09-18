@@ -201,7 +201,7 @@ const ColumnBuilder: React.FC<ColumnBuilderProps> = ({
                   value={column.defaultValue || ''}
                   onChange={(e) => updateColumn(column.id, { defaultValue: e.target.value || undefined })}
                   placeholder={
-                    ['VARCHAR', 'TEXT'].includes(column.type) ? 'לדוגמה: "ברירת מחדל"' :
+                    ['VARCHAR', 'TEXT'].includes(column.type) ? 'לדוגמה: &quot;ברירת מחדל&quot;' :
                     ['INT', 'DECIMAL'].includes(column.type) ? 'לדוגמה: 0' :
                     column.type === 'BOOLEAN' ? 'TRUE או FALSE' :
                     ['DATE', 'DATETIME', 'TIMESTAMP'].includes(column.type) ? 'CURRENT_DATE או CURRENT_TIMESTAMP' : ''

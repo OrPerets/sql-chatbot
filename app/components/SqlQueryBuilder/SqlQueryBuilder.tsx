@@ -105,11 +105,11 @@ const SqlQueryBuilder: React.FC<SqlQueryBuilderProps> = ({
         <div className={styles.content}>
           {/* Progress Steps */}
           <div className={styles.progressSteps}>
-            <div className={`${styles.step} ${currentStep === 'operation' ? styles.active : currentStep !== 'operation' ? styles.completed : ''}`}>
+            <div className={`${styles.step} ${currentStep === 'operation' ? styles.active : (currentStep === 'form' || currentStep === 'preview') ? styles.completed : ''}`}>
               <div className={styles.stepNumber}>1</div>
               <span>בחר פעולה</span>
             </div>
-            <div className={`${styles.stepConnector} ${currentStep !== 'operation' ? styles.completed : ''}`} />
+            <div className={`${styles.stepConnector} ${(currentStep === 'form' || currentStep === 'preview') ? styles.completed : ''}`} />
             <div className={`${styles.step} ${currentStep === 'form' ? styles.active : currentStep === 'preview' ? styles.completed : ''}`}>
               <div className={styles.stepNumber}>2</div>
               <span>מלא פרטים</span>

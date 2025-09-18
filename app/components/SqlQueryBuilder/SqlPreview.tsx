@@ -95,10 +95,10 @@ const SqlPreview: React.FC<SqlPreviewProps> = ({
           💡 טיפים לשימוש:
         </h4>
         <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#0369a1' }}>
-          <li>השאילתה תתווסף לשדה הטקסט בצ'אט</li>
+          <li>השאילתה תתווסף לשדה הטקסט בצ&apos;אט</li>
           <li>תוכל לערוך אותה לפני השליחה</li>
-          <li>השתמש בכפתור "העתק" כדי להעתיק לזיכרון</li>
-          <li>לחץ "ערוך" כדי לחזור ולשנות את הפרטים</li>
+          <li>השתמש בכפתור &quot;העתק&quot; כדי להעתיק לזיכרון</li>
+          <li>לחץ &quot;ערוך&quot; כדי לחזור ולשנות את הפרטים</li>
         </ul>
       </div>
 
@@ -122,7 +122,7 @@ const SqlPreview: React.FC<SqlPreviewProps> = ({
           className={`${styles.button} ${styles.buttonSuccess}`}
           onClick={onConfirm}
         >
-          הוסף לצ'אט
+          הוסף לצ&apos;אט
         </button>
       </div>
     </div>
