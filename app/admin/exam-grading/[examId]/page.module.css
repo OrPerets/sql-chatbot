@@ -1,0 +1,1232 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  direction: rtl;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 30px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  color: #495057;
+}
+
+.backButton:hover {
+  background: #e9ecef;
+  transform: translateY(-1px);
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: #2c3e50;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: white;
+  font-size: 18px;
+}
+
+.errorMessage {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #f5c6cb;
+}
+
+.studentInfo {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.studentCard, .gradeSummary {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.studentHeader, .gradeHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.studentHeader h3, .gradeHeader h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.studentDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.studentDetail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.label {
+  font-weight: 600;
+  color: #495057;
+  min-width: 120px;
+}
+
+.status {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.gradeDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gradeRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.score {
+  font-weight: 700;
+  color: #667eea;
+  font-size: 16px;
+}
+
+.percentage {
+  font-weight: 700;
+  color: #28a745;
+  font-size: 16px;
+}
+
+.gradeInput {
+  width: 60px;
+  padding: 6px 8px;
+  border: 2px solid #e9ecef;
+  border-radius: 4px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.gradeInput:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.questionsSection {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.sectionTitle {
+  margin: 0 0 20px 0;
+  color: #2c3e50;
+  font-size: 20px;
+  font-weight: 600;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.questionCard {
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.aiSuspiciousBanner {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+  border-bottom: 2px solid #ffc107;
+  padding: 12px 16px;
+  color: #856404;
+  font-weight: 600;
+}
+
+.aiWarningContent {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-direction: column;
+}
+
+.aiWarningIcon {
+  color: #f39c12;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.aiWarningText {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aiTrapsList {
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 4px;
+  font-weight: normal;
+}
+
+.questionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8f9fa;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.questionNumber {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 16px;
+}
+
+.questionMeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.difficulty {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.easy {
+  background: #d4edda;
+  color: #155724;
+}
+
+.medium {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.hard {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.algebra {
+  background: #e2e3f3;
+  color: #4c4c9c;
+}
+
+.points {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #667eea;
+  color: white;
+}
+
+.timeSpent {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #6c757d;
+  font-size: 12px;
+}
+
+.correctness {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.correct {
+  color: #28a745;
+}
+
+.incorrect {
+  color: #dc3545;
+}
+
+.deleteButton {
+  background: none;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.deleteButton:hover {
+  background: rgba(220, 53, 69, 0.1);
+  transform: scale(1.1);
+}
+
+.questionContent {
+  padding: 16px;
+}
+
+.questionText {
+  margin-bottom: 16px;
+}
+
+.questionText p {
+  margin: 8px 0 0 0;
+  color: #495057;
+  line-height: 1.5;
+}
+
+.answerSection {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.studentAnswer, .correctAnswer {
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.studentAnswer strong, .correctAnswer strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+.sqlCode {
+  background: #2d3748;
+  color: #e2e8f0;
+  padding: 12px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-x: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.gradingSection {
+  border-top: 1px solid #e9ecef;
+  padding-top: 16px;
+}
+
+.gradeInputs {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.scoreInput {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.scoreInput label {
+  font-weight: 600;
+  color: #495057;
+  min-width: 40px;
+}
+
+.scoreField {
+  width: 80px;
+  padding: 8px;
+  border: 2px solid #e9ecef;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.scoreField:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.quickApprovalButtons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.quickApproveBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: bold;
+}
+
+.approveCorrectQuick {
+  background: #28a745;
+  color: white;
+}
+
+.approveCorrectQuick:hover {
+  background: #218838;
+  transform: scale(1.1);
+}
+
+.approveIncorrectQuick {
+  background: #dc3545;
+  color: white;
+}
+
+.approveIncorrectQuick:hover {
+  background: #c82333;
+  transform: scale(1.1);
+}
+
+.michaelIndicator {
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.michaelSuggestion {
+  font-size: 11px;
+  color: #6c757d;
+  font-weight: normal;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.michaelCorrect {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.michaelIncorrect {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.feedbackInput {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.feedbackInput label {
+  font-weight: 600;
+  color: #495057;
+}
+
+.feedbackField {
+  padding: 8px;
+  border: 2px solid #e9ecef;
+  border-radius: 4px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.feedbackField:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+
+
+.overallFeedback {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.overallFeedback h3 {
+  margin: 0 0 16px 0;
+  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.overallFeedbackField {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 6px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.overallFeedbackField:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.saveSection {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.saveButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.saveButton:hover:not(:disabled) {
+  background: #218838;
+  transform: translateY(-1px);
+}
+
+.saveButton:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* AI Detection Alert Styles */
+.aiAlert {
+  margin: 12px 16px;
+  border-radius: 8px;
+  border: 2px solid;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.aiAlert.low {
+  background: #e8f4fd;
+  border-color: #b3d9f2;
+}
+
+.aiAlert.medium {
+  background: #fff8e1;
+  border-color: #ffecb3;
+}
+
+.aiAlert.high {
+  background: #ffebee;
+  border-color: #ffcdd2;
+}
+
+.aiAlertHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  font-weight: 600;
+}
+
+.aiAlertIcon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aiAlertTitle {
+  font-size: 14px;
+  color: #2c3e50;
+}
+
+.aiScore {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.aiDetailsToggle {
+  display: flex;
+  align-items: center;
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  padding: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #495057;
+}
+
+.aiDetailsToggle:hover {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(0, 0, 0, 0.3);
+}
+
+.aiAlertDetails {
+  padding: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.aiSummary {
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #495057;
+}
+
+.triggeredTraps {
+  margin-top: 12px;
+}
+
+.trapsList {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0 0;
+}
+
+.trapItem {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.trapDescription {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.trapSeverity {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.trapSeverity.high {
+  background: #ffcdd2;
+  color: #c62828;
+}
+
+.trapSeverity.medium {
+  background: #ffecb3;
+  color: #f57f17;
+}
+
+.trapSeverity.low {
+  background: #c8e6c9;
+  color: #388e3c;
+}
+
+.trapMatches {
+  font-size: 12px;
+  color: #6c757d;
+  font-family: monospace;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin-top: 6px;
+}
+
+.aiHighRisk {
+  color: #dc3545;
+}
+
+.aiMediumRisk {
+  color: #ffc107;
+}
+
+.aiLowRisk {
+  color: #17a2b8;
+}
+
+.aiClean {
+  color: #28a745;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 10px;
+  }
+  
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .studentInfo {
+    grid-template-columns: 1fr;
+  }
+  
+  .answerSection {
+    grid-template-columns: 1fr;
+  }
+  
+  .gradeInputs {
+    grid-template-columns: 1fr;
+  }
+  
+  .questionMeta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+/* Delete Question Button */
+.deleteQuestionButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: #dc3545;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: white;
+  margin-right: 8px;
+}
+
+.deleteQuestionButton:hover {
+  background: #c82333;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+}
+
+/* Delete Confirmation Dialog */
+.deleteConfirmOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.deleteConfirmDialog {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  direction: rtl;
+}
+
+.deleteConfirmHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.deleteConfirmHeader h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.warningIcon {
+  color: #ffc107;
+}
+
+.deleteConfirmContent {
+  margin-bottom: 24px;
+}
+
+.deleteConfirmContent p {
+  margin: 0 0 8px 0;
+  color: #495057;
+  line-height: 1.5;
+}
+
+.warningText {
+  color: #dc3545 !important;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.deleteConfirmActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-start;
+}
+
+.confirmDeleteButton {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.confirmDeleteButton:hover {
+  background: #c82333;
+}
+
+.cancelDeleteButton {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.cancelDeleteButton:hover {
+  background: #5a6268;
+} 
+
+/* Enhanced answer display for highlighted content */
+.sqlCodeHighlighted {
+  background: #2d3748;
+  color: #e2e8f0;
+  padding: 12px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-x: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  position: relative;
+}
+
+.highlightedAnswerContainer {
+  position: relative;
+  border: 2px solid #f39c12;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #fff9e6 0%, #fef5d3 100%);
+  padding: 0;
+  overflow: hidden;
+}
+
+.highlightedAnswerHeader {
+  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+  color: white;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.highlightedAnswerContent {
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* AI warning banner with enhanced styling */
+.aiSuspiciousBannerEnhanced {
+  background: linear-gradient(135deg, #ff9999 0%, #ffcccc 50%, #ffe6e6 100%);
+  border: 2px solid #ff6b6b;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  color: #c92a2a;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+  animation: warningPulse 3s infinite;
+}
+
+@keyframes warningPulse {
+  0%, 100% {
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 16px rgba(255, 107, 107, 0.5);
+  }
+} 
+
+/* Comment Bank Styles */
+.feedbackHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.commentBankToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.commentBankToggle:hover {
+  background: #5a67d8;
+  transform: translateY(-1px);
+}
+
+.commentBankModal {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  max-height: 400px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.commentBankHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.commentBankHeader h4 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.closeCommentBank {
+  background: none;
+  border: none;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.closeCommentBank:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #495057;
+}
+
+.commentBankContent {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.commentBankLoading {
+  text-align: center;
+  padding: 20px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.commentsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.commentItem {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  transition: all 0.2s ease;
+}
+
+.commentItem:hover {
+  border-color: #667eea;
+  background: #f0f1ff;
+}
+
+.commentMeta {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.commentScore {
+  background: #667eea;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.commentDifficulty {
+  background: #ffc107;
+  color: #212529;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.commentUsage {
+  color: #6c757d;
+  font-size: 11px;
+}
+
+.commentFeedback {
+  background: white;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+  margin-bottom: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.useCommentBtn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.useCommentBtn:hover {
+  background: #218838;
+  transform: translateY(-1px);
+}
+
+.noComments {
+  text-align: center;
+  padding: 20px;
+  color: #6c757d;
+  font-style: italic;
+  font-size: 14px;
+}
+
+/* Position feedback input relatively for absolute modal positioning */
+.feedbackInput {
+  position: relative;
+} 
+
+.autoSaveNote {
+  font-size: 11px;
+  color: #6c757d;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* Individual Question Save Button */
+.questionSaveContainer {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.questionSaveButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.questionSaveButton:hover:not(:disabled) {
+  background: #0056b3;
+  transform: translateY(-1px);
+}
+
+.questionSaveButton:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.questionSaved {
+  background: #28a745 !important;
+}
+
+.questionSaved:hover:not(:disabled) {
+  background: #218838 !important;
+}
+
+.savedIndicator {
+  font-size: 11px;
+  color: #28a745;
+  font-style: italic;
+  text-align: center;
+}
+
+/* Comment Bank Modal Overlay and Popup */
+.commentBankOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.35);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.commentBankPopup {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  max-width: 480px;
+  width: 95vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.commentBankHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e9ecef;
+  background: #f8f9fa;
+  border-radius: 12px 12px 0 0;
+}
+
+.commentBankHeader h4 {
+  margin: 0;
+  font-size: 16px;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.closeCommentBank {
+  background: none;
+  border: none;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.closeCommentBank:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #495057;
+}
+
+.commentBankContent {
+  padding: 20px;
+  overflow-y: auto;
+} 

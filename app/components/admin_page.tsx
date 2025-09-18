@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, Users, Settings, BarChart3 } from 'lucide-react';
+import { LogOut, Users, Settings, BarChart3, FileText, Search, Upload, ToggleLeft, Shield, Clock, Award, Database } from 'lucide-react';
 import styles from './admin_page.module.css';
 import config from '../config';
 
@@ -22,6 +22,15 @@ const AdminPage: React.FC = () => {
  const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(true);
  const [isStatuseVisible, setIsStatusVisible] = useState(true);
  const [successMessage, setSuccessMessage] = useState('');
+ const [selectedFile, setSelectedFile] = useState<File | null>(null);
+ const [isUploading, setIsUploading] = useState(false);
+ const [uploadResult, setUploadResult] = useState<any>(null);
+ const [activeTab, setActiveTab] = useState('dashboard');
+ 
+ // Missing answers state
+ const [missingAnswersData, setMissingAnswersData] = useState<any>(null);
+ const [checkingMissingAnswers, setCheckingMissingAnswers] = useState(false);
+ const [fixingMissingAnswers, setFixingMissingAnswers] = useState(false);
 
  // Fetch initial token visibility state
  useEffect(() => {
@@ -109,7 +118,7 @@ const AdminPage: React.FC = () => {
    const user = JSON.parse(storedUser);
   
    // For now using a placeholder check -needs to check if keeping it in a list version or a db version
-   const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com"," roeizer@shenkar.ac.il"];
+   const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il", "r_admin@gmail.com"];
    const isAdmin = adminEmails.includes(user.email);
   
    if (!isAdmin) {
@@ -138,106 +147,365 @@ const AdminPage: React.FC = () => {
    router.push('/');
  };
 
- return error ? (
-   <div className={styles.adminContainer}>
-     <div className={styles.errorMessage}>{error}</div>
-   </div>
- ) : (
-   <div className={styles.adminContainer}>
-     {/* Sticky Navigation Header */}
-     <div className={styles.stickyNav}>
-       <div className={styles.navContent}>
-         <div className={styles.navLeft}>
-           <button 
-             onClick={handleLogout}
-             className={styles.logoutButton}
-           >
-             <LogOut size={20} />
-             יציאה
-           </button>
+ const handleUploadExtraTime = async () => {
+   if (!selectedFile) return;
+
+   setIsUploading(true);
+   setUploadResult(null);
+
+   try {
+     const formData = new FormData();
+     formData.append('file', selectedFile);
+
+     const response = await fetch('/api/admin/uploadExtraTime', {
+       method: 'POST',
+       body: formData,
+     });
+
+     const result = await response.json();
+
+     if (!response.ok) {
+       setUploadResult({
+         success: false,
+         message: result.error || 'שגיאה בהעלאת הקובץ',
+         details: result.details
+       });
+     } else {
+       setUploadResult({
+         success: true,
+         message: result.message,
+         summary: result.summary
+       });
+       setSelectedFile(null);
+     }
+   } catch (error) {
+     console.error('Error uploading extra time:', error);
+     setUploadResult({
+       success: false,
+       message: 'שגיאה בהעלאת הקובץ'
+     });
+   } finally {
+     setIsUploading(false);
+   }
+ };
+
+ // Missing answers functions
+ const checkMissingAnswers = async () => {
+   setCheckingMissingAnswers(true);
+   try {
+     const response = await fetch('/api/admin/check-missing-answers');
+     const data = await response.json();
+     setMissingAnswersData(data);
+     
+     if (data.questionsWithoutSolution > 0) {
+       setSuccessMessage(`נמצאו ${data.questionsWithoutSolution} שאלות ללא תשובות נכונות`);
+     } else {
+       setSuccessMessage('כל השאלות מכילות תשובות נכונות!');
+     }
+   } catch (error) {
+     console.error('Error checking missing answers:', error);
+     setError('שגיאה בבדיקת תשובות נכונות');
+   } finally {
+     setCheckingMissingAnswers(false);
+   }
+ };
+
+ const fixMissingAnswers = async () => {
+   setFixingMissingAnswers(true);
+   try {
+     const response = await fetch('/api/admin/check-missing-answers', {
+       method: 'POST'
+     });
+     const data = await response.json();
+     setMissingAnswersData(data);
+     
+     if (data.fixedCount > 0) {
+       setSuccessMessage(`תוקנו ${data.fixedCount} שאלות בהצלחה!`);
+     } else {
+       setSuccessMessage('לא נמצאו שאלות לתיקון');
+     }
+   } catch (error) {
+     console.error('Error fixing missing answers:', error);
+     setError('שגיאה בתיקון תשובות נכונות');
+   } finally {
+     setFixingMissingAnswers(false);
+   }
+ };
+
+ const renderDashboard = () => (
+   <div className={styles.dashboardSection}>
+     <div className={styles.statsGrid}>
+       <div className={styles.statCard}>
+         <div className={styles.statIcon}>
+           <Users size={24} />
          </div>
-         <div className={styles.navCenter}>
-           <BarChart3 size={24} />
-           <h1 className={styles.navTitle}>ממשק ניהול - Michael AI</h1>
+         <div className={styles.statContent}>
+           <div className={styles.statNumber}>{users.length}</div>
+           <div className={styles.statLabel}>משתמשים רשומים</div>
          </div>
-         <div className={styles.navRight}>
-           <div className={styles.userWelcome}>
-             <Users size={18} />
-             היי {currentUser}
+       </div>
+       
+       <div className={styles.statCard}>
+         <div className={styles.statIcon}>
+           <Database size={24} />
+         </div>
+         <div className={styles.statContent}>
+           <div className={styles.statNumber}>{classes.length - 1}</div>
+           <div className={styles.statLabel}>כיתות</div>
+         </div>
+       </div>
+       
+       <div className={styles.statCard}>
+         <div className={styles.statIcon}>
+           <Award size={24} />
+         </div>
+         <div className={styles.statContent}>
+           <div className={styles.statNumber}>
+             {users.reduce((sum, user) => sum + (user.coins || 0), 0)}
            </div>
+           <div className={styles.statLabel}>מטבעות סה"כ</div>
          </div>
        </div>
      </div>
 
-     {/* Main Content */}
-     <div className={styles.mainContent}>
-       {/* Control Toggles */}
-       <div className={styles.controlsRow}>
-         <div className={styles.controlCard}>
-           <div className={styles.controlHeader}>
-             <Settings size={20} />
-             <span>הגדרות מערכת</span>
+     <div className={styles.quickActions}>
+       <h3 className={styles.sectionTitle}>ממשק מבחנים</h3>
+       <div className={styles.actionButtons}>
+         <button
+           onClick={() => router.push('/admin/questions')}
+           className={styles.quickActionButton}
+         >
+           <FileText size={20} />
+           <span>אישור שאלות</span>
+         </button>
+         
+         <button
+           onClick={() => router.push('/admin/exam-grading')}
+           className={styles.quickActionButton}
+         >
+           <Award size={20} />
+           <span>בדיקה וציונים</span>
+         </button>
+         
+         <button
+           onClick={() => router.push('/admin/grade-by-question')}
+           className={styles.quickActionButton}
+         >
+           <BarChart3 size={20} />
+           <span>ציונים לפי שאלה</span>
+         </button>
+         
+         <button
+           onClick={() => router.push('/admin/cheat-detection')}
+           className={styles.quickActionButton}
+         >
+           <Shield size={20} />
+           <span>חשד להעתקה</span>
+         </button>
+       </div>
+     </div>
+
+     {/* Missing Correct Answers Section */}
+     <div className={styles.missingAnswersSection}>
+       <h3 className={styles.sectionTitle}>בדיקת תשובות נכונות</h3>
+       <div className={styles.missingAnswersCard}>
+         <div className={styles.missingAnswersHeader}>
+           <FileText size={20} />
+           <span>וודא שכל השאלות מכילות תשובות נכונות</span>
+         </div>
+         
+         <div className={styles.missingAnswersActions}>
+           <button
+             onClick={checkMissingAnswers}
+             disabled={checkingMissingAnswers}
+             className={styles.checkButton}
+           >
+             {checkingMissingAnswers ? 'בודק...' : 'בדוק תשובות חסרות'}
+           </button>
+           
+           {missingAnswersData && missingAnswersData.questionsWithoutSolution > 0 && (
+             <button
+               onClick={fixMissingAnswers}
+               disabled={fixingMissingAnswers}
+               className={styles.fixButton}
+             >
+               {fixingMissingAnswers ? 'מתקן...' : `תקן ${missingAnswersData.questionsWithoutSolution} שאלות`}
+             </button>
+           )}
+         </div>
+
+         {missingAnswersData && (
+           <div className={styles.missingAnswersResults}>
+             <div className={styles.resultsSummary}>
+               <p><strong>סה"כ שאלות:</strong> {missingAnswersData.totalQuestions}</p>
+               <p><strong>שאלות ללא תשובות נכונות:</strong> {missingAnswersData.questionsWithoutSolution || 0}</p>
+               {missingAnswersData.fixedCount > 0 && (
+                 <p><strong>תוקנו:</strong> {missingAnswersData.fixedCount}</p>
+               )}
+             </div>
+             
+             {missingAnswersData.missingAnswers && missingAnswersData.missingAnswers.length > 0 && (
+               <div className={styles.missingAnswersList}>
+                 <h4>שאלות שעדיין חסרות תשובות:</h4>
+                 <ul>
+                   {missingAnswersData.missingAnswers.map((q: any) => (
+                     <li key={q.id}>
+                       <strong>שאלה #{q.id}</strong> ({q.difficulty}): {q.question}
+                     </li>
+                   ))}
+                 </ul>
+               </div>
+             )}
            </div>
-           <div className={styles.togglesContainer}>
-             <div className={styles.toggleItem}>
-               <label>
-                 מטבעות וירטואלים
-                 <div className={styles.toggle}>
-                   <input
-                     type="checkbox"
-                     checked={isTokenBalanceVisible}
-                     onChange={async (e) => {
-                       const newValue = e.target.checked;
-                       setIsTokenBalanceVisible(newValue);
-                       updateCoinsStatus(newValue)
-                     }}
-                   />
-                   <div className={styles.slider}>
-                     <span className={styles.on}></span>
-                     <span className={styles.off}></span>
-                   </div>
+         )}
+       </div>
+     </div>
+   </div>
+ );
+
+ const renderSystemSettings = () => (
+   <div className={styles.settingsSection}>
+     <div className={styles.settingsGrid}>
+       <div className={styles.settingCard}>
+         <div className={styles.settingHeader}>
+           <Shield size={20} />
+           <span>הגדרות מערכת</span>
+         </div>
+         <div className={styles.togglesContainer}>
+           <div className={styles.toggleItem}>
+             <label>
+               <span>מטבעות וירטואלים</span>
+               <div className={styles.toggle}>
+                 <input
+                   type="checkbox"
+                   checked={isTokenBalanceVisible}
+                   onChange={async (e) => {
+                     const newValue = e.target.checked;
+                     setIsTokenBalanceVisible(newValue);
+                     updateCoinsStatus(newValue)
+                   }}
+                 />
+                 <div className={styles.slider}>
+                   <span className={styles.on}></span>
+                   <span className={styles.off}></span>
                  </div>
-               </label>
-             </div>
-             <div className={styles.toggleItem}>
-               <label>
-                 מייקל
-                 <div className={styles.toggle}>
-                   <input
-                     type="checkbox"
-                     checked={isStatuseVisible}
-                     onChange={async (e) => {
-                       const newValue = e.target.checked;
-                       setIsStatusVisible(newValue);
-                       try {
-                         await fetch(`${SERVER_BASE}/setStatus`, {
-                           method: 'POST',
-                           headers: {
-                             'Content-Type': 'application/json',
-                           },
-                           body: JSON.stringify({ newStatus: newValue ? "ON" : "OFF"})
-                         });
-                       } catch (error) {
-                         console.error('Error updating status:', error);
-                       }
-                     }}
-                   />
-                   <div className={styles.slider}>
-                     <span className={styles.on}></span>
-                     <span className={styles.off}></span>
-                   </div>
+               </div>
+             </label>
+           </div>
+           <div className={styles.toggleItem}>
+             <label>
+               <span>מייקל</span>
+               <div className={styles.toggle}>
+                 <input
+                   type="checkbox"
+                   checked={isStatuseVisible}
+                   onChange={async (e) => {
+                     const newValue = e.target.checked;
+                     setIsStatusVisible(newValue);
+                     try {
+                       await fetch(`${SERVER_BASE}/setStatus`, {
+                         method: 'POST',
+                         headers: {
+                           'Content-Type': 'application/json',
+                         },
+                         body: JSON.stringify({ newStatus: newValue ? "ON" : "OFF"})
+                       });
+                     } catch (error) {
+                       console.error('Error updating status:', error);
+                     }
+                   }}
+                 />
+                 <div className={styles.slider}>
+                   <span className={styles.on}></span>
+                   <span className={styles.off}></span>
                  </div>
-               </label>
-             </div>
+               </div>
+             </label>
            </div>
          </div>
        </div>
 
-       {successMessage && <div className={styles.successMessage}>{successMessage}</div>}
-       
-       <div className={styles.controlsContainer}>
-         {selectedUsers.length > 0 && (
-           <div className={styles.bulkActions}>
+       <div className={styles.settingCard}>
+         <div className={styles.settingHeader}>
+           <Clock size={20} />
+           <span>התאמות זמן בחינה</span>
+         </div>
+         <div className={styles.extraTimeManagement}>
+           <div className={styles.fileUploadSection}>
+             <input
+               type="file"
+               accept=".xlsx,.csv"
+               onChange={(e) => {
+                 const file = e.target.files?.[0];
+                 if (file) {
+                   setSelectedFile(file);
+                 }
+               }}
+               className={styles.fileInput}
+               id="extraTimeFile"
+             />
+             <label htmlFor="extraTimeFile" className={styles.fileInputLabel}>
+               <Upload size={16} />
+               בחר קובץ Excel/CSV
+             </label>
+             {selectedFile && (
+               <div className={styles.fileInfo}>
+                 <span>📄 {selectedFile.name}</span>
+                 <span>{(selectedFile.size / 1024).toFixed(1)} KB</span>
+               </div>
+             )}
+           </div>
+           <button
+             onClick={handleUploadExtraTime}
+             disabled={!selectedFile || isUploading}
+             className={styles.uploadButton}
+           >
+             {isUploading ? 'מעלה...' : 'העלה התאמות זמן'}
+           </button>
+           {uploadResult && (
+             <div className={`${styles.uploadResult} ${uploadResult.success ? styles.success : styles.error}`}>
+               <div className={styles.uploadResultTitle}>
+                 {uploadResult.success ? '✅ הצלחה' : '❌ שגיאה'}
+               </div>
+               <div className={styles.uploadResultMessage}>
+                 {uploadResult.message}
+               </div>
+               {uploadResult.summary && (
+                 <div className={styles.uploadSummary}>
+                   <div>סה"כ רשומות: {uploadResult.summary.totalRecords}</div>
+                   <div>נוספו: {uploadResult.summary.inserted}</div>
+                   <div>עודכנו: {uploadResult.summary.updated}</div>
+                   <div>שגיאות: {uploadResult.summary.errors}</div>
+                 </div>
+               )}
+             </div>
+           )}
+           <div className={styles.uploadInstructions}>
+             <h4>הוראות:</h4>
+             <ul>
+               <li>הקובץ חייב להכיל עמודות: ID (מספר זהות) ו-PERCENTAGE (אחוז זמן נוסף)</li>
+               <li>אחוז הזמן הנוסף חייב להיות בין 0 ל-100</li>
+               <li>במקרה של כפילויות, הרשומה האחרונה תתקבל</li>
+               <li>תמיכה בקבצי .xlsx ו-.csv</li>
+             </ul>
+           </div>
+         </div>
+       </div>
+     </div>
+   </div>
+ );
+
+ const renderUserManagement = () => (
+   <div className={styles.userManagementSection}>
+     {successMessage && <div className={styles.successMessage}>{successMessage}</div>}
+     
+     <div className={styles.controlsContainer}>
+       {selectedUsers.length > 0 && (
+         <div className={styles.bulkActions}>
+           <div className={styles.bulkActionsHeader}>
+             <span>פעולות על {selectedUsers.length} משתמשים נבחרים:</span>
+           </div>
+           <div className={styles.bulkActionsControls}>
              <select
                value={actionType}
                onChange={(e) => setActionType(e.target.value)}
@@ -328,95 +596,164 @@ const AdminPage: React.FC = () => {
                אישור
              </button>
            </div>
-         )}
-        
-         <div className={styles.searchContainer}>
-           <div className={styles.searchHeader}>
-             <input
-               type="text"
-               placeholder="הכנס מילות חיפוש..."
-               value={searchTerm}
-               onChange={(e) => setSearchTerm(e.target.value)}
-               className={styles.searchInput}
-             />
-           </div>
          </div>
+       )}
+      
+       <div className={styles.searchContainer}>
+         <div className={styles.searchHeader}>
+           <Search size={20} />
+           <input
+             type="text"
+             placeholder="הכנס מילות חיפוש..."
+             value={searchTerm}
+             onChange={(e) => setSearchTerm(e.target.value)}
+             className={styles.searchInput}
+           />
+         </div>
+       </div>
 
-         <div className={styles.usersContainer}>
-           <div className={styles.usersHeader}>
-             <label className={styles.selectAllContainer}>
-               <input
-                 type="checkbox"
-                 checked={selectedUsers.length === users.filter(user =>
-                   (selectedClass === 0 || user.classId === selectedClass) &&
-                   (user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                   user.email.toLowerCase().includes(searchTerm.toLowerCase()))
-                 ).length}
-                 onChange={(e) => {
-                   const filteredUsers = users.filter(user =>
-                     (selectedClass === 0 || user.classId === selectedClass) &&
-                     (user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                     user.email.toLowerCase().includes(searchTerm.toLowerCase()))
-                   );
-                   setSelectedUsers(e.target.checked ? filteredUsers.map(u => u.email) : []);
-                 }}
-               />
-             בחר הכל
-             </label>
-           </div>
-           <div className={styles.usersList}>
-             {(() => {
-               const filteredUsers = users.filter(user =>
+       <div className={styles.usersContainer}>
+         <div className={styles.usersHeader}>
+           <label className={styles.selectAllContainer}>
+             <input
+               type="checkbox"
+               checked={selectedUsers.length === users.filter(user =>
                  (selectedClass === 0 || user.classId === selectedClass) &&
                  (user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                  user.email.toLowerCase().includes(searchTerm.toLowerCase()))
-               );
-
-               if (filteredUsers.length === 0) {
-                 return (
-                   <div className={styles.noResults}>
-                     <div className={styles.noResultsIcon}>🔍</div>
-                     <div className={styles.noResultsText}>
-                       {searchTerm ? 'לא נמצאו תוצאות עבור החיפוש' : 'אין משתמשים להצגה'}
-                     </div>
-                     {searchTerm && (
-                       <div className={styles.noResultsSubtext}>
-                         נסה לחפש במילות חיפוש אחרות
-                       </div>
-                     )}
-                   </div>
+               ).length}
+               onChange={(e) => {
+                 const filteredUsers = users.filter(user =>
+                   (selectedClass === 0 || user.classId === selectedClass) &&
+                   (user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                   user.email.toLowerCase().includes(searchTerm.toLowerCase()))
                  );
-               }
+                 setSelectedUsers(e.target.checked ? filteredUsers.map(u => u.email) : []);
+               }}
+             />
+             בחר הכל
+           </label>
+         </div>
+         <div className={styles.usersList}>
+           {(() => {
+             const filteredUsers = users.filter(user =>
+               (selectedClass === 0 || user.classId === selectedClass) &&
+               (user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               user.email.toLowerCase().includes(searchTerm.toLowerCase()))
+             );
 
-               return filteredUsers.map(user => (
-                 <div key={user.id} className={styles.userCard}>
-                   <div className={styles.userInfo}>
-                     <div className={styles.userName}>{user.name || user.firstName}</div>
-                     <div className={styles.userEmail}>{user.email}</div>
+             if (filteredUsers.length === 0) {
+               return (
+                 <div className={styles.noResults}>
+                   <div className={styles.noResultsIcon}>🔍</div>
+                   <div className={styles.noResultsText}>
+                     {searchTerm ? 'לא נמצאו תוצאות עבור החיפוש' : 'אין משתמשים להצגה'}
                    </div>
-                   <div className={styles.leftSection}>
-                     <div className={styles.userBalance}>
-                       <span className={styles.balanceLabel}>יתרה:</span>
-                       <span className={styles.balanceValue}>{user.coins}</span>
+                   {searchTerm && (
+                     <div className={styles.noResultsSubtext}>
+                       נסה לחפש במילות חיפוש אחרות
                      </div>
-                     <input
-                       type="checkbox"
-                       checked={selectedUsers.includes(user.email)}
-                       onChange={(e) => {
-                         setSelectedUsers(prev =>
-                           e.target.checked
-                             ? [...prev, user.email]
-                             : prev.filter(email => email !== user.email)
-                         );
-                       }}
-                       className={styles.userCheckbox}
-                     />
-                   </div>
+                   )}
                  </div>
-               ));
-             })()}
+               );
+             }
+
+             return filteredUsers.map(user => (
+               <div key={user.id} className={styles.userCard}>
+                 <div className={styles.userInfo}>
+                   <div className={styles.userName}>{user.name || user.firstName}</div>
+                   <div className={styles.userEmail}>{user.email}</div>
+                 </div>
+                 <div className={styles.leftSection}>
+                   <div className={styles.userBalance}>
+                     <span className={styles.balanceLabel}>יתרה:</span>
+                     <span className={styles.balanceValue}>{user.coins}</span>
+                   </div>
+                   <input
+                     type="checkbox"
+                     checked={selectedUsers.includes(user.email)}
+                     onChange={(e) => {
+                       setSelectedUsers(prev =>
+                         e.target.checked
+                           ? [...prev, user.email]
+                           : prev.filter(email => email !== user.email)
+                       );
+                     }}
+                     className={styles.userCheckbox}
+                   />
+                 </div>
+               </div>
+             ));
+           })()}
+         </div>
+       </div>
+     </div>
+   </div>
+ );
+
+ return error ? (
+   <div className={styles.adminContainer}>
+     <div className={styles.errorMessage}>{error}</div>
+   </div>
+ ) : (
+   <div className={styles.adminContainer}>
+     {/* Sticky Navigation Header */}
+     <div className={styles.stickyNav}>
+       <div className={styles.navContent}>
+         <div className={styles.navLeft}>
+           <button 
+             onClick={handleLogout}
+             className={styles.logoutButton}
+           >
+             <LogOut size={20} />
+             יציאה
+           </button>
+         </div>
+         <div className={styles.navCenter}>
+           <BarChart3 size={24} />
+           <h1 className={styles.navTitle}>ממשק ניהול - Michael AI</h1>
+         </div>
+         <div className={styles.navRight}>
+           <div className={styles.userWelcome}>
+             <Users size={18} />
+             היי {currentUser}
            </div>
          </div>
+       </div>
+     </div>
+
+     {/* Main Content */}
+     <div className={styles.mainContent}>
+       {/* Tab Navigation */}
+       <div className={styles.tabNavigation}>
+         <button
+           className={`${styles.tabButton} ${activeTab === 'dashboard' ? styles.activeTab : ''}`}
+           onClick={() => setActiveTab('dashboard')}
+         >
+           <BarChart3 size={18} />
+           <span>דשבורד</span>
+         </button>
+         <button
+           className={`${styles.tabButton} ${activeTab === 'settings' ? styles.activeTab : ''}`}
+           onClick={() => setActiveTab('settings')}
+         >
+           <Settings size={18} />
+           <span>הגדרות</span>
+         </button>
+         <button
+           className={`${styles.tabButton} ${activeTab === 'users' ? styles.activeTab : ''}`}
+           onClick={() => setActiveTab('users')}
+         >
+           <Users size={18} />
+           <span>ניהול משתמשים</span>
+         </button>
+       </div>
+
+       {/* Tab Content */}
+       <div className={styles.tabContent}>
+         {activeTab === 'dashboard' && renderDashboard()}
+         {activeTab === 'settings' && renderSystemSettings()}
+         {activeTab === 'users' && renderUserManagement()}
        </div>
      </div>
    </div>
