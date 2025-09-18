@@ -88,7 +88,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
   };
 
   const initializeAvatar = async () => {
-    const avatarFeature = typeof window !== 'undefined' && (process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1');
+    const avatarFeature = typeof window !== 'undefined' && (process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1' || process.env.NODE_ENV === 'development');
     if (!avatarFeature) {
       console.log('⚠️ Avatar feature disabled via flag');
       return;

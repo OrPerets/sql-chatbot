@@ -42,13 +42,19 @@ const nextConfig = {
     domains: ['localhost'],
     formats: ['image/webp', 'image/avif'],
   },
-  // API route body size limit
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-    responseLimit: false,
+  // API route body size limit moved to route handlers in app directory
+  
+  // Webpack configuration
+  webpack: (config, { isServer }) => {
+    // Suppress critical dependency warnings for talkinghead.mjs dynamic imports
+    config.module = {
+      ...config.module,
+      exprContextCritical: false,
+    };
+    
+    return config;
   },
+  
   i18n: {
     defaultLocale: 'he',
     locales: ['he', 'en'],

@@ -4,7 +4,10 @@
   background: linear-gradient(135deg, rgba(245, 245, 245, 0.95) 0%, rgba(250, 250, 250, 0.9) 100%);
   padding: 24px;
   overflow-y: auto;
-  position: relative;
+  position: fixed; /* Fix position to stay on left */
+  left: 0;
+  top: 0;
+  z-index: 999; /* Below avatar but above chat */
   backdrop-filter: blur(20px);
   border-right: 1px solid rgba(0, 0, 0, 0.08);
   box-shadow: 2px 0 24px rgba(0, 0, 0, 0.08);
@@ -325,4 +328,11 @@
 
 .closeButton:active {
   transform: scale(0.95);
+}
+
+/* Mobile responsive - hide sidebar on small screens */
+@media (max-width: 768px) {
+  .sidebar {
+    display: none; /* Hide sidebar on mobile */
+  }
 }
