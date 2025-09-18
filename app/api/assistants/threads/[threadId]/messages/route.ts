@@ -24,6 +24,21 @@ export async function POST(request, { params: { threadId } }) {
   try {
     const { content, imageData } = await request.json();
 
+    // Get current week's content for context injection
+    let weeklyContext = '';
+    try {
+      const weeklyResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/mcp-michael/current-week`);
+      if (weeklyResponse.ok) {
+        const weeklyData = await weeklyResponse.json();
+        if (weeklyData.content && weeklyData.content.trim()) {
+          weeklyContext = `\n\n[הקשר שבועי נוכחי - שבוע ${weeklyData.currentWeek}: ${weeklyData.content}]`;
+        }
+      }
+    } catch (weeklyError) {
+      console.log('Could not fetch weekly context:', weeklyError);
+      // Continue without weekly context if fetch fails
+    }
+
     // Prepare message content
     let messageContent;
 
@@ -49,10 +64,11 @@ export async function POST(request, { params: { threadId } }) {
         console.log(`Image uploaded successfully. File ID: ${file.id}`);
         
         // Send message with file ID reference
+        const baseText = content || "Please analyze this image for SQL or database-related content and help me understand it.";
         messageContent = [
           {
             type: "text",
-            text: content || "Please analyze this image for SQL or database-related content and help me understand it."
+            text: baseText + weeklyContext
           },
           {
             type: "image_file",
@@ -66,11 +82,11 @@ export async function POST(request, { params: { threadId } }) {
       } catch (uploadError) {
         console.error("Error uploading image:", uploadError);
         // Fallback to text-only message
-        messageContent = content || "I encountered an error processing your image. Please try uploading it again or describe what you need help with.";
+        messageContent = (content || "I encountered an error processing your image. Please try uploading it again or describe what you need help with.") + weeklyContext;
       }
     } else {
       // Text-only message
-      messageContent = content;
+      messageContent = content + weeklyContext;
     }
 
     console.log("Creating message in thread:", threadId);

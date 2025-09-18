@@ -1,0 +1,139 @@
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.setting {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Skeleton elements */
+.icon, .number, .label, .name, .email, .balance, .checkbox,
+.settingIcon, .settingTitle, .settingLine {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+/* Stat card elements */
+.icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.number {
+  width: 60px;
+  height: 28px;
+}
+
+.label {
+  width: 120px;
+  height: 16px;
+}
+
+/* User card elements */
+.userInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.name {
+  width: 150px;
+  height: 18px;
+}
+
+.email {
+  width: 200px;
+  height: 14px;
+}
+
+.balance {
+  width: 80px;
+  height: 24px;
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+}
+
+/* Setting card elements */
+.settingHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.settingIcon {
+  width: 20px;
+  height: 20px;
+}
+
+.settingTitle {
+  width: 150px;
+  height: 20px;
+}
+
+.settingContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.settingLine {
+  height: 40px;
+  width: 100%;
+}
+
+.settingLine:last-child {
+  width: 70%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}

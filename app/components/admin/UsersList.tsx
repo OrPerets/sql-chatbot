@@ -13,17 +13,19 @@ interface User {
 interface UsersListProps {
   users: User[];
   selectedUsers: string[];
-  setSelectedUsers: (users: string[]) => void;
+  onSelectionChange: (users: string[]) => void;
   searchTerm: string;
   selectedClass: number;
+  loading?: boolean;
 }
 
 const UsersList: React.FC<UsersListProps> = ({
   users,
   selectedUsers,
-  setSelectedUsers,
+  onSelectionChange,
   searchTerm,
   selectedClass,
+  loading = false,
 }) => {
   const filteredUsers = users.filter(user =>
     (selectedClass === 0 || user.classId === selectedClass) &&
@@ -39,7 +41,7 @@ const UsersList: React.FC<UsersListProps> = ({
             type="checkbox"
             checked={selectedUsers.length === filteredUsers.length}
             onChange={(e) => {
-              setSelectedUsers(e.target.checked ? filteredUsers.map(u => u.email) : []);
+              onSelectionChange(e.target.checked ? filteredUsers.map(u => u.email) : []);
             }}
           />
           בחר הכל
@@ -53,7 +55,7 @@ const UsersList: React.FC<UsersListProps> = ({
                 type="checkbox"
                 checked={selectedUsers.includes(user.email)}
                 onChange={(e) => {
-                  setSelectedUsers(
+                  onSelectionChange(
                     e.target.checked
                       ? [...selectedUsers, user.email]
                       : selectedUsers.filter(email => email !== user.email)
