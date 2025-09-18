@@ -49,6 +49,11 @@ const nextConfig = {
     },
     responseLimit: false,
   },
+  i18n: {
+    defaultLocale: 'he',
+    locales: ['he', 'en'],
+    localeDetection: false,
+  },
 };
 
 export default nextConfig;

@@ -1,3 +1,4 @@
+import { cookies, headers } from "next/headers";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Warnings from "./components/warnings";
@@ -26,9 +27,30 @@ export const metadata = {
   },
 };
 
+function resolveLocale({ acceptLanguage, headerLocale, cookieLocale }: { acceptLanguage: string; headerLocale?: string | null; cookieLocale?: string | null }) {
+  if (cookieLocale && (cookieLocale === "he" || cookieLocale === "en")) {
+    return cookieLocale;
+  }
+
+  if (headerLocale && (headerLocale === "he" || headerLocale === "en")) {
+    return headerLocale;
+  }
+
+  const primaryLanguage = acceptLanguage.split(",")[0]?.trim().toLowerCase() ?? "";
+  return primaryLanguage.startsWith("en") ? "en" : "he";
+}
+
 export default function RootLayout({ children }) {
+  const headerList = headers();
+  const cookieStore = cookies();
+  const acceptLanguage = headerList.get("accept-language") ?? "";
+  const headerLocale = headerList.get("x-michael-locale");
+  const cookieLocale = cookieStore.get("michael-locale")?.value ?? null;
+  const locale = resolveLocale({ acceptLanguage, headerLocale, cookieLocale });
+  const dir = locale === "he" ? "rtl" : "ltr";
+
   return (
-    <html lang="en">
+    <html lang={locale} dir={dir}>
       <head>
         <link rel="icon" href="/icon-192.png" />
         <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />

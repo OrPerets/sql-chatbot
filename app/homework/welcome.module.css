@@ -1,0 +1,161 @@
+/* Admin Panel Style Welcome Page */
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  direction: rtl;
+  text-align: right;
+}
+
+.hero {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.heroIcon {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.hero h2 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.hero p {
+  margin: 0;
+  color: #64748b;
+  max-width: 600px;
+  line-height: 1.6;
+  font-size: 1.1rem;
+}
+
+.links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.linkCard {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-radius: 12px;
+  background: white;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+}
+
+.linkCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.linkIcon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.linkContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.linkTitle {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 1.1rem;
+}
+
+.linkDescription {
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+/* Color variants for different link types */
+.primary .linkIcon {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.secondary .linkIcon {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+}
+
+.tertiary .linkIcon {
+  background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+}
+
+.primary:hover {
+  border-color: #667eea;
+}
+
+.secondary:hover {
+  border-color: #48bb78;
+}
+
+.tertiary:hover {
+  border-color: #ed8936;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    gap: 1.5rem;
+  }
+
+  .hero {
+    padding: 1.5rem;
+  }
+
+  .hero h2 {
+    font-size: 1.75rem;
+  }
+
+  .hero p {
+    font-size: 1rem;
+  }
+
+  .links {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .linkCard {
+    padding: 1.25rem;
+  }
+
+  .linkIcon {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+}

@@ -84,3 +84,12 @@ Each initiative below highlights the relevant OpenAI features and lists the core
 - **Students**: Opt into beta tests, report confusing explanations, and help evaluate new tutoring modes.
 
 Together, these enhancements leverage OpenAI’s latest APIs to deliver a safer, smarter, and more personalized SQL learning companion.
+
+## Homework Module Quick Start
+
+- Builder dashboard: [`/homework/builder`](http://localhost:3000/homework/builder)
+- Student runner demo: [`/homework/runner/hw-set-analytics?studentId=student-demo`](http://localhost:3000/homework/runner/hw-set-analytics?studentId=student-demo)
+- Grading workspace: [`/homework/builder/hw-set-analytics/grade`](http://localhost:3000/homework/builder/hw-set-analytics/grade)
+
+Refer to `docs/homework-module/runner-grading-guide.md` for detailed setup, endpoints, and testing instructions spanning Sprints 0–4.
+
