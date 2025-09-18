@@ -13,18 +13,19 @@ export const metadata = {
     icon: "/icon-192.png",
     apple: "/icon-192.png",
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
-  themeColor: "#2a8ad8",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Michael",
   },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#2a8ad8",
 };
 
 function resolveLocale({ acceptLanguage, headerLocale, cookieLocale }: { acceptLanguage: string; headerLocale?: string | null; cookieLocale?: string | null }) {

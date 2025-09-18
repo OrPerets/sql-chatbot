@@ -20,6 +20,7 @@ import { fileToBase64 } from "../utils/parseImage";
 // import AudioRecorder from "./audio-recorder"; // Clean version: hide audio recorder button
 import MichaelAvatarDirect from "./MichaelAvatarDirect";
 import VoiceModeCircle from "./VoiceModeCircle";
+import StaticLogoMode from "./StaticLogoMode";
 import { AvatarIcon, MicIcon } from "./AvatarToggleIcons";
 import { enhancedTTS } from "@/app/utils/enhanced-tts";
 import OpenAI from "openai";
@@ -105,22 +106,76 @@ const AssistantMessage = ({ text, feedback, onFeedback, autoPlaySpeech, onPlayMe
   };
 
 const renderers = {
+  h1: ({ node, children, ...props }) => (
+    <h1 className={styles.messageHeader1} {...props}>{children}</h1>
+  ),
+  h2: ({ node, children, ...props }) => (
+    <h2 className={styles.messageHeader2} {...props}>{children}</h2>
+  ),
+  h3: ({ node, children, ...props }) => (
+    <h3 className={styles.messageHeader3} {...props}>{children}</h3>
+  ),
+  p: ({ node, children, ...props }) => (
+    <p className={styles.messageParagraph} {...props}>{children}</p>
+  ),
+  ul: ({ node, children, ...props }) => (
+    <ul className={styles.messageList} {...props}>{children}</ul>
+  ),
+  ol: ({ node, children, ...props }) => (
+    <ol className={styles.messageOrderedList} {...props}>{children}</ol>
+  ),
+  li: ({ node, children, ...props }) => (
+    <li className={styles.messageListItem} {...props}>{children}</li>
+  ),
+  strong: ({ node, children, ...props }) => (
+    <strong className={styles.messageStrong} {...props}>{children}</strong>
+  ),
+  em: ({ node, children, ...props }) => (
+    <em className={styles.messageEmphasis} {...props}>{children}</em>
+  ),
+  blockquote: ({ node, children, ...props }) => (
+    <blockquote className={styles.messageBlockquote} {...props}>{children}</blockquote>
+  ),
   code: ({ node, inline, className, children, ...props }) => {
+    const code = Array.isArray(children) ? children.join("") : children;
+    
+    if (inline) {
+      return <code className={styles.inlineCode} {...props}>{children}</code>;
+    }
+    
     if (className === "language-sql") {
-      const code = Array.isArray(children) ? children.join("") : children;
-
       return (
-        <div className={styles.sqlCodeContainer}> {/* Container for code and button */}
-          <pre className={styles.sqlCode}><code className={styles.sqlCode} onClick={() => {
-            copyToClipboard(code)
-            setCopiedText("הועתק בהצלחה")
-          }}>{code}</code></pre>
-          
-          {copied && <div className={styles.tooltip}>{copiedText}</div>}
+        <div className={styles.sqlCodeContainer}>
+          <div className={styles.sqlCodeHeader}>
+            <span className={styles.sqlCodeLabel}>SQL</span>
+            <button
+              className={styles.sqlCopyButton}
+              onClick={() => {
+                copyToClipboard(code)
+                setCopiedText("הועתק בהצלחה")
+              }}
+              title="העתק SQL"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+                <path d="m4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+              </svg>
+            </button>
+          </div>
+          <pre className={styles.sqlCode}>
+            <code className={styles.sqlCodeText}>{code}</code>
+          </pre>
+          {copied && <div className={styles.sqlTooltip}>{copiedText}</div>}
         </div>
       );
     }
-    return <code className={className} {...props}>{children}</code>;
+    
+    // Generic code block
+    return (
+      <div className={styles.codeBlock}>
+        <pre><code className={className} {...props}>{children}</code></pre>
+      </div>
+    );
   },
 };
 const copyQueryToClipboard = (text) => {
@@ -154,8 +209,7 @@ const copyQueryToClipboard = (text) => {
 };
   return (
     <div className={styles.assistantMessage}>
-      <Markdown>{text}</Markdown>
-      {/* <Markdown components={renderers} >{text}</Markdown> */}
+      <Markdown components={renderers}>{text}</Markdown>
       <div className={styles.feedbackButtons}>
         {!autoPlaySpeech && (
           <button
@@ -256,7 +310,7 @@ const Chat = ({
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isDone, setIsDone] = useState(false);
-  const [currentUser, setCurrectUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
   // Added for query cost estimation feature
   const [estimatedCost, setEstimatedCost] = useState(0);
@@ -269,7 +323,7 @@ const Chat = ({
   // Add audio and speech state
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
   const [autoPlaySpeech, setAutoPlaySpeech] = useState(false);
-  const enableAvatar = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1';
+  const enableAvatar = typeof window !== 'undefined' && (process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1' || process.env.NODE_ENV === 'development');
   const enableVoice = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_VOICE_ENABLED === '1';
   // Add avatar mode state with localStorage persistence
   const [avatarMode, setAvatarMode] = useState<'avatar' | 'voice'>(() => {
@@ -280,12 +334,36 @@ const Chat = ({
     return 'avatar';
   });
 
+  // Add hydration state to prevent layout shift
+  const [isHydrated, setIsHydrated] = useState(false);
+  
+  // Add display mode state for avatar/logo toggle
+  const [displayMode, setDisplayMode] = useState<'avatar' | 'logo'>('avatar');
+
   // Persist avatar mode changes to localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('avatarMode', avatarMode);
     }
   }, [avatarMode]);
+
+  // Hydration effect to load saved preferences and prevent layout shift
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedDisplayMode = localStorage.getItem('displayMode');
+      if (savedDisplayMode === 'logo' || savedDisplayMode === 'avatar') {
+        setDisplayMode(savedDisplayMode);
+      }
+      setIsHydrated(true);
+    }
+  }, []);
+
+  // Persist display mode changes to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined' && isHydrated) {
+      localStorage.setItem('displayMode', displayMode);
+    }
+  }, [displayMode, isHydrated]);
   // Add sidebar visibility state
   // Check if we're on mobile to default sidebar to closed
   const [sidebarVisible, setSidebarVisible] = useState(() => {
@@ -541,7 +619,7 @@ const Chat = ({
 
   useEffect(() => {
     let cUser = JSON.parse(localStorage.getItem("currentUser"));
-    setCurrectUser(cUser["name"]);
+    setCurrentUser(cUser["name"]);
     setCurrentBalance(Number(localStorage.getItem("currentBalance")));
 
     fetch(`${SERVER_BASE}/getCoinsStatus`).then(response => response.json())
@@ -1403,10 +1481,18 @@ return (
 )} */}
     
     <div className={styles.rightColumn}>
-      <div className={styles.avatarSection}>
-        {enableAvatar ? (
-          <>
-            {avatarMode === 'avatar' ? (
+      {!isHydrated ? (
+        <div 
+          className={styles.avatarHydrationPlaceholder}
+          role="status"
+          aria-label="טוען אווטאר"
+          aria-live="polite"
+        ></div>
+      ) : (
+        <div className={styles.avatarSection}>
+          {displayMode === 'avatar' && enableAvatar ? (
+            <>
+              {avatarMode === 'avatar' ? (
               <MichaelAvatarDirect
                 text={lastAssistantMessage}
                 state={avatarState}
@@ -1443,11 +1529,55 @@ return (
                 }}
               />
             )}
-            
-            {/* Toggle Button */}
-            {/* <div className={styles.avatarToggle}>
+          </>
+        ) : (
+          <StaticLogoMode
+            size="medium"
+            state={avatarState}
+            userName={currentUser}
+          />
+        )}
+        
+        {/* Toggle Buttons Container */}
+        <div className={styles.toggleButtonsContainer}>
+          {/* Display Mode Toggle Button */}
+          <div className={styles.displayModeToggle}>
+            <button 
+              className={`${styles.displayToggleButton} ${displayMode === 'logo' ? styles.logoModeActive : styles.avatarModeActive}`}
+              onClick={() => setDisplayMode(displayMode === 'avatar' ? 'logo' : 'avatar')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setDisplayMode(displayMode === 'avatar' ? 'logo' : 'avatar');
+                }
+              }}
+              title={displayMode === 'avatar' ? 'עבור למצב לוגו' : 'עבור למצב אווטאר'}
+              aria-label={displayMode === 'avatar' ? 'Switch to logo mode' : 'Switch to avatar mode'}
+              aria-pressed={displayMode === 'logo'}
+              role="switch"
+              aria-checked={displayMode === 'logo'}
+              tabIndex={0}
+            >
+              {displayMode === 'avatar' ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <path d="M21 15l-5-5L5 21"/>
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              )}
+            </button>
+          </div>
+          
+          {/* Avatar Mode Toggle (only visible in avatar display mode) */}
+          {displayMode === 'avatar' && enableAvatar && (
+            <div className={styles.avatarModeToggle}>
               <button 
-                className={`${styles.toggleButton} ${avatarMode === 'avatar' ? styles.avatarActive : styles.voiceActive}`}
+                className={`${styles.modeToggleButton} ${avatarMode === 'voice' ? styles.voiceActive : styles.avatarActive}`}
                 onClick={() => setAvatarMode(avatarMode === 'avatar' ? 'voice' : 'avatar')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -1455,21 +1585,21 @@ return (
                     setAvatarMode(avatarMode === 'avatar' ? 'voice' : 'avatar');
                   }
                 }}
-                title={avatarMode === 'avatar' ? 'מצב קול' : 'מצב אווטאר'}
+                title={avatarMode === 'avatar' ? 'מצב קול' : 'מצב אווטאר 3D'}
                 aria-label={avatarMode === 'avatar' ? 'Switch to voice mode' : 'Switch to avatar mode'}
                 aria-pressed={avatarMode === 'voice'}
                 role="switch"
                 aria-checked={avatarMode === 'voice'}
                 tabIndex={0}
               >
-                {avatarMode === 'avatar' ? <MicIcon size={20} /> : <AvatarIcon size={20} />}
+                {avatarMode === 'avatar' ? <MicIcon size={18} /> : <AvatarIcon size={18} />}
               </button>
-            </div> */}
-          </>
-        ) : null}
+            </div>
+          )}
+        </div>
         
-        {/* User info below the avatar */}
-        <div className={styles.userInfo}>
+          {/* User info below the avatar */}
+          <div className={styles.userInfo}>
           <div className={styles.nickname}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px', }}>
               <span>היי {currentUser}</span>
@@ -1504,7 +1634,8 @@ return (
           )}
           </div>
         </div>
-      </div>
+        </div>
+      )}
     </div>
     {/* Exercise Modal */}
     <Modal isOpen={showExerciseModal} onClose={() => {
