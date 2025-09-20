@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import config from '../../../config';
-
-const SERVER_BASE = config.serverUrl;
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const semesterStart = searchParams.get('semesterStart');
 
-    let url = `${SERVER_BASE}/weekly-content/current`;
+    let url = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/content/weekly`; // default weekly content
     if (semesterStart) {
-      url += `?semesterStart=${encodeURIComponent(semesterStart)}`;
+      url = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/content/semester-start?withCurrentWeek=1`;
     }
 
     const response = await fetch(url, {

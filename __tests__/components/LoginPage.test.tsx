@@ -4,7 +4,7 @@ import LoginPage from '../../app/LoginPage'
 
 // Mock fetch globally
 const mockFetch = jest.fn()
-global.fetch = mockFetch
+global.fetch = mockFetch as any
 
 describe('LoginPage', () => {
   beforeEach(() => {
@@ -46,9 +46,9 @@ describe('LoginPage', () => {
       expect(mockFetch).toHaveBeenCalledTimes(2)
     })
     
-    // Should have called users and status endpoints (production URLs)
-    expect(mockFetch).toHaveBeenCalledWith('https://mentor-server-theta.vercel.app/allUsers', expect.any(Object))
-    expect(mockFetch).toHaveBeenCalledWith('https://mentor-server-theta.vercel.app/getStatus', expect.any(Object))
+    // Should have called internal endpoints
+    expect(mockFetch).toHaveBeenCalledWith('/api/users', expect.any(Object))
+    expect(mockFetch).toHaveBeenCalledWith('/api/admin/status', expect.any(Object))
   })
 
   it('handles fetch errors gracefully', async () => {

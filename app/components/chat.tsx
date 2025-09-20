@@ -12,7 +12,6 @@ import { ThumbsUp, ThumbsDown, ClipboardCopy } from 'lucide-react';
 import Link from 'next/link';
 import Sidebar from './sidebar';
 import { useRouter } from 'next/navigation';
-import config from "../config";
 import Modal from "./modal";
 import SQLQueryEditorComponent from "./query-vizualizer";
 import ImageUpload from "./image-upload";
@@ -29,10 +28,9 @@ import SqlQueryBuilder from "./SqlQueryBuilder/SqlQueryBuilder";
 
 export const maxDuration = 50;
 
-const SERVER_BASE = config.serverUrl;
-
-const SAVE = SERVER_BASE + "/save"
-const UPDATE_BALANCE = SERVER_BASE + "/updateBalance"  // New endpoint for feedback
+// Replace external base with internal routes
+const SAVE = "/api/chat/save"; // not used directly; message saving goes via chat sessions endpoint
+const UPDATE_BALANCE = "/api/users/balance";
 
 type MessageProps = {
   role: "user" | "assistant" | "code";
@@ -494,7 +492,7 @@ const Chat = ({
 
     try {
       const user = JSON.parse(localStorage.getItem("currentUser"));
-      const response = await fetch(`${SERVER_BASE}/submitExerciseAnswer`, {
+      const response = await fetch(`/api/exercises/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -541,7 +539,7 @@ const Chat = ({
     if (!currentExercise) return;
 
     try {
-      const response = await fetch(`${SERVER_BASE}/getExerciseSolution/${currentExercise.id}`);
+      const response = await fetch(`/api/exercises/${currentExercise.id}/solution`);
       const result = await response.json();
       
       // Show solution in modal, then close modal and add to chat
@@ -564,7 +562,7 @@ const Chat = ({
       try {
         const user = JSON.parse(localStorage.getItem("currentUser"));
         if (user) {
-          const response = await fetch(`${SERVER_BASE}/getUserPoints/${user.email}`);
+          const response = await fetch(`/api/user-points?email=${encodeURIComponent(user.email)}`);
           const userPointsData = await response.json();
           setUserPoints(userPointsData.points || 0);
         }
@@ -599,7 +597,7 @@ const Chat = ({
     setCurrentUser(cUser["name"]);
     setCurrentBalance(Number(localStorage.getItem("currentBalance")));
 
-    fetch(`${SERVER_BASE}/getCoinsStatus`).then(response => response.json())
+    fetch(`/api/users/coins?status=1`).then(response => response.json())
     .then(data => setIsTokenBalanceVisible(data["status"] === "ON"))
 
   }, []);
@@ -608,7 +606,7 @@ const Chat = ({
 useEffect(() => {
   const loadChatSessions = () => {
     let cUser = JSON.parse(localStorage.getItem("currentUser"))
-    fetch(`${SERVER_BASE}/chat-sessions/${cUser["email"]}`, {
+    fetch(`/api/chat/sessions?userId=${encodeURIComponent(cUser["email"])}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -624,7 +622,7 @@ useEffect(() => {
   // Function to refresh chat sessions from server
   const refreshChatSessions = () => {
     let cUser = JSON.parse(localStorage.getItem("currentUser"))
-    fetch(`${SERVER_BASE}/chat-sessions/${cUser["email"]}`, {
+    fetch(`/api/chat/sessions?userId=${encodeURIComponent(cUser["email"])}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -653,22 +651,17 @@ useEffect(() => {
   }, []);
 
 const updateUserBalance = async (value) => {
-  const response = await fetch(UPDATE_BALANCE, {
+  if (!user?.email) return;
+  await fetch(UPDATE_BALANCE, {
     method: 'POST',
-    mode: 'cors',
-    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*'
     },
     body: JSON.stringify({
-      "email": user.email,
-      "currentBalance": value
+      email: user.email,
+      currentBalance: value
     })
   });
-  if (response.ok) {
-  } else {
-  }
   }
 
   useEffect(() => {
@@ -775,7 +768,7 @@ const updateUserBalance = async (value) => {
       setCurrentBalance(currentBalance - estimatedCost)
       let today = new Date().toISOString().slice(0, 10);
     if (!currentChatId) {
-      fetch(`${SERVER_BASE}/chat-sessions`, {
+      fetch(`/api/chat/sessions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -785,7 +778,7 @@ const updateUserBalance = async (value) => {
         setCurrentChatId(newChat._id);
         refreshChatSessions(); // Refresh the chat sessions list from server
         // Save the message to the server (save original text without tags)
-        fetch(`${SERVER_BASE}/chat-sessions/${newChat._id}/messages`, {
+        fetch(`/api/chat/sessions/${newChat._id}/messages`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -801,7 +794,7 @@ const updateUserBalance = async (value) => {
     }
 
     else {
-      fetch(`${SERVER_BASE}/chat-sessions/${currentChatId}/messages`, {
+      fetch(`/api/chat/sessions/${currentChatId}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -856,7 +849,7 @@ const loadChatMessages = (chatId: string) => {
   setShouldSpeak(false);
   setIsAssistantMessageComplete(false);
   
-  fetch(`${SERVER_BASE}/chat-sessions/${chatId}/messages`, {
+  fetch(`/api/chat/sessions/${chatId}/messages`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -1009,7 +1002,7 @@ const loadChatMessages = (chatId: string) => {
     let msgs = messages.filter(msg => msg.role === "assistant")
     if (msgs.length > 0) {
         // Save the message to the server
-        fetch(`${SERVER_BASE}/chat-sessions/${currentChatId}/messages`, {
+        fetch(`/api/chat/sessions/${currentChatId}/messages`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1138,7 +1131,7 @@ const loadChatMessages = (chatId: string) => {
     const message = messages[index];
     message.feedback = isLike;
 
-    fetch(`${SERVER_BASE}/saveFeedback`, {
+    fetch(`/api/feedback`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

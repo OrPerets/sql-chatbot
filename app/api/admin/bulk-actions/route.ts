@@ -1,31 +1,28 @@
 import { NextResponse } from 'next/server';
-import config from '../../../config';
 import { sendEmail, generateActionEmail } from '../../../utils/email-service';
-
-const SERVER_BASE = config.serverUrl;
 
 export async function POST(request: Request) {
   try {
     const data = await request.json();
-    const { users, actions } = data;
+    const { users, actions } = data as { users: string[]; actions: { type: string; amount?: number }[] };
 
     // Fetch only the selected users' data
-    const usersResponse = await fetch(`${SERVER_BASE}/users/selected`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ emails: users })
+    const usersResponse = await fetch(`/api/users`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
     });
-    
+
     if (!usersResponse.ok) {
-      throw new Error('Failed to fetch selected users');
+      throw new Error('Failed to fetch users');
     }
-    const usersData = await usersResponse.json();
+    const allUsers = await usersResponse.json();
+    const usersData = allUsers.filter((u: any) => users.includes(u.email));
     
     // Create a map of user emails to their current balances
+    const coinsResp = await fetch(`/api/users/coins?all=1`);
+    const coinsAll = await coinsResp.json();
     const userBalances = new Map(
-      usersData.map(user => [user.email, user.balance])
+      coinsAll.map((c: any) => [c.user, c.coins])
     );
     
     interface UserUpdate {
@@ -71,40 +68,30 @@ export async function POST(request: Request) {
 
     // Send balance updates if any
     if (balanceUpdates.length > 0) {
-      const balanceResponse = await fetch(`${SERVER_BASE}/update-balance`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ users: balanceUpdates }),
-      });
-
-      if (!balanceResponse.ok) {
-        throw new Error('Failed to update balances');
-      }
+      // Convert to aggregate inc operations using users/coins API in batches
+      const emails = balanceUpdates.map(b => b.email);
+      const targetUsers = usersData.filter((u: any) => emails.includes(u.email)).map((u: any) => u.email);
+      // For simplicity, compute delta from current balances not supported here; send set individually
+      await Promise.all(balanceUpdates.map(async ({ email, newBalance }) => {
+        await fetch(`/api/users/balance`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, currentBalance: Number(newBalance) })
+        });
+      }));
     }
 
     // Send password resets if any
     if (passwordResets.length > 0) {
-      const passwordResponse = await fetch(`${SERVER_BASE}/reset-password`, {
+      await fetch(`/api/users`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          users: passwordResets,
-          newPassword: 'shenkar'
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emails: passwordResets, password: 'shenkar' })
       });
-
-      if (!passwordResponse.ok) {
-        throw new Error('Failed to reset passwords');
-      }
     }
 
     // Send email notifications to selected users
-    const emailPromises = usersData.map(user => {
-
+    const emailPromises = usersData.map((user: any) => {
       const emailContent = generateActionEmail(user.email, user.name, actions);
       return sendEmail(emailContent);
     });

@@ -1,6 +1,5 @@
 import React from 'react';
 import styles from '../admin_page.module.css';
-import config from '../../config';
 
 const options = {
   'add_balance': 'הוסף מטבעות',
@@ -30,26 +29,23 @@ const BulkActions: React.FC<BulkActionsProps> = ({ selectedUsers, onSuccess, onE
       }
 
       if (actionType === "reset_password") {
-        await fetch(`${config.serverUrl}/updatePasswordToMany`, {
+        // Reset to default password 'shenkar' for selected users
+        await fetch(`/api/users`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ emails: selectedUsers})
+          body: JSON.stringify({ emails: selectedUsers, password: 'shenkar' })
         });
       } else {
-        const requestBody = {
-          users: selectedUsers,
-          type: actionType,
-          amount: parseInt(balanceAmount)
-        };
-
-        const response = await fetch(`${config.serverUrl}/admin/changeBalance`, {
+        let amount = parseInt(balanceAmount, 10);
+        if (actionType === 'reduce_balance') amount = -amount;
+        const response = await fetch(`/api/users/coins`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(requestBody)
+          body: JSON.stringify({ users: selectedUsers, amount })
         });
 
         if (!response.ok) {

@@ -13,9 +13,6 @@ import BulkActions from './admin/BulkActions';
 import UsersList from './admin/UsersList';
 import EnhancedSettingsToggle from './admin/EnhancedSettingsToggle';
 import styles from './admin_page.module.css';
-import config from '../config';
-
-const SERVER_BASE = config.serverUrl;
 
 const options = {
   'add_balance': 'הוסף מטבעות',
@@ -40,7 +37,7 @@ const AdminPage: React.FC = () => {
 
  // Fetch initial token visibility state
  useEffect(() => {
-   fetch(`${SERVER_BASE}/getCoinsStatus`)
+   fetch(`/api/users/coins?status=1`)
      .then(response => response.json())
      .then(data => setIsTokenBalanceVisible(data["status"] === "ON"))
      .catch(error => console.error('Error fetching token visibility:', error));
@@ -52,10 +49,10 @@ const AdminPage: React.FC = () => {
      setLoading(true);
      try {
        // Fetch users
-       const usersResponse = await fetch(`${SERVER_BASE}/allUsers`);
+       const usersResponse = await fetch(`/api/users`);
        const usersData = await usersResponse.json();
 
-       const coinsData = await fetch(`${SERVER_BASE}/getAllCoins`);
+       const coinsData = await fetch(`/api/users/coins?all=1`);
        const coins = await coinsData.json();
        usersData.forEach(user => {
         let temp = coins.filter(item => item.user === user.email)
@@ -69,7 +66,7 @@ const AdminPage: React.FC = () => {
 
        try {
          // Fetch classes if endpoint exists
-         const classesResponse = await fetch(`${SERVER_BASE}/classes`);
+         const classesResponse = await fetch(`/api/classes`);
          if (classesResponse.ok) {
            const classesData = await classesResponse.json();
            setClasses([{ id: 0, name: 'כל הכיתות' }, ...classesData]);
@@ -83,13 +80,10 @@ const AdminPage: React.FC = () => {
      }
 
      try {
-      const response = await fetch(SERVER_BASE + "/getStatus" , {
+      const response = await fetch(`/api/admin/status` , {
         method: 'GET',
-        mode: 'cors',
-        credentials: 'same-origin',
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
         }
       });
       const data = await response.json();
@@ -140,7 +134,7 @@ const AdminPage: React.FC = () => {
  }, [router]);
 
  const updateCoinsStatus = (value) => {
-  fetch(`${SERVER_BASE}/setCoinsStatus`, {
+  fetch(`/api/users/coins`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -248,7 +242,7 @@ const AdminPage: React.FC = () => {
              icon={Users}
              title="משתמשים רשומים"
              value={users.length}
-             description='סה"כ משתמשים במערכת'
+             description='סה\"כ משתמשים במערכת'
              trend={{
                value: 12,
                label: "השבוע האחרון",
@@ -303,7 +297,7 @@ const AdminPage: React.FC = () => {
              onChange: async (checked) => {
                setIsStatusVisible(checked);
                try {
-                 await fetch(`${SERVER_BASE}/setStatus`, {
+                 await fetch(`/api/admin/status`, {
                    method: 'POST',
                    headers: {
                      'Content-Type': 'application/json',
@@ -378,7 +372,7 @@ const AdminPage: React.FC = () => {
                </div>
                {uploadResult.summary && (
                  <div className={styles.uploadSummary}>
-                   <div>סה&quot;כ רשומות: {uploadResult.summary.totalRecords}</div>
+                   <div>סה\"כ רשומות: {uploadResult.summary.totalRecords}</div>
                    <div>נוספו: {uploadResult.summary.inserted}</div>
                    <div>עודכנו: {uploadResult.summary.updated}</div>
                    <div>שגיאות: {uploadResult.summary.errors}</div>
@@ -438,10 +432,10 @@ const AdminPage: React.FC = () => {
  // Helper function to refresh users data
  const fetchUsersData = async () => {
    try {
-     const usersResponse = await fetch(`${SERVER_BASE}/allUsers`);
+     const usersResponse = await fetch(`/api/users`);
      const usersData = await usersResponse.json();
      
-     const coinsData = await fetch(`${SERVER_BASE}/getAllCoins`);
+     const coinsData = await fetch(`/api/users/coins?all=1`);
      const coins = await coinsData.json();
      usersData.forEach(user => {
       let temp = coins.filter(item => item.user === user.email)

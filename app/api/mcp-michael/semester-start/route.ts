@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import config from '../../../config';
-
-const SERVER_BASE = config.serverUrl;
 
 export async function GET() {
   try {
-    const response = await fetch(`${SERVER_BASE}/semester-start`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/content/semester-start`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -39,7 +36,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await fetch(`${SERVER_BASE}/semester-start`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/content/semester-start`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

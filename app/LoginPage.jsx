@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { User, Lock, Loader, Shield, UserCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import config from './config';
 import styles from './login.module.css';
 
-const SERVER_BASE = config.serverUrl;
-const SERVER = `${SERVER_BASE}/allUsers`;
-const UPDATE_PASSWORD = `${SERVER_BASE}/updatePassword`;
-const GET_COINS_BALANCE = `${SERVER_BASE}/coinsBalance`;
+const SERVER = `/api/users`;
+const UPDATE_PASSWORD = `/api/users`;
+const GET_COINS_BALANCE = `/api/users/balance`;
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -39,18 +37,17 @@ const LoginPage = () => {
   const getCoinsBalance = async (userEmail) => {
     setIsFetchingUsers(true);
     try {
-      const response = await fetch(GET_COINS_BALANCE + "/" + userEmail, {
+      const response = await fetch(`${GET_COINS_BALANCE}?email=${encodeURIComponent(userEmail)}`, {
         method: 'GET',
-        mode: 'cors',
-        credentials: 'same-origin',
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
         }
       });
       const data = await response.json();
-      if (data.length > 0) {
+      if (Array.isArray(data) && data.length > 0 && data[0].coins != null) {
         localStorage.setItem("currentBalance", data[0]["coins"]);
+      } else if (typeof data?.coins === 'number') {
+        localStorage.setItem("currentBalance", String(data.coins));
       }
     } catch (error) {
       console.error('Error fetching balance:', error);
@@ -65,11 +62,8 @@ const LoginPage = () => {
     try {
       const response = await fetch(SERVER, {
         method: 'GET',
-        mode: 'cors',
-        credentials: 'same-origin',
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
         }
       });
       const data = await response.json();
@@ -82,13 +76,10 @@ const LoginPage = () => {
     }
     
     try {
-      const response = await fetch(SERVER_BASE + "/getStatus", {
+      const response = await fetch('/api/admin/status', {
         method: 'GET',
-        mode: 'cors',
-        credentials: 'same-origin',
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
         }
       });
       const data = await response.json();
@@ -188,11 +179,8 @@ const LoginPage = () => {
     try {
       const response = await fetch(UPDATE_PASSWORD, {
         method: 'POST',
-        mode: 'cors',
-        credentials: 'same-origin',
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
         },
         body: JSON.stringify({
           "email": email,

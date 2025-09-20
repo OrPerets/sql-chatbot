@@ -1,6 +1,5 @@
 import React from 'react';
 import styles from '../admin_page.module.css';
-import config from '../../config';
 
 interface TokenVisibilityToggleProps {
   isVisible: boolean;
@@ -20,12 +19,12 @@ const TokenVisibilityToggle: React.FC<TokenVisibilityToggleProps> = ({ isVisible
               const newValue = e.target.checked;
               onToggle(newValue);
               try {
-                await fetch(`${config.serverUrl}/setTokenVisibility`, {
+                await fetch(`/api/users/coins`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
                   },
-                  body: JSON.stringify({ isVisible: newValue })
+                  body: JSON.stringify({ newStatus: newValue ? 'ON' : 'OFF' })
                 });
               } catch (error) {
                 console.error('Error updating token visibility:', error);
