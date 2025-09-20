@@ -26,7 +26,10 @@ export class ChatService {
 
   async getChatSessions(userId: string): Promise<ChatSession[]> {
     return executeWithRetry(async (db) => {
-      return db.collection<ChatSession>(COLLECTIONS.CHAT_SESSIONS).find({ userId }).toArray()
+      return db.collection<ChatSession>(COLLECTIONS.CHAT_SESSIONS)
+        .find({ userId })
+        .sort({ lastMessageTimestamp: -1 })
+        .toArray()
     })
   }
 

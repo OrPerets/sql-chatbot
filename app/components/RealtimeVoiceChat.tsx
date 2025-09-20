@@ -11,6 +11,9 @@ interface RealtimeVoiceChatProps {
   voice?: string;
   instructions?: string;
   className?: string;
+  conversationMemory?: boolean;
+  interruptionHandling?: boolean;
+  onConversationSummary?: (summary: string) => void;
 }
 
 export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
@@ -19,18 +22,26 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
   isEnabled,
   voice = 'alloy',
   instructions,
-  className = ''
+  className = '',
+  conversationMemory = true,
+  interruptionHandling = true,
+  onConversationSummary
 }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  const [conversationHistory, setConversationHistory] = useState<Array<{role: 'user' | 'assistant', content: string, timestamp: number}>>([]);
+  const [isInterrupted, setIsInterrupted] = useState(false);
+  const [conversationContext, setConversationContext] = useState<string>('');
   
   const realtimeService = useRef<OpenAIRealtimeService | null>(null);
   const mediaStream = useRef<MediaStream | null>(null);
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 3;
+  const conversationMemoryRef = useRef<Array<{role: 'user' | 'assistant', content: string, timestamp: number}>>([]);
+  const interruptionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize realtime service
   const initializeRealtime = useCallback(async () => {
@@ -66,11 +77,21 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
       realtimeService.current.on('onTranscriptionUpdate', (text: string) => {
         console.log('📝 Transcription update:', text);
         onTranscriptionUpdate(text);
+        
+        // Handle interruption if user starts speaking while assistant is speaking
+        if (interruptionHandling && isSpeaking && text.trim().length > 0) {
+          handleInterruption();
+        }
       });
       
       realtimeService.current.on('onResponseUpdate', (text: string) => {
         console.log('💬 Response update:', text);
         onResponseUpdate(text);
+        
+        // Update conversation context for memory
+        if (conversationMemory) {
+          updateConversationContext('assistant', text);
+        }
       });
       
       realtimeService.current.on('onError', (error: Error) => {
@@ -116,6 +137,74 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     }
   }, [initializeRealtime]);
 
+  // Handle interruption
+  const handleInterruption = useCallback(() => {
+    console.log('🛑 User interrupted assistant response');
+    setIsInterrupted(true);
+    
+    // Stop current response
+    if (realtimeService.current) {
+      realtimeService.current.stopResponse();
+    }
+    
+    // Clear interruption timeout
+    if (interruptionTimeoutRef.current) {
+      clearTimeout(interruptionTimeoutRef.current);
+    }
+    
+    // Set timeout to reset interruption state
+    interruptionTimeoutRef.current = setTimeout(() => {
+      setIsInterrupted(false);
+    }, 2000);
+  }, []);
+
+  // Update conversation context for memory
+  const updateConversationContext = useCallback((role: 'user' | 'assistant', content: string) => {
+    const message = {
+      role,
+      content,
+      timestamp: Date.now()
+    };
+    
+    conversationMemoryRef.current.push(message);
+    
+    // Keep only last 10 messages for context
+    if (conversationMemoryRef.current.length > 10) {
+      conversationMemoryRef.current = conversationMemoryRef.current.slice(-10);
+    }
+    
+    // Update conversation history state
+    setConversationHistory([...conversationMemoryRef.current]);
+    
+    // Generate conversation context summary
+    generateConversationSummary();
+  }, []);
+
+  // Generate conversation summary
+  const generateConversationSummary = useCallback(() => {
+    if (conversationMemoryRef.current.length < 3) return;
+    
+    const recentMessages = conversationMemoryRef.current.slice(-5);
+    const context = recentMessages
+      .map(msg => `${msg.role}: ${msg.content}`)
+      .join('\n');
+    
+    setConversationContext(context);
+    
+    // Notify parent component
+    if (onConversationSummary && recentMessages.length > 0) {
+      onConversationSummary(context);
+    }
+  }, [onConversationSummary]);
+
+  // Get conversation memory for context
+  const getConversationMemory = useCallback(() => {
+    return conversationMemoryRef.current.slice(-5).map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }));
+  }, []);
+
   // Start listening
   const startListening = useCallback(async () => {
     if (!realtimeService.current || !isConnected) {
@@ -134,6 +223,13 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
       });
       
       mediaStream.current = stream;
+      
+      // Set conversation context if memory is enabled
+      if (conversationMemory && conversationMemoryRef.current.length > 0) {
+        const context = getConversationMemory();
+        realtimeService.current.setConversationContext(context);
+      }
+      
       await realtimeService.current.startListening(stream);
       
       console.log('🎤 Started listening');
@@ -141,7 +237,7 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
       console.error('❌ Failed to start listening:', error);
       setError(error instanceof Error ? error.message : 'Failed to access microphone');
     }
-  }, [isConnected]);
+  }, [isConnected, conversationMemory, getConversationMemory]);
 
   // Stop listening
   const stopListening = useCallback(() => {
@@ -246,6 +342,20 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
             <span className={styles.indicatorText}>Speaking</span>
           </div>
         )}
+        
+        {isInterrupted && (
+          <div className={`${styles.indicator} ${styles.interrupted}`}>
+            <span className={styles.indicatorIcon}>🛑</span>
+            <span className={styles.indicatorText}>Interrupted</span>
+          </div>
+        )}
+        
+        {conversationMemory && conversationHistory.length > 0 && (
+          <div className={`${styles.indicator} ${styles.memory}`}>
+            <span className={styles.indicatorIcon}>🧠</span>
+            <span className={styles.indicatorText}>Memory: {conversationHistory.length} messages</span>
+          </div>
+        )}
       </div>
       
       {error && (
@@ -259,6 +369,20 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
           >
             🔄
           </button>
+        </div>
+      )}
+      
+      {conversationMemory && conversationHistory.length > 0 && (
+        <div className={styles.conversationHistory}>
+          <h4>Conversation Memory</h4>
+          <div className={styles.historyList}>
+            {conversationHistory.slice(-3).map((message, index) => (
+              <div key={index} className={`${styles.historyItem} ${styles[message.role]}`}>
+                <span className={styles.historyRole}>{message.role}:</span>
+                <span className={styles.historyContent}>{message.content.substring(0, 100)}...</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

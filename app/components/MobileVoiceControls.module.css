@@ -1,0 +1,450 @@
+/* Mobile Voice Controls */
+.mobileVoiceControls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Main Control Button */
+.mainControl {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 8px 32px rgba(99, 102, 241, 0.3),
+    0 4px 16px rgba(139, 92, 246, 0.2),
+    inset 0 2px 0 rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mainControl:active,
+.mainControl.pressed {
+  transform: scale(0.95);
+  box-shadow: 
+    0 4px 16px rgba(99, 102, 241, 0.4),
+    0 2px 8px rgba(139, 92, 246, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.mainControl.recording {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  animation: recordingPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes recordingPulse {
+  0%, 100% {
+    box-shadow: 
+      0 8px 32px rgba(239, 68, 68, 0.3),
+      0 4px 16px rgba(220, 38, 38, 0.2),
+      inset 0 2px 0 rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 12px 40px rgba(239, 68, 68, 0.5),
+      0 6px 20px rgba(220, 38, 38, 0.3),
+      inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  }
+}
+
+/* Main Icon */
+.mainIcon {
+  position: relative;
+  z-index: 10;
+  width: 48px;
+  height: 48px;
+  color: white;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.mainIcon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Status Ring */
+.statusRing {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.statusRing.active {
+  border-color: rgba(255, 255, 255, 0.6);
+  animation: statusRingPulse 2s ease-in-out infinite;
+}
+
+@keyframes statusRingPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+
+/* Ripple Effect */
+.ripple {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 70%);
+  transform: translate(-50%, -50%);
+  animation: rippleExpand 0.6s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes rippleExpand {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(4);
+    opacity: 0;
+  }
+}
+
+/* Gesture Indicator */
+.gestureIndicator {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: gestureIndicatorFade 2s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes gestureIndicatorFade {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  80% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+}
+
+/* Slider Panel */
+.sliderPanel {
+  position: absolute;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 16px;
+  min-width: 200px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  animation: sliderSlideIn 0.3s ease-out forwards;
+  z-index: 20;
+}
+
+@keyframes sliderSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.sliderHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.closeSlider {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.closeSlider:hover {
+  background: rgba(107, 114, 128, 0.1);
+  color: #374151;
+}
+
+.slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #e5e7eb;
+  outline: none;
+  appearance: none;
+  margin: 8px 0;
+}
+
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  transition: all 0.2s ease;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  transition: all 0.2s ease;
+}
+
+.sliderValue {
+  text-align: center;
+  font-weight: 600;
+  color: #6366f1;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+/* Gesture Help */
+.gestureHelp {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 12px;
+  backdrop-filter: blur(10px);
+  animation: gestureHelpFade 0.3s ease-out forwards;
+  z-index: 30;
+}
+
+@keyframes gestureHelpFade {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.helpItem {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+
+.helpItem:last-child {
+  margin-bottom: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .mainControl {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .mainIcon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .sliderPanel {
+    min-width: 180px;
+    padding: 12px;
+  }
+  
+  .gestureHelp {
+    font-size: 11px;
+    padding: 12px;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .sliderPanel {
+    background: rgba(31, 41, 55, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .sliderHeader {
+    color: #f9fafb;
+  }
+  
+  .closeSlider {
+    color: #9ca3af;
+  }
+  
+  .closeSlider:hover {
+    background: rgba(156, 163, 175, 0.1);
+    color: #d1d5db;
+  }
+  
+  .slider {
+    background: #374151;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .mainControl {
+    border: 4px solid black;
+    background: white;
+  }
+  
+  .mainIcon {
+    color: black;
+  }
+  
+  .statusRing.active {
+    border-color: black;
+  }
+  
+  .sliderPanel {
+    background: white;
+    border: 2px solid black;
+  }
+  
+  .slider::-webkit-slider-thumb {
+    background: black;
+    box-shadow: none;
+  }
+  
+  .slider::-moz-range-thumb {
+    background: black;
+    box-shadow: none;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .mainControl,
+  .statusRing,
+  .ripple,
+  .gestureIndicator,
+  .sliderPanel,
+  .gestureHelp {
+    animation: none;
+    transition: none;
+  }
+  
+  .mainControl.recording {
+    animation: none;
+  }
+  
+  .mainControl:active,
+  .mainControl.pressed {
+    transform: none;
+  }
+}
+
+/* Focus Styles for Accessibility */
+.mainControl:focus {
+  outline: 3px solid rgba(99, 102, 241, 0.6);
+  outline-offset: 4px;
+}
+
+.closeSlider:focus,
+.slider:focus {
+  outline: 2px solid rgba(99, 102, 241, 0.6);
+  outline-offset: 2px;
+}
+
+/* Touch-specific styles */
+@media (hover: none) and (pointer: coarse) {
+  .mainControl {
+    width: 140px;
+    height: 140px;
+  }
+  
+  .mainIcon {
+    width: 56px;
+    height: 56px;
+  }
+  
+  .sliderPanel {
+    min-width: 220px;
+    padding: 20px;
+  }
+  
+  .slider {
+    height: 8px;
+  }
+  
+  .slider::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .slider::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+  }
+}

@@ -76,7 +76,8 @@ const AssistantMessage = ({ text, feedback, onFeedback, autoPlaySpeech, onPlayMe
     console.log('🔊 handlePlayMessage called', {
       onPlayMessage: !!onPlayMessage,
       text: text?.substring(0, 50) + '...',
-      autoPlaySpeech
+      autoPlaySpeech,
+      textLength: text?.length || 0
     });
     if (onPlayMessage) {
       onPlayMessage();
@@ -208,7 +209,9 @@ const copyQueryToClipboard = (text) => {
 };
   return (
     <div className={styles.assistantMessage}>
-      <Markdown components={renderers}>{text}</Markdown>
+      <div className={styles.messageContent}>
+        <Markdown components={renderers}>{text}</Markdown>
+      </div>
       <div className={styles.feedbackButtons}>
         {!autoPlaySpeech && (
           <button
@@ -324,7 +327,7 @@ const Chat = ({
   const [autoPlaySpeech, setAutoPlaySpeech] = useState(false);
   // Environment variables - these are available at build time
   const enableAvatar = process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1' || process.env.NODE_ENV === 'development';
-  const enableVoice = process.env.NEXT_PUBLIC_VOICE_ENABLED === '1';
+  const enableVoice = process.env.NEXT_PUBLIC_VOICE_ENABLED === '1' || process.env.NODE_ENV === 'development';
   
   // Add avatar mode state with localStorage persistence
   const [avatarMode, setAvatarMode] = useState<'avatar' | 'voice'>('avatar');
@@ -1178,7 +1181,7 @@ const loadChatMessages = (chatId: string) => {
   }
 
 return (
-  <div className={styles.main}>
+  <div className={`${styles.main} ${!sidebarVisible ? styles.mainFullWidth : ''}`}>
     {sidebarVisible && (
       <Sidebar 
         chatSessions={chatSessions} 
@@ -1216,8 +1219,17 @@ return (
                   onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
                   autoPlaySpeech={msg.role === 'assistant' ? (enableVoice && autoPlaySpeech) : undefined}
                   onPlayMessage={msg.role === 'assistant' ? () => {
-                    console.log('🎤 Playing individual message:', msg.text.substring(0, 50) + '...');
-                    if (!enableVoice) return;
+                    console.log('🎤 Playing individual message:', {
+                      messageText: msg.text.substring(0, 50) + '...',
+                      enableVoice,
+                      avatarMode,
+                      currentAvatarState: avatarState,
+                      lastAssistantMessage: lastAssistantMessage?.substring(0, 30) + '...'
+                    });
+                    if (!enableVoice) {
+                      console.log('❌ Voice is not enabled');
+                      return;
+                    }
                     // Stop any current speech
                     enhancedTTS.stop();
                     // Reset speech states first
@@ -1239,6 +1251,11 @@ return (
                       setIsManualSpeech(true);  // Mark as manual speech
                       // Clear thinking state
                       setIsThinking(false);
+                      console.log('🎤 Set speech state for avatar:', {
+                        shouldSpeak: true,
+                        isAssistantMessageComplete: true,
+                        text: msg.text.substring(0, 50) + '...'
+                      });
                     }, 100);
                   } : undefined}
                 />

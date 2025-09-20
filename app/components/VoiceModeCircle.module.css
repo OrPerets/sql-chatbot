@@ -368,21 +368,25 @@
 .speaking .centerIcon {
   color: #3b82f6;
   animation: iconPulse 1.5s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.6));
 }
 
 .listening .centerIcon {
   color: #10b981;
   animation: iconPulse 1s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.6));
 }
 
 .thinking .centerIcon {
   color: #a855f7;
   animation: iconRotate 4s linear infinite;
+  filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.6));
 }
 
 .userWriting .centerIcon {
   color: #f59e0b;
   animation: iconPulse 2s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.6));
 }
 
 @keyframes iconPulse {
@@ -405,6 +409,164 @@
   }
 }
 
+/* Real-time Waveform Canvas */
+.waveformCanvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 8px;
+  opacity: 0.8;
+  z-index: 5;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(4px);
+}
+
+/* Voice Activity Indicator */
+.voiceActivityIndicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+  z-index: 6;
+}
+
+.voiceActivityBar {
+  width: 3px;
+  background: linear-gradient(to top, rgba(16, 185, 129, 0.6), rgba(16, 185, 129, 1));
+  border-radius: 2px;
+  animation: voiceActivity 0.5s ease-in-out infinite alternate;
+  min-height: 4px;
+}
+
+@keyframes voiceActivity {
+  0% {
+    transform: scaleY(0.5);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+/* Speech Pulse Animation */
+.speechPulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+}
+
+.pulse1, .pulse2, .pulse3 {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  border: 2px solid rgba(59, 130, 246, 0.6);
+  transform: translate(-50%, -50%);
+  animation: speechPulseExpand 2s ease-out infinite;
+}
+
+.pulse1 {
+  width: 70%;
+  height: 70%;
+  animation-delay: 0s;
+}
+
+.pulse2 {
+  width: 85%;
+  height: 85%;
+  animation-delay: 0.7s;
+}
+
+.pulse3 {
+  width: 100%;
+  height: 100%;
+  animation-delay: 1.4s;
+}
+
+@keyframes speechPulseExpand {
+  0% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
+    opacity: 0.4;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.3);
+    opacity: 0;
+  }
+}
+
+/* Touch Interaction Feedback */
+.touchFeedback {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.touchRipple {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60%;
+  height: 60%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, rgba(59, 130, 246, 0) 70%);
+  animation: touchRipple 0.6s ease-out;
+}
+
+@keyframes touchRipple {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2);
+    opacity: 0;
+  }
+}
+
+/* Pressed State */
+.voiceCircle.pressed {
+  transform: scale(0.95);
+  transition: transform 0.1s ease;
+}
+
+.voiceCircle.pressed .circleBackground {
+  box-shadow: 
+    0 4px 16px rgba(59, 130, 246, 0.3),
+    0 2px 8px rgba(99, 102, 241, 0.2),
+    inset 0 2px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* Screen Reader Only Content */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .voiceCircle {
@@ -414,6 +576,15 @@
   .centerIcon svg {
     width: 36px;
     height: 36px;
+  }
+  
+  .waveformCanvas {
+    width: 160px;
+    height: 48px;
+  }
+  
+  .voiceActivityBar {
+    width: 2px;
   }
 }
 
@@ -426,4 +597,65 @@
     width: 32px;
     height: 32px;
   }
+  
+  .waveformCanvas {
+    width: 140px;
+    height: 40px;
+  }
+  
+  .voiceActivityIndicator {
+    gap: 2px;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .voiceCircle {
+    border: 3px solid currentColor;
+  }
+  
+  .circleBackground {
+    background: white;
+    border: 2px solid black;
+  }
+  
+  .centerIcon {
+    color: black;
+  }
+  
+  .ring1, .ring2, .ring3 {
+    border-color: black;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .voiceCircle,
+  .circleBackground,
+  .centerIcon,
+  .ring1, .ring2, .ring3,
+  .wave1, .wave2, .wave3, .wave4,
+  .ripple1, .ripple2, .ripple3,
+  .pulse1, .pulse2, .pulse3,
+  .dot1, .dot2, .dot3,
+  .voiceActivityBar,
+  .touchRipple {
+    animation: none;
+    transition: none;
+  }
+  
+  .voiceCircle.pressed {
+    transform: none;
+  }
+}
+
+/* Focus Styles for Accessibility */
+.voiceCircle:focus {
+  outline: 3px solid rgba(59, 130, 246, 0.6);
+  outline-offset: 4px;
+}
+
+.voiceCircle:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.8);
+  outline-offset: 4px;
 }

@@ -11,6 +11,8 @@ const activeRequests = new Map<string, Promise<NextResponse>>();
 const ALLOWED_VOICES = new Set(['onyx','echo','fable','alloy','nova','shimmer']);
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     const featureVoiceEnabled = process.env.FEATURE_VOICE === '1';
     if (!featureVoiceEnabled) {
@@ -27,6 +29,10 @@ export async function POST(request: NextRequest) {
       voice: requestedVoice,
       speed = 1.0,
       format = 'mp3',
+      emotion = 'neutral',
+      content_type = 'general',
+      enhance_prosody = true,
+      character_style = 'university_ta'
     } = body || {};
 
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
@@ -39,21 +45,33 @@ export async function POST(request: NextRequest) {
       voice = requestedVoice;
     }
 
-    // Dedup key
-    const requestKey = `${voice}_${format}_${Math.round(speed * 100)}_${text}`;
+    // Enhanced dedup key with new parameters
+    const requestKey = `${voice}_${format}_${Math.round(speed * 100)}_${emotion}_${content_type}_${text}`;
     if (activeRequests.has(requestKey)) {
       return await activeRequests.get(requestKey)!;
     }
 
     const processingPromise = (async (): Promise<NextResponse> => {
       try {
-        // Clean minimal text
-        const processedText = text
+        // Enhanced text processing with content-type awareness
+        let processedText = text
           .replace(/```[\s\S]*?```/g, ' [code block] ')
           .replace(/\s+/g, ' ')
           .trim();
 
-        // Call OpenAI speech API (server-side)
+        // Apply content-type specific processing
+        if (content_type === 'sql') {
+          processedText = enhanceSQLPronunciation(processedText);
+        } else if (content_type === 'explanation') {
+          processedText = addNaturalPauses(processedText);
+        }
+
+        // Apply emotion-based text enhancement
+        if (emotion !== 'neutral') {
+          processedText = applyEmotionEnhancement(processedText, emotion);
+        }
+
+        // Call OpenAI speech API with enhanced parameters
         const resp = await openai.audio.speech.create({
           model: 'gpt-4o-mini-tts',
           voice: voice as any,
@@ -68,16 +86,27 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Empty audio from TTS' }, { status: 502 });
         }
 
+        // Calculate processing time for analytics
+        const processingTime = Date.now() - startTime;
+
         return new NextResponse(buffer, {
           status: 200,
           headers: {
             'Content-Type': format === 'mp3' ? 'audio/mpeg' : 'application/octet-stream',
             'Content-Length': buffer.length.toString(),
-            'Cache-Control': 'no-store',
+            'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+            'X-TTS-Processing-Time': processingTime.toString(),
+            'X-TTS-Voice': voice,
+            'X-TTS-Emotion': emotion,
+            'X-TTS-Content-Type': content_type
           },
         });
       } catch (err) {
-        return NextResponse.json({ error: 'Failed to generate speech' }, { status: 500 });
+        console.error('TTS API Error:', err);
+        return NextResponse.json({ 
+          error: 'Failed to generate speech',
+          details: err instanceof Error ? err.message : 'Unknown error'
+        }, { status: 500 });
       } finally {
         activeRequests.delete(requestKey);
       }
@@ -86,7 +115,53 @@ export async function POST(request: NextRequest) {
     activeRequests.set(requestKey, processingPromise);
     return await processingPromise;
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to generate speech' }, { status: 500 });
+    console.error('TTS Route Error:', error);
+    return NextResponse.json({ 
+      error: 'Failed to generate speech',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
+  }
+}
+
+// Helper function to enhance SQL pronunciation
+function enhanceSQLPronunciation(text: string): string {
+  return text
+    .replace(/\bSELECT\b/gi, 'SELECT')
+    .replace(/\bFROM\b/gi, 'FROM')
+    .replace(/\bWHERE\b/gi, 'WHERE')
+    .replace(/\bJOIN\b/gi, 'JOIN')
+    .replace(/\bORDER BY\b/gi, 'ORDER BY')
+    .replace(/\bGROUP BY\b/gi, 'GROUP BY')
+    .replace(/\bHAVING\b/gi, 'HAVING')
+    .replace(/\bUNION\b/gi, 'UNION')
+    .replace(/\bINNER\b/gi, 'INNER')
+    .replace(/\bLEFT\b/gi, 'LEFT')
+    .replace(/\bRIGHT\b/gi, 'RIGHT')
+    .replace(/\bOUTER\b/gi, 'OUTER');
+}
+
+// Helper function to add natural pauses for explanations
+function addNaturalPauses(text: string): string {
+  return text
+    .replace(/\./g, '. ') // Add pause after periods
+    .replace(/:/g, ': ') // Add pause after colons
+    .replace(/;/g, '; ') // Add pause after semicolons
+    .replace(/,/g, ', '); // Add pause after commas
+}
+
+// Helper function to apply emotion enhancement
+function applyEmotionEnhancement(text: string, emotion: string): string {
+  switch (emotion) {
+    case 'excited':
+      return text.replace(/!/g, '! ').replace(/\./g, '. ');
+    case 'calm':
+      return text.replace(/\./g, '. ').replace(/!/g, '.');
+    case 'happy':
+      return text.replace(/\./g, '. ').replace(/!/g, '! ');
+    case 'sad':
+      return text.replace(/\./g, '... ').replace(/!/g, '.');
+    default:
+      return text;
   }
 }
 
