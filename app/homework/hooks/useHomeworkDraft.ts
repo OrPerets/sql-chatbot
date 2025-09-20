@@ -17,9 +17,7 @@ function toDraft(set: Awaited<ReturnType<typeof getHomeworkSet>>, questions: Que
     },
     dataset: {
       selectedDatasetId: questions.find((question) => Boolean(question.datasetId))?.datasetId,
-      mode: "reuse",
       newDatasetName: "",
-      newDatasetDescription: "",
       tags: [],
     },
     questions: questions.map((question) => ({

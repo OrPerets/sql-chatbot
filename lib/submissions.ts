@@ -188,8 +188,10 @@ export class SubmissionsService {
           $set: {
             status: "submitted",
             submittedAt: now,
-            attemptNumber: { $inc: 1 },
             updatedAt: now,
+          },
+          $inc: {
+            attemptNumber: 1
           }
         },
         { returnDocument: 'after' }

@@ -38,13 +38,13 @@ export class PracticeService {
     this.db = db
   }
 
-  async getPracticeTables(): Promise<Record<string, Omit<PracticeTableDoc, '_id'> & { id: string }[]>> {
+  async getPracticeTables(): Promise<Record<string, (Omit<PracticeTableDoc, '_id'> & { id: string })[]>> {
     return executeWithRetry(async (db) => {
       const tables = await db.collection<PracticeTableDoc>(COLLECTIONS.PRACTICE_TABLES).find({}).toArray()
-      const grouped: Record<string, any[]> = {}
+      const grouped: Record<string, (Omit<PracticeTableDoc, '_id'> & { id: string })[]> = {}
       for (const t of tables) {
         const id = t._id?.toString() || ''
-        const item = { id, table: t.table, columns: t.columns, constraints: t.constraints, fullSql: t.fullSql }
+        const item = { id, practiceId: t.practiceId, table: t.table, columns: t.columns, constraints: t.constraints, fullSql: t.fullSql }
         if (!grouped[t.practiceId]) grouped[t.practiceId] = []
         grouped[t.practiceId].push(item)
       }
@@ -52,7 +52,7 @@ export class PracticeService {
     })
   }
 
-  async getPracticeQueries(practiceId: string, max: number = 3): Promise<(PracticeQueryDoc & { _id: string })[]> {
+  async getPracticeQueries(practiceId: string, max: number = 3): Promise<(Omit<PracticeQueryDoc, '_id'> & { _id: string })[]> {
     return executeWithRetry(async (db) => {
       const queries = await db.collection<PracticeQueryDoc>(COLLECTIONS.PRACTICE_QUERIES).find({ practiceId }).toArray()
       const shuffled = [...queries].sort(() => 0.5 - Math.random())

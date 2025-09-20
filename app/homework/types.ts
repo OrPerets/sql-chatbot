@@ -96,6 +96,8 @@ export interface Submission {
   status: "in_progress" | "submitted" | "graded";
   submittedAt?: string;
   gradedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SubmissionSummary {
