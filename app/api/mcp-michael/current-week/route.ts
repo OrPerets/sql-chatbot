@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Force dynamic rendering to avoid static generation issues
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const semesterStart = searchParams.get('semesterStart');
+    const semesterStart = request.nextUrl.searchParams.get('semesterStart');
 
     let url = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/content/weekly`; // default weekly content
     if (semesterStart) {

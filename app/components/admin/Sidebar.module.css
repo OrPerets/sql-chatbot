@@ -8,7 +8,6 @@
   top: 0;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 4px 0 12px rgba(0, 0, 0, 0.1);
-  direction: rtl;
   text-align: right;
   z-index: 50;
 }

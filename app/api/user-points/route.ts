@@ -1,10 +1,12 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { executeWithRetry, COLLECTIONS } from '@/lib/database'
 
-export async function GET(request: Request) {
+// Force dynamic rendering to avoid static generation issues
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const email = searchParams.get('email')
+    const email = request.nextUrl.searchParams.get('email')
     if (!email) {
       return NextResponse.json({ error: 'email is required' }, { status: 400 })
     }
