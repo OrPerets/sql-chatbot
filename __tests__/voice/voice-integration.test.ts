@@ -3,7 +3,7 @@
  * Comprehensive testing for voice functionality across the application
  */
 
-import { EnhancedTTS } from '../../app/utils/enhanced-tts';
+import { enhancedTTS } from '../../app/utils/enhanced-tts';
 import { AudioProcessor } from '../../app/utils/audio-processor';
 import { VoiceAnalytics } from '../../app/utils/voice-analytics';
 import { ContextAwareVoice } from '../../app/utils/context-aware-voice';
@@ -58,13 +58,11 @@ global.indexedDB = {
 } as any;
 
 describe('Voice Integration Tests', () => {
-  let enhancedTTS: EnhancedTTS;
   let audioProcessor: AudioProcessor;
   let voiceAnalytics: VoiceAnalytics;
   let contextAwareVoice: ContextAwareVoice;
 
   beforeEach(() => {
-    enhancedTTS = new EnhancedTTS();
     audioProcessor = new AudioProcessor();
     voiceAnalytics = new VoiceAnalytics();
     contextAwareVoice = new ContextAwareVoice();

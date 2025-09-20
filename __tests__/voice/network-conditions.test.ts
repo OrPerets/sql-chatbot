@@ -3,7 +3,7 @@
  * Tests voice functionality under various network conditions
  */
 
-import { EnhancedTTS } from '../../app/utils/enhanced-tts';
+import { enhancedTTS } from '../../app/utils/enhanced-tts';
 import { VoiceAnalytics } from '../../app/utils/voice-analytics';
 
 // Mock Web APIs
@@ -53,11 +53,9 @@ global.indexedDB = {
 } as any;
 
 describe('Network Conditions Voice Testing', () => {
-  let enhancedTTS: EnhancedTTS;
   let voiceAnalytics: VoiceAnalytics;
 
   beforeEach(() => {
-    enhancedTTS = new EnhancedTTS();
     voiceAnalytics = new VoiceAnalytics();
   });
 

@@ -42,7 +42,7 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({
   animationSpeed = 'normal'
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<NodeJS.Timeout | number | undefined>();
   const [peaks, setPeaks] = useState<number[]>(new Array(frequencyBands).fill(0));
 
   const getCanvasSize = () => {
@@ -334,7 +334,7 @@ export const CircularAudioVisualization: React.FC<AudioVisualizationProps> = ({
   sensitivity = 1.0
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<NodeJS.Timeout | number | undefined>();
 
   const getCanvasSize = () => {
     switch (size) {
@@ -415,12 +415,12 @@ export const CircularAudioVisualization: React.FC<AudioVisualizationProps> = ({
   useEffect(() => {
     if (isActive && audioData) {
       drawCircularVisualization();
-    } else if (animationRef.current) {
+    } else if (animationRef.current && typeof animationRef.current === 'number') {
       cancelAnimationFrame(animationRef.current);
     }
 
     return () => {
-      if (animationRef.current) {
+      if (animationRef.current && typeof animationRef.current === 'number') {
         cancelAnimationFrame(animationRef.current);
       }
     };
@@ -462,4 +462,3 @@ const AudioVisualization: React.FC<AudioVisualizationProps> = (props) => {
 };
 
 export default AudioVisualization;
-export { VoiceLevelMeter };

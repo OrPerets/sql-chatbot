@@ -3,7 +3,7 @@
  * Tests voice functionality across different browser environments
  */
 
-import { EnhancedTTS } from '../../app/utils/enhanced-tts';
+import { enhancedTTS } from '../../app/utils/enhanced-tts';
 import { VoiceAnalytics } from '../../app/utils/voice-analytics';
 
 // Browser-specific mocks
@@ -155,7 +155,7 @@ describe('Cross-Browser Voice Compatibility', () => {
   
   browsers.forEach(browser => {
     describe(`${browser.toUpperCase()} Browser`, () => {
-      let enhancedTTS: EnhancedTTS;
+      // Using the singleton instance
       let voiceAnalytics: VoiceAnalytics;
       let mockAPIs: any;
 
@@ -187,7 +187,7 @@ describe('Cross-Browser Voice Compatibility', () => {
           }))
         } as any;
 
-        enhancedTTS = new EnhancedTTS();
+        // Using the singleton instance
         voiceAnalytics = new VoiceAnalytics();
       });
 
@@ -365,7 +365,7 @@ describe('Cross-Browser Voice Compatibility', () => {
         global.webkitSpeechRecognition = mockAPIs.webkitSpeechRecognition;
         global.AudioContext = mockAPIs.AudioContext;
         
-        const enhancedTTS = new EnhancedTTS();
+        // Using the singleton instance
         
         try {
           const result = await enhancedTTS.speak(testText, { voice: 'nova' });
@@ -399,7 +399,7 @@ describe('Cross-Browser Voice Compatibility', () => {
         global.webkitSpeechRecognition = mockAPIs.webkitSpeechRecognition;
         global.AudioContext = mockAPIs.AudioContext;
         
-        const enhancedTTS = new EnhancedTTS();
+        // Using the singleton instance
         const capabilities = enhancedTTS.getBrowserCapabilities();
         
         featureMatrix[browser] = capabilities;
@@ -424,7 +424,7 @@ describe('Cross-Browser Voice Compatibility', () => {
         global.webkitSpeechRecognition = mockAPIs.webkitSpeechRecognition;
         global.AudioContext = mockAPIs.AudioContext;
         
-        const enhancedTTS = new EnhancedTTS();
+        // Using the singleton instance
         const browserRecommendations = enhancedTTS.getBrowserRecommendations();
         
         recommendations[browser] = browserRecommendations;

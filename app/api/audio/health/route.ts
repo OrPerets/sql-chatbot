@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enhancedTTS } from '../../utils/enhanced-tts';
+import { enhancedTTS } from '@/app/utils/enhanced-tts';
 
 export async function GET(request: NextRequest) {
   try {

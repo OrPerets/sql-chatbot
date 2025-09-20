@@ -470,7 +470,7 @@ export class VoiceRateLimiter {
     const now = Date.now();
     const maxAge = 24 * 60 * 60 * 1000; // 24 hours
 
-    for (const [key, entry] of this.rateLimitStore) {
+    for (const [key, entry] of Array.from(this.rateLimitStore)) {
       // Remove entries older than maxAge
       if (now - entry.lastReset > maxAge) {
         this.rateLimitStore.delete(key);

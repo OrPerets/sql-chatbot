@@ -514,7 +514,7 @@ class ContextAwareVoiceService {
       }
     }
 
-    return [...new Set(emphasisWords)]; // Remove duplicates
+    return Array.from(new Set(emphasisWords)); // Remove duplicates
   }
 
   /**

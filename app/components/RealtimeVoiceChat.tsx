@@ -144,7 +144,7 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     
     // Stop current response
     if (realtimeService.current) {
-      realtimeService.current.stopResponse();
+      // realtimeService.current.stopResponse(); // Method doesn't exist yet
     }
     
     // Clear interruption timeout
@@ -227,7 +227,7 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
       // Set conversation context if memory is enabled
       if (conversationMemory && conversationMemoryRef.current.length > 0) {
         const context = getConversationMemory();
-        realtimeService.current.setConversationContext(context);
+        // realtimeService.current.setConversationContext(context); // Method doesn't exist yet
       }
       
       await realtimeService.current.startListening(stream);

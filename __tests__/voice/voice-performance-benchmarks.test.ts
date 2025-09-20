@@ -3,7 +3,7 @@
  * Comprehensive performance testing for voice functionality
  */
 
-import { EnhancedTTS } from '../../app/utils/enhanced-tts';
+import { enhancedTTS } from '../../app/utils/enhanced-tts';
 import { AudioProcessor } from '../../app/utils/audio-processor';
 import { VoiceAnalytics } from '../../app/utils/voice-analytics';
 
@@ -58,12 +58,10 @@ global.indexedDB = {
 } as any;
 
 describe('Voice Performance Benchmarks', () => {
-  let enhancedTTS: EnhancedTTS;
   let audioProcessor: AudioProcessor;
   let voiceAnalytics: VoiceAnalytics;
 
   beforeEach(() => {
-    enhancedTTS = new EnhancedTTS();
     audioProcessor = new AudioProcessor();
     voiceAnalytics = new VoiceAnalytics();
   });

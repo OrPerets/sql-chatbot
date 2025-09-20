@@ -219,23 +219,23 @@ export class VoiceLazyLoader {
     this.metrics.cacheMisses[moduleName] = (this.metrics.cacheMisses[moduleName] || 0) + 1;
 
     // Get module configuration
-    const module = this.modules.get(moduleName);
-    if (!module) {
+    const moduleConfig = this.modules.get(moduleName);
+    if (!moduleConfig) {
       throw new Error(`Voice module '${moduleName}' not found`);
     }
 
     // Check if module should be loaded
-    if (!this.shouldLoadModule(module)) {
+    if (!this.shouldLoadModule(moduleConfig)) {
       throw new Error(`Voice module '${moduleName}' conditions not met`);
     }
 
     // Load dependencies first
-    for (const dependency of module.dependencies) {
+    for (const dependency of moduleConfig.dependencies) {
       await this.loadModule(dependency);
     }
 
     // Create loading promise
-    const loadingPromise = this.loadModuleInternal(module);
+    const loadingPromise = this.loadModuleInternal(moduleConfig);
     this.loadingPromises.set(moduleName, loadingPromise);
 
     try {
@@ -252,7 +252,7 @@ export class VoiceLazyLoader {
       // Update metrics
       this.loadedModules.add(moduleName);
       this.metrics.loadedModules.push(moduleName);
-      this.metrics.totalSavings += module.size;
+      this.metrics.totalSavings += moduleConfig.size;
 
       return loadedModule;
     } finally {
@@ -338,13 +338,13 @@ export class VoiceLazyLoader {
         !this.loadedModules.has(module.name)
       );
 
-    for (const module of backgroundModules) {
+    for (const moduleConfig of backgroundModules) {
       try {
-        await this.loadModule(module.name);
+        await this.loadModule(moduleConfig.name);
         // Add delay between loads to avoid blocking
         await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
-        console.warn(`Failed to background load module '${module.name}':`, error);
+        console.warn(`Failed to background load module '${moduleConfig.name}':`, error);
       }
     }
   }

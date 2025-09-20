@@ -3,7 +3,7 @@
  * Comprehensive testing for voice functionality on mobile devices
  */
 
-import { EnhancedTTS } from '../../app/utils/enhanced-tts';
+import { enhancedTTS } from '../../app/utils/enhanced-tts';
 import { VoiceAnalytics } from '../../app/utils/voice-analytics';
 
 // Mobile device mocks
@@ -153,7 +153,7 @@ describe('Mobile Voice Testing', () => {
   
   mobileDevices.forEach(device => {
     describe(`${device.toUpperCase()} Device`, () => {
-      let enhancedTTS: EnhancedTTS;
+      // Using the singleton instance
       let voiceAnalytics: VoiceAnalytics;
       let mockAPIs: any;
 
@@ -202,7 +202,7 @@ describe('Mobile Voice Testing', () => {
           }))
         } as any;
 
-        enhancedTTS = new EnhancedTTS();
+        // Using the singleton instance
         voiceAnalytics = new VoiceAnalytics();
       });
 
@@ -444,7 +444,7 @@ describe('Mobile Voice Testing', () => {
         global.AudioContext = jest.fn(() => mockAPIs.audioContext);
         global.navigator.connection = mockAPIs.connection as any;
         
-        const enhancedTTS = new EnhancedTTS();
+        // Using the singleton instance
         
         try {
           const result = await enhancedTTS.speak(testText, {
@@ -516,7 +516,7 @@ describe('Mobile Voice Testing', () => {
         global.navigator.userAgent = mockAPIs.userAgent;
         global.navigator.connection = mockAPIs.connection as any;
         
-        const enhancedTTS = new EnhancedTTS();
+        // Using the singleton instance
         const deviceRecommendations = enhancedTTS.getMobileRecommendations();
         
         recommendations[device] = deviceRecommendations;

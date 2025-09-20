@@ -243,7 +243,7 @@ export class VoiceProductionCache {
         const compressed = await this.compress(JSON.stringify(value));
         entry.value = compressed as T;
         entry.compressed = true;
-        entry.size = compressed.length;
+        entry.size = compressed.byteLength;
       } catch (error) {
         console.warn('Failed to compress cache entry:', error);
       }
@@ -391,7 +391,7 @@ export class VoiceProductionCache {
 
     // Check memory cache
     if (this.config.enableMemoryCache) {
-      for (const [key, entry] of this.memoryCache) {
+      for (const [key, entry] of Array.from(this.memoryCache)) {
         if (tags.some(tag => entry.metadata.tags.includes(tag))) {
           keysToDelete.push(key);
         }
@@ -493,7 +493,7 @@ export class VoiceProductionCache {
         };
       });
 
-      transaction.oncomplete = () => resolve([...new Set(keys)]);
+      transaction.oncomplete = () => resolve(Array.from(new Set(keys)));
       transaction.onerror = () => reject(transaction.error);
     });
   }
@@ -670,7 +670,7 @@ export class VoiceProductionCache {
     if (!this.config.enableMemoryCache) return;
 
     let totalSize = 0;
-    for (const entry of this.memoryCache.values()) {
+    for (const entry of Array.from(this.memoryCache.values())) {
       totalSize += entry.size;
     }
 

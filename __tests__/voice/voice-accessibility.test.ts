@@ -3,7 +3,7 @@
  * Comprehensive testing for voice accessibility features
  */
 
-import { EnhancedTTS } from '../../app/utils/enhanced-tts';
+import { enhancedTTS } from '../../app/utils/enhanced-tts';
 import { VoiceAnalytics } from '../../app/utils/voice-analytics';
 
 // Mock Web APIs for accessibility testing
@@ -65,11 +65,9 @@ global.indexedDB = {
 } as any;
 
 describe('Voice Accessibility Testing', () => {
-  let enhancedTTS: EnhancedTTS;
   let voiceAnalytics: VoiceAnalytics;
 
   beforeEach(() => {
-    enhancedTTS = new EnhancedTTS();
     voiceAnalytics = new VoiceAnalytics();
   });
 

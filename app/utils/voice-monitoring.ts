@@ -205,11 +205,13 @@ export class VoiceMonitoring {
       this.trackError({
         type: 'javascript-error',
         message: event.message,
-        filename: event.filename,
-        lineno: event.lineno,
-        colno: event.colno,
         stack: event.error?.stack,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        metadata: {
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno
+        }
       });
     });
 
