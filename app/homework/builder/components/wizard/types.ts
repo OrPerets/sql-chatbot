@@ -8,6 +8,7 @@ export interface MetadataDraft {
   dueAt: string;
   visibility: HomeworkVisibility;
   overview?: string;
+  datasetPolicy?: "shared" | "custom";
 }
 
 export interface DatasetDraft {
