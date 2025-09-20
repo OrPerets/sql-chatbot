@@ -7,9 +7,12 @@ export async function GET(request: NextRequest) {
   try {
     const semesterStart = request.nextUrl.searchParams.get('semesterStart');
 
-    let url = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/content/weekly`; // default weekly content
+    // Construct proper base URL using the request URL
+    const baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+    
+    let url = `${baseUrl}/api/content/weekly`; // default weekly content
     if (semesterStart) {
-      url = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/content/semester-start?withCurrentWeek=1`;
+      url = `${baseUrl}/api/content/semester-start?withCurrentWeek=1`;
     }
 
     const response = await fetch(url, {

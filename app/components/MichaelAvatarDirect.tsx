@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { audioManager } from '../utils/audioContextManager';
 import { enhancedTTS, TTSOptions } from '../utils/enhanced-tts';
 
@@ -15,14 +15,31 @@ interface MichaelAvatarDirectProps {
   onAvatarLoaded?: () => void;
   progressiveMode?: boolean;
   isStreaming?: boolean;
+  enableGestureQueue?: boolean;
+  maxQueueSize?: number;
+  onGestureStarted?: (gesture: string) => void;
+  onGestureCompleted?: (gesture: string) => void;
 }
 
 export interface MichaelAvatarDirectRef {
   setMood: (mood: string) => void;
   playGesture: (gesture: string, duration?: number, mirror?: boolean, transitionMs?: number) => void;
+  queueGesture: (gesture: string, duration?: number, mirror?: boolean, transitionMs?: number, priority?: 'low' | 'normal' | 'high') => void;
+  clearGestureQueue: () => void;
+  getGestureQueue: () => QueuedGesture[];
   lookAt: (x: number | null, y: number | null, duration?: number) => void;
   lookAtCamera: (duration?: number) => void;
   setState: (state: 'idle' | 'speaking' | 'listening' | 'thinking' | 'userWriting') => void;
+}
+
+interface QueuedGesture {
+  id: string;
+  gesture: string;
+  duration: number;
+  mirror: boolean;
+  transitionMs: number;
+  priority: 'low' | 'normal' | 'high';
+  timestamp: number;
 }
 
 // Move forceFaceVisibleLoop to top level to fix linter error and ensure proper scoping
@@ -58,6 +75,10 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
   onAvatarLoaded,
   progressiveMode = false,
   isStreaming = false,
+  enableGestureQueue = true,
+  maxQueueSize = 5,
+  onGestureStarted,
+  onGestureCompleted,
 }, ref) => {
   const avatarRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -77,6 +98,13 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
 
   // Progressive speech state (simplified)
   const [currentlySpeakingText, setCurrentlySpeakingText] = useState<string>('');
+
+  // Gesture queue system
+  const [gestureQueue, setGestureQueue] = useState<QueuedGesture[]>([]);
+  const [isPlayingGesture, setIsPlayingGesture] = useState(false);
+  const gestureQueueRef = useRef<QueuedGesture[]>([]);
+  const currentGestureRef = useRef<QueuedGesture | null>(null);
+  const gestureTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const getSizeStyle = () => {
     const sizes = {
@@ -1620,6 +1648,126 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
     initializeAvatar();
   };
 
+  // Gesture queue processing functions
+  const processGestureQueue = useCallback(() => {
+    if (!enableGestureQueue || isPlayingGesture || !headRef.current || !isInitialized) {
+      return;
+    }
+
+    const queue = gestureQueueRef.current;
+    if (queue.length === 0) {
+      return;
+    }
+
+    // Sort queue by priority (high -> normal -> low) and then by timestamp
+    const sortedQueue = [...queue].sort((a, b) => {
+      const priorityOrder = { high: 3, normal: 2, low: 1 };
+      const aPriority = priorityOrder[a.priority];
+      const bPriority = priorityOrder[b.priority];
+      
+      if (aPriority !== bPriority) {
+        return bPriority - aPriority;
+      }
+      return a.timestamp - b.timestamp;
+    });
+
+    const nextGesture = sortedQueue[0];
+    if (!nextGesture) return;
+
+    setIsPlayingGesture(true);
+    currentGestureRef.current = nextGesture;
+
+    try {
+      onGestureStarted?.(nextGesture.gesture);
+      
+      // Remove the gesture from queue
+      setGestureQueue(prev => prev.filter(g => g.id !== nextGesture.id));
+      gestureQueueRef.current = gestureQueueRef.current.filter(g => g.id !== nextGesture.id);
+
+      // Play the gesture
+      if (typeof headRef.current.playGesture === 'function') {
+        headRef.current.playGesture(nextGesture.gesture, nextGesture.duration, nextGesture.mirror, nextGesture.transitionMs);
+        console.log(`✅ Playing queued gesture: ${nextGesture.gesture} (priority: ${nextGesture.priority})`);
+      }
+
+      // Set timeout to process next gesture
+      gestureTimeoutRef.current = setTimeout(() => {
+        setIsPlayingGesture(false);
+        currentGestureRef.current = null;
+        onGestureCompleted?.(nextGesture.gesture);
+        
+        // Process next gesture in queue
+        setTimeout(() => processGestureQueue(), 100);
+      }, nextGesture.duration * 1000);
+
+    } catch (error) {
+      console.error('❌ Error playing queued gesture:', error);
+      setIsPlayingGesture(false);
+      currentGestureRef.current = null;
+      
+      // Continue processing queue even if one gesture fails
+      setTimeout(() => processGestureQueue(), 100);
+    }
+  }, [enableGestureQueue, isPlayingGesture, isInitialized, onGestureStarted, onGestureCompleted]);
+
+  // Add gesture to queue
+  const addToGestureQueue = useCallback((gesture: QueuedGesture) => {
+    if (!enableGestureQueue) {
+      return false;
+    }
+
+    const currentQueue = gestureQueueRef.current;
+    
+    // Check queue size limit
+    if (currentQueue.length >= maxQueueSize) {
+      // Remove oldest low priority gesture if queue is full
+      const lowPriorityIndex = currentQueue.findIndex(g => g.priority === 'low');
+      if (lowPriorityIndex !== -1) {
+        currentQueue.splice(lowPriorityIndex, 1);
+      } else {
+        console.warn(`⚠️ Gesture queue full (${maxQueueSize}), dropping gesture: ${gesture.gesture}`);
+        return false;
+      }
+    }
+
+    gestureQueueRef.current = [...currentQueue, gesture];
+    setGestureQueue(gestureQueueRef.current);
+    
+    console.log(`📝 Added gesture to queue: ${gesture.gesture} (priority: ${gesture.priority}), queue size: ${gestureQueueRef.current.length}`);
+    
+    // Process queue if not currently playing
+    if (!isPlayingGesture) {
+      setTimeout(() => processGestureQueue(), 50);
+    }
+    
+    return true;
+  }, [enableGestureQueue, maxQueueSize, isPlayingGesture, processGestureQueue]);
+
+  // Clear gesture queue
+  const clearGestureQueue = useCallback(() => {
+    setGestureQueue([]);
+    gestureQueueRef.current = [];
+    
+    // Clear current gesture timeout
+    if (gestureTimeoutRef.current) {
+      clearTimeout(gestureTimeoutRef.current);
+      gestureTimeoutRef.current = null;
+    }
+    
+    setIsPlayingGesture(false);
+    currentGestureRef.current = null;
+    
+    console.log('🧹 Gesture queue cleared');
+  }, []);
+
+  // Process queue when it changes
+  useEffect(() => {
+    gestureQueueRef.current = gestureQueue;
+    if (gestureQueue.length > 0 && !isPlayingGesture) {
+      setTimeout(() => processGestureQueue(), 50);
+    }
+  }, [gestureQueue, isPlayingGesture, processGestureQueue]);
+
   // Expose methods through ref
   useImperativeHandle(ref, () => ({
     setMood: (mood: string) => {
@@ -1645,7 +1793,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
       if (headRef.current && isInitialized) {
         try {
           // Validate gesture name
-          const validGestures = ['handup', 'index', 'ok', 'thumbup', 'thumbdown', 'side', 'shrug'];
+          const validGestures = ['handup', 'index', 'ok', 'thumbup', 'thumbdown', 'side', 'shrug', 'namaste'];
           if (!validGestures.includes(gesture)) {
             console.warn(`⚠️ Unknown gesture: ${gesture}. Valid gestures: ${validGestures.join(', ')}`);
           }
@@ -1668,6 +1816,39 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
       } else {
         console.warn('⚠️ Avatar not initialized or ready, cannot play external gesture');
       }
+    },
+    queueGesture: (gesture: string, duration = 3, mirror = false, transitionMs = 1000, priority: 'low' | 'normal' | 'high' = 'normal') => {
+      console.log(`🎭 External queueGesture call: ${gesture} (priority: ${priority})`);
+      
+      const validGestures = ['handup', 'index', 'ok', 'thumbup', 'thumbdown', 'side', 'shrug', 'namaste'];
+      if (!validGestures.includes(gesture)) {
+        console.warn(`⚠️ Unknown gesture: ${gesture}. Valid gestures: ${validGestures.join(', ')}`);
+        return;
+      }
+
+      const queuedGesture: QueuedGesture = {
+        id: `${gesture}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        gesture,
+        duration,
+        mirror,
+        transitionMs,
+        priority,
+        timestamp: Date.now(),
+      };
+
+      const success = addToGestureQueue(queuedGesture);
+      if (success) {
+        console.log(`✅ Gesture queued: ${gesture} (priority: ${priority})`);
+      } else {
+        console.warn(`⚠️ Failed to queue gesture: ${gesture}`);
+      }
+    },
+    clearGestureQueue: () => {
+      console.log('🎭 External clearGestureQueue call');
+      clearGestureQueue();
+    },
+    getGestureQueue: () => {
+      return [...gestureQueueRef.current];
     },
     lookAt: (x: number | null, y: number | null, duration?: number) => {
       console.log(`🎭 External lookAt call: x=${x}, y=${y}, duration=${duration}`);
@@ -1715,7 +1896,16 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
         console.warn('⚠️ Avatar not initialized, cannot execute external setState');
       }
     }
-  }), [isInitialized]);
+  }), [isInitialized, addToGestureQueue, clearGestureQueue]);
+
+  // Cleanup gesture queue timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (gestureTimeoutRef.current) {
+        clearTimeout(gestureTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div 

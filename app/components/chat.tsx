@@ -22,6 +22,9 @@ import VoiceModeCircle from "./VoiceModeCircle";
 import StaticLogoMode from "./StaticLogoMode";
 import { AvatarIcon, MicIcon } from "./AvatarToggleIcons";
 import { enhancedTTS } from "@/app/utils/enhanced-tts";
+import AvatarInteractionManager from "./AvatarInteractionManager";
+import { analyzeMessage } from "../utils/sql-query-analyzer";
+import { avatarAnalytics } from "../utils/avatar-analytics";
 import OpenAI from "openai";
 import PracticeModal from "./PracticeModal";
 import SqlQueryBuilder from "./SqlQueryBuilder/SqlQueryBuilder";
@@ -294,11 +297,15 @@ type ChatProps = {
     toolCall: RequiredActionFunctionToolCall
   ) => Promise<string>;
   chatId: string;
+  onUserMessage?: (message: string) => void;
+  onAssistantResponse?: (response: string) => void;
 };
 
 const Chat = ({
   functionCallHandler = () => Promise.resolve(""), // default to return empty string
-  chatId: initialChatId
+  chatId: initialChatId,
+  onUserMessage,
+  onAssistantResponse
 }: ChatProps) => {
   const [userInput, setUserInput] = useState("");
   const [messages, setMessages] = useState([]);
@@ -314,6 +321,12 @@ const Chat = ({
   const [isDone, setIsDone] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  
+  // Avatar interaction system
+  const avatarRef = useRef(null);
+  const [enableAvatarInteractions, setEnableAvatarInteractions] = useState(true);
+  const [enableSQLGestureMapping, setEnableSQLGestureMapping] = useState(true);
+  const [enableAnalytics, setEnableAnalytics] = useState(true);
   // Added for query cost estimation feature
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [currentBalance, setCurrentBalance] = useState(0);
@@ -756,8 +769,61 @@ const updateUserBalance = async (value) => {
 
   }, [lastAssistantMessage, isDone, autoPlaySpeech, shouldSpeak, lastSpokenMessageId, hasStartedSpeaking, isManualSpeech]);
 
+  // Avatar interaction handlers
+  const handleAvatarInteraction = useCallback((gesture: string, context: any) => {
+    console.log('🎭 Avatar interaction:', { gesture, context });
+    
+    // Track analytics
+    if (enableAnalytics && currentUser) {
+      avatarAnalytics.trackGesture(gesture, context.type, currentUser);
+    }
+  }, [enableAnalytics, currentUser]);
+
+  const handleInteractionAnalytics = useCallback((analytics: any) => {
+    if (enableAnalytics) {
+      console.log('📊 Avatar Interaction Analytics:', analytics);
+    }
+  }, [enableAnalytics]);
+
   const sendMessage = async (text) => { 
     setImageProcessing(true);
+    
+    // Notify parent component about user message for avatar interaction
+    if (onUserMessage) {
+      onUserMessage(text);
+    }
+    
+    // Handle avatar interaction for user message
+    if (enableAvatarInteractions && text.trim()) {
+      if (enableSQLGestureMapping) {
+        const analysis = analyzeMessage(text);
+        const { recommendedGesture, confidence, sqlAnalysis } = analysis;
+
+        console.log('🔍 Message Analysis:', {
+          message: text.substring(0, 50) + '...',
+          recommendedGesture,
+          confidence,
+          sqlKeywords: sqlAnalysis.keywords,
+          complexity: sqlAnalysis.complexity,
+        });
+
+        // Track analytics
+        if (enableAnalytics && currentUser) {
+          avatarAnalytics.trackSQLQuery(
+            sqlAnalysis.keywords,
+            text,
+            currentUser
+          );
+        }
+
+        // Trigger gesture if confidence is high enough
+        if (confidence > 0.6 && avatarRef.current) {
+          avatarRef.current.playGesture(recommendedGesture, 2, false, 1000);
+          
+          console.log(`🎭 Playing gesture: ${recommendedGesture} (confidence: ${confidence.toFixed(2)})`);
+        }
+      }
+    }
     
     // Message text is used as-is (SQL queries are now added directly by SqlQueryBuilder)
     let messageWithTags = text;
@@ -1122,6 +1188,43 @@ const loadChatMessages = (chatId: string) => {
     // Track last assistant message for speech synthesis
     if (role === 'assistant') {
       setLastAssistantMessage(text);
+      
+      // Notify parent component about assistant response for avatar interaction
+      if (onAssistantResponse) {
+        onAssistantResponse(text);
+      }
+      
+      // Handle avatar interaction for assistant response
+      if (enableAvatarInteractions) {
+        const lowerResponse = text.toLowerCase();
+        let gesture = 'ok';
+        let priority: 'low' | 'normal' | 'high' = 'normal';
+
+        if (lowerResponse.includes('error') || lowerResponse.includes('failed') || lowerResponse.includes('incorrect')) {
+          gesture = 'thumbdown';
+          priority = 'high';
+        } else if (lowerResponse.includes('correct') || lowerResponse.includes('good') || lowerResponse.includes('success')) {
+          gesture = 'thumbup';
+          priority = 'high';
+        } else if (lowerResponse.includes('explain') || lowerResponse.includes('help')) {
+          gesture = 'handup';
+          priority = 'normal';
+        } else if (lowerResponse.includes('think') || lowerResponse.includes('consider')) {
+          gesture = 'thinking';
+          priority = 'normal';
+        }
+
+        // Trigger gesture if avatar is available
+        if (avatarRef.current && gesture !== 'ok') {
+          avatarRef.current.playGesture(gesture, 2, false, 1000);
+          console.log(`🎭 Assistant response gesture: ${gesture}`);
+        }
+
+        // Track analytics
+        if (enableAnalytics && currentUser) {
+          avatarAnalytics.trackGesture(gesture, 'assistant_response', currentUser);
+        }
+      }
     }
   };
 
@@ -1492,24 +1595,24 @@ return (
           {displayMode === 'avatar' && enableAvatar ? (
             <>
               {avatarMode === 'avatar' ? (
-              <MichaelAvatarDirect
-                text={lastAssistantMessage}
-                state={avatarState}
-                size="medium"
-                progressiveMode={enableVoice && !isDone}
-                isStreaming={enableVoice && !isDone}
-                onSpeakingStart={() => {
-                  console.log('🎤 Michael started speaking');
-                  if (enableVoice) setShouldSpeak(true);
-                }}
-                onSpeakingEnd={() => {
-                  console.log('🎤 Michael finished speaking');
-                  if (enableVoice) setShouldSpeak(false);
-                  setIsAssistantMessageComplete(false);
-                  setHasStartedSpeaking(false);
-                  setIsManualSpeech(false);  // Reset manual speech flag
-                }}
-              />
+                <MichaelAvatarDirect
+                  text={lastAssistantMessage}
+                  state={avatarState}
+                  size="medium"
+                  progressiveMode={enableVoice && !isDone}
+                  isStreaming={enableVoice && !isDone}
+                  onSpeakingStart={() => {
+                    console.log('🎤 Michael started speaking');
+                    if (enableVoice) setShouldSpeak(true);
+                  }}
+                  onSpeakingEnd={() => {
+                    console.log('🎤 Michael finished speaking');
+                    if (enableVoice) setShouldSpeak(false);
+                    setIsAssistantMessageComplete(false);
+                    setHasStartedSpeaking(false);
+                    setIsManualSpeech(false);  // Reset manual speech flag
+                  }}
+                />
             ) : (
               <VoiceModeCircle
                 state={avatarState}
