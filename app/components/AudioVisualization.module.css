@@ -1,0 +1,362 @@
+/* Audio Visualization Components */
+
+/* Base Styles */
+.spectrumAnalyzer,
+.circularVisualization {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.02) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+
+.canvas {
+  border-radius: 8px;
+  background: transparent;
+}
+
+/* Size Variants */
+.small {
+  padding: 8px;
+}
+
+.medium {
+  padding: 12px;
+}
+
+.large {
+  padding: 16px;
+}
+
+/* Inactive State Overlay */
+.inactiveOverlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  backdrop-filter: blur(4px);
+  z-index: 10;
+}
+
+/* Voice Level Meter Styles */
+.levelMeter {
+  position: relative;
+  background: #f3f4f6;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+.levelMeter.vertical {
+  width: 40px;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.levelMeter.horizontal {
+  width: 200px;
+  height: 40px;
+  display: flex;
+  flex-direction: row;
+}
+
+.meterTrack {
+  position: relative;
+  flex: 1;
+  background: linear-gradient(to top, 
+    #dc2626 0%, 
+    #dc2626 5%, 
+    #f59e0b 15%, 
+    #f59e0b 25%, 
+    #10b981 35%, 
+    #10b981 100%
+  );
+  opacity: 0.2;
+}
+
+.levelMeter.horizontal .meterTrack {
+  background: linear-gradient(to right, 
+    #10b981 0%, 
+    #10b981 65%, 
+    #f59e0b 75%, 
+    #f59e0b 85%, 
+    #dc2626 95%, 
+    #dc2626 100%
+  );
+}
+
+.meterFill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #10b981;
+  transition: height 0.1s ease-out;
+  border-radius: 2px 2px 0 0;
+}
+
+.levelMeter.horizontal .meterFill {
+  top: 0;
+  bottom: 0;
+  right: auto;
+  width: 0%;
+  height: 100%;
+  transition: width 0.1s ease-out;
+  border-radius: 0 2px 2px 0;
+}
+
+.peakIndicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #ef4444;
+  transition: bottom 0.05s ease-out;
+  border-radius: 1px;
+  box-shadow: 0 0 4px rgba(239, 68, 68, 0.6);
+}
+
+.levelMeter.horizontal .peakIndicator {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: auto;
+  width: 2px;
+  height: 100%;
+  transition: left 0.05s ease-out;
+  border-radius: 1px;
+  box-shadow: 0 0 4px rgba(239, 68, 68, 0.6);
+}
+
+/* Level Markings */
+.levelMarkings {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.levelMark {
+  position: absolute;
+  left: -30px;
+  width: 25px;
+  height: 1px;
+  border-top: 1px solid #6b7280;
+}
+
+.levelMeter.horizontal .levelMark {
+  top: -20px;
+  left: auto;
+  bottom: auto;
+  width: 1px;
+  height: 15px;
+  border-left: 1px solid #6b7280;
+  border-top: none;
+}
+
+.levelLabel {
+  position: absolute;
+  right: 2px;
+  top: -8px;
+  font-size: 10px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.levelMeter.horizontal .levelLabel {
+  top: 2px;
+  left: -8px;
+  right: auto;
+}
+
+/* Level Numbers Display */
+.levelNumbers {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  margin: 8px 0;
+  border: 1px solid #e5e7eb;
+}
+
+.levelMeter.horizontal .levelNumbers {
+  flex-direction: row;
+  gap: 12px;
+  margin: 0 8px;
+}
+
+.currentLevel {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.peakLevel {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .spectrumAnalyzer,
+  .circularVisualization {
+    padding: 8px;
+  }
+  
+  .levelMeter.vertical {
+    width: 30px;
+    height: 150px;
+  }
+  
+  .levelMeter.horizontal {
+    width: 150px;
+    height: 30px;
+  }
+  
+  .levelNumbers {
+    padding: 6px;
+  }
+  
+  .currentLevel {
+    font-size: 14px;
+  }
+  
+  .peakLevel {
+    font-size: 10px;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .spectrumAnalyzer,
+  .circularVisualization {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .levelMeter {
+    background: #1f2937;
+    border-color: #374151;
+  }
+  
+  .levelNumbers {
+    background: rgba(31, 41, 55, 0.9);
+    border-color: #374151;
+  }
+  
+  .currentLevel {
+    color: #f9fafb;
+  }
+  
+  .peakLevel {
+    color: #d1d5db;
+  }
+  
+  .levelLabel {
+    color: #9ca3af;
+  }
+  
+  .levelMark {
+    border-color: #4b5563;
+  }
+  
+  .levelMeter.horizontal .levelMark {
+    border-color: #4b5563;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .spectrumAnalyzer,
+  .circularVisualization {
+    border: 2px solid currentColor;
+    background: white;
+  }
+  
+  .levelMeter {
+    border: 2px solid black;
+    background: white;
+  }
+  
+  .meterFill {
+    background: black;
+  }
+  
+  .peakIndicator {
+    background: red;
+    box-shadow: none;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .meterFill,
+  .peakIndicator {
+    transition: none;
+  }
+  
+  .canvas {
+    animation: none;
+  }
+}
+
+/* Focus and Accessibility */
+.spectrumAnalyzer:focus,
+.circularVisualization:focus,
+.levelMeter:focus {
+  outline: 3px solid rgba(59, 130, 246, 0.6);
+  outline-offset: 2px;
+}
+
+/* Animation for Active State */
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+  }
+}
+
+.spectrumAnalyzer.active,
+.circularVisualization.active {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+/* Meter Warning States */
+.meterFill[style*="rgb(245, 158, 11)"] {
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+}
+
+.meterFill[style*="rgb(239, 68, 68)"] {
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  animation: dangerPulse 1s ease-in-out infinite;
+}
+
+@keyframes dangerPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}

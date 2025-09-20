@@ -1,0 +1,356 @@
+.voiceSQLEditor {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 2px solid #e1e5e9;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  max-width: 100%;
+  min-height: 400px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #f0f2f5;
+}
+
+.header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.voiceButton,
+.helpButton,
+.executeButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  min-width: 120px;
+  justify-content: center;
+}
+
+.voiceButton {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.voiceButton:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.voiceButton.listening {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+  animation: pulse 1.5s infinite;
+}
+
+.voiceButton:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.helpButton {
+  background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+  color: white;
+}
+
+.helpButton:hover {
+  background: linear-gradient(135deg, #45b7aa 0%, #3d8b7a 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(78, 205, 196, 0.3);
+}
+
+.executeButton {
+  background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+  color: white;
+}
+
+.executeButton:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4d9a28 0%, #96d4b8 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(86, 171, 47, 0.3);
+}
+
+.executeButton:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.buttonIcon {
+  font-size: 16px;
+}
+
+.buttonText {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.editorContainer {
+  flex: 1;
+  margin-bottom: 20px;
+}
+
+.sqlEditor {
+  width: 100%;
+  min-height: 200px;
+  padding: 16px;
+  border: 2px solid #e1e5e9;
+  border-radius: 8px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  background: #fafbfc;
+  color: #2c3e50;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sqlEditor:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  background: #ffffff;
+}
+
+.sqlEditor::placeholder {
+  color: #95a5a6;
+  font-style: italic;
+}
+
+.statusBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  font-size: 13px;
+}
+
+.statusItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statusLabel {
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.statusValue {
+  color: #495057;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+}
+
+.statusValue.active {
+  background: #d4edda;
+  border-color: #c3e6cb;
+  color: #155724;
+}
+
+.statusValue.processing {
+  background: #fff3cd;
+  border-color: #ffeaa7;
+  color: #856404;
+}
+
+.voiceFeedback {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  animation: slideIn 0.3s ease;
+}
+
+.feedbackIcon {
+  font-size: 18px;
+  animation: bounce 1s infinite;
+}
+
+.feedbackText {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.quickCommands {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.quickCommands h4 {
+  margin: 0 0 12px 0;
+  color: #2c3e50;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.commandList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 8px;
+}
+
+.commandItem {
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #495057;
+  transition: all 0.2s ease;
+}
+
+.commandItem:hover {
+  background: #e3f2fd;
+  border-color: #2196f3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(33, 150, 243, 0.1);
+}
+
+.commandDescription {
+  font-weight: 500;
+}
+
+/* Animations */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 107, 107, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 107, 107, 0);
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-3px);
+  }
+  60% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .voiceSQLEditor {
+    padding: 15px;
+  }
+  
+  .header {
+    flex-direction: column;
+    gap: 15px;
+    align-items: stretch;
+  }
+  
+  .controls {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .voiceButton,
+  .helpButton,
+  .executeButton {
+    min-width: 100px;
+    font-size: 13px;
+  }
+  
+  .statusBar {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+  
+  .statusItem {
+    justify-content: space-between;
+  }
+  
+  .commandList {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .voiceSQLEditor {
+    padding: 12px;
+  }
+  
+  .header h3 {
+    font-size: 1.2rem;
+  }
+  
+  .controls {
+    gap: 8px;
+  }
+  
+  .voiceButton,
+  .helpButton,
+  .executeButton {
+    min-width: 80px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  .buttonText {
+    display: none;
+  }
+  
+  .sqlEditor {
+    min-height: 150px;
+    font-size: 13px;
+  }
+}

@@ -5,18 +5,37 @@ import { Settings, Volume2, Play, Pause, RotateCcw, Mic, Headphones } from 'luci
 import { enhancedTTS, AVAILABLE_VOICES, TTSOptions, TTSVoice } from '../utils/enhanced-tts';
 import styles from './enhanced-voice-settings.module.css';
 
+interface VoicePersonality {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  settings: Partial<TTSOptions>;
+  previewText: string;
+}
+
+interface VoicePreset {
+  id: string;
+  name: string;
+  description: string;
+  category: 'beginner' | 'advanced' | 'accessibility';
+  settings: TTSOptions;
+}
+
 interface EnhancedVoiceSettingsProps {
   isOpen?: boolean;
   onClose?: () => void;
   onSettingsChange?: (settings: TTSOptions) => void;
   currentSettings?: TTSOptions;
+  enableRealTimePreview?: boolean;
 }
 
 const EnhancedVoiceSettings: React.FC<EnhancedVoiceSettingsProps> = ({
   isOpen = false,
   onClose,
   onSettingsChange,
-  currentSettings = {}
+  currentSettings = {},
+  enableRealTimePreview = true
 }) => {
   const [settings, setSettings] = useState<TTSOptions>({
     voice: 'echo',
@@ -33,18 +52,223 @@ const EnhancedVoiceSettings: React.FC<EnhancedVoiceSettingsProps> = ({
   const [isTestPlaying, setIsTestPlaying] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<TTSVoice | null>(null);
   const [testText, setTestText] = useState("Hello! I'm Michael, your SQL tutor. Let me help you understand database queries with clear explanations and examples.");
+  const [selectedPersonality, setSelectedPersonality] = useState<string>('friendly');
+  const [selectedPreset, setSelectedPreset] = useState<string>('default');
+  const [isRealTimePreview, setIsRealTimePreview] = useState(enableRealTimePreview);
+  const [previewDebounceTimer, setPreviewDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+  
+  // Voice personalities
+  const voicePersonalities: VoicePersonality[] = [
+    {
+      id: 'friendly',
+      name: 'חברותי',
+      description: 'חם, מעודד ונגיש - מושלם ללמידה',
+      icon: '😊',
+      settings: {
+        characterStyle: 'university_ta',
+        speed: 1.0,
+        enhanceProsody: true,
+        backgroundAmbiance: false
+      },
+      previewText: 'היי! אני מייקל, המורה שלך ל-SQL. בואו נלמד יחד בצורה חברותית ומעניינת!'
+    },
+    {
+      id: 'professional',
+      name: 'מקצועי',
+      description: 'רשמי, מדויק ואמין - לסביבה עסקית',
+      icon: '👔',
+      settings: {
+        characterStyle: 'professional',
+        speed: 0.9,
+        enhanceProsody: true,
+        backgroundAmbiance: false
+      },
+      previewText: 'שלום, אני מייקל. אני כאן כדי לסייע לכם ללמוד SQL בצורה מקצועית ויסודית.'
+    },
+    {
+      id: 'casual',
+      name: 'רגוע',
+      description: 'נינוח, קליל ובלתי פורמלי',
+      icon: '😎',
+      settings: {
+        characterStyle: 'casual',
+        speed: 1.1,
+        enhanceProsody: false,
+        backgroundAmbiance: true
+      },
+      previewText: 'אהלן! אני מייקל. בואו נלמד SQL בצורה רגועה וללא לחץ.'
+    },
+    {
+      id: 'energetic',
+      name: 'אנרגטי',
+      description: 'מלא אנרגיה, מלהיב ומעורר השראה',
+      icon: '⚡',
+      settings: {
+        characterStyle: 'university_ta',
+        speed: 1.2,
+        enhanceProsody: true,
+        backgroundAmbiance: false
+      },
+      previewText: 'וואו! אני מייקל ואני כל כך נרגש ללמד אתכם SQL! זה יהיה מדהים!'
+    }
+  ];
+  
+  // Voice presets
+  const voicePresets: VoicePreset[] = [
+    {
+      id: 'beginner_friendly',
+      name: 'מתחילים',
+      description: 'מהירות איטית, הסברים ברורים',
+      category: 'beginner',
+      settings: {
+        voice: 'alloy',
+        speed: 0.8,
+        volume: 0.9,
+        characterStyle: 'university_ta',
+        enhanceProsody: true,
+        useOpenAI: true,
+        backgroundAmbiance: false
+      }
+    },
+    {
+      id: 'advanced_learner',
+      name: 'מתקדמים',
+      description: 'מהירות רגילה, תוכן מעמיק',
+      category: 'advanced',
+      settings: {
+        voice: 'echo',
+        speed: 1.1,
+        volume: 0.9,
+        characterStyle: 'professional',
+        enhanceProsody: true,
+        useOpenAI: true,
+        backgroundAmbiance: false
+      }
+    },
+    {
+      id: 'accessibility_focus',
+      name: 'נגישות',
+      description: 'אופטימיזציה לקוראי מסך וליקויי שמיעה',
+      category: 'accessibility',
+      settings: {
+        voice: 'nova',
+        speed: 0.9,
+        volume: 1.0,
+        characterStyle: 'professional',
+        enhanceProsody: true,
+        useOpenAI: true,
+        backgroundAmbiance: false
+      }
+    },
+    {
+      id: 'quick_review',
+      name: 'סקירה מהירה',
+      description: 'מהירות גבוהה לחזרה על חומר',
+      category: 'advanced',
+      settings: {
+        voice: 'shimmer',
+        speed: 1.3,
+        volume: 0.8,
+        characterStyle: 'casual',
+        enhanceProsody: false,
+        useOpenAI: true,
+        backgroundAmbiance: false
+      }
+    }
+  ];
 
   // Update selectedVoice when settings.voice changes
   useEffect(() => {
     const voice = AVAILABLE_VOICES.find(v => v.id === settings.voice);
     setSelectedVoice(voice || null);
   }, [settings.voice]);
+  
+  // Auto-detect personality based on current settings
+  useEffect(() => {
+    const matchingPersonality = voicePersonalities.find(p => 
+      p.settings.characterStyle === settings.characterStyle &&
+      Math.abs((p.settings.speed || 1.0) - (settings.speed || 1.0)) < 0.1
+    );
+    
+    if (matchingPersonality && selectedPersonality !== matchingPersonality.id) {
+      setSelectedPersonality(matchingPersonality.id);
+    }
+  }, [settings.characterStyle, settings.speed, selectedPersonality, voicePersonalities]);
 
-  // Handle settings change
+  // Handle settings change with real-time preview
   const updateSetting = (key: keyof TTSOptions, value: any) => {
     const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
     onSettingsChange?.(newSettings);
+    
+    // Trigger real-time preview if enabled
+    if (isRealTimePreview && key !== 'useOpenAI') {
+      triggerRealTimePreview(newSettings);
+    }
+  };
+  
+  // Real-time preview with debouncing
+  const triggerRealTimePreview = (newSettings: TTSOptions) => {
+    if (previewDebounceTimer) {
+      clearTimeout(previewDebounceTimer);
+    }
+    
+    const timer = setTimeout(() => {
+      const personality = voicePersonalities.find(p => p.id === selectedPersonality);
+      const previewText = personality?.previewText || 'זהו דוגמה לקול החדש שלך.';
+      
+      if (!isTestPlaying) {
+        playPreview(previewText, newSettings);
+      }
+    }, 800); // 800ms debounce
+    
+    setPreviewDebounceTimer(timer);
+  };
+  
+  // Play preview with specific settings
+  const playPreview = async (text: string, previewSettings: TTSOptions) => {
+    try {
+      setIsTestPlaying(true);
+      await enhancedTTS.speak(text, previewSettings);
+    } catch (error) {
+      console.error('Preview failed:', error);
+    } finally {
+      setIsTestPlaying(false);
+    }
+  };
+  
+  // Apply personality settings
+  const applyPersonality = (personalityId: string) => {
+    const personality = voicePersonalities.find(p => p.id === personalityId);
+    if (personality) {
+      setSelectedPersonality(personalityId);
+      const newSettings = { ...settings, ...personality.settings };
+      setSettings(newSettings);
+      onSettingsChange?.(newSettings);
+      
+      // Update test text
+      setTestText(personality.previewText);
+      
+      // Trigger preview if enabled
+      if (isRealTimePreview) {
+        triggerRealTimePreview(newSettings);
+      }
+    }
+  };
+  
+  // Apply preset settings
+  const applyPreset = (presetId: string) => {
+    const preset = voicePresets.find(p => p.id === presetId);
+    if (preset) {
+      setSelectedPreset(presetId);
+      setSettings(preset.settings);
+      onSettingsChange?.(preset.settings);
+      
+      // Trigger preview if enabled
+      if (isRealTimePreview) {
+        triggerRealTimePreview(preset.settings);
+      }
+    }
   };
 
   // Test voice with current settings
@@ -78,8 +302,24 @@ const EnhancedVoiceSettings: React.FC<EnhancedVoiceSettingsProps> = ({
       backgroundAmbiance: false
     };
     setSettings(defaults);
+    setSelectedPersonality('friendly');
+    setSelectedPreset('default');
     onSettingsChange?.(defaults);
+    
+    if (isRealTimePreview) {
+      triggerRealTimePreview(defaults);
+    }
   };
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (previewDebounceTimer) {
+        clearTimeout(previewDebounceTimer);
+      }
+      enhancedTTS.stop();
+    };
+  }, [previewDebounceTimer]);
 
   if (!isOpen) return null;
 
@@ -95,9 +335,87 @@ const EnhancedVoiceSettings: React.FC<EnhancedVoiceSettingsProps> = ({
         </div>
 
         <div className={styles.content}>
+          {/* Voice Personalities */}
+          <div className={styles.section}>
+            <h3>אישיות קולית</h3>
+            <div className={styles.personalityGrid}>
+              {voicePersonalities.map((personality) => (
+                <div
+                  key={personality.id}
+                  className={`${styles.personalityCard} ${selectedPersonality === personality.id ? styles.selected : ''}`}
+                  onClick={() => applyPersonality(personality.id)}
+                >
+                  <div className={styles.personalityIcon}>{personality.icon}</div>
+                  <div className={styles.personalityInfo}>
+                    <span className={styles.personalityName}>{personality.name}</span>
+                    <span className={styles.personalityDescription}>{personality.description}</span>
+                  </div>
+                  <button
+                    className={styles.personalityPreviewButton}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      playPreview(personality.previewText, { ...settings, ...personality.settings });
+                    }}
+                    disabled={isTestPlaying}
+                    title="השמע דוגמה"
+                  >
+                    {isTestPlaying ? '⏸️' : '▶️'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Voice Presets */}
+          <div className={styles.section}>
+            <h3>הגדרות מוכנות</h3>
+            <div className={styles.presetTabs}>
+              {['beginner', 'advanced', 'accessibility'].map(category => (
+                <div key={category} className={styles.presetCategory}>
+                  <h4 className={styles.presetCategoryTitle}>
+                    {category === 'beginner' ? '🌱 מתחילים' : 
+                     category === 'advanced' ? '🚀 מתקדמים' : 
+                     '♿ נגישות'}
+                  </h4>
+                  <div className={styles.presetList}>
+                    {voicePresets.filter(p => p.category === category).map(preset => (
+                      <div
+                        key={preset.id}
+                        className={`${styles.presetCard} ${selectedPreset === preset.id ? styles.selected : ''}`}
+                        onClick={() => applyPreset(preset.id)}
+                      >
+                        <div className={styles.presetInfo}>
+                          <span className={styles.presetName}>{preset.name}</span>
+                          <span className={styles.presetDescription}>{preset.description}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Real-time Preview Toggle */}
+          <div className={styles.section}>
+            <div className={styles.previewControls}>
+              <label className={styles.checkbox}>
+                <input
+                  type="checkbox"
+                  checked={isRealTimePreview}
+                  onChange={(e) => setIsRealTimePreview(e.target.checked)}
+                />
+                <span>תצוגה מקדימה בזמן אמת</span>
+              </label>
+              <span className={styles.previewNote}>
+                כאשר מופעל, תשמעו דוגמה אוטומטית כשאתם משנים הגדרות
+              </span>
+            </div>
+          </div>
+
           {/* Voice Selection */}
           <div className={styles.section}>
-            <h3>Voice Selection</h3>
+            <h3>בחירת קול</h3>
             <div className={styles.voiceGrid}>
               {AVAILABLE_VOICES.map((voice) => (
                 <div
@@ -242,17 +560,39 @@ const EnhancedVoiceSettings: React.FC<EnhancedVoiceSettingsProps> = ({
             </div>
           </div>
 
-          {/* Test Section */}
+          {/* Advanced Test Section */}
           <div className={styles.section}>
-            <h3>Test Voice</h3>
+            <h3>בדיקת קול מתקדמת</h3>
             <div className={styles.testSection}>
+              <div className={styles.testTextOptions}>
+                <button
+                  className={styles.testTextPreset}
+                  onClick={() => setTestText('שלום! אני מייקל, המורה שלך ל-SQL.')}
+                >
+                  ברכה
+                </button>
+                <button
+                  className={styles.testTextPreset}
+                  onClick={() => setTestText('SELECT * FROM users WHERE age > 25 ORDER BY name;')}
+                >
+                  שאילתת SQL
+                </button>
+                <button
+                  className={styles.testTextPreset}
+                  onClick={() => setTestText('בואו נלמד על JOIN - זהו אחד הכלים החשובים ביותר ב-SQL.')}
+                >
+                  הסבר טכני
+                </button>
+              </div>
+              
               <textarea
                 className={styles.testTextarea}
                 value={testText}
                 onChange={(e) => setTestText(e.target.value)}
-                placeholder="Enter text to test the voice..."
-                rows={3}
+                placeholder="הכנס טקסט לבדיקת הקול..."
+                rows={4}
               />
+              
               <div className={styles.testControls}>
                 <button
                   className={`${styles.testButton} ${isTestPlaying ? styles.playing : ''}`}
@@ -262,31 +602,52 @@ const EnhancedVoiceSettings: React.FC<EnhancedVoiceSettingsProps> = ({
                   {isTestPlaying ? (
                     <>
                       <Pause size={16} />
-                      Stop Test
+                      עצור בדיקה
                     </>
                   ) : (
                     <>
                       <Play size={16} />
-                      Test Voice
+                      בדוק קול
                     </>
                   )}
                 </button>
+                
+                <div className={styles.testInfo}>
+                  <span className={styles.testLength}>
+                    אורך: {testText.length} תווים
+                  </span>
+                  <span className={styles.testDuration}>
+                    זמן משוער: ~{Math.ceil(testText.length / 10)} שניות
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         <div className={styles.footer}>
-          <button className={styles.resetButton} onClick={resetToDefaults}>
-            <RotateCcw size={16} />
-            Reset to Defaults
-          </button>
+          <div className={styles.footerLeft}>
+            <button className={styles.resetButton} onClick={resetToDefaults}>
+              <RotateCcw size={16} />
+              איפוס להגדרות ברירת מחדל
+            </button>
+            <button 
+              className={styles.exportButton}
+              onClick={() => {
+                const settingsJson = JSON.stringify(settings, null, 2);
+                navigator.clipboard.writeText(settingsJson);
+              }}
+              title="העתק הגדרות ללוח"
+            >
+              📋 יצא הגדרות
+            </button>
+          </div>
           <div className={styles.footerButtons}>
             <button className={styles.cancelButton} onClick={onClose}>
-              Cancel
+              ביטול
             </button>
             <button className={styles.saveButton} onClick={onClose}>
-              Save Settings
+              שמור הגדרות
             </button>
           </div>
         </div>
@@ -295,4 +656,5 @@ const EnhancedVoiceSettings: React.FC<EnhancedVoiceSettingsProps> = ({
   );
 };
 
-export default EnhancedVoiceSettings; 
+export default EnhancedVoiceSettings;
+export type { VoicePersonality, VoicePreset }; 
