@@ -22,7 +22,7 @@ export async function POST() {
     
     Always be encouraging and focus on learning outcomes. If an image doesn't contain SQL/database content, politely explain what you can see and ask how you can help with their SQL learning.`,
     name: "Michael - SQL Teaching Assistant",
-    model: "gpt-4o", // Vision-capable model
+    model: "gpt-5-nano", // Latest model with enhanced capabilities
     tools: [
       { type: "code_interpreter" },
       {
