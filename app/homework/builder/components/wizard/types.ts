@@ -7,15 +7,11 @@ export interface MetadataDraft {
   courseId: string;
   dueAt: string;
   visibility: HomeworkVisibility;
-  datasetPolicy: "shared" | "custom";
+  overview?: string;
 }
 
 export interface DatasetDraft {
   selectedDatasetId?: string;
-  mode: "reuse" | "create";
-  newDatasetName: string;
-  newDatasetDescription?: string;
-  tags: string[];
 }
 
 export type EvaluationMode = "auto" | "manual" | "custom";

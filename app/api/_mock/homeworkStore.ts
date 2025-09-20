@@ -321,6 +321,13 @@ export function getDatasetById(id: string) {
   return datasets.find((dataset) => dataset.id === id);
 }
 
+export function deleteDataset(id: string) {
+  const index = datasets.findIndex((dataset) => dataset.id === id);
+  if (index === -1) return false;
+  datasets.splice(index, 1);
+  return true;
+}
+
 export function listHomeworkSets(params?: HomeworkQueryParams & { page?: number; pageSize?: number }): PaginatedResponse<HomeworkSummary> {
   const pageSize = params?.pageSize ?? 25;
   const page = params?.page ?? 1;

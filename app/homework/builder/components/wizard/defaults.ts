@@ -6,8 +6,8 @@ function createBaseRubric(): RubricCriterion[] {
   return [
     {
       id: generateTempId("rubric"),
-      label: "Query produces expected result",
-      description: "Auto-grades by comparing SQL output to expected dataset result",
+      label: "השאילתה מייצרת תוצאה צפויה", // "Query produces expected result"
+      description: "בדיקה אוטומטית על ידי השוואת פלט SQL לתוצאה הצפויה", // "Auto-grades by comparing SQL output to expected dataset result"
       weight: 100,
       autoGraded: true,
     },
@@ -32,11 +32,10 @@ export function createQuestionDraft(partial?: Partial<QuestionDraft>): QuestionD
 
 export function createMetadataDraft(partial?: Partial<MetadataDraft>): MetadataDraft {
   return {
-    title: "Untitled Homework Set",
+    title: "מטלת בית ללא כותרת", // "Untitled Homework Set"
     courseId: "",
     dueAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
     visibility: "draft",
-    datasetPolicy: "shared",
     ...partial,
   };
 }
@@ -46,10 +45,6 @@ export function createInitialDraft(partial?: Partial<HomeworkDraftState>): Homew
     metadata: createMetadataDraft(),
     dataset: {
       selectedDatasetId: undefined,
-      mode: "reuse",
-      newDatasetName: "",
-      newDatasetDescription: "",
-      tags: [],
       ...partial?.dataset,
     },
     questions: Array.from({ length: 3 }, () => createQuestionDraft()),

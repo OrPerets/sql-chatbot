@@ -9,6 +9,8 @@ export interface Dataset {
   id: string;
   name: string;
   description?: string;
+  scenario?: string;
+  story?: string;
   connectionUri: string;
   previewTables: DatasetTablePreview[];
   tags: string[];

@@ -32,3 +32,7 @@ export async function createDataset(payload: Partial<Dataset>) {
 export async function previewDataset(id: string) {
   return http<Dataset>(`${BASE_PATH}/${id}/preview`, { method: "GET" });
 }
+
+export async function deleteDataset(id: string) {
+  return http(`${BASE_PATH}/${id}`, { method: "DELETE" });
+}

@@ -621,6 +621,19 @@ useEffect(() => {
   loadChatSessions();
 }, []);
 
+  // Function to refresh chat sessions from server
+  const refreshChatSessions = () => {
+    let cUser = JSON.parse(localStorage.getItem("currentUser"))
+    fetch(`${SERVER_BASE}/chat-sessions/${cUser["email"]}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }).then(response => response.json()).then(sessions => {
+      setChatSessions(sessions);
+    })    
+  };
+
   // Handle window resize for responsive sidebar behavior
   useEffect(() => {
     const handleResize = () => {
@@ -769,16 +782,16 @@ const updateUserBalance = async (value) => {
         },
         body: JSON.stringify({ "title": text.substring(0, 30) + " (" + today + ")", "user": JSON.parse(localStorage.getItem("currentUser"))["email"]}),
       }).then(response => response.json()).then(newChat => {
-        setCurrentChatId(newChat.id);
-        setChatSessions([...chatSessions, newChat]);
+        setCurrentChatId(newChat._id);
+        refreshChatSessions(); // Refresh the chat sessions list from server
         // Save the message to the server (save original text without tags)
-        fetch(`${SERVER_BASE}/chat-sessions/${newChat.id}/messages`, {
+        fetch(`${SERVER_BASE}/chat-sessions/${newChat._id}/messages`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            chatId: newChat.id,
+            chatId: newChat._id,
             userId: JSON.parse(localStorage.getItem("currentUser"))["email"],
             message: text, // Save original text without tags
             role: 'user'

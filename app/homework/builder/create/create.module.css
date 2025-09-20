@@ -5,6 +5,9 @@
   gap: 2rem;
   direction: rtl;
   text-align: right;
+  width: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 /* Header Section */
@@ -55,6 +58,25 @@
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   border: 1px solid #e2e8f0;
   overflow: hidden;
+  width: 100%;
+}
+
+/* Full width wizard override */
+.wizardContainer :global(.stepContainer) {
+  max-width: none !important;
+  margin: 0 !important;
+  width: 100%;
+}
+
+/* Full width page override - affects parent layout */
+.fullWidthPage {
+  /* Override the parent mainContent max-width constraint */
+  margin-left: -2rem;
+  margin-right: -2rem;
+  width: calc(100% + 4rem);
+  max-width: calc(100% + 4rem);
+  padding-left: 2rem;
+  padding-right: 2rem;
 }
 
 /* Responsive Design */
@@ -82,5 +104,10 @@
 
   .subtitle {
     font-size: 0.9rem;
+  }
+
+  .fullWidthPage {
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 }

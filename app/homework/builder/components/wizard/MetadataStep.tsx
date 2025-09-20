@@ -64,32 +64,19 @@ export function MetadataStep({ value, onChange, onNext, isInitializing }: Metada
             </select>
           </div>
         </div>
-      </section>
-
-      <section className={styles.section}>
-        <h3>{t("builder.metadata.dataset.heading")}</h3>
-        <p className={styles.mutedText}>{t("builder.metadata.dataset.description")}</p>
-        <div className={styles.fieldRow}>
-          <label className={styles.field}>
-            <input
-              type="radio"
-              name="datasetPolicy"
-              checked={value.datasetPolicy === "shared"}
-              onChange={() => onChange({ ...value, datasetPolicy: "shared" })}
-            />
-            {t("builder.metadata.dataset.shared")}
-          </label>
-          <label className={styles.field}>
-            <input
-              type="radio"
-              name="datasetPolicy"
-              checked={value.datasetPolicy === "custom"}
-              onChange={() => onChange({ ...value, datasetPolicy: "custom" })}
-            />
-            {t("builder.metadata.dataset.custom")}
-          </label>
+        <div className={styles.field}>
+          <label htmlFor="overview">{t("builder.metadata.overviewLabel")}</label>
+          <textarea
+            id="overview"
+            value={value.overview ?? ""}
+            onChange={(event) => onChange({ ...value, overview: event.target.value })}
+            placeholder={t("builder.metadata.overviewPlaceholder")}
+            rows={4}
+            className={styles.textarea}
+          />
         </div>
       </section>
+
 
       <div className={styles.actions}>
         <span />

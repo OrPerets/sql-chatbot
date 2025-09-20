@@ -10,7 +10,8 @@ import {
   Database, 
   LogOut,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  BookOpen
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
@@ -46,9 +47,23 @@ const navigationItems = [
 
 const externalItems = [
   {
+    id: 'questions',
+    label: 'בנק שאלות',
+    icon: FileText,
+    route: '/homework/questions',
+    description: 'ניהול ועריכת שאלות'
+  },
+  {
+    id: 'databases',
+    label: 'יצירת מסד נתונים',
+    icon: Database,
+    route: '/admin/databases',
+    description: 'יצירה וניהול מאגרי נתונים'
+  },
+  {
     id: 'homework',
     label: 'ניהול שיעורי בית',
-    icon: FileText,
+    icon: BookOpen,
     route: '/admin/homework',
     description: 'ניהול מטלות ובחינות'
   },

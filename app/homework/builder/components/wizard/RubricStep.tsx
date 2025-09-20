@@ -49,7 +49,7 @@ export function RubricStep({ questions, onChange, onBack, onNext }: RubricStepPr
             ...question.rubric,
             {
               id: generateTempId("criterion"),
-              label: "New rubric criterion",
+              label: t("builder.rubric.newCriterion"),
               description: "",
               weight: 0,
               autoGraded: false,
@@ -106,11 +106,11 @@ export function RubricStep({ questions, onChange, onBack, onNext }: RubricStepPr
               <article key={question.id} className={styles.card}>
                 <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
-                    <h4>Question {index + 1}</h4>
-                    <p className={styles.mutedText}>{question.prompt.slice(0, 120) || "Untitled prompt"}</p>
+                    <h4>{t("builder.rubric.question")} {index + 1}</h4>
+                    <p className={styles.mutedText}>{question.prompt.slice(0, 120) || t("builder.rubric.untitledPrompt")}</p>
                   </div>
                   <button type="button" className={styles.smallButton} onClick={() => handleApplyToAll(question.id)}>
-                    Apply to all
+                    {t("builder.rubric.applyToAll")}
                   </button>
                 </header>
 

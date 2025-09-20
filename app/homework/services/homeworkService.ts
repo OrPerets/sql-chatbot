@@ -51,7 +51,7 @@ export async function createHomeworkSet(payload: CreateHomeworkPayload): Promise
 
 export async function updateHomeworkSet(setId: string, payload: Partial<HomeworkSet>): Promise<HomeworkSet> {
   return http(`${BASE_PATH}/${setId}`, {
-    method: "PATCH",
+    method: "PUT",
     body: JSON.stringify(payload),
   });
 }

@@ -63,6 +63,7 @@ function buildDraftPayload(draft: HomeworkDraftState): SaveHomeworkDraftPayload 
     dueAt: draft.metadata.dueAt,
     visibility: draft.metadata.visibility,
     datasetPolicy: draft.metadata.datasetPolicy,
+    overview: draft.metadata.overview,
     questionOrder: draft.questions.map((question) => question.id),
     questions: buildQuestionsPayload(draft),
   };
@@ -240,7 +241,6 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
           onChange={handleDatasetChange}
           onBack={navigateToStep}
           onNext={navigateToStep}
-          allowCustomDatasets={controller.draft.metadata.datasetPolicy === "custom"}
         />
       )}
 

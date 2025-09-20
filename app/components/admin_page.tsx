@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Settings, BarChart3, FileText, Search, Upload, Shield, Clock, Award, Database, BookOpen } from 'lucide-react';
+import { Users, Settings, BarChart3, Search, Upload, Shield, Clock } from 'lucide-react';
 import AdminLayout from './admin/AdminLayout';
 import StatsCard from './admin/StatsCard';
 import MissingAnswersAudit from './admin/MissingAnswersAudit';
@@ -241,8 +241,6 @@ const AdminPage: React.FC = () => {
        {loading ? (
          <>
            <SkeletonCard variant="stat" />
-           <SkeletonCard variant="stat" />
-           <SkeletonCard variant="stat" />
          </>
        ) : (
          <>
@@ -258,61 +256,10 @@ const AdminPage: React.FC = () => {
              }}
              onClick={() => setActiveTab('users')}
            />
-           <StatsCard
-             icon={Database}
-             title="כיתות"
-             value={classes.length - 1}
-             description="כיתות פעילות במערכת"
-             trend={{
-               value: 2,
-               label: "חודש זה",
-               direction: "up"
-             }}
-           />
-           <StatsCard
-             icon={Award}
-             title='מטבעות סה"כ'
-             value={users.reduce((sum, user) => sum + (user.coins || 0), 0)}
-             description="יתרת מטבעות כוללת"
-             trend={{
-               value: -5,
-               label: "השבוע האחרון",
-               direction: "down"
-             }}
-           />
          </>
        )}
      </div>
 
-     {/* Quick Actions */}
-     <div className={styles.quickActions}>
-       <div className={styles.sectionHeader}>
-         <h3 className={styles.sectionTitle}>פעולות מהירות</h3>
-         <p className={styles.sectionDescription}>גישה מהירה למודולים עיקריים</p>
-       </div>
-       <div className={styles.actionButtons}>
-         <button
-           onClick={() => router.push('/homework/questions')}
-           className={styles.quickActionButton}
-         >
-           <FileText size={20} />
-           <div className={styles.buttonContent}>
-             <span className={styles.buttonTitle}>בנק שאלות</span>
-             <span className={styles.buttonDescription}>ניהול וערכת שאלות</span>
-           </div>
-         </button>
-         <button
-           onClick={() => router.push('/admin/homework')}
-           className={styles.quickActionButton}
-         >
-           <BookOpen size={20} />
-           <div className={styles.buttonContent}>
-             <span className={styles.buttonTitle}>ניהול שיעורי בית</span>
-             <span className={styles.buttonDescription}>יצירה ומעקב אחר מטלות</span>
-           </div>
-         </button>
-       </div>
-     </div>
 
      {/* Missing Answers Audit */}
      <MissingAnswersAudit

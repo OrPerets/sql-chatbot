@@ -9,7 +9,7 @@ export default function CreateHomeworkPage() {
   const { t, direction } = useHomeworkLocale();
 
   return (
-    <div className={styles.container} dir={direction}>
+    <div className={`${styles.container} ${styles.fullWidthPage}`} dir={direction}>
       <header className={styles.header}>
         <div className={styles.titleSection}>
           <div className={styles.titleIcon}>
