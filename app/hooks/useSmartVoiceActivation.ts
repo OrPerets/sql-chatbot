@@ -178,7 +178,7 @@ export const useSmartVoiceActivation = (options: Partial<VoiceActivationOptions>
         ambientNoiseLevel: 0
       };
     }
-  }, [config.confidenceThreshold, config.enableWakeWords, config.enableVoiceProfileRecognition, config.enableCustomWakeWords, config.voiceProfileSensitivity, config.ambientNoiseAdaptation]);
+  }, [config.confidenceThreshold, config.enableWakeWords, config.enableVoiceProfileRecognition, config.enableCustomWakeWords, config.voiceProfileSensitivity, config.ambientNoiseAdaptation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
    * Extract voice features for profile recognition
@@ -207,7 +207,7 @@ export const useSmartVoiceActivation = (options: Partial<VoiceActivationOptions>
     features.push(...formants);
     
     return features;
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
    * Calculate fundamental frequency (pitch)
@@ -358,7 +358,7 @@ export const useSmartVoiceActivation = (options: Partial<VoiceActivationOptions>
     }
     
     return 0;
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
    * Calculate audio level from buffer

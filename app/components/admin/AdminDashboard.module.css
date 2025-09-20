@@ -239,6 +239,10 @@
   --card-color: #6366f1;
 }
 
+.cardemerald {
+  --card-color: #10b981;
+}
+
 /* Card Content */
 .badge {
   position: absolute;

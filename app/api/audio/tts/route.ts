@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
         // Call OpenAI speech API with enhanced parameters
         const resp = await openai.audio.speech.create({
-          model: 'gpt-4o-mini-tts',
+          model: 'tts-1',
           voice: voice as any,
           input: processedText,
           speed: Math.max(0.5, Math.min(1.5, Number(speed) || 1.0)),
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         // Calculate processing time for analytics
         const processingTime = Date.now() - startTime;
 
-        return new NextResponse(buffer, {
+        return new NextResponse(new Uint8Array(buffer), {
           status: 200,
           headers: {
             'Content-Type': format === 'mp3' ? 'audio/mpeg' : 'application/octet-stream',
@@ -168,7 +168,7 @@ function applyEmotionEnhancement(text: string, emotion: string): string {
 export async function GET() {
   return NextResponse.json({
     voices: ['onyx','echo','fable','alloy','nova','shimmer'],
-    models: ['gpt-4o-mini-tts'],
+    models: ['tts-1'],
     formats: ['mp3','opus'],
   });
 }

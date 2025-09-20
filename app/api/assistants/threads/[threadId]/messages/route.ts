@@ -1,4 +1,4 @@
-import { assistantId } from "@/app/assistant-config";
+import { getAssistantId } from "@/app/assistant-config";
 import { openai } from "@/app/openai";
 
 export const runtime = "nodejs";
@@ -99,7 +99,7 @@ export async function POST(request, { params: { threadId } }) {
     console.log("Starting assistant run...");
     
     const stream = openai.beta.threads.runs.stream(threadId, {
-      assistant_id: assistantId,
+      assistant_id: getAssistantId(),
     });
 
     return new Response(stream.toReadableStream());

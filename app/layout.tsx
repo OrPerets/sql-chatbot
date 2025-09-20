@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Warnings from "./components/warnings";
-import { assistantId } from "./assistant-config";
+import { getAssistantId } from "./assistant-config";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
@@ -66,7 +66,7 @@ export default function RootLayout({ children }) {
         <meta name="theme-color" content="#2a8ad8" />
       </head>
       <body className={inter.className}>
-        {assistantId ? children : <Warnings />}
+        {getAssistantId() ? children : <Warnings />}
         {/* <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "120px", height: "120px"}}/> */}
         
         {/* Service Worker Registration */}

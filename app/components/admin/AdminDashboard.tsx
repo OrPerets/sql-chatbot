@@ -14,7 +14,8 @@ import {
   CheckCircle,
   ArrowUp,
   LogOut,
-  User
+  User,
+  Brain
 } from 'lucide-react';
 import styles from './AdminDashboard.module.css';
 
@@ -86,6 +87,15 @@ const externalCards = [
     icon: Database,
     route: '/admin/mcp-michael',
     color: 'indigo',
+    action: 'route'
+  },
+  {
+    id: 'model-management',
+    title: 'ניהול מודלים',
+    description: 'ניהול מודלי AI ובדיקות ביצועים',
+    icon: Brain,
+    route: '/admin/model-management',
+    color: 'emerald',
     action: 'route'
   }
 ];
@@ -226,7 +236,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       {/* Communications Section */}
-      <div className={styles.section}>
+      {/* <div className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>תקשורת</h2>
           <span className={styles.sectionSubtitle}>ניהול שליחת הודעות למצבים במערכת</span>
@@ -234,7 +244,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className={styles.cardsGrid}>
           {notificationCards.map((card, index) => renderCard(card, index))}
         </div>
-      </div>
+      </div> */}
 
       {/* System Management Section */}
       {/* <div className={styles.section}>
@@ -251,7 +261,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>כלים נוספים</h2>
-          <span className={styles.sectionSubtitle}>כלי ניהול מרכזיים למערכת הטלמטריה</span>
+          {/* <span className={styles.sectionSubtitle}>כלי ניהול מרכזיים למערכת הטלמטריה</span> */}
         </div>
         <div className={styles.cardsGrid}>
           {externalCards.map((card, index) => renderCard(card, index))}
