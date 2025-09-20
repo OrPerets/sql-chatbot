@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import {
   getQuestionsByHomeworkSet,
   createQuestion,
-  deleteQuestionsByHomeworkSet,
+  getQuestionsService,
 } from "@/lib/questions";
 import type { Question } from "@/app/homework/types";
 
@@ -53,7 +53,8 @@ export async function POST(request: Request, { params }: RouteParams) {
 
 export async function DELETE(_request: Request, { params }: RouteParams) {
   try {
-    const deletedCount = await deleteQuestionsByHomeworkSet(params.setId);
+    const service = await getQuestionsService();
+    const deletedCount = await service.deleteQuestionsByHomeworkSet(params.setId);
     return NextResponse.json({ 
       message: `Deleted ${deletedCount} questions`,
       deletedCount 
