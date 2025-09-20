@@ -41,6 +41,7 @@ export const useSmartVoiceActivation = (options: Partial<VoiceActivationOptions>
   const audioContext = useRef<AudioContext | null>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const silenceDetectionRef = useRef<NodeJS.Timeout | null>(null);
+  const recordingIntervalRef = useRef<number | null>(null);
 
   /**
    * Analyze audio buffer for voice intent using basic audio analysis
@@ -233,7 +234,7 @@ export const useSmartVoiceActivation = (options: Partial<VoiceActivationOptions>
       mediaRecorder.current.start();
       
       // Stop and analyze every 2 seconds
-      const recordingInterval = setInterval(() => {
+      recordingIntervalRef.current = window.setInterval(() => {
         if (mediaRecorder.current?.state === 'recording') {
           mediaRecorder.current.stop();
           setTimeout(() => {
@@ -247,11 +248,6 @@ export const useSmartVoiceActivation = (options: Partial<VoiceActivationOptions>
       setState(prev => ({ ...prev, isListening: true }));
       console.log('👂 Started listening for voice activation');
 
-      // Cleanup function
-      return () => {
-        clearInterval(recordingInterval);
-      };
-
     } catch (error) {
       console.error('❌ Failed to start voice listening:', error);
       setState(prev => ({ ...prev, isListening: false }));
@@ -262,6 +258,10 @@ export const useSmartVoiceActivation = (options: Partial<VoiceActivationOptions>
    * Stop listening for voice activation
    */
   const stopListening = useCallback((): void => {
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = null;
+    }
     if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
       mediaRecorder.current.stop();
       mediaRecorder.current.stream.getTracks().forEach(track => track.stop());
@@ -304,12 +304,17 @@ export const useSmartVoiceActivation = (options: Partial<VoiceActivationOptions>
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      const silenceTimer = silenceDetectionRef.current;
       stopListening();
       if (audioContext.current) {
         audioContext.current.close();
       }
-      if (silenceDetectionRef.current) {
-        clearTimeout(silenceDetectionRef.current);
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
+      }
+      if (silenceTimer) {
+        clearTimeout(silenceTimer);
       }
     };
   }, [stopListening]);

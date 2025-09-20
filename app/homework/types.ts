@@ -190,3 +190,9 @@ export interface ApiError {
   message: string;
   remediation?: string;
 }
+
+// Added to support submission draft saving
+export interface SaveSubmissionDraftPayload {
+  studentId: string;
+  answers: Record<string, SqlAnswer>;
+}
