@@ -88,6 +88,31 @@ global.IntersectionObserver = jest.fn().mockImplementation(() => ({
 // Mock fetch
 global.fetch = jest.fn()
 
+// Mock Blob for Node.js environment
+global.Blob = class MockBlob {
+  constructor(data, options = {}) {
+    this.data = data;
+    this.type = options.type || 'application/octet-stream';
+    this.size = data.reduce((total, item) => total + (typeof item === 'string' ? item.length : item.length || 0), 0);
+  }
+  
+  slice() {
+    return new MockBlob(this.data, { type: this.type });
+  }
+  
+  stream() {
+    return new ReadableStream();
+  }
+  
+  text() {
+    return Promise.resolve(this.data.join(''));
+  }
+  
+  arrayBuffer() {
+    return Promise.resolve(new ArrayBuffer(this.size));
+  }
+};
+
 // Mock window.matchMedia (only in browser environment)
 if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'matchMedia', {
@@ -103,4 +128,30 @@ if (typeof window !== 'undefined') {
       dispatchEvent: jest.fn(),
     })),
   })
+}
+
+// Mock navigator.userAgent to be writable
+Object.defineProperty(navigator, 'userAgent', {
+  writable: true,
+  value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+});
+
+// Mock HTMLMediaElement.prototype for JSDOM (only if HTMLMediaElement exists)
+if (typeof HTMLMediaElement !== 'undefined') {
+  Object.defineProperty(HTMLMediaElement.prototype, 'play', {
+    writable: true,
+    value: jest.fn().mockImplementation(() => {
+      return Promise.resolve();
+    })
+  });
+
+  Object.defineProperty(HTMLMediaElement.prototype, 'pause', {
+    writable: true,
+    value: jest.fn()
+  });
+
+  Object.defineProperty(HTMLMediaElement.prototype, 'load', {
+    writable: true,
+    value: jest.fn()
+  });
 }

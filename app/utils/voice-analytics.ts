@@ -837,6 +837,9 @@ class VoiceAnalyticsService {
 // Export singleton instance
 export const voiceAnalytics = new VoiceAnalyticsService();
 
+// Export class for testing
+export { VoiceAnalyticsService as VoiceAnalytics };
+
 // Utility functions for easy usage
 export function recordTTSRequest(voice: string, textLength: number, contentType: string, responseTime: number, success: boolean, errorType?: string): void {
   voiceAnalytics.recordTTSRequest(voice, textLength, contentType, responseTime, success, errorType);

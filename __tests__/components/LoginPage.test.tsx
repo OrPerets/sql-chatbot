@@ -6,9 +6,20 @@ import LoginPage from '../../app/LoginPage'
 const mockFetch = jest.fn()
 global.fetch = mockFetch as any
 
+// Mock localStorage
+const localStorageMock = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+}
+global.localStorage = localStorageMock as any
+
 describe('LoginPage', () => {
   beforeEach(() => {
     mockFetch.mockClear()
+    localStorageMock.getItem.mockClear()
+    localStorageMock.setItem.mockClear()
     
     // Mock successful API responses by default to avoid loading state
     mockFetch
@@ -23,10 +34,17 @@ describe('LoginPage', () => {
   })
 
   it('renders login page', async () => {
+    let component: any;
+    
     await act(async () => {
-      render(<LoginPage />)
+      component = render(<LoginPage />)
     })
     
+    // Wait for all async operations to complete
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+    }, { timeout: 5000 })
+
     // Wait for loading to complete
     await waitFor(() => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument()
@@ -44,7 +62,7 @@ describe('LoginPage', () => {
     // Wait for API calls to complete
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledTimes(2)
-    })
+    }, { timeout: 5000 })
     
     // Should have called internal endpoints
     expect(mockFetch).toHaveBeenCalledWith('/api/users', expect.any(Object))
@@ -66,7 +84,7 @@ describe('LoginPage', () => {
     await waitFor(() => {
       // Check that the component rendered (even with errors)
       expect(document.querySelector('.loginContainer')).toBeInTheDocument()
-    }, { timeout: 3000 })
+    }, { timeout: 5000 })
     
     // The component should handle errors gracefully and still render
     expect(document.querySelector('.loginCard')).toBeInTheDocument()

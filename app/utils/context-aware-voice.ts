@@ -560,6 +560,9 @@ class ContextAwareVoiceService {
 // Export singleton instance
 export const contextAwareVoice = new ContextAwareVoiceService();
 
+// Export class for testing
+export { ContextAwareVoiceService as ContextAwareVoice };
+
 // Utility function for easy usage
 export function processTextWithContextAwareness(
   text: string,
