@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Save, ArrowLeft, Database, Table, Columns } from 'lucide-react';
+import { Plus, Save, ArrowLeft, Database, Table, Columns, List, Edit3, Trash2, Eye } from 'lucide-react';
 import AdminLayout from '@/app/components/admin/AdminLayout';
 import styles from './databases.module.css';
 
@@ -29,9 +29,24 @@ interface DatabaseFormData {
   tables: TableDefinition[];
 }
 
+interface ExistingDataset {
+  id: string;
+  name: string;
+  description: string;
+  scenario: string;
+  story: string;
+  previewTables: any[];
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 const DatabaseCreationPage: React.FC = () => {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentView, setCurrentView] = useState<'create' | 'list'>('create');
+  const [existingDatasets, setExistingDatasets] = useState<ExistingDataset[]>([]);
+  const [isLoadingDatasets, setIsLoadingDatasets] = useState(false);
   const [formData, setFormData] = useState<DatabaseFormData>({
     name: '',
     description: '',
@@ -39,6 +54,31 @@ const DatabaseCreationPage: React.FC = () => {
     story: '',
     tables: []
   });
+
+  // Load existing datasets
+  const loadExistingDatasets = async () => {
+    setIsLoadingDatasets(true);
+    try {
+      const response = await fetch('/api/datasets');
+      if (response.ok) {
+        const data = await response.json();
+        setExistingDatasets(data.items || []);
+      } else {
+        console.error('Failed to load datasets');
+      }
+    } catch (error) {
+      console.error('Error loading datasets:', error);
+    } finally {
+      setIsLoadingDatasets(false);
+    }
+  };
+
+  // Load datasets when switching to list view
+  useEffect(() => {
+    if (currentView === 'list') {
+      loadExistingDatasets();
+    }
+  }, [currentView]);
 
   const addTable = () => {
     const newTable: TableDefinition = {
@@ -125,13 +165,50 @@ const DatabaseCreationPage: React.FC = () => {
       console.log('Created dataset:', createdDataset);
       
       alert('מסד הנתונים נוצר בהצלחה!');
-      router.push('/admin');
+      // Reset form
+      setFormData({
+        name: '',
+        description: '',
+        scenario: '',
+        story: '',
+        tables: []
+      });
+      // Switch to list view to show the new dataset
+      setCurrentView('list');
+      loadExistingDatasets();
     } catch (error) {
       console.error('Error creating database:', error);
       alert('שגיאה ביצירת מסד הנתונים');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleDeleteDataset = async (datasetId: string) => {
+    if (!confirm('האם אתה בטוח שברצונך למחוק את מסד הנתונים?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/datasets/${datasetId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        alert('מסד הנתונים נמחק בהצלחה!');
+        loadExistingDatasets();
+      } else {
+        throw new Error('Failed to delete dataset');
+      }
+    } catch (error) {
+      console.error('Error deleting dataset:', error);
+      alert('שגיאה במחיקת מסד הנתונים');
+    }
+  };
+
+  const handleEditDataset = (datasetId: string) => {
+    // For now, just show an alert - you can implement edit functionality later
+    alert('פונקציונליות עריכה תהיה זמינה בקרוב');
   };
 
   const canSubmit = formData.name.trim() && 
@@ -161,10 +238,27 @@ const DatabaseCreationPage: React.FC = () => {
           </button>
           <div className={styles.titleSection}>
             <Database size={32} />
-            <h1>יצירת מסד נתונים חדש</h1>
+            <h1>ניהול מסדי נתונים</h1>
+          </div>
+          <div className={styles.viewToggle}>
+            <button
+              onClick={() => setCurrentView('create')}
+              className={`${styles.toggleButton} ${currentView === 'create' ? styles.active : ''}`}
+            >
+              <Plus size={20} />
+              יצירת מסד חדש
+            </button>
+            <button
+              onClick={() => setCurrentView('list')}
+              className={`${styles.toggleButton} ${currentView === 'list' ? styles.active : ''}`}
+            >
+              <List size={20} />
+              רשימת מסדי נתונים
+            </button>
           </div>
         </div>
 
+        {currentView === 'create' ? (
         <form onSubmit={handleSubmit} className={styles.form}>
           {/* Basic Information */}
           <section className={styles.section}>
@@ -373,6 +467,87 @@ const DatabaseCreationPage: React.FC = () => {
             </button>
           </div>
         </form>
+        ) : (
+          <div className={styles.datasetsList}>
+            <div className={styles.listHeader}>
+              <h2>רשימת מסדי נתונים קיימים</h2>
+              <div className={styles.stats}>
+                <span>סה"כ: {existingDatasets.length} מסדי נתונים</span>
+              </div>
+            </div>
+
+            {isLoadingDatasets ? (
+              <div className={styles.loadingState}>
+                <div className={styles.loadingSpinner}></div>
+                <p>טוען מסדי נתונים...</p>
+              </div>
+            ) : existingDatasets.length === 0 ? (
+              <div className={styles.emptyState}>
+                <Database size={48} />
+                <h3>אין מסדי נתונים</h3>
+                <p>עדיין לא נוצרו מסדי נתונים במערכת</p>
+                <button 
+                  onClick={() => setCurrentView('create')}
+                  className={styles.createButton}
+                >
+                  <Plus size={20} />
+                  צור מסד נתונים ראשון
+                </button>
+              </div>
+            ) : (
+              <div className={styles.datasetsGrid}>
+                {existingDatasets.map((dataset) => (
+                  <div key={dataset.id} className={styles.datasetCard}>
+                    <div className={styles.datasetHeader}>
+                      <div className={styles.datasetTitle}>
+                        <Database size={20} />
+                        <h3>{dataset.name}</h3>
+                      </div>
+                      <div className={styles.datasetActions}>
+                        <button
+                          onClick={() => handleEditDataset(dataset.id)}
+                          className={styles.actionButton}
+                          title="עריכה"
+                        >
+                          <Edit3 size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteDataset(dataset.id)}
+                          className={styles.actionButton}
+                          title="מחיקה"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {dataset.description && (
+                      <p className={styles.datasetDescription}>{dataset.description}</p>
+                    )}
+                    
+                    {dataset.scenario && (
+                      <div className={styles.datasetScenario}>
+                        <strong>תרחיש:</strong> {dataset.scenario}
+                      </div>
+                    )}
+                    
+                    <div className={styles.datasetMeta}>
+                      <div className={styles.datasetTags}>
+                        {dataset.tags.map(tag => (
+                          <span key={tag} className={styles.tag}>{tag}</span>
+                        ))}
+                      </div>
+                      <div className={styles.datasetDates}>
+                        <span>נוצר: {new Date(dataset.createdAt).toLocaleDateString('he-IL')}</span>
+                        <span>עודכן: {new Date(dataset.updatedAt).toLocaleDateString('he-IL')}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </AdminLayout>
   );

@@ -180,7 +180,7 @@ export class QuestionsService {
       datasetId: questionData.datasetId,
       maxAttempts: questionData.maxAttempts || 3,
       points: questionData.points || 10,
-      evaluationMode: questionData.evaluationMode,
+      evaluationMode: questionData.evaluationMode || "auto",
     };
 
     return this.createQuestion(newQuestionData);
