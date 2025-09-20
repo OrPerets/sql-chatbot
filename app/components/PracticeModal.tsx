@@ -3,9 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import styles from './PracticeModal.module.css';
 import Editor from '@monaco-editor/react';
-import config from '../config';
-
-const SERVER_BASE = config.serverUrl;
 
 interface PracticeTable {
   id: string;
@@ -57,7 +54,7 @@ const PracticeModal: React.FC<PracticeModalProps> = ({ isOpen, onClose, userId }
   const loadPracticeTables = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${SERVER_BASE}/practice/tables`);
+      const response = await fetch(`/api/practice/tables`);
       if (response.ok) {
         const tables = await response.json();
         setPracticeTables(tables);
@@ -74,7 +71,7 @@ const PracticeModal: React.FC<PracticeModalProps> = ({ isOpen, onClose, userId }
   const handlePracticeSelection = async (practiceId: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`${SERVER_BASE}/practice/queries/${practiceId}`);
+      const response = await fetch(`/api/practice/queries/${practiceId}`);
       if (response.ok) {
         const queries = await response.json();
         setCurrentQueries(queries);
@@ -103,9 +100,9 @@ const PracticeModal: React.FC<PracticeModalProps> = ({ isOpen, onClose, userId }
     try {
       setLoading(true);
       const timestamp = Date.now();
-      console.log('Making request to:', `${SERVER_BASE}/practice/submit?t=${timestamp}`);
+      console.log('Making request to:', `/api/practice/submit?t=${timestamp}`);
       
-      const response = await fetch(`${SERVER_BASE}/practice/submit?t=${timestamp}`, {
+      const response = await fetch(`/api/practice/submit?t=${timestamp}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

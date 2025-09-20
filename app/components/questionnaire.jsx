@@ -80,8 +80,6 @@ const SubmitButton = styled.button`
   }
 `;
 
-const SERVER_BASE = "https://mentor-server-theta.vercel.app";
-
 const Questionnaire = () => {
     const router = useRouter();
     const [form, setForm] = useState({
@@ -131,7 +129,7 @@ const Questionnaire = () => {
 
         let currentUser = JSON.parse(localStorage.getItem("currentUser"))
 
-        fetch(`${SERVER_BASE}/saveUserForm`, {
+        fetch(`/api/feedback/user-form`, {
             method: 'POST',
             headers: {
             'Content-Type': 'application/json',

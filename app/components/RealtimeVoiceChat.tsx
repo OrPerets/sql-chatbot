@@ -42,38 +42,38 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
       
       realtimeService.current = new OpenAIRealtimeService();
       
-      // Set up event listeners
-      realtimeService.current.on('speechStarted', () => {
+      // Set up event listeners (use camelCase keys to match RealtimeCallbacks)
+      realtimeService.current.on('onSpeechStarted', () => {
         console.log('🎤 Speech started');
         setIsListening(true);
       });
       
-      realtimeService.current.on('speechStopped', () => {
+      realtimeService.current.on('onSpeechStopped', () => {
         console.log('🎤 Speech stopped');
         setIsListening(false);
       });
       
-      realtimeService.current.on('responseStarted', () => {
+      realtimeService.current.on('onResponseStarted', () => {
         console.log('🤖 Response started');
         setIsSpeaking(true);
       });
       
-      realtimeService.current.on('responseEnded', () => {
+      realtimeService.current.on('onResponseEnded', () => {
         console.log('🤖 Response ended');
         setIsSpeaking(false);
       });
       
-      realtimeService.current.on('transcriptionUpdate', (text: string) => {
+      realtimeService.current.on('onTranscriptionUpdate', (text: string) => {
         console.log('📝 Transcription update:', text);
         onTranscriptionUpdate(text);
       });
       
-      realtimeService.current.on('responseUpdate', (text: string) => {
+      realtimeService.current.on('onResponseUpdate', (text: string) => {
         console.log('💬 Response update:', text);
         onResponseUpdate(text);
       });
       
-      realtimeService.current.on('error', (error: Error) => {
+      realtimeService.current.on('onError', (error: Error) => {
         console.error('❌ Realtime service error:', error);
         setError(error.message);
         setConnectionStatus('error');
@@ -194,7 +194,6 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     return cleanup;
   }, [cleanup]);
 
-  // Get status indicator
   const getStatusIndicator = () => {
     switch (connectionStatus) {
       case 'connected':

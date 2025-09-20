@@ -8,10 +8,13 @@ export interface MetadataDraft {
   dueAt: string;
   visibility: HomeworkVisibility;
   overview?: string;
+  datasetPolicy?: "shared" | "custom";
 }
 
 export interface DatasetDraft {
   selectedDatasetId?: string;
+  newDatasetName?: string;
+  tags?: string[];
 }
 
 export type EvaluationMode = "auto" | "manual" | "custom";

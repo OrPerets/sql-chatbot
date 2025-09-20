@@ -5,29 +5,12 @@
  * Run with: npx tsx scripts/setup-database.ts
  */
 
-import { connectToDatabase, COLLECTIONS, DATABASE_INDEXES } from '../lib/database';
+import { connectToDatabase, COLLECTIONS } from '../lib/database';
 
 async function createIndexes(db: any) {
   console.log('📊 Creating database indexes...');
-  
-  for (const [collectionName, indexes] of Object.entries(DATABASE_INDEXES)) {
-    const collection = db.collection(collectionName);
-    
-    console.log(`\n📁 Setting up indexes for ${collectionName}:`);
-    
-    for (const index of indexes) {
-      try {
-        await collection.createIndex(index);
-        console.log(`✅ Created index:`, index);
-      } catch (error: any) {
-        if (error.code === 85) {
-          console.log(`⚠️  Index already exists:`, index);
-        } else {
-          console.error(`❌ Failed to create index:`, index, error.message);
-        }
-      }
-    }
-  }
+  // TODO: Define database indexes if needed
+  console.log('⚠️  No indexes defined - skipping index creation');
 }
 
 async function createCollections(db: any) {

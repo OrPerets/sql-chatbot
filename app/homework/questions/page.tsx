@@ -19,6 +19,7 @@ interface Question {
   evaluationMode?: "auto" | "manual" | "custom";
   createdAt?: string;
   updatedAt?: string;
+  usageCount?: number;
 }
 
 interface Dataset {
@@ -290,7 +291,7 @@ export default function QuestionsPage() {
         </div>
         <div className={styles.statCard}>
           <div className={styles.statValue}>
-            {questions.reduce((sum, q) => sum + q.usageCount, 0)}
+            {questions.reduce((sum, q) => sum + (q.usageCount || 0), 0)}
           </div>
           <div className={styles.statLabel}>שימושים במטלות</div>
         </div>

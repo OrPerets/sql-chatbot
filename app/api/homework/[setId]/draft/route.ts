@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { updateHomeworkSet } from "@/lib/homework";
-import { upsertQuestion, deleteQuestionsByHomeworkSet } from "@/lib/questions";
+import { upsertQuestion, getQuestionsService } from "@/lib/questions";
 import type { SaveHomeworkDraftPayload } from "@/app/homework/services/homeworkService";
 
 interface RouteParams {
@@ -22,7 +22,9 @@ export async function POST(request: Request, { params }: RouteParams) {
     if (questions) {
       // First, delete all existing questions for this homework set
       try {
-        await deleteQuestionsByHomeworkSet(params.setId);
+        // Use service method to delete all questions for this homework set
+        const service = await getQuestionsService();
+        await service.deleteQuestionsByHomeworkSet(params.setId);
       } catch (error) {
         console.error('Error deleting existing questions:', error);
       }

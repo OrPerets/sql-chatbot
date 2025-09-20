@@ -1,16 +1,26 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { executeWithRetry, COLLECTIONS } from '@/lib/database'
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   if (req.method === 'POST') {
-    const { threadId, userId, isLike, userText, message } = req.body;
+    const { threadId, userId, isLike, userText, message, chatId, feedback } = req.body as any;
 
     try {
-      // Here, implement your database saving logic
-      // For example, using a database client to insert the feedback
-      // await db.feedback.insert({ threadId, userId, isLike, userText, message, timestamp: new Date() });
+      await executeWithRetry(async (db) => {
+        await db.collection(COLLECTIONS.FEEDBACKS).insertOne({
+          threadId,
+          userId,
+          chatId,
+          isLike,
+          feedback,
+          message,
+          userText,
+          time: new Date(),
+        })
+      })
 
       res.status(200).json({ status: 'success', message: 'Feedback saved successfully' });
     } catch (error) {

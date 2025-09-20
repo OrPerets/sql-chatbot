@@ -1,6 +1,7 @@
 "use client";
 
 import styles from "./Wizard.module.css";
+import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 import type { QuestionDraft, WizardStepId } from "./types";
 import { generateTempId } from "@/app/homework/utils/id";
 
@@ -15,6 +16,7 @@ const NEXT_STEP: WizardStepId = "publish";
 const PREV_STEP: WizardStepId = "questions";
 
 export function RubricStep({ questions, onChange, onBack, onNext }: RubricStepProps) {
+  const { t } = useHomeworkLocale();
   const weightsValid = questions.every((question) => {
     const total = question.rubric.reduce((sum, criterion) => sum + (Number.isFinite(criterion.weight) ? criterion.weight : 0), 0);
     return question.rubric.length > 0 && Math.abs(total - 100) <= 1;

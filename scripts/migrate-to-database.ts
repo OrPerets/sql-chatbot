@@ -5,7 +5,7 @@
  * Run with: npx tsx scripts/migrate-to-database.ts
  */
 
-import { connectToDatabase, COLLECTIONS, DATABASE_INDEXES } from '../lib/database';
+import { connectToDatabase, COLLECTIONS } from '../lib/database';
 import { generateId } from '../lib/models';
 
 // Import the hardcoded data from the mock store
@@ -241,19 +241,8 @@ const submissionRecords = [
 
 async function createIndexes(db: any) {
   console.log('📊 Creating database indexes...');
-  
-  for (const [collectionName, indexes] of Object.entries(DATABASE_INDEXES)) {
-    const collection = db.collection(collectionName);
-    
-    for (const index of indexes) {
-      try {
-        await collection.createIndex(index);
-        console.log(`✅ Created index on ${collectionName}:`, index);
-      } catch (error) {
-        console.log(`⚠️  Index already exists on ${collectionName}:`, index);
-      }
-    }
-  }
+  // TODO: Define database indexes if needed
+  console.log('⚠️  No indexes defined - skipping index creation');
 }
 
 async function migrateDatasets(db: any) {

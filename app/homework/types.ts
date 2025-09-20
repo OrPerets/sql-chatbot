@@ -96,6 +96,8 @@ export interface Submission {
   status: "in_progress" | "submitted" | "graded";
   submittedAt?: string;
   gradedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SubmissionSummary {
@@ -189,4 +191,10 @@ export interface ApiError {
   code: string;
   message: string;
   remediation?: string;
+}
+
+// Added to support submission draft saving
+export interface SaveSubmissionDraftPayload {
+  studentId: string;
+  answers: Record<string, SqlAnswer>;
 }
