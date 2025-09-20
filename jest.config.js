@@ -16,8 +16,16 @@ const customJestConfig = {
   testPathIgnorePatterns: [
     '<rootDir>/.next/', 
     '<rootDir>/node_modules/',
-    '<rootDir>/tests/e2e/' // Exclude Playwright tests
+    '<rootDir>/tests/e2e/', // Exclude Playwright tests
+    '<rootDir>/__tests__/__mocks__/' // Exclude mock files
   ],
+  transformIgnorePatterns: [
+    'node_modules/(?!(mongodb|bson|@mongodb-js/.*)/)'
+  ],
+  moduleNameMapper: {
+    '^mongodb$': '<rootDir>/__tests__/__mocks__/mongodb.js',
+    '^bson$': '<rootDir>/__tests__/__mocks__/bson.js'
+  },
   collectCoverageFrom: [
     'app/**/*.{js,jsx,ts,tsx}',
     '!app/**/*.d.ts',
