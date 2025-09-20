@@ -192,21 +192,7 @@ export async function POST() {
 }
 ```
 
-### 2. Implement OpenAI Realtime API
-**Real-time Voice Conversations**
-- **Current**: Traditional TTS with separate audio processing
-- **Recommendation**: Integrate Realtime API for natural voice interactions
-- **Benefits**:
-  - Low-latency voice conversations
-  - Natural interruptions and turn-taking
-  - Better pronunciation of SQL terms
-  - WebRTC-based streaming for mobile optimization
-- **Use Cases**: 
-  - SQL tutoring sessions
-  - Interactive database design discussions
-  - Voice-guided query building
-
-### 3. Enhanced Function Calling & Tools
+### 2. Enhanced Function Calling & Tools
 **Expand Beyond Basic Weather Function**
 - **Current**: Simple weather function example
 - **Recommendations**:
@@ -261,7 +247,7 @@ export async function POST() {
   }
   ```
 
-### 4. Structured Outputs with JSON Schema
+### 3. Structured Outputs with JSON Schema
 **Consistent Response Formatting**
 - **Current**: Free-form text responses
 - **Recommendation**: Implement structured outputs for specific use cases
@@ -319,7 +305,7 @@ export async function POST() {
 
 ## 🎯 Medium-Priority Enhancements
 
-### 5. Advanced Embeddings Implementation
+### 4. Advanced Embeddings Implementation
 **Semantic Search for Educational Content**
 - **Current**: Basic file search in vector stores
 - **Recommendations**:
@@ -360,7 +346,7 @@ class SQLEmbeddingService {
 }
 ```
 
-### 6. Fine-Tuning for SQL Education
+### 5. Fine-Tuning for SQL Education
 **Domain-Specific Model Customization**
 - **Purpose**: Create specialized model for SQL education context
 - **Training Data**:
@@ -374,7 +360,7 @@ class SQLEmbeddingService {
   - Personalized learning approaches
   - Reduced hallucination for SQL syntax
 
-### 7. Moderation API Integration
+### 6. Moderation API Integration
 **Content Safety for Educational Environment**
 - **Current**: No content moderation
 - **Recommendations**:
@@ -401,7 +387,7 @@ async function moderateContent(content: string) {
 }
 ```
 
-### 8. Batch API for Homework Processing
+### 7. Batch API for Homework Processing
 **Efficient Mass Processing**
 - **Use Case**: Process multiple homework submissions simultaneously
 - **Benefits**: 50% cost reduction, better resource utilization
@@ -441,7 +427,7 @@ async function moderateContent(content: string) {
 
 ## 🔧 Infrastructure & Security Enhancements
 
-### 9. Enterprise Security Features
+### 8. Enterprise Security Features
 **Data Protection & Compliance**
 - **Current**: Basic API key security
 - **Recommendations**:
@@ -452,7 +438,7 @@ async function moderateContent(content: string) {
   - Add audit logging for educational compliance
   - Consider FERPA compliance for student data
 
-### 10. Advanced Usage Monitoring
+### 9. Advanced Usage Monitoring
 **Cost Optimization & Performance Tracking**
 - **Implementation**:
   ```typescript
@@ -479,7 +465,7 @@ async function moderateContent(content: string) {
   }
   ```
 
-### 11. Responses API Migration
+### 10. Responses API Migration
 **Unified Tool Integration**
 - **Current**: Separate API calls for different functions
 - **Recommendation**: Migrate to Responses API for:
@@ -490,21 +476,21 @@ async function moderateContent(content: string) {
 
 ## 🌟 Advanced Features
 
-### 12. Multi-Modal Learning Enhancement
+### 11. Multi-Modal Learning Enhancement
 **Vision + Audio + Text Integration**
 - **Database Diagram Analysis**: Enhanced OCR for ERD recognition
 - **Handwritten Query Recognition**: Parse student handwritten SQL
 - **Interactive Whiteboard**: Voice + visual SQL query building
 - **Screenshot Debugging**: Analyze error screenshots with voice explanation
 
-### 13. Personalized Learning Paths
+### 12. Personalized Learning Paths
 **Adaptive Education System**
 - **Student Profiling**: Track learning progress and difficulties
 - **Dynamic Curriculum**: Adjust content based on performance
 - **Prerequisite Detection**: Identify knowledge gaps automatically
 - **Learning Style Adaptation**: Visual vs. auditory learning preferences
 
-### 14. Real-time Collaboration Features
+### 13. Real-time Collaboration Features
 **Multi-Student Learning Sessions**
 - **Shared Query Building**: Collaborative SQL development
 - **Peer Review System**: Student-to-student code review
