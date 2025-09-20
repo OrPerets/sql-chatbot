@@ -322,19 +322,26 @@ const Chat = ({
   // Add audio and speech state
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
   const [autoPlaySpeech, setAutoPlaySpeech] = useState(false);
-  const enableAvatar = typeof window !== 'undefined' && (process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1' || process.env.NODE_ENV === 'development');
-  const enableVoice = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_VOICE_ENABLED === '1';
+  // Environment variables - these are available at build time
+  const enableAvatar = process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1' || process.env.NODE_ENV === 'development';
+  const enableVoice = process.env.NEXT_PUBLIC_VOICE_ENABLED === '1';
+  
   // Add avatar mode state with localStorage persistence
-  const [avatarMode, setAvatarMode] = useState<'avatar' | 'voice'>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('avatarMode');
-      return (saved === 'voice' || saved === 'avatar') ? saved : 'avatar';
-    }
-    return 'avatar';
-  });
+  const [avatarMode, setAvatarMode] = useState<'avatar' | 'voice'>('avatar');
 
   // Add hydration state to prevent layout shift
   const [isHydrated, setIsHydrated] = useState(false);
+  
+  // Debug logging for production
+  useEffect(() => {
+    console.log('🔧 Avatar Debug Info:', {
+      enableAvatar,
+      enableVoice,
+      NEXT_PUBLIC_AVATAR_ENABLED: process.env.NEXT_PUBLIC_AVATAR_ENABLED,
+      NODE_ENV: process.env.NODE_ENV,
+      isHydrated
+    });
+  }, [enableAvatar, enableVoice, isHydrated]);
   
   // Add display mode state for avatar/logo toggle
   const [displayMode, setDisplayMode] = useState<'avatar' | 'logo'>('avatar');
@@ -353,6 +360,13 @@ const Chat = ({
       if (savedDisplayMode === 'logo' || savedDisplayMode === 'avatar') {
         setDisplayMode(savedDisplayMode);
       }
+      
+      // Load saved avatar mode
+      const savedAvatarMode = localStorage.getItem('avatarMode');
+      if (savedAvatarMode === 'voice' || savedAvatarMode === 'avatar') {
+        setAvatarMode(savedAvatarMode);
+      }
+      
       setIsHydrated(true);
     }
   }, []);
