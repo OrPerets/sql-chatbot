@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import "./components/admin/design-tokens.css";
 import Warnings from "./components/warnings";
 import { getAssistantId } from "./assistant-config";
 const inter = Inter({ subsets: ["latin"] });

@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, Settings, BarChart3, Search, Upload, Shield, Clock } from 'lucide-react';
-import AdminLayout from './admin/AdminLayout';
+import ModernAdminLayout from './admin/ModernAdminLayout';
+import ModernDashboard from './admin/ModernDashboard';
 import StatsCard from './admin/StatsCard';
 import MissingAnswersAudit from './admin/MissingAnswersAudit';
 import ErrorBanner from './admin/ErrorBanner';
@@ -209,58 +210,13 @@ const AdminPage: React.FC = () => {
  };
 
  const renderDashboard = () => (
-   <div className={styles.dashboardSection}>
-     {/* Hero Section with System Overview */}
-     <div className={styles.heroSection}>
-       <div className={styles.heroContent}>
-         <div className={styles.heroText}>
-           <h1>ברוכים הבאים למערכת הניהול</h1>
-           <p>סקירה כללית של המערכת ופעולות מהירות</p>
-         </div>
-         <div className={styles.heroStats}>
-           <div className={styles.heroStat}>
-             <div className={styles.heroStatNumber}>{users.length}</div>
-             <div className={styles.heroStatLabel}>משתמשים פעילים</div>
-           </div>
-           <div className={styles.heroStat}>
-             <div className={styles.heroStatNumber}>{isStatuseVisible ? 'פעיל' : 'כבוי'}</div>
-             <div className={styles.heroStatLabel}>מצב מערכת</div>
-           </div>
-         </div>
-       </div>
-     </div>
-
-     {/* KPI Stats Grid */}
-     <div className={styles.statsGrid}>
-       {loading ? (
-         <>
-           <SkeletonCard variant="stat" />
-         </>
-       ) : (
-         <>
-           <StatsCard
-             icon={Users}
-             title="משתמשים רשומים"
-             value={users.length}
-             description='סה\"כ משתמשים במערכת'
-             trend={{
-               value: 12,
-               label: "השבוע האחרון",
-               direction: "up"
-             }}
-             onClick={() => setActiveTab('users')}
-           />
-         </>
-       )}
-     </div>
-
-
-     {/* Missing Answers Audit */}
-     <MissingAnswersAudit
-       onSuccess={handleSuccess}
-       onError={handleError}
-     />
-   </div>
+   <ModernDashboard
+     users={users}
+     loading={loading}
+     onSuccess={handleSuccess}
+     onError={handleError}
+     onNavigate={setActiveTab}
+   />
  );
 
  const renderSystemSettings = () => (
@@ -468,7 +424,7 @@ const AdminPage: React.FC = () => {
      />
    </div>
  ) : (
-   <AdminLayout
+   <ModernAdminLayout
      activeTab={activeTab}
      onTabChange={setActiveTab}
      currentUser={currentUser}
@@ -500,7 +456,7 @@ const AdminPage: React.FC = () => {
      {activeTab === 'dashboard' && renderDashboard()}
      {activeTab === 'settings' && renderSystemSettings()}
      {activeTab === 'users' && renderUserManagement()}
-   </AdminLayout>
+   </ModernAdminLayout>
  );
 };
 export default AdminPage;

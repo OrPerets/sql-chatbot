@@ -1676,7 +1676,7 @@ return (
           </div>
           
           {/* Avatar Mode Toggle (only visible in avatar display mode) */}
-          {displayMode === 'avatar' && enableAvatar && (
+          {/* {displayMode === 'avatar' && enableAvatar && (
             <div className={styles.avatarModeToggle}>
               <button 
                 className={`${styles.modeToggleButton} ${avatarMode === 'voice' ? styles.voiceActive : styles.avatarActive}`}
@@ -1697,7 +1697,7 @@ return (
                 {avatarMode === 'avatar' ? <MicIcon size={18} /> : <AvatarIcon size={18} />}
               </button>
             </div>
-          )}
+          )} */}
         </div>
         
           {/* User info below the avatar */}
