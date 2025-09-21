@@ -116,6 +116,13 @@ const McpMichaelPage: React.FC = () => {
         });
         
         setWeeklyContent(initializedContent);
+        // Update date ranges now that we have semester start
+        if (semesterStart) {
+          setWeeklyContent(prev => prev.map(week => ({
+            ...week,
+            dateRange: calculateDateRange(week.week, semesterStart)
+          })));
+        }
       } else {
         // Initialize with empty content if API fails
         setWeeklyContent(initializeWeeklyContent());
@@ -176,7 +183,7 @@ const McpMichaelPage: React.FC = () => {
         // Update local state
         setWeeklyContent(prev => prev.map(w => 
           w.week === week 
-            ? { ...w, content, updatedAt: new Date().toISOString(), updatedBy: 'admin' }
+            ? { ...w, content, updatedAt: new Date().toISOString(), updatedBy: 'admin', dateRange: calculateDateRange(week, semesterStart) }
             : w
         ));
         
@@ -195,6 +202,29 @@ const McpMichaelPage: React.FC = () => {
       }, 3000);
     } finally {
       setSaving(prev => ({ ...prev, [week]: false }));
+    }
+  };
+
+  const previewAssistantContext = async () => {
+    try {
+      const res = await fetch('/api/assistants/functions/course-context', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ functionName: 'get_course_week_context', parameters: {} })
+      });
+      const text = await res.text();
+      // The endpoint returns a JSON-stringified payload. Parse safely.
+      let parsed: any = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        // If not parsable, show raw
+        alert(text);
+        return;
+      }
+      alert(JSON.stringify(parsed, null, 2));
+    } catch (e) {
+      alert('Failed to preview assistant context');
     }
   };
 
@@ -268,6 +298,7 @@ const McpMichaelPage: React.FC = () => {
               <th>שבוע</th>
               <th>תאריכים</th>
               <th>תוכן</th>
+              <th>עודכן</th>
               <th>פעולות</th>
             </tr>
           </thead>
@@ -297,6 +328,12 @@ const McpMichaelPage: React.FC = () => {
                     className={styles.contentTextarea}
                     rows={3}
                   />
+                </td>
+                <td className={styles.updatedCell}>
+                  <div className={styles.updatedMeta}>
+                    <span>{week.updatedAt ? new Date(week.updatedAt).toLocaleString('he-IL') : '—'}</span>
+                    {week.updatedBy && <span> · {week.updatedBy}</span>}
+                  </div>
                 </td>
                 <td className={styles.actionsCell}>
                   <button
@@ -334,6 +371,9 @@ const McpMichaelPage: React.FC = () => {
         <p className={styles.footerText}>
           המערכת תשתמש בתוכן השבוע הנוכחי כדי לשפר את התגובות של המייקל
         </p>
+        <button className={styles.previewButton} onClick={previewAssistantContext}>
+          תצוגה מקדימה של ההקשר לעוזר
+        </button>
       </div>
     </div>
   );

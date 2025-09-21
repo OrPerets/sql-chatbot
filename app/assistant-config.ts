@@ -25,10 +25,7 @@ export const getAssistantId = (): string => {
 
 // Get current model information
 export const getCurrentModel = (): string => {
-  if (useGPT5 && assistantIdGPT5) {
-    return "gpt-5-nano";
-  }
-  return "gpt-5-nano";
+  return "gpt-4.1-mini";
 };
 
 // Assistant configuration metadata

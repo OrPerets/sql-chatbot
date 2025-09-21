@@ -118,6 +118,10 @@ export async function GET() {
           description: "Test SQL function calling capabilities"
         },
         {
+          type: "course_context",
+          description: "Test course week context function calling"
+        },
+        {
           type: "image_analysis",
           description: "Test image analysis for SQL content"
         },
@@ -140,6 +144,8 @@ export async function GET() {
 
 function getDefaultTestQuery(testType?: string): string {
   switch (testType) {
+    case "course_context":
+      return "What is the focus of this week's course material?";
     case "hebrew":
       return "בבקשה הסבר מה זה JOIN בSQL ותן דוגמה פשוטה";
     

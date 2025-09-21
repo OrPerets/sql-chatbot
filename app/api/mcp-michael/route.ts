@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/content/weekly`, {
+    const baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+    const response = await fetch(`${baseUrl}/api/content/weekly`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -36,7 +37,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/content/weekly`, {
+    const baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+    const response = await fetch(`${baseUrl}/api/content/weekly`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

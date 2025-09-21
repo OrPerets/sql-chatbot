@@ -174,6 +174,43 @@ const EnhancedChatWithAvatar: React.FC<EnhancedChatWithAvatarProps> = ({
         chatId={chatId}
         onUserMessage={handleUserMessage}
         onAssistantResponse={handleAssistantResponse}
+        functionCallHandler={async (toolCall) => {
+          try {
+            const name = toolCall.function.name;
+            let params: any = {};
+            try {
+              params = toolCall.function.arguments ? JSON.parse(toolCall.function.arguments) : {};
+            } catch (e) {
+              console.warn('Failed to parse tool call arguments, using empty object');
+              params = {};
+            }
+
+            const isCourseContext = name === 'get_course_week_context' || name === 'list_course_week_summaries';
+            const isSQL = name === 'execute_sql_query' || name === 'get_database_schema' || name === 'analyze_query_performance';
+
+            const endpoint = isCourseContext
+              ? '/api/assistants/functions/course-context'
+              : isSQL
+                ? '/api/assistants/functions/sql'
+                : null;
+
+            if (!endpoint) {
+              return JSON.stringify({ error: `Unknown function: ${name}` });
+            }
+
+            const res = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ functionName: name, parameters: params }),
+            });
+            // The backend returns JSON; the Assistants API expects a string output
+            const text = await res.text();
+            return text;
+          } catch (err: any) {
+            console.error('functionCallHandler error:', err);
+            return JSON.stringify({ error: err?.message || 'Function call failed' });
+          }
+        }}
       />
       
       {/* Avatar interaction debug info (development only) */}
