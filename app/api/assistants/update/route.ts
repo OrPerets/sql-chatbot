@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export async function POST() {
   try {
     const updatedAssistant = await openai.beta.assistants.update(assistantId, {
-        model: "gpt-5-nano", // Latest GPT-5-nano model with improved capabilities
+        model: "gpt-4.1-mini", // Supported by Assistants API
       // Keep existing instructions but enhance them
       instructions: `You are Michael, a helpful SQL teaching assistant for academic courses. 
 
@@ -26,10 +26,38 @@ export async function POST() {
       
       Always be encouraging and focus on learning outcomes. If an image doesn't contain SQL/database content, politely explain what you can see and ask how you can help with their SQL learning.
       
-      When using SQL execution functions, always explain the query logic and results to help students learn. Provide optimization suggestions when appropriate.`,
+      When using SQL execution functions, always explain the query logic and results to help students learn. Provide optimization suggestions when appropriate.
+
+      Weekly course context:
+      - For any question about "what we learn this week", syllabus focus, class topics, or weekly material, call the function get_course_week_context before answering.
+      - If the user asks about a specific week, pass { week: <number> }.
+      - Cite the returned fields (weekNumber, dateRange) explicitly in your response and weave the content naturally in Hebrew.
+      - Do not invent content if the function returns null; explain that the weekly context is not configured yet and ask the user to clarify.
+      - Do not rely on prior prompt injection. Always prefer the function for up-to-date context.
+      `,
       tools: [
         { type: "code_interpreter" },
         { type: "file_search" },
+        {
+          type: "function",
+          function: {
+            name: "get_course_week_context",
+            description:
+              "Fetch the syllabus focus for the current or requested week to ground tutoring responses.",
+            parameters: {
+              type: "object",
+              properties: {
+                week: {
+                  type: "integer",
+                  minimum: 1,
+                  maximum: 14,
+                  description:
+                    "Optional explicit week number; omit to use the current academic week.",
+                },
+              },
+            },
+          },
+        },
         // Enhanced SQL-specific function calling
         {
           type: "function",

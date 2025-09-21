@@ -139,6 +139,68 @@ describe('MCP Michael System', () => {
     });
   });
 
+  describe('Course Context Function Endpoint', () => {
+    test('get_course_week_context returns stringified JSON payload', async () => {
+      const { POST } = await import('../app/api/assistants/functions/course-context/route');
+      // Mock content helpers
+      jest.doMock('../lib/content', () => ({
+        getCurrentWeekContextNormalized: jest.fn().mockResolvedValue({
+          weekNumber: 5,
+          content: 'SQL joins and relationships',
+          dateRange: '2024-01-29 - 2024-02-04',
+          updatedAt: '2024-01-27T10:00:00.000Z',
+          updatedBy: 'admin',
+        }),
+        getWeekContextByNumberNormalized: jest.fn(),
+      }))
+      const req = new (NextRequest as any)('http://localhost:3000/api/assistants/functions/course-context', {
+        method: 'POST',
+        body: JSON.stringify({ functionName: 'get_course_week_context', parameters: {} })
+      })
+      const res = await POST(req)
+      const text = await (res as any).text()
+      const data = JSON.parse(text)
+      expect(data).toHaveProperty('weekNumber', 5)
+      expect(data).toHaveProperty('content')
+      expect(typeof data.fetchedAt === 'string').toBe(true)
+    })
+
+    test('list_course_week_summaries returns summaries object', async () => {
+      const { POST } = await import('../app/api/assistants/functions/course-context/route');
+      jest.doMock('../lib/content', () => ({
+        getWeeklyContent: jest.fn().mockResolvedValue([
+          { week: 1, content: 'Intro', updatedAt: '2024-01-01T00:00:00.000Z', updatedBy: 'admin' },
+          { week: 2, content: '', updatedAt: '2024-01-02T00:00:00.000Z', updatedBy: 'admin' },
+        ]),
+      }))
+      const req = new (NextRequest as any)('http://localhost:3000/api/assistants/functions/course-context', {
+        method: 'POST',
+        body: JSON.stringify({ functionName: 'list_course_week_summaries', parameters: {} })
+      })
+      const res = await POST(req)
+      const text = await (res as any).text()
+      const data = JSON.parse(text)
+      expect(Array.isArray(data.weeks)).toBe(true)
+      expect(data.weeks[0]).toHaveProperty('weekNumber')
+    })
+
+    test('out-of-range week gracefully clamps', async () => {
+      const { POST } = await import('../app/api/assistants/functions/course-context/route');
+      jest.doMock('../lib/content', () => ({
+        getWeekContextByNumberNormalized: jest.fn().mockResolvedValue({ weekNumber: 14, content: null, dateRange: null }),
+      }))
+      const req = new (NextRequest as any)('http://localhost:3000/api/assistants/functions/course-context', {
+        method: 'POST',
+        body: JSON.stringify({ functionName: 'get_course_week_context', parameters: { week: 999 } })
+      })
+      const res = await POST(req)
+      const text = await (res as any).text()
+      const data = JSON.parse(text)
+      expect(data.weekNumber).toBeGreaterThanOrEqual(1)
+      expect(data.weekNumber).toBeLessThanOrEqual(14)
+    })
+  })
+
   describe('Semester Configuration', () => {
     test('should handle semester start date validation', () => {
       const validateSemesterStart = (dateString: string): boolean => {

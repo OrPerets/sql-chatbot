@@ -24,19 +24,22 @@ export async function POST(request, { params: { threadId } }) {
   try {
     const { content, imageData } = await request.json();
 
-    // Get current week's content for context injection
+    // Optional prompt injection (temporary) - recommended to use function calls instead
     let weeklyContext = '';
-    try {
-      const weeklyResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/mcp-michael/current-week`);
-      if (weeklyResponse.ok) {
-        const weeklyData = await weeklyResponse.json();
-        if (weeklyData.content && weeklyData.content.trim()) {
-          weeklyContext = `\n\n[הקשר שבועי נוכחי - שבוע ${weeklyData.currentWeek}: ${weeklyData.content}]`;
+    if (process.env.MCP_FORCE_PROMPT_CONTEXT === '1') {
+      try {
+        const weeklyResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/mcp-michael/current-week`);
+        if (weeklyResponse.ok) {
+          const weeklyData = await weeklyResponse.json();
+          const weekNum = weeklyData.weekNumber ?? weeklyData.currentWeek; // support both shapes during rollout
+          if (weeklyData.content && weeklyData.content.trim()) {
+            weeklyContext = `\n\n[הקשר שבועי נוכחי - שבוע ${weekNum}: ${weeklyData.content}]`;
+          }
         }
+      } catch (weeklyError) {
+        console.log('Could not fetch weekly context:', weeklyError);
+        // Continue without weekly context if fetch fails
       }
-    } catch (weeklyError) {
-      console.log('Could not fetch weekly context:', weeklyError);
-      // Continue without weekly context if fetch fails
     }
 
     // Prepare message content

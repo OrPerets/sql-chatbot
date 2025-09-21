@@ -20,11 +20,38 @@ export async function POST() {
     - Query optimization techniques
     - Common errors and how to fix them
     
-    Always be encouraging and focus on learning outcomes. If an image doesn't contain SQL/database content, politely explain what you can see and ask how you can help with their SQL learning.`,
+    Always be encouraging and focus on learning outcomes. If an image doesn't contain SQL/database content, politely explain what you can see and ask how you can help with their SQL learning.
+
+    Weekly course context:
+    - For any question about "what we learn this week", syllabus focus, class topics, or weekly material, call the function get_course_week_context before answering.
+    - If the user asks about a specific week, pass { week: <number> }.
+    - Cite the returned fields (weekNumber, dateRange) explicitly in your response and weave the content naturally in Hebrew.
+    - Do not invent content if the function returns null; explain that the weekly context is not configured yet and ask the user to clarify.
+    - Do not rely on prior prompt injection. Always prefer the function for up-to-date context.`,
     name: "Michael - SQL Teaching Assistant",
-    model: "gpt-5-nano", // Latest model with enhanced capabilities
+    model: "gpt-4.1-mini", // Supported by Assistants API
     tools: [
       { type: "code_interpreter" },
+      {
+        type: "function",
+        function: {
+          name: "get_course_week_context",
+          description:
+            "Fetch the syllabus focus for the current or requested week to ground tutoring responses.",
+          parameters: {
+            type: "object",
+            properties: {
+              week: {
+                type: "integer",
+                minimum: 1,
+                maximum: 14,
+                description:
+                  "Optional explicit week number; omit to use the current academic week.",
+              },
+            },
+          },
+        },
+      },
       {
         type: "function",
         function: {
