@@ -135,4 +135,5 @@ export const COLLECTIONS = {
   PRACTICE_ATTEMPTS: 'practiceAttempts',
   WEEKLY_CONTENT: 'weekly_content',
   SEMESTER_CONFIG: 'semester_config',
+  NOTIFICATIONS: 'notifications',
 } as const;

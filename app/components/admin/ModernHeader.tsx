@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Bell, 
@@ -29,37 +29,10 @@ interface NotificationItem {
   id: string;
   title: string;
   message: string;
-  time: string;
+  createdAt: string;
   isRead: boolean;
-  type: 'info' | 'warning' | 'success' | 'error';
+  type: 'info' | 'warning' | 'success' | 'error' | 'system';
 }
-
-const mockNotifications: NotificationItem[] = [
-  {
-    id: '1',
-    title: 'משתמש חדש נרשם',
-    message: 'יוסי כהן הצטרף למערכת',
-    time: '5 דקות',
-    isRead: false,
-    type: 'info'
-  },
-  {
-    id: '2',
-    title: 'מטלה חדשה נוצרה',
-    message: 'מטלת SQL בסיסי פורסמה',
-    time: '30 דקות',
-    isRead: false,
-    type: 'success'
-  },
-  {
-    id: '3',
-    title: 'שגיאה במערכת',
-    message: 'בעיית חיבור למסד הנתונים',
-    time: '1 שעה',
-    isRead: true,
-    type: 'error'
-  }
-];
 
 const ModernHeader: React.FC<ModernHeaderProps> = ({
   currentUser,
@@ -72,9 +45,26 @@ const ModernHeader: React.FC<ModernHeaderProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  // Fetch notifications from API
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/notifications');
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data.notifications || []);
+        setUnreadCount(data.unreadCount || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleNotificationClick = () => {
     setShowNotifications(!showNotifications);
@@ -86,14 +76,49 @@ const ModernHeader: React.FC<ModernHeaderProps> = ({
     setShowNotifications(false);
   };
 
-  const markNotificationAsRead = (id: string) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === id ? { ...n, isRead: true } : n)
-    );
+  const markNotificationAsRead = async (id: string) => {
+    try {
+      const response = await fetch('/api/admin/notifications', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'markAsRead',
+          notificationId: id,
+        }),
+      });
+
+      if (response.ok) {
+        setNotifications(prev => 
+          prev.map(n => n.id === id ? { ...n, isRead: true } : n)
+        );
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
 
-  const clearAllNotifications = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  const clearAllNotifications = async () => {
+    try {
+      const response = await fetch('/api/admin/notifications', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'markAllAsRead',
+        }),
+      });
+
+      if (response.ok) {
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error('Error clearing all notifications:', error);
+    }
   };
 
   const getNotificationIcon = (type: string) => {
@@ -101,12 +126,45 @@ const ModernHeader: React.FC<ModernHeaderProps> = ({
       case 'success': return '✅';
       case 'warning': return '⚠️';
       case 'error': return '❌';
+      case 'system': return '🔧';
       default: return 'ℹ️';
     }
   };
 
+  const formatTimeAgo = (createdAt: string) => {
+    const now = new Date();
+    const notificationDate = new Date(createdAt);
+    const diffInMinutes = Math.floor((now.getTime() - notificationDate.getTime()) / (1000 * 60));
+
+    if (diffInMinutes < 1) {
+      return 'עכשיו';
+    } else if (diffInMinutes < 60) {
+      return `${diffInMinutes} דקות`;
+    } else if (diffInMinutes < 1440) {
+      const hours = Math.floor(diffInMinutes / 60);
+      return `${hours} שעות`;
+    } else {
+      const days = Math.floor(diffInMinutes / 1440);
+      return `${days} ימים`;
+    }
+  };
+
+  // Fetch notifications on component mount
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  // Set up polling for new notifications every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Close dropdowns when clicking outside
-  React.useEffect(() => {
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
       if (!target.closest(`.${styles.notificationDropdown}`) && 
@@ -211,7 +269,12 @@ const ModernHeader: React.FC<ModernHeaderProps> = ({
                   </div>
                   
                   <div className={styles.notificationList}>
-                    {notifications.length > 0 ? (
+                    {loading ? (
+                      <div className={styles.noNotifications}>
+                        <div className={styles.loadingSpinner}></div>
+                        <p>טוען הודעות...</p>
+                      </div>
+                    ) : notifications.length > 0 ? (
                       notifications.map((notification) => (
                         <div 
                           key={notification.id}
@@ -229,7 +292,7 @@ const ModernHeader: React.FC<ModernHeaderProps> = ({
                               {notification.message}
                             </p>
                             <span className={styles.notificationTime}>
-                              לפני {notification.time}
+                              לפני {formatTimeAgo(notification.createdAt)}
                             </span>
                           </div>
                         </div>

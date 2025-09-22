@@ -586,8 +586,8 @@ export const useSmartVoiceActivation = (options: Partial<VoiceActivationOptions>
 
   // Cleanup on unmount
   useEffect(() => {
+    const silenceTimer = silenceDetectionRef.current;
     return () => {
-      const silenceTimer = silenceDetectionRef.current;
       stopListening();
       if (audioContext.current) {
         audioContext.current.close();
