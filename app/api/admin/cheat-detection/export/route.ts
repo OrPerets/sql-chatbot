@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { NotificationHelpers } from '../../../../../lib/notifications';
 
 interface SimilarityMatch {
   student1: {
@@ -204,6 +205,10 @@ export async function POST(request: NextRequest) {
     const date = new Date().toISOString().split('T')[0];
     const filename = `דוח_חשדות_העתקה_${date}.csv`;
 
+    // Create notification for data export
+    const recordCount = data.similarityMatches?.length || 0;
+    await NotificationHelpers.dataExport('דוח חשדות העתקה', recordCount);
+
     // Set headers for file download
     const headers = new Headers();
     headers.set('Content-Type', 'text/csv; charset=utf-8');
@@ -213,6 +218,13 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error exporting cheat detection results:', error);
+    
+    // Create error notification
+    await NotificationHelpers.systemError(
+      'שגיאה בייצוא דוח חשדות העתקה',
+      'cheat-detection-export'
+    );
+    
     return NextResponse.json(
       { error: 'שגיאה בייצוא דוח חשדות העתקה' },
       { status: 500 }

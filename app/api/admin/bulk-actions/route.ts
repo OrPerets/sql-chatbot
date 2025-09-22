@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sendEmail, generateActionEmail } from '../../../utils/email-service';
+import { NotificationHelpers } from '../../../../lib/notifications';
 
 export async function POST(request: Request) {
   try {
@@ -98,6 +99,13 @@ export async function POST(request: Request) {
 
     // Wait for all emails to be sent
     await Promise.all(emailPromises);
+
+    // Create notification for bulk action
+    const actionSummary = actions.map(a => a.type).join(', ');
+    await NotificationHelpers.bulkAction(
+      `פעולות מרובות: ${actionSummary}`, 
+      users.length
+    );
 
     // Return success response with summary
     return NextResponse.json({

@@ -136,7 +136,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               executionCount,
             },
           },
-        } satisfies Submission;
+        } as Submission;
       });
       queryClient.invalidateQueries({ queryKey: ["submission", setId, studentId] });
     },
@@ -322,13 +322,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
 
         <div className={styles.editorSection}>
           <div className={styles.editorContainer}>
-            {/* Debug info */}
-            <div style={{ padding: "8px", background: "#f0f0f0", fontSize: "12px", marginBottom: "8px" }}>
-              Debug: activeQuestionId = {activeQuestionId || "null"}, 
-              editorValue = "{activeQuestionId ? editorValues[activeQuestionId] ?? "empty" : "no-active-question"}"
-            </div>
-            
-            {/* Fallback textarea for debugging */}
+            {/* Fallback textarea */}
             <textarea
               style={{
                 width: "100%",
@@ -352,36 +346,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               placeholder="-- כתבו כאן את שאילתת ה-SQL שלכם"
               disabled={!activeQuestionId}
             />
-            
-            {/* Keep Monaco editor but hidden for now */}
-            <div style={{ display: "none" }}>
-              <SqlEditor
-                height="280px"
-                defaultLanguage="sql"
-                theme="vs-dark"
-                value={activeQuestionId ? editorValues[activeQuestionId] ?? "" : ""}
-                onChange={(value) => {
-                  console.log("Monaco onChange triggered:", { activeQuestionId, value });
-                  if (activeQuestionId && value !== undefined) {
-                    handleSqlChange(activeQuestionId, value);
-                  }
-                }}
-                options={{
-                  minimap: { enabled: false },
-                  fontSize: 14,
-                  scrollBeyondLastLine: false,
-                  automaticLayout: true,
-                  wordWrap: "on",
-                  lineNumbers: "on",
-                  readOnly: false,
-                  contextmenu: true,
-                }}
-                onMount={(editor, monaco) => {
-                  editor.focus();
-                  console.log("Monaco editor mounted successfully");
-                }}
-              />
-            </div>
             <div className={styles.editorActions}>
               <button
                 type="button"
