@@ -72,7 +72,6 @@ const navigationItems: NavigationItem[] = [
     label: 'ניהול משתמשים',
     icon: Users,
     type: 'tab',
-    badge: '24'
   },
   {
     id: 'settings',
