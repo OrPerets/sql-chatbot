@@ -44,7 +44,7 @@ function parseSchema(input: string): Array<{ column: string; type: string }> {
 function buildQuestionsPayload(draft: HomeworkDraftState): Question[] {
   return draft.questions.map((question) => ({
     id: question.id,
-    prompt: question.prompt,
+    prompt: question.instructions, // Use instructions as prompt since we removed the separate prompt field
     instructions: question.instructions,
     starterSql: question.starterSql,
     expectedResultSchema: parseSchema(question.expectedResultSchema),
@@ -64,6 +64,8 @@ function buildDraftPayload(draft: HomeworkDraftState): SaveHomeworkDraftPayload 
     visibility: draft.metadata.visibility,
     datasetPolicy: draft.metadata.datasetPolicy,
     overview: draft.metadata.overview,
+    selectedDatasetId: draft.dataset.selectedDatasetId,
+    backgroundStory: draft.dataset.backgroundStory,
     questionOrder: draft.questions.map((question) => question.id),
     questions: buildQuestionsPayload(draft),
   };
@@ -97,6 +99,7 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
   const [lastSavedHash, setLastSavedHash] = useState<string | null>(() =>
     initialState ? JSON.stringify(buildDraftPayload(initialDraft)) : null,
   );
+  const [isManualSaving, setIsManualSaving] = useState(false);
 
   useEffect(() => {
     if (existingSetId) {
@@ -138,9 +141,45 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
   const saveDraftMutation = useMutation({
     mutationFn: ({ setId, payload }: { setId: string; payload: SaveHomeworkDraftPayload }) =>
       saveHomeworkDraft(setId, payload),
-    onSuccess: (_, variables) => {
+    onSuccess: (serverSet, variables) => {
       setAutoSaveState("saved");
       setLastSavedHash(JSON.stringify(variables.payload));
+      // Adopt authoritative server response to prevent drift
+      setController((prev) => {
+        const incomingQuestions = (serverSet as any).questions as Question[] | undefined;
+        if (!incomingQuestions) return prev;
+        const ordered = (serverSet.questionOrder || []).map((id) => incomingQuestions.find((q) => q.id === id)).filter(Boolean) as Question[];
+        const nextDraft: HomeworkDraftState = {
+          metadata: {
+            title: serverSet.title,
+            courseId: serverSet.courseId,
+            dueAt: serverSet.dueAt,
+            visibility: serverSet.visibility,
+            datasetPolicy: serverSet.datasetPolicy,
+            overview: serverSet.overview,
+          },
+          dataset: {
+            selectedDatasetId: serverSet.selectedDatasetId || ordered.find((q) => Boolean(q.datasetId))?.datasetId,
+            backgroundStory: serverSet.backgroundStory || "",
+            newDatasetName: "",
+            tags: [],
+          },
+          questions: ordered.map((q) => ({
+            id: q.id,
+            prompt: q.prompt,
+            instructions: q.instructions,
+            starterSql: q.starterSql ?? "",
+            expectedResultSchema: JSON.stringify(q.expectedResultSchema ?? [], null, 2),
+            points: q.points,
+            maxAttempts: q.maxAttempts,
+            datasetId: q.datasetId,
+            rubric: q.gradingRubric,
+            evaluationMode: q.evaluationMode ?? "auto",
+          })),
+          publishNotes: prev.draft.publishNotes,
+        };
+        return { ...prev, draft: nextDraft };
+      });
     },
     onError: (error) => {
       console.error("Failed to save draft", error);
@@ -159,18 +198,20 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
   });
 
   useEffect(() => {
-    if (!controller.setId) return;
+    if (!controller.setId || isManualSaving) return;
     const payload = buildDraftPayload(controller.draft);
     const nextHash = JSON.stringify(payload);
     if (nextHash === lastSavedHash) return;
 
     const timer = window.setTimeout(() => {
-      setAutoSaveState("saving");
-      saveDraftMutation.mutate({ setId: controller.setId!, payload });
-    }, 1000);
+      if (!isManualSaving) {
+        setAutoSaveState("saving");
+        saveDraftMutation.mutate({ setId: controller.setId!, payload });
+      }
+    }, 2000); // Increased debounce time to 2 seconds
 
     return () => window.clearTimeout(timer);
-  }, [controller.setId, controller.draft, lastSavedHash, saveDraftMutation]);
+  }, [controller.setId, controller.draft, lastSavedHash, saveDraftMutation, isManualSaving]);
 
   const disabledSteps = useMemo<WizardStepId[]>(() => {
     if (!controller.setId) {
@@ -181,6 +222,20 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
 
   const navigateToStep = (stepId: WizardStepId) => {
     setController((prev) => ({ ...prev, step: stepId }));
+  };
+
+  const navigateToStepWithSave = async (stepId: WizardStepId) => {
+    if (controller.setId) {
+      setIsManualSaving(true);
+      try {
+        // Ensure the current draft is saved before navigating
+        const payload = buildDraftPayload(controller.draft);
+        await saveDraftMutation.mutateAsync({ setId: controller.setId, payload });
+      } finally {
+        setIsManualSaving(false);
+      }
+    }
+    navigateToStep(stepId);
   };
 
   const updateDraft = (updater: (draft: HomeworkDraftState) => HomeworkDraftState) => {
@@ -206,6 +261,15 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
     if (!controller.setId) {
       const payload = buildCreatePayload(controller.draft);
       await createSetMutation.mutateAsync(payload);
+    } else {
+      setIsManualSaving(true);
+      try {
+        // For existing homework sets, ensure the current draft is saved before navigating
+        const payload = buildDraftPayload(controller.draft);
+        await saveDraftMutation.mutateAsync({ setId: controller.setId, payload });
+      } finally {
+        setIsManualSaving(false);
+      }
     }
     navigateToStep(nextStep);
   };
@@ -240,7 +304,7 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
           value={controller.draft.dataset}
           onChange={handleDatasetChange}
           onBack={navigateToStep}
-          onNext={navigateToStep}
+          onNext={navigateToStepWithSave}
         />
       )}
 
@@ -249,7 +313,7 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
           questions={controller.draft.questions}
           onChange={handleQuestionsChange}
           onBack={navigateToStep}
-          onNext={navigateToStep}
+          onNext={navigateToStepWithSave}
           primaryDatasetId={controller.draft.dataset.selectedDatasetId}
         />
       )}
@@ -259,7 +323,7 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
           questions={controller.draft.questions}
           onChange={handleQuestionsChange}
           onBack={navigateToStep}
-          onNext={navigateToStep}
+          onNext={navigateToStepWithSave}
         />
       )}
 

@@ -15,6 +15,7 @@ export interface DatasetDraft {
   selectedDatasetId?: string;
   newDatasetName?: string;
   tags?: string[];
+  backgroundStory?: string;
 }
 
 export type EvaluationMode = "auto" | "manual" | "custom";

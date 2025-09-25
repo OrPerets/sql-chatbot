@@ -120,6 +120,8 @@ export const VALIDATION_SCHEMAS = {
     visibility: { type: 'string', enum: ['draft', 'published', 'archived'], required: true },
     createdBy: { type: 'string', required: true },
     overview: { type: 'string', maxLength: 2000 },
+    selectedDatasetId: { type: 'string' },
+    backgroundStory: { type: 'string', maxLength: 2000 },
   },
   QUESTION: {
     prompt: { type: 'string', required: true, minLength: 1, maxLength: 500 },

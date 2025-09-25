@@ -51,6 +51,8 @@ export interface HomeworkSet {
   createdAt: string;
   updatedAt: string;
   overview?: string;
+  selectedDatasetId?: string;
+  backgroundStory?: string;
 }
 
 export interface SqlResultRow {

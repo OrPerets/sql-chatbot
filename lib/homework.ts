@@ -77,10 +77,7 @@ export class HomeworkService {
     // Get question counts and submission stats for each homework set
     const homeworkSummaries = await Promise.all(
       homeworkSets.map(async (homework) => {
-        const [questionCount, submissionStats] = await Promise.all([
-          this.getQuestionCount(homework.id),
-          this.getSubmissionStats(homework.id),
-        ]);
+        const submissionStats = await this.getSubmissionStats(homework.id);
 
         return {
           id: homework._id?.toString() || homework.id,
@@ -95,7 +92,9 @@ export class HomeworkService {
           createdAt: homework.createdAt,
           updatedAt: homework.updatedAt,
           overview: homework.overview,
-          draftQuestionCount: questionCount,
+          selectedDatasetId: homework.selectedDatasetId,
+          backgroundStory: homework.backgroundStory,
+          draftQuestionCount: homework.questionOrder?.length || 0,
           submissionCount: submissionStats.total,
           averageScore: submissionStats.averageScore,
         } as HomeworkSummary;
@@ -138,6 +137,8 @@ export class HomeworkService {
       createdAt: homework.createdAt,
       updatedAt: homework.updatedAt,
       overview: homework.overview,
+      selectedDatasetId: homework.selectedDatasetId,
+      backgroundStory: homework.backgroundStory,
     };
   }
 
@@ -203,6 +204,8 @@ export class HomeworkService {
       createdAt: result.createdAt,
       updatedAt: result.updatedAt,
       overview: result.overview,
+      selectedDatasetId: result.selectedDatasetId,
+      backgroundStory: result.backgroundStory,
     };
   }
 
@@ -234,14 +237,6 @@ export class HomeworkService {
     return this.updateHomeworkSet(id, updates);
   }
 
-  /**
-   * Get question count for a homework set
-   */
-  private async getQuestionCount(homeworkSetId: string): Promise<number> {
-    return this.db
-      .collection(COLLECTIONS.QUESTIONS)
-      .countDocuments({ homeworkSetId });
-  }
 
   /**
    * Get submission statistics for a homework set

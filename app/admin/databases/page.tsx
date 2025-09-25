@@ -45,6 +45,8 @@ const DatabaseCreationPage: React.FC = () => {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentView, setCurrentView] = useState<'create' | 'list'>('create');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingDatasetId, setEditingDatasetId] = useState<string | null>(null);
   const [existingDatasets, setExistingDatasets] = useState<ExistingDataset[]>([]);
   const [isLoadingDatasets, setIsLoadingDatasets] = useState(false);
   const [formData, setFormData] = useState<DatabaseFormData>({
@@ -142,43 +144,70 @@ const DatabaseCreationPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      // Create the dataset with basic information
-      const datasetResponse = await fetch('/api/datasets', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          description: formData.description,
-          scenario: formData.scenario,
-          story: formData.story,
-          tags: ['admin-created']
-        }),
-      });
+      if (isEditing && editingDatasetId) {
+        const datasetResponse = await fetch(`/api/datasets/${editingDatasetId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: formData.name,
+            description: formData.description,
+            scenario: formData.scenario,
+            story: formData.story,
+          }),
+        });
 
-      if (!datasetResponse.ok) {
-        throw new Error('Failed to create dataset');
+        if (!datasetResponse.ok) {
+          throw new Error('Failed to update dataset');
+        }
+
+        await datasetResponse.json();
+        alert('מסד הנתונים עודכן בהצלחה!');
+        setIsEditing(false);
+        setEditingDatasetId(null);
+        setFormData({ name: '', description: '', scenario: '', story: '', tables: [] });
+        setCurrentView('list');
+        loadExistingDatasets();
+      } else {
+        // Create the dataset with basic information
+        const datasetResponse = await fetch('/api/datasets', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: formData.name,
+            description: formData.description,
+            scenario: formData.scenario,
+            story: formData.story,
+            tags: ['admin-created']
+          }),
+        });
+
+        if (!datasetResponse.ok) {
+          throw new Error('Failed to create dataset');
+        }
+
+        const createdDataset = await datasetResponse.json();
+        console.log('Created dataset:', createdDataset);
+        
+        alert('מסד הנתונים נוצר בהצלחה!');
+        // Reset form
+        setFormData({
+          name: '',
+          description: '',
+          scenario: '',
+          story: '',
+          tables: []
+        });
+        // Switch to list view to show the new dataset
+        setCurrentView('list');
+        loadExistingDatasets();
       }
-
-      const createdDataset = await datasetResponse.json();
-      console.log('Created dataset:', createdDataset);
-      
-      alert('מסד הנתונים נוצר בהצלחה!');
-      // Reset form
-      setFormData({
-        name: '',
-        description: '',
-        scenario: '',
-        story: '',
-        tables: []
-      });
-      // Switch to list view to show the new dataset
-      setCurrentView('list');
-      loadExistingDatasets();
     } catch (error) {
-      console.error('Error creating database:', error);
-      alert('שגיאה ביצירת מסד הנתונים');
+      console.error('Error saving database:', error);
+      alert('שגיאה בשמירת מסד הנתונים');
     } finally {
       setIsSubmitting(false);
     }
@@ -206,9 +235,43 @@ const DatabaseCreationPage: React.FC = () => {
     }
   };
 
-  const handleEditDataset = (datasetId: string) => {
-    // For now, just show an alert - you can implement edit functionality later
-    alert('פונקציונליות עריכה תהיה זמינה בקרוב');
+  const handleEditDataset = async (datasetId: string) => {
+    try {
+      const res = await fetch(`/api/datasets/${datasetId}`);
+      if (!res.ok) {
+        throw new Error('Failed to load dataset');
+      }
+      const dataset = await res.json();
+
+      // Convert previewTables to TableDefinition format
+      const tables: TableDefinition[] = (dataset.previewTables || []).map((table: any, index: number) => ({
+        id: `table_${index}`,
+        name: table.name || '',
+        description: `Table with ${table.columns?.length || 0} columns`,
+        columns: (table.columns || []).map((colName: string, colIndex: number) => ({
+          id: `column_${index}_${colIndex}`,
+          name: colName,
+          type: 'VARCHAR(255)', // Default type
+          nullable: true,
+          description: ''
+        }))
+      }));
+
+      setFormData({
+        name: dataset.name || '',
+        description: dataset.description || '',
+        scenario: dataset.scenario || '',
+        story: dataset.story || '',
+        tables: tables
+      });
+
+      setIsEditing(true);
+      setEditingDatasetId(datasetId);
+      setCurrentView('create');
+    } catch (error) {
+      console.error('Error loading dataset for edit:', error);
+      alert('שגיאה בטעינת מסד הנתונים לעריכה');
+    }
   };
 
   const canSubmit = formData.name.trim() && 
@@ -459,12 +522,26 @@ const DatabaseCreationPage: React.FC = () => {
           <div className={styles.submitSection}>
             <button
               type="submit"
-              disabled={!canSubmit || isSubmitting}
+              disabled={isSubmitting || (!isEditing && !canSubmit)}
               className={`${styles.submitButton} ${!canSubmit ? styles.disabled : ''}`}
             >
               <Save size={20} />
-              {isSubmitting ? 'יוצר...' : 'צור מסד נתונים'}
+              {isSubmitting ? (isEditing ? 'שומר...' : 'יוצר...') : (isEditing ? 'שמור שינויים' : 'צור מסד נתונים')}
             </button>
+            {isEditing && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditingDatasetId(null);
+                  setFormData({ name: '', description: '', scenario: '', story: '', tables: [] });
+                  setCurrentView('list');
+                }}
+                className={styles.cancelButton}
+              >
+                בטל
+              </button>
+            )}
           </div>
         </form>
         ) : (

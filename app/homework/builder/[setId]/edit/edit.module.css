@@ -2,9 +2,13 @@
 .container {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.5rem;
   direction: rtl;
   text-align: right;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding-inline: 24px;
 }
 
 /* Header Section */
@@ -55,6 +59,7 @@
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   border: 1px solid #e2e8f0;
   overflow: hidden;
+  padding: 12px 12px 20px;
 }
 
 /* Loading State */
@@ -139,7 +144,8 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .container {
-    gap: 1.5rem;
+    gap: 1.25rem;
+    padding-inline: 16px;
   }
 
   .header {

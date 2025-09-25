@@ -46,15 +46,7 @@ function formatTemplate(template: string, params?: TranslationParams): string {
 }
 
 export function HomeworkLocaleProvider({ children }: PropsWithChildren) {
-  const [locale, setLocale] = useState<SupportedLocale>(() => {
-    if (typeof document !== "undefined") {
-      return resolveLocale(document.documentElement.lang);
-    }
-    if (typeof navigator !== "undefined") {
-      return resolveLocale(navigator.language);
-    }
-    return "he";
-  });
+  const [locale, setLocale] = useState<SupportedLocale>("he");
 
   useEffect(() => {
     if (typeof document === "undefined") return;

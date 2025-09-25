@@ -97,8 +97,8 @@ export function RubricStep({ questions, onChange, onBack, onNext }: RubricStepPr
     <div className={styles.stepContainer}>
       <section className={styles.section}>
         <header>
-          <h3>Configure grading rubric</h3>
-          <p className={styles.mutedText}>Ensure each question&rsquo;s rubric weights sum to 100%. Auto-graded criteria run immediately after students submit.</p>
+          <h3>{t("builder.rubric.title")}</h3>
+          <p className={styles.mutedText}>{t("builder.rubric.subtitle")}</p>
         </header>
 
         <div className={styles.list}>
@@ -119,11 +119,11 @@ export function RubricStep({ questions, onChange, onBack, onNext }: RubricStepPr
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>Criterion</th>
-                      <th>Description</th>
-                      <th style={{ width: "100px" }}>Weight</th>
-                      <th style={{ width: "110px" }}>Auto-graded</th>
-                      <th style={{ width: "80px" }}>Actions</th>
+                      <th>{t("builder.rubric.table.criterion")}</th>
+                      <th>{t("builder.rubric.table.description")}</th>
+                      <th style={{ width: "100px" }}>{t("builder.rubric.table.weight")}</th>
+                      <th style={{ width: "110px" }}>{t("builder.rubric.table.auto")}</th>
+                      <th style={{ width: "80px" }}>{t("builder.rubric.table.actions")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -160,7 +160,7 @@ export function RubricStep({ questions, onChange, onBack, onNext }: RubricStepPr
                         <td>
                           {question.rubric.length > 1 && (
                             <button type="button" className={styles.smallButton} onClick={() => handleRemoveCriterion(question.id, criterion.id)}>
-                              Remove
+                              {t("builder.common.remove")}
                             </button>
                           )}
                         </td>
@@ -170,9 +170,9 @@ export function RubricStep({ questions, onChange, onBack, onNext }: RubricStepPr
                 </table>
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span className={styles.mutedText}>Total weight: {totalWeight}%</span>
+                  <span className={styles.mutedText}>{t("builder.rubric.totalWeight", { weight: String(totalWeight) })}</span>
                   <button type="button" className={styles.smallButton} onClick={() => handleAddCriterion(question.id)}>
-                    Add criterion
+                    {t("builder.rubric.addCriterion")}
                   </button>
                 </div>
               </article>
@@ -182,16 +182,14 @@ export function RubricStep({ questions, onChange, onBack, onNext }: RubricStepPr
       </section>
 
       <div className={styles.actions}>
-        <button type="button" className={styles.secondaryButton} onClick={() => onBack(PREV_STEP)}>
-          Back
-        </button>
+        <button type="button" className={styles.secondaryButton} onClick={() => onBack(PREV_STEP)}>{t("builder.dataset.actions.back")}</button>
         <button
           type="button"
           className={`${styles.primaryButton} ${!weightsValid ? styles.disabled : ""}`}
           disabled={!weightsValid}
           onClick={() => onNext(NEXT_STEP)}
         >
-          Review &amp; publish
+          {t("builder.rubric.reviewPublish")}
         </button>
       </div>
     </div>

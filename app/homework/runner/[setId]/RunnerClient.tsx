@@ -14,8 +14,9 @@ import { executeSql } from "@/app/homework/services/sqlService";
 import type { Question, SqlExecutionRequest, Submission } from "@/app/homework/types";
 import styles from "./runner.module.css";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
+import { InstructionsSection } from "./InstructionsSection";
 
-const SqlEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
+import Editor from "@monaco-editor/react";
 
 interface RunnerClientProps {
   setId: string;
@@ -169,9 +170,20 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
 
   useEffect(() => clearPendingSaves, [clearPendingSaves]);
 
+  // Debug log for editor values (reduced verbosity)
+  useEffect(() => {
+    if (activeQuestionId) {
+      console.log("🔵 Editor values changed:", { 
+        activeQuestionId, 
+        currentValue: editorValues[activeQuestionId || ''] 
+      });
+    }
+  }, [editorValues, activeQuestionId]);
+
   const handleSqlChange = useCallback(
     (questionId: string, value?: string) => {
       const nextValue = value ?? "";
+      console.log("🔵 handleSqlChange called:", { questionId, nextValueLength: nextValue.length });
       setEditorValues((prev) => ({ ...prev, [questionId]: nextValue }));
       scheduleAutosave(questionId, nextValue);
     },
@@ -258,7 +270,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               <dd>{formatNumber(progressPercent)}%</dd>
             </div>
           </dl>
-          {homework.overview && <p className={styles.overview}>{homework.overview}</p>}
+          {homework.backgroundStory && <InstructionsSection instructions={homework.backgroundStory} />}
         </div>
 
         <nav className={styles.navigator}>
@@ -322,30 +334,39 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
 
         <div className={styles.editorSection}>
           <div className={styles.editorContainer}>
-            {/* Fallback textarea */}
-            <textarea
-              style={{
-                width: "100%",
-                height: "200px",
-                fontFamily: "monospace",
-                fontSize: "14px",
-                padding: "12px",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                background: "#1e1e1e",
-                color: "#d4d4d4",
-                resize: "vertical"
+            <div 
+              onClick={(e) => {
+                console.log("🔵 Editor container clicked", { 
+                  target: e.target, 
+                  currentTarget: e.currentTarget,
+                  activeQuestionId,
+                  editorValues: editorValues[activeQuestionId || '']
+                });
               }}
-              value={activeQuestionId ? editorValues[activeQuestionId] ?? "" : ""}
-              onChange={(e) => {
-                console.log("Textarea onChange:", { activeQuestionId, value: e.target.value });
+              style={{ width: '100%', height: '200px' }}
+            >
+              {/* Force LTR direction for Monaco to ensure native keybindings and input work reliably even in RTL layouts */}
+              <div dir="ltr" style={{ width: '100%', height: '100%' }}>
+              <Editor
+              height="200px"
+              value={activeQuestionId ? (editorValues[activeQuestionId] || "") : ""}
+              defaultLanguage="sql"
+              onChange={(value) => {
+                console.log("🟢 Monaco onChange triggered:", { 
+                  activeQuestionId, 
+                  valueLength: value?.length
+                });
                 if (activeQuestionId) {
-                  handleSqlChange(activeQuestionId, e.target.value);
+                  handleSqlChange(activeQuestionId, value || "");
                 }
               }}
-              placeholder="-- כתבו כאן את שאילתת ה-SQL שלכם"
-              disabled={!activeQuestionId}
-            />
+              onMount={(editor) => {
+                console.log("🟡 Monaco editor mounted successfully");
+                editor.focus();
+              }}
+              />
+              </div>
+            </div>
             <div className={styles.editorActions}>
               <button
                 type="button"

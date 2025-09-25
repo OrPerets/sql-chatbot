@@ -3,6 +3,7 @@
 import styles from "./Wizard.module.css";
 import { createQuestionDraft } from "./defaults";
 import type { QuestionDraft, WizardStepId } from "./types";
+import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 
 interface QuestionsStepProps {
   questions: QuestionDraft[];
@@ -17,10 +18,11 @@ const PREV_STEP: WizardStepId = "dataset";
 const MAX_QUESTIONS = 10;
 
 export function QuestionsStep({ questions, onChange, onBack, onNext, primaryDatasetId }: QuestionsStepProps) {
+  const { t } = useHomeworkLocale();
   const canContinue =
     questions.length > 0 &&
     questions.length <= MAX_QUESTIONS &&
-    questions.every((question) => question.prompt.trim().length > 0 && question.instructions.trim().length > 0);
+    questions.every((question) => question.instructions.trim().length > 0);
 
   const handleQuestionChange = (id: string, partial: Partial<QuestionDraft>) => {
     onChange(questions.map((question) => (question.id === id ? { ...question, ...partial } : question)));
@@ -40,73 +42,59 @@ export function QuestionsStep({ questions, onChange, onBack, onNext, primaryData
     <div className={styles.stepContainer}>
       <section className={styles.section}>
         <header>
-          <h3>Author questions</h3>
-          <p className={styles.mutedText}>
-            Provide clear prompts, starter SQL, and expected results for up to ten questions. Students will see these in the runner workspace.
-          </p>
+          <h3>{t("builder.questions.title")}</h3>
+          <p className={styles.mutedText}>{t("builder.questions.subtitle")}</p>
         </header>
 
         <div className={styles.list}>
           {questions.map((question, index) => (
             <article key={question.id} className={styles.card}>
               <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h4>Question {index + 1}</h4>
+                <h4>{t("builder.questions.question")} {index + 1}</h4>
                 <div style={{ display: "flex", gap: "8px" }}>
                   {questions.length > 1 && (
                     <button type="button" className={styles.smallButton} onClick={() => handleRemove(question.id)}>
-                      Remove
+                      {t("builder.common.remove")}
                     </button>
                   )}
                 </div>
               </header>
 
               <div className={styles.field}>
-                <label htmlFor={`prompt-${question.id}`}>Prompt</label>
-                <textarea
-                  id={`prompt-${question.id}`}
-                  value={question.prompt}
-                  onChange={(event) => handleQuestionChange(question.id, { prompt: event.target.value })}
-                  placeholder="Explain the task for the student, referencing relevant tables."
-                />
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor={`instructions-${question.id}`}>Instructions</label>
+                <label htmlFor={`instructions-${question.id}`}>{t("builder.questions.instructions")}</label>
                 <textarea
                   id={`instructions-${question.id}`}
                   value={question.instructions}
                   onChange={(event) => handleQuestionChange(question.id, { instructions: event.target.value })}
-                  placeholder="Highlight hints, call out expected functions, and mention grading expectations."
+                  placeholder={t("builder.questions.instructionsPlaceholder")}
                 />
               </div>
 
               <div className={styles.fieldRow}>
                 <div className={styles.field}>
-                  <label htmlFor={`starter-${question.id}`}>Starter SQL</label>
+                  <label htmlFor={`starter-${question.id}`}>{t("builder.questions.starterSql")}</label>
                   <textarea
                     id={`starter-${question.id}`}
                     value={question.starterSql}
                     onChange={(event) => handleQuestionChange(question.id, { starterSql: event.target.value })}
-                    placeholder="SELECT ..."
+                    placeholder={t("builder.questions.starterSqlPlaceholder")}
                   />
                 </div>
                 <div className={styles.field}>
-                  <label htmlFor={`schema-${question.id}`}>Expected Result Schema (JSON)</label>
+                  <label htmlFor={`schema-${question.id}`}>{t("builder.questions.expectedSchema")}</label>
                   <textarea
                     id={`schema-${question.id}`}
                     className={styles.schemaTextarea}
                     value={question.expectedResultSchema}
                     onChange={(event) => handleQuestionChange(question.id, { expectedResultSchema: event.target.value })}
-                    placeholder='[
-  { "column": "total_sales", "type": "number" }
-]'
+                    placeholder={t("builder.questions.expectedSchemaPlaceholder")}
                   />
                 </div>
               </div>
 
               <div className={styles.fieldRow}>
                 <div className={styles.field}>
-                  <label htmlFor={`points-${question.id}`}>Points</label>
+                  <label htmlFor={`points-${question.id}`}>{t("builder.questions.points")}</label>
                   <input
                     id={`points-${question.id}`}
                     type="number"
@@ -116,7 +104,7 @@ export function QuestionsStep({ questions, onChange, onBack, onNext, primaryData
                   />
                 </div>
                 <div className={styles.field}>
-                  <label htmlFor={`attempts-${question.id}`}>Max attempts</label>
+                  <label htmlFor={`attempts-${question.id}`}>{t("builder.questions.maxAttempts")}</label>
                   <input
                     id={`attempts-${question.id}`}
                     type="number"
@@ -126,32 +114,32 @@ export function QuestionsStep({ questions, onChange, onBack, onNext, primaryData
                   />
                 </div>
                 <div className={styles.field}>
-                  <label htmlFor={`dataset-${question.id}`}>Dataset override (optional)</label>
+                  <label htmlFor={`dataset-${question.id}`}>{t("builder.questions.datasetOverride")}</label>
                   <input
                     id={`dataset-${question.id}`}
                     value={question.datasetId ?? ""}
                     onChange={(event) => handleQuestionChange(question.id, { datasetId: event.target.value || undefined })}
-                    placeholder={primaryDatasetId ? `Default: ${primaryDatasetId}` : "Use default dataset"}
+                    placeholder={primaryDatasetId ? t("builder.questions.defaultDataset", { id: primaryDatasetId }) : t("builder.questions.useDefaultDataset")}
                   />
                   <p className={styles.mutedText}>
-                    Leave blank to reuse the homework dataset.
+                    {t("builder.questions.datasetHint")}
                   </p>
                 </div>
               </div>
 
               <div className={styles.field}>
-                <label htmlFor={`evaluation-${question.id}`}>Evaluation mode</label>
+                <label htmlFor={`evaluation-${question.id}`}>{t("builder.questions.evaluationMode")}</label>
                 <select
                   id={`evaluation-${question.id}`}
                   value={question.evaluationMode}
                   onChange={(event) => handleQuestionChange(question.id, { evaluationMode: event.target.value as QuestionDraft["evaluationMode"] })}
                 >
-                  <option value="auto">Auto-grade using result diff</option>
-                  <option value="manual">Manual grading only</option>
-                  <option value="custom">Custom assertion script</option>
+                  <option value="auto">{t("builder.questions.eval.auto")}</option>
+                  <option value="manual">{t("builder.questions.eval.manual")}</option>
+                  <option value="custom">{t("builder.questions.eval.custom")}</option>
                 </select>
                 {question.evaluationMode === "custom" && (
-                  <p className={styles.mutedText}>Flagged for backend review before activation. Provide script in rubric step.</p>
+                  <p className={styles.mutedText}>{t("builder.questions.eval.customNote")}</p>
                 )}
               </div>
             </article>
@@ -164,21 +152,19 @@ export function QuestionsStep({ questions, onChange, onBack, onNext, primaryData
           onClick={handleAdd}
           disabled={questions.length >= MAX_QUESTIONS}
         >
-          Add question ({questions.length}/{MAX_QUESTIONS})
+          {t("builder.questions.addQuestion", { count: `${questions.length}/${MAX_QUESTIONS}` })}
         </button>
       </section>
 
       <div className={styles.actions}>
-        <button type="button" className={styles.secondaryButton} onClick={() => onBack(PREV_STEP)}>
-          Back
-        </button>
+        <button type="button" className={styles.secondaryButton} onClick={() => onBack(PREV_STEP)}>{t("builder.dataset.actions.back")}</button>
         <button
           type="button"
           className={`${styles.primaryButton} ${!canContinue ? styles.disabled : ""}`}
           disabled={!canContinue}
           onClick={() => onNext(NEXT_STEP)}
         >
-          Continue to rubric
+          {t("builder.questions.continueToRubric")}
         </button>
       </div>
     </div>

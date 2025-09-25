@@ -17,7 +17,7 @@ function createBaseRubric(): RubricCriterion[] {
 export function createQuestionDraft(partial?: Partial<QuestionDraft>): QuestionDraft {
   return {
     id: generateTempId("question"),
-    prompt: "",
+    prompt: "", // Keep for compatibility, but will be populated from instructions
     instructions: "",
     starterSql: "",
     expectedResultSchema: "[]",
@@ -45,6 +45,7 @@ export function createInitialDraft(partial?: Partial<HomeworkDraftState>): Homew
     metadata: createMetadataDraft(),
     dataset: {
       selectedDatasetId: undefined,
+      backgroundStory: "",
       ...partial?.dataset,
     },
     questions: Array.from({ length: 3 }, () => createQuestionDraft()),

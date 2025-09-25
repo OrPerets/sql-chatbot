@@ -22,10 +22,16 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     const studentId = searchParams.get("studentId") ?? "student-demo";
-    const submission = await getSubmissionForStudent(params.setId, studentId);
+    let submission = await getSubmissionForStudent(params.setId, studentId);
+    
+    // If no submission exists, create a new one
     if (!submission) {
-      return NextResponse.json({ message: "Submission not found" }, { status: 404 });
+      submission = await saveSubmissionDraft(params.setId, {
+        studentId,
+        answers: {},
+      });
     }
+    
     return NextResponse.json(submission);
   } catch (error) {
     console.error('Error fetching submission:', error);

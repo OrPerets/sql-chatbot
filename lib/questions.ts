@@ -18,14 +18,19 @@ export class QuestionsService {
    * Get all questions for a homework set
    */
   async getQuestionsByHomeworkSet(homeworkSetId: string): Promise<Question[]> {
+    console.log('Loading questions for homework set:', homeworkSetId);
+    
     const questions = await this.db
       .collection<QuestionModel>(COLLECTIONS.QUESTIONS)
       .find({ homeworkSetId })
       .sort({ createdAt: 1 }) // Sort by creation order
       .toArray();
 
+    console.log('Found questions in database:', questions.length);
+    console.log('Question IDs:', questions.map(q => q._id?.toString() || q.id));
+
     return questions.map(question => ({
-      id: question._id?.toString() || question.id,
+      id: question.id || question._id?.toString(),
       prompt: question.prompt,
       instructions: question.instructions,
       starterSql: question.starterSql,
@@ -42,19 +47,21 @@ export class QuestionsService {
    * Get a single question by ID
    */
   async getQuestionById(id: string): Promise<Question | null> {
+    // Check if the id is a valid ObjectId format (24 hex characters)
+    const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+    
     const question = await this.db
       .collection<QuestionModel>(COLLECTIONS.QUESTIONS)
       .findOne({ 
-        $or: [
-          { _id: new ObjectId(id) },
-          { id: id }
-        ]
+        $or: isValidObjectId 
+          ? [{ _id: new ObjectId(id) }, { id: id }]
+          : [{ id: id }]
       });
 
     if (!question) return null;
 
     return {
-      id: question._id?.toString() || question.id,
+      id: question.id || question._id?.toString(),
       prompt: question.prompt,
       instructions: question.instructions,
       starterSql: question.starterSql,
@@ -112,14 +119,16 @@ export class QuestionsService {
       updatedAt: new Date().toISOString(),
     };
 
+    // Check if the id is a valid ObjectId format (24 hex characters)
+    const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+    
     const result = await this.db
       .collection<QuestionModel>(COLLECTIONS.QUESTIONS)
       .findOneAndUpdate(
         { 
-          $or: [
-            { _id: new ObjectId(id) },
-            { id: id }
-          ]
+          $or: isValidObjectId 
+            ? [{ _id: new ObjectId(id) }, { id: id }]
+            : [{ id: id }]
         },
         { $set: updateData },
         { returnDocument: 'after' }
@@ -145,13 +154,15 @@ export class QuestionsService {
    * Delete a question
    */
   async deleteQuestion(id: string): Promise<boolean> {
+    // Check if the id is a valid ObjectId format (24 hex characters)
+    const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+    
     const result = await this.db
       .collection<QuestionModel>(COLLECTIONS.QUESTIONS)
       .deleteOne({ 
-        $or: [
-          { _id: new ObjectId(id) },
-          { id: id }
-        ]
+        $or: isValidObjectId 
+          ? [{ _id: new ObjectId(id) }, { id: id }]
+          : [{ id: id }]
       });
 
     return result.deletedCount > 0;

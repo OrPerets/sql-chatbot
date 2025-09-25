@@ -3,6 +3,7 @@
 import Link from "next/link";
 import styles from "./Wizard.module.css";
 import type { DatasetDraft, MetadataDraft, QuestionDraft, WizardStepId } from "./types";
+import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 
 interface PublishStepProps {
   metadata: MetadataDraft;
@@ -29,58 +30,60 @@ export function PublishStep({
   autoSaveState,
   onRefresh,
 }: PublishStepProps) {
+  const { t } = useHomeworkLocale();
+  
   return (
     <div className={styles.stepContainer}>
       <section className={styles.section}>
-        <h3>Review configuration</h3>
-        <p className={styles.mutedText}>Confirm metadata, dataset selection, question coverage, and grading readiness before publishing.</p>
+        <h3>סקירת הגדרות</h3>
+        <p className={styles.mutedText}>אשרו את הנתונים, בחירת המאגר, כיסוי השאלות ומוכנות הבדיקה לפני הפרסום.</p>
 
         <div className={styles.fieldRow}>
           <div className={styles.field}>
-            <label>Title</label>
+            <label>כותרת</label>
             <span>{metadata.title}</span>
           </div>
           <div className={styles.field}>
-            <label>Course</label>
+            <label>קורס</label>
             <span>{metadata.courseId || "—"}</span>
           </div>
           <div className={styles.field}>
-            <label>Due date</label>
-            <span>{metadata.dueAt ? new Date(metadata.dueAt).toLocaleString() : "—"}</span>
+            <label>תאריך הגשה</label>
+            <span>{metadata.dueAt ? new Date(metadata.dueAt).toLocaleString('he-IL') : "—"}</span>
           </div>
           <div className={styles.field}>
-            <label>Visibility</label>
-            <span className={styles.badge}>{metadata.visibility}</span>
+            <label>מצב פרסום</label>
+            <span className={styles.badge}>{t(`builder.dashboard.filter.${metadata.visibility}`)}</span>
           </div>
         </div>
 
         <div className={styles.fieldRow}>
           <div className={styles.field}>
-            <label>Dataset strategy</label>
-            <span>{metadata.datasetPolicy === "shared" ? "Reuse shared course datasets" : "Custom dataset"}</span>
+            <label>אסטרטגיית מאגר</label>
+            <span>{metadata.datasetPolicy === "shared" ? "שימוש במאגרי קורס משותפים" : "מאגר מותאם"}</span>
           </div>
           <div className={styles.field}>
-            <label>Selected dataset</label>
-            <span>{dataset.selectedDatasetId || dataset.newDatasetName || "Pending"}</span>
+            <label>מאגר נבחר</label>
+            <span>{dataset.selectedDatasetId || dataset.newDatasetName || "ממתין"}</span>
           </div>
           <div className={styles.field}>
-            <label>Tags</label>
-            <span>{dataset.tags.length > 0 ? dataset.tags.join(", ") : "—"}</span>
+            <label>תגיות</label>
+            <span>{dataset.tags && dataset.tags.length > 0 ? dataset.tags.join(", ") : "—"}</span>
           </div>
         </div>
 
         <div className={styles.section}>
-          <h4>Question coverage</h4>
-          <p className={styles.mutedText}>Ensure each question has a prompt, instructions, starter SQL, expected results, and rubric criteria.</p>
+          <h4>כיסוי שאלות</h4>
+          <p className={styles.mutedText}>ודאו שלכל שאלה יש הנחיות, SQL התחלתי, תוצאות צפויות וקריטריוני רובריקה.</p>
           <ul className={styles.list}>
             {questions.map((question, index) => (
               <li key={question.id} className={styles.card}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <strong>Question {index + 1}</strong>
-                  <span className={styles.badge}>{question.rubric.length} rubric items</span>
+                  <strong>שאלה {index + 1}</strong>
+                  <span className={styles.badge}>{question.rubric.length} פריטי רובריקה</span>
                 </div>
-                <p className={styles.mutedText}>{question.prompt.slice(0, 160) || "No prompt provided"}</p>
-                <p className={styles.mutedText}>Points: {question.points} • Max attempts: {question.maxAttempts}</p>
+                <p className={styles.mutedText}>{question.instructions.slice(0, 160) || "לא סופקו הנחיות"}</p>
+                <p className={styles.mutedText}>נקודות: {question.points} • ניסיונות מקסימליים: {question.maxAttempts}</p>
               </li>
             ))}
           </ul>
@@ -89,21 +92,21 @@ export function PublishStep({
 
       <footer className={styles.actions}>
         <button type="button" className={styles.secondaryButton} onClick={() => onBack(PREV_STEP)}>
-          Back
+          חזרה
         </button>
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
           <span className={styles.mutedText}>
-            {autoSaveState === "saving" && "Saving draft…"}
-            {autoSaveState === "saved" && "Draft saved"}
+            {autoSaveState === "saving" && "שומר טיוטה…"}
+            {autoSaveState === "saved" && "טיוטה נשמרה"}
             {autoSaveState === "error" && (
               <>
-                Unable to save draft. <button type="button" className={styles.smallButton} onClick={onRefresh}>Retry</button>
+                לא ניתן לשמור טיוטה. <button type="button" className={styles.smallButton} onClick={onRefresh}>נסה שוב</button>
               </>
             )}
           </span>
           {setId && (
             <Link href={`/homework/builder/${setId}/preview`} className={styles.secondaryButton}>
-              Preview
+              תצוגה מקדימה
             </Link>
           )}
           <button
@@ -112,7 +115,7 @@ export function PublishStep({
             disabled={publishDisabled}
             onClick={onPublish}
           >
-            Publish homework
+            פרסום שיעור בית
           </button>
         </div>
       </footer>

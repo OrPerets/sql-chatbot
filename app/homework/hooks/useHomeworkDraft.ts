@@ -7,6 +7,29 @@ import type { HomeworkDraftState } from "@/app/homework/builder/components/wizar
 import type { Question } from "@/app/homework/types";
 
 function toDraft(set: Awaited<ReturnType<typeof getHomeworkSet>>, questions: Question[]): HomeworkDraftState {
+  console.log('toDraft called with:', {
+    setTitle: set.title,
+    questionOrder: set.questionOrder,
+    questionsCount: questions.length,
+    questionIds: questions.map(q => q.id)
+  });
+  
+  // Create a map of questions by ID for efficient lookup
+  const questionsMap = new Map(questions.map(q => [q.id, q]));
+  
+  // Only include questions that are in the questionOrder array
+  const orderedQuestions = (set.questionOrder || [])
+    .map(questionId => {
+      const question = questionsMap.get(questionId);
+      if (!question) {
+        console.log('Question not found for ID:', questionId);
+      }
+      return question;
+    })
+    .filter((question): question is Question => question !== undefined);
+    
+  console.log('Final ordered questions:', orderedQuestions.length);
+
   return {
     metadata: {
       title: set.title,
@@ -14,13 +37,15 @@ function toDraft(set: Awaited<ReturnType<typeof getHomeworkSet>>, questions: Que
       dueAt: set.dueAt,
       visibility: set.visibility,
       datasetPolicy: set.datasetPolicy,
+      overview: set.overview,
     },
     dataset: {
-      selectedDatasetId: questions.find((question) => Boolean(question.datasetId))?.datasetId,
+      selectedDatasetId: set.selectedDatasetId || orderedQuestions.find((question) => Boolean(question.datasetId))?.datasetId,
+      backgroundStory: set.backgroundStory || "",
       newDatasetName: "",
       tags: [],
     },
-    questions: questions.map((question) => ({
+    questions: orderedQuestions.map((question) => ({
       id: question.id,
       prompt: question.prompt,
       instructions: question.instructions,

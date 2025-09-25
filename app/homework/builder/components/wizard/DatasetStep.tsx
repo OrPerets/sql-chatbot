@@ -85,6 +85,21 @@ export function DatasetStep({ value, onChange, onBack, onNext }: DatasetStepProp
             })()}
           </div>
         )}
+
+        <div className={styles.field}>
+          <label htmlFor="background-story">סיפור רקע</label>
+          <textarea
+            id="background-story"
+            value={value.backgroundStory || ""}
+            onChange={(e) => onChange({ ...value, backgroundStory: e.target.value })}
+            placeholder="תארו את הסיפור הרקע של המאגר - מה הוא מייצג, איך הנתונים נאספו, וההקשר העסקי או האקדמי שלו"
+            rows={4}
+            className={styles.textarea}
+          />
+          <p className={styles.mutedText}>
+            הסיפור הרקע יסייע לסטודנטים להבין את ההקשר של המאגר ויעזור להם לכתוב שאילתות רלוונטיות
+          </p>
+        </div>
       </section>
 
       <div className={styles.actions}>

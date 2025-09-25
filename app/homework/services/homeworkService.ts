@@ -64,7 +64,7 @@ export interface SaveHomeworkDraftPayload extends Partial<HomeworkSet> {
   questions?: Question[];
 }
 
-export async function saveHomeworkDraft(setId: string, payload: SaveHomeworkDraftPayload): Promise<HomeworkSet> {
+export async function saveHomeworkDraft(setId: string, payload: SaveHomeworkDraftPayload): Promise<HomeworkSet & { questions?: Question[] }> {
   return http(`${BASE_PATH}/${setId}/draft`, {
     method: "POST",
     body: JSON.stringify(payload),
