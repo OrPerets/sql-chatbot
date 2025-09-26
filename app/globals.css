@@ -4,6 +4,178 @@
   --font-mono: ui-monospace, Menlo, Monaco, "Cascadia Mono", "Segoe UI Mono",
     "Roboto Mono", "Oxygen Mono", "Ubuntu Monospace", "Source Code Pro",
     "Fira Mono", "Droid Sans Mono", "Courier New", monospace;
+
+  /* Homework Module Design Tokens */
+  /* Color Palette - Primary */
+  --hw-primary-50: #eff6ff;
+  --hw-primary-100: #dbeafe;
+  --hw-primary-200: #bfdbfe;
+  --hw-primary-300: #93c5fd;
+  --hw-primary-400: #60a5fa;
+  --hw-primary-500: #3b82f6;
+  --hw-primary-600: #2563eb;
+  --hw-primary-700: #1d4ed8;
+  --hw-primary-800: #1e40af;
+  --hw-primary-900: #1e3a8a;
+  
+  /* Color Palette - Secondary */
+  --hw-secondary-50: #f0f9ff;
+  --hw-secondary-100: #e0f2fe;
+  --hw-secondary-200: #bae6fd;
+  --hw-secondary-300: #7dd3fc;
+  --hw-secondary-400: #38bdf8;
+  --hw-secondary-500: #0ea5e9;
+  --hw-secondary-600: #0284c7;
+  --hw-secondary-700: #0369a1;
+  --hw-secondary-800: #075985;
+  --hw-secondary-900: #0c4a6e;
+
+  /* Semantic Colors */
+  --hw-success-50: #f0fdf4;
+  --hw-success-100: #dcfce7;
+  --hw-success-200: #bbf7d0;
+  --hw-success-300: #86efac;
+  --hw-success-400: #4ade80;
+  --hw-success-500: #22c55e;
+  --hw-success-600: #16a34a;
+  --hw-success-700: #15803d;
+  --hw-success-800: #166534;
+  --hw-success-900: #14532d;
+
+  --hw-warning-50: #fffbeb;
+  --hw-warning-100: #fef3c7;
+  --hw-warning-200: #fde68a;
+  --hw-warning-300: #fcd34d;
+  --hw-warning-400: #fbbf24;
+  --hw-warning-500: #f59e0b;
+  --hw-warning-600: #d97706;
+  --hw-warning-700: #b45309;
+  --hw-warning-800: #92400e;
+  --hw-warning-900: #78350f;
+
+  --hw-error-50: #fef2f2;
+  --hw-error-100: #fee2e2;
+  --hw-error-200: #fecaca;
+  --hw-error-300: #fca5a5;
+  --hw-error-400: #f87171;
+  --hw-error-500: #ef4444;
+  --hw-error-600: #dc2626;
+  --hw-error-700: #b91c1c;
+  --hw-error-800: #991b1b;
+  --hw-error-900: #7f1d1d;
+
+  /* Neutral Colors */
+  --hw-gray-50: #f9fafb;
+  --hw-gray-100: #f3f4f6;
+  --hw-gray-200: #e5e7eb;
+  --hw-gray-300: #d1d5db;
+  --hw-gray-400: #9ca3af;
+  --hw-gray-500: #6b7280;
+  --hw-gray-600: #4b5563;
+  --hw-gray-700: #374151;
+  --hw-gray-800: #1f2937;
+  --hw-gray-900: #111827;
+
+  /* Surface Colors */
+  --hw-surface: #ffffff;
+  --hw-surface-alt: var(--hw-gray-50);
+  --hw-surface-elevated: #ffffff;
+
+  /* Text Colors */
+  --hw-text-primary: var(--hw-gray-900);
+  --hw-text-secondary: var(--hw-gray-700);
+  --hw-text-muted: var(--hw-gray-500);
+  --hw-text-disabled: var(--hw-gray-400);
+  --hw-text-inverse: #ffffff;
+
+  /* Border Colors */
+  --hw-border-light: var(--hw-gray-200);
+  --hw-border: var(--hw-gray-300);
+  --hw-border-strong: var(--hw-gray-400);
+
+  /* Interactive Colors */
+  --hw-interactive-primary: var(--hw-primary-600);
+  --hw-interactive-primary-hover: var(--hw-primary-700);
+  --hw-interactive-secondary: var(--hw-secondary-600);
+  --hw-interactive-secondary-hover: var(--hw-secondary-700);
+
+  /* Status Colors */
+  --hw-status-draft: var(--hw-warning-500);
+  --hw-status-scheduled: var(--hw-secondary-500);
+  --hw-status-published: var(--hw-success-500);
+  --hw-status-archived: var(--hw-gray-500);
+
+  /* Typography Scale */
+  --hw-text-xs: 0.75rem;     /* 12px */
+  --hw-text-sm: 0.875rem;    /* 14px */
+  --hw-text-base: 1rem;      /* 16px */
+  --hw-text-lg: 1.125rem;    /* 18px */
+  --hw-text-xl: 1.25rem;     /* 20px */
+  --hw-text-2xl: 1.5rem;     /* 24px */
+  --hw-text-3xl: 1.875rem;   /* 30px */
+
+  /* Font Weights */
+  --hw-font-normal: 400;
+  --hw-font-medium: 500;
+  --hw-font-semibold: 600;
+  --hw-font-bold: 700;
+
+  /* Line Heights */
+  --hw-leading-tight: 1.25;
+  --hw-leading-normal: 1.5;
+  --hw-leading-relaxed: 1.75;
+
+  /* Spacing Scale */
+  --hw-space-1: 0.25rem;     /* 4px */
+  --hw-space-2: 0.5rem;      /* 8px */
+  --hw-space-3: 0.75rem;     /* 12px */
+  --hw-space-4: 1rem;        /* 16px */
+  --hw-space-5: 1.25rem;     /* 20px */
+  --hw-space-6: 1.5rem;      /* 24px */
+  --hw-space-8: 2rem;        /* 32px */
+  --hw-space-10: 2.5rem;     /* 40px */
+  --hw-space-12: 3rem;       /* 48px */
+  --hw-space-16: 4rem;       /* 64px */
+
+  /* Border Radius */
+  --hw-radius-sm: 0.375rem;   /* 6px */
+  --hw-radius: 0.5rem;        /* 8px */
+  --hw-radius-md: 0.75rem;    /* 12px */
+  --hw-radius-lg: 1rem;       /* 16px */
+  --hw-radius-xl: 1.5rem;     /* 24px */
+  --hw-radius-full: 9999px;
+
+  /* Shadows */
+  --hw-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --hw-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --hw-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06);
+  --hw-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+  --hw-shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1), 0 10px 10px rgba(0, 0, 0, 0.04);
+
+  /* Gradients */
+  --hw-gradient-primary: linear-gradient(135deg, var(--hw-primary-500) 0%, var(--hw-primary-700) 100%);
+  --hw-gradient-secondary: linear-gradient(135deg, var(--hw-secondary-500) 0%, var(--hw-secondary-700) 100%);
+  --hw-gradient-success: linear-gradient(135deg, var(--hw-success-500) 0%, var(--hw-success-700) 100%);
+  --hw-gradient-warning: linear-gradient(135deg, var(--hw-warning-500) 0%, var(--hw-warning-700) 100%);
+  --hw-gradient-error: linear-gradient(135deg, var(--hw-error-500) 0%, var(--hw-error-700) 100%);
+
+  /* Animation Timing */
+  --hw-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --hw-transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --hw-transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Component Specific */
+  --hw-sidebar-width: minmax(320px, 25%);
+  --hw-editor-min-height: 300px;
+}
+
+/* RTL Support */
+[dir="rtl"] {
+  --hw-nav-hover-translate: -2px;
+}
+
+[dir="ltr"] {
+  --hw-nav-hover-translate: 2px;
 }
 
 * {

@@ -343,12 +343,12 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   editorValues: editorValues[activeQuestionId || '']
                 });
               }}
-              style={{ width: '100%', height: '200px' }}
+              style={{ width: '100%', height: '300px' }}
             >
               {/* Force LTR direction for Monaco to ensure native keybindings and input work reliably even in RTL layouts */}
               <div dir="ltr" style={{ width: '100%', height: '100%' }}>
               <Editor
-              height="200px"
+              height="300px"
               value={activeQuestionId ? (editorValues[activeQuestionId] || "") : ""}
               defaultLanguage="sql"
               onChange={(value) => {

@@ -1,44 +1,48 @@
 .runner {
   display: grid;
-  grid-template-columns: 380px 1fr;
-  gap: 24px;
-  background: var(--homework-surface-alt, #f4f7fb);
-  padding: 24px;
-  border-radius: var(--homework-radius-xl, 24px);
-  box-shadow: var(--homework-shadow-lg, 0 16px 40px rgba(14, 53, 93, 0.08));
+  grid-template-columns: var(--hw-sidebar-width) 1fr;
+  gap: var(--hw-space-6);
+  background: linear-gradient(135deg, var(--hw-surface-alt) 0%, var(--hw-gray-100) 100%);
+  padding: var(--hw-space-6);
+  border-radius: var(--hw-radius-xl);
+  box-shadow: var(--hw-shadow-xl);
   direction: inherit;
+  min-height: calc(100vh - 48px);
 }
 
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  background: var(--homework-surface, #ffffff);
-  border-radius: var(--homework-radius-md, 14px);
-  padding: 24px;
-  border: 1px solid var(--homework-border, rgba(12, 71, 124, 0.08));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  max-height: calc(100vh - 48px);
+  gap: var(--hw-space-5);
+  background: var(--hw-surface);
+  border-radius: var(--hw-radius-xl);
+  padding: var(--hw-space-6);
+  border: 2px solid var(--hw-border-light);
+  box-shadow: var(--hw-shadow-lg);
+  max-height: calc(100vh - 96px);
   overflow-y: auto;
+  position: sticky;
+  top: var(--hw-space-6);
 }
 
-/* Custom scrollbar for sidebar */
+/* Enhanced scrollbar styling */
 .sidebar::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 .sidebar::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 3px;
+  background: var(--hw-surface-alt);
+  border-radius: var(--hw-radius);
 }
 
 .sidebar::-webkit-scrollbar-thumb {
-  background: rgba(14, 98, 191, 0.3);
-  border-radius: 3px;
+  background: var(--hw-gradient-primary);
+  border-radius: var(--hw-radius);
+  border: 2px solid var(--hw-surface-alt);
 }
 
 .sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(14, 98, 191, 0.5);
+  background: var(--hw-gradient-primary);
 }
 
 .assignmentMeta {
@@ -346,20 +350,24 @@
 }
 
 .workspace {
-  background: #ffffff;
-  border-radius: 14px;
-  padding: 24px;
-  border: 1px solid rgba(12, 71, 124, 0.08);
+  background: var(--hw-surface);
+  border-radius: var(--hw-radius-xl);
+  padding: 0;
+  border: 2px solid var(--hw-border-light);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  box-shadow: var(--hw-shadow-lg);
+  overflow: hidden;
 }
 
 .workspaceHeader {
+  padding: var(--hw-space-6);
+  background: linear-gradient(135deg, var(--hw-surface-alt) 0%, var(--hw-gray-100) 100%);
+  border-bottom: 2px solid var(--hw-border-light);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 16px;
+  gap: var(--hw-space-6);
 }
 
 .workspaceHeader h3 {
@@ -384,15 +392,19 @@
 }
 
 .editorSection {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
-  gap: 20px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .editorContainer {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  flex: 1;
+  padding: var(--hw-space-6);
+  gap: var(--hw-space-4);
+  min-height: 0;
 }
 
 .editorActions {
@@ -527,15 +539,59 @@
   font-size: 13px;
 }
 
-@media (max-width: 1100px) {
+/* Enhanced responsive design */
+@media (max-width: 1200px) {
+  .runner {
+    grid-template-columns: 300px 1fr;
+  }
+}
+
+@media (max-width: 1000px) {
   .runner {
     grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    gap: var(--hw-space-4);
   }
-  .editorSection {
-    grid-template-columns: 1fr;
+  
+  .sidebar {
+    position: static;
+    max-height: none;
+    overflow: visible;
   }
+  
   .navigator ul {
-    max-height: 240px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--hw-space-2);
+    max-height: 300px;
     overflow-y: auto;
+  }
+  
+  .workspaceHeader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--hw-space-4);
+  }
+  
+  .workspaceMeta {
+    align-items: stretch;
+    text-align: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .runner {
+    padding: var(--hw-space-4);
+    gap: var(--hw-space-3);
+  }
+  
+  .sidebar,
+  .workspace {
+    padding: var(--hw-space-4);
+    border-radius: var(--hw-radius-lg);
+  }
+  
+  .editorContainer {
+    padding: var(--hw-space-4);
   }
 }
