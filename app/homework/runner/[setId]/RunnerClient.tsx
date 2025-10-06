@@ -18,6 +18,12 @@ import { InstructionsSection } from "./InstructionsSection";
 
 import Editor from "@monaco-editor/react";
 
+// Simple student name mapping
+const STUDENT_NAMES: Record<string, string> = {
+  "304993092": "אור פרץ",
+  "123456789": "סטודנט דמו",
+};
+
 interface RunnerClientProps {
   setId: string;
   studentId: string;
@@ -296,6 +302,20 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           <Link href="/homework" className={styles.backLink}>
             {backArrow} {t("runner.back")}
           </Link>
+          
+          {/* Student Info */}
+          <div className={styles.studentInfo}>
+            <div className={styles.studentAvatar}>
+              {STUDENT_NAMES[studentId]?.charAt(0) || studentId.charAt(0)}
+            </div>
+            <div className={styles.studentDetails}>
+              <div className={styles.studentName}>
+                {STUDENT_NAMES[studentId] || "סטודנט"}
+              </div>
+              <div className={styles.studentId}>ת.ז: {studentId}</div>
+            </div>
+          </div>
+
           <h2>{homework.title}</h2>
           {/* <p className={styles.courseTag}>{homework.courseId}</p> */}
           <div className={styles.metaGrid}>

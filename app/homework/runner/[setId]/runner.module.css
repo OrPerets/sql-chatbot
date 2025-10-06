@@ -111,6 +111,56 @@
   border-radius: 16px 16px 0 0;
 }
 
+/* Student Info Card */
+.studentInfo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 14px;
+  border: 2px solid #bae6fd;
+  margin-bottom: 20px;
+}
+
+.studentAvatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.studentDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.studentName {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0c4a6e;
+  line-height: 1.2;
+}
+
+.studentId {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0369a1;
+  direction: ltr;
+  text-align: right;
+}
+
 .assignmentMeta h2 {
   margin-block: 12px 8px;
   font-size: 22px;
@@ -440,11 +490,17 @@
 .navButton:hover {
   background: #eff6ff;
   border-color: #bfdbfe;
+  color: #1e293b;
   transform: translateX(var(--homework-nav-hover-translate, 2px));
 }
 
 .navButton:hover::before {
   background: #3b82f6;
+}
+
+.navButton:hover .navIndex,
+.navButton:hover .navStatus {
+  color: #1e293b;
 }
 
 .navButtonActive,
