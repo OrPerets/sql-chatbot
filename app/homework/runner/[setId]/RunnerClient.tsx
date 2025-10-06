@@ -113,13 +113,25 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   });
 
   const executeMutation = useMutation({
-    mutationFn: (payload: SqlExecutionRequest) => executeSql(payload),
+    mutationFn: (payload: SqlExecutionRequest) => {
+      console.log("🔵 executeMutation mutationFn called", payload);
+      return executeSql(payload);
+    },
     onSuccess: (result, variables) => {
+      console.log("✅ SQL execution successful", result);
+      console.log("📊 Result has", result.rows.length, "rows and", result.columns.length, "columns");
+      
       queryClient.setQueryData<Submission | undefined>(["submission", setId, studentId], (prev) => {
-        if (!prev) return prev;
+        console.log("🔄 Updating query cache, prev submission:", prev);
+        if (!prev) {
+          console.warn("⚠️ No previous submission data in cache!");
+          return prev;
+        }
+        
         const answer = prev.answers[variables.questionId] ?? { sql: variables.sql };
         const executionCount = (answer.executionCount ?? 0) + (variables.preview ? 0 : 1);
-        return {
+        
+        const updatedSubmission = {
           ...prev,
           answers: {
             ...prev.answers,
@@ -138,8 +150,15 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
             },
           },
         } as Submission;
+        
+        console.log("✅ Updated submission with resultPreview:", updatedSubmission.answers[variables.questionId]?.resultPreview);
+        return updatedSubmission;
       });
+      
       queryClient.invalidateQueries({ queryKey: ["submission", setId, studentId] });
+    },
+    onError: (error) => {
+      console.error("❌ SQL execution failed", error);
     },
   });
 
@@ -191,9 +210,23 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   );
 
   const handleExecute = useCallback(() => {
-    if (!activeQuestionId) return;
-    if (!submissionQuery.data) return;
+    console.log("🔴 handleExecute called", { 
+      activeQuestionId, 
+      hasSubmission: !!submissionQuery.data,
+      sql: editorValues[activeQuestionId]
+    });
+    
+    if (!activeQuestionId) {
+      console.warn("⚠️ No active question ID");
+      return;
+    }
+    if (!submissionQuery.data) {
+      console.warn("⚠️ No submission data");
+      return;
+    }
     const sql = editorValues[activeQuestionId] ?? "";
+    console.log("🟢 Executing SQL:", sql);
+    
     executeMutation.mutate({
       setId,
       submissionId: submissionQuery.data.id,
@@ -223,6 +256,15 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const attemptsRemaining = activeQuestion?.maxAttempts
     ? Math.max(0, activeQuestion.maxAttempts - (activeAnswer?.executionCount ?? 0))
     : undefined;
+
+  // Debug: Log activeAnswer whenever it changes
+  useEffect(() => {
+    if (activeQuestionId) {
+      console.log("🔍 Active Answer for", activeQuestionId, ":", activeAnswer);
+      console.log("   Has resultPreview?", !!activeAnswer?.resultPreview);
+      console.log("   ResultPreview:", activeAnswer?.resultPreview);
+    }
+  }, [activeQuestionId, activeAnswer]);
 
   if (homeworkQuery.isLoading || questionsQuery.isLoading || submissionQuery.isLoading) {
     return (
@@ -255,21 +297,37 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
             {backArrow} {t("runner.back")}
           </Link>
           <h2>{homework.title}</h2>
-          <p className={styles.courseTag}>{homework.courseId}</p>
-          <dl className={styles.metaGrid}>
-            <div>
-              <dt>{t("runner.meta.due")}</dt>
-              <dd>{formatDateTime(homework.dueAt)}</dd>
+          {/* <p className={styles.courseTag}>{homework.courseId}</p> */}
+          <div className={styles.metaGrid}>
+            <div className={styles.progressCircle}>
+              <svg width="120" height="120">
+                <defs>
+                  <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#3b82f6" />
+                    <stop offset="100%" stopColor="#8b5cf6" />
+                  </linearGradient>
+                </defs>
+                <circle
+                  className={styles.progressCircleBackground}
+                  cx="60"
+                  cy="60"
+                  r="52"
+                />
+                <circle
+                  className={styles.progressCircleForeground}
+                  cx="60"
+                  cy="60"
+                  r="52"
+                  strokeDasharray={`${2 * Math.PI * 52}`}
+                  strokeDashoffset={`${2 * Math.PI * 52 * (1 - progressPercent / 100)}`}
+                />
+              </svg>
+              <div className={styles.progressText}>
+                <span className={styles.progressPercent}>{formatNumber(progressPercent)}%</span>
+                <span className={styles.progressLabel}>{t("runner.meta.progress")}</span>
+              </div>
             </div>
-            <div>
-              <dt>{t("runner.meta.status")}</dt>
-              <dd>{statusLabel}</dd>
-            </div>
-            <div>
-              <dt>{t("runner.meta.progress")}</dt>
-              <dd>{formatNumber(progressPercent)}%</dd>
-            </div>
-          </dl>
+          </div>
           {homework.backgroundStory && <InstructionsSection instructions={homework.backgroundStory} />}
         </div>
 
@@ -307,28 +365,33 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
 
       <section className={styles.workspace}>
         <header className={styles.workspaceHeader}>
-          <div>
+          {/* Question Stepper */}
+          <div className={styles.questionStepper}>
+            {(homework?.questionOrder ?? questions.map((q) => q.id)).map((qId, index) => {
+              const isActive = qId === activeQuestionId;
+              const answer = answers[qId];
+              const isCompleted = Boolean(answer?.feedback?.score);
+              const questionNum = index + 1;
+              
+              return (
+                <div key={qId} className={styles.stepperItem}>
+                  <div 
+                    className={`${styles.stepperCircle} ${isActive ? styles.stepperCircleActive : ''} ${isCompleted ? styles.stepperCircleCompleted : ''}`}
+                    onClick={() => setActiveQuestionId(qId)}
+                  >
+                    {isCompleted ? '✓' : questionNum}
+                  </div>
+                  {index < (homework?.questionOrder ?? questions.map((q) => q.id)).length - 1 && (
+                    <div className={`${styles.stepperLine} ${isCompleted ? styles.stepperLineCompleted : ''}`} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          
+          <div className={styles.questionContent}>
             <h3>{activeQuestion?.prompt ?? t("runner.question.placeholder")}</h3>
             <p className={styles.instructions}>{activeQuestion?.instructions}</p>
-          </div>
-          <div className={styles.workspaceMeta}>
-            <span>
-              {t("runner.progress.summary", {
-                answered: formatNumber(answeredCount),
-                total: formatNumber(totalQuestions),
-              })}
-            </span>
-            {typeof attemptsRemaining === "number" && (
-              <span>
-                {attemptsRemaining === 1
-                  ? t("runner.progress.attempts.one", { count: formatNumber(attemptsRemaining) })
-                  : t("runner.progress.attempts", { count: formatNumber(attemptsRemaining) })}
-              </span>
-            )}
-            {typeof submission?.overallScore === "number" && submission.status !== "in_progress" && (
-              <span>{t("runner.progress.score", { score: formatNumber(submission.overallScore) })}</span>
-            )}
-            <span>{autosaveLabel}</span>
           </div>
         </header>
 
@@ -374,6 +437,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 onClick={handleExecute}
                 disabled={executeMutation.isPending || !activeQuestionId}
               >
+                <span>{executeMutation.isPending ? "⏳" : "▶️"}</span>
                 {executeMutation.isPending ? t("runner.actions.running") : t("runner.actions.run")}
               </button>
               <button
@@ -382,6 +446,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 onClick={() => submitMutation.mutate()}
                 disabled={submitMutation.isPending || submission?.status === "submitted" || submission?.status === "graded"}
               >
+                <span>{submitMutation.isPending ? "⏳" : submission?.status === "submitted" ? "✅" : "📤"}</span>
                 {submitMutation.isPending
                   ? t("runner.actions.submitting")
                   : submission?.status === "submitted"
@@ -427,27 +492,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               <p className={styles.placeholder}>{t("runner.results.placeholder")}</p>
             )}
 
-            <h4>{t("runner.feedback.heading")}</h4>
-            {activeAnswer?.feedback ? (
-              <div className={styles.feedbackCard}>
-                <p className={styles.feedbackScore}>
-                  {t("runner.feedback.score", { score: formatNumber(activeAnswer.feedback.score) })}
-                </p>
-                {activeAnswer.feedback.autoNotes && <p>{activeAnswer.feedback.autoNotes}</p>}
-                {activeAnswer.feedback.rubricBreakdown?.length ? (
-                  <ul className={styles.rubricList}>
-                    {activeAnswer.feedback.rubricBreakdown.map((criterion) => (
-                      <li key={criterion.criterionId}>
-                        <span>{criterion.criterionId}</span>
-                        <span>{criterion.earned} pts</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            ) : (
-              <p className={styles.placeholder}>{t("runner.feedback.placeholder")}</p>
-            )}
           </div>
         </div>
       </section>
