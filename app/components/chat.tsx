@@ -719,8 +719,13 @@ const updateUserBalance = async (value) => {
       if (userTypingTimeoutRef.current) {
         clearTimeout(userTypingTimeoutRef.current);
       }
+
+      // Trigger conversation analysis for current session when component unmounts
+      if (currentChatId) {
+        triggerConversationAnalysis(currentChatId);
+      }
     };
-  }, []);
+  }, [currentChatId]);
 
   // Modified useEffect for progressive speech
   useEffect(() => {
@@ -851,6 +856,12 @@ const updateUserBalance = async (value) => {
       setCurrentBalance(currentBalance - estimatedCost)
       let today = new Date().toISOString().slice(0, 10);
     if (!currentChatId) {
+      // Trigger conversation analysis for the previous session if it exists
+      const previousSessionId = localStorage.getItem('previousSessionId');
+      if (previousSessionId) {
+        triggerConversationAnalysis(previousSessionId);
+      }
+      
       fetch(`/api/chat/sessions`, {
         method: 'POST',
         headers: {
@@ -859,6 +870,7 @@ const updateUserBalance = async (value) => {
         body: JSON.stringify({ "title": text.substring(0, 30) + " (" + today + ")", "user": JSON.parse(localStorage.getItem("currentUser"))["email"]}),
       }).then(response => response.json()).then(newChat => {
         setCurrentChatId(newChat._id);
+        localStorage.setItem('previousSessionId', newChat._id);
         refreshChatSessions(); // Refresh the chat sessions list from server
         // Save the message to the server (save original text without tags)
         fetch(`/api/chat/sessions/${newChat._id}/messages`, {
@@ -921,6 +933,46 @@ const updateUserBalance = async (value) => {
         return true; // Keep the first instance
       }
     });
+  };
+
+  // Function to trigger conversation analysis
+  const triggerConversationAnalysis = async (sessionId) => {
+    try {
+      const userId = JSON.parse(localStorage.getItem("currentUser"))?.email;
+      if (!userId || !sessionId) return;
+
+      // Check if analysis already exists for this session
+      const checkResponse = await fetch(`/api/conversation-summary/student/${userId}?limit=50`);
+      const checkData = await checkResponse.json();
+      
+      if (checkData.success) {
+        const existingAnalysis = checkData.data.summaries.find(summary => summary.sessionId === sessionId);
+        if (existingAnalysis) {
+          console.log('Conversation analysis already exists for session:', sessionId);
+          return;
+        }
+      }
+
+      // Trigger analysis
+      const response = await fetch(`/api/chat/sessions/${sessionId}/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userId,
+          sessionTitle: 'Chat Session'
+        }),
+      });
+
+      if (response.ok) {
+        console.log('✅ Conversation analysis triggered for session:', sessionId);
+      } else {
+        console.error('❌ Failed to trigger conversation analysis:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error triggering conversation analysis:', error);
+    }
   };
 
   // Add a function to load messages for a specific chat

@@ -58,8 +58,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   });
 
   const questionsQuery = useQuery({
-    queryKey: ["homework", setId, "questions"],
-    queryFn: () => getHomeworkQuestions(setId),
+    queryKey: ["homework", setId, "questions", studentId],
+    queryFn: () => getHomeworkQuestions(setId, studentId),
   });
 
   const submissionQuery = useQuery({
@@ -70,7 +70,10 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
 
   const questionsById = useMemo(() => {
     const map = new Map<string, Question>();
-    (questionsQuery.data ?? []).forEach((question) => map.set(question.id, question));
+    const questions = questionsQuery.data;
+    if (Array.isArray(questions)) {
+      questions.forEach((question) => map.set(question.id, question));
+    }
     return map;
   }, [questionsQuery.data]);
 
@@ -85,15 +88,14 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     });
   }, [submissionQuery.data]);
 
+  // Set first question as active when questions load
   useEffect(() => {
-    if (activeQuestionId) return;
-    const questionOrder = homeworkQuery.data?.questionOrder ?? [];
-    console.log("Setting active question:", { questionOrder, homework: homeworkQuery.data });
-    if (questionOrder.length > 0) {
-      setActiveQuestionId(questionOrder[0]!);
-      console.log("Active question set to:", questionOrder[0]);
+    const questionsData = questionsQuery.data;
+    if (Array.isArray(questionsData) && questionsData.length > 0 && !activeQuestionId) {
+      setActiveQuestionId(questionsData[0].id);
     }
-  }, [activeQuestionId, homeworkQuery.data?.questionOrder]);
+  }, [questionsQuery.data, activeQuestionId]);
+
 
   const autosaveMutation = useMutation({
     mutationFn: (payload: { questionId: string; sql: string }) =>
@@ -245,16 +247,19 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
 
   const submission = submissionQuery.data;
   const homework = homeworkQuery.data;
-  const questions = useMemo(() => questionsQuery.data ?? [], [questionsQuery.data]);
+  const questions = useMemo(() => {
+    const data = questionsQuery.data;
+    return Array.isArray(data) ? data : [];
+  }, [questionsQuery.data]);
 
-  const totalQuestions = homework?.questionOrder?.length ?? questions.length;
+  const totalQuestions = questions.length;
   const answers = useMemo(() => submission?.answers ?? {}, [submission?.answers]);
   const answeredCount = useMemo(() =>
-    (homework?.questionOrder ?? questions.map((question) => question.id)).filter((questionId) => {
+    questions.map((question) => question.id).filter((questionId) => {
       const answer = answers[questionId];
       return Boolean(answer?.sql?.trim()) || Boolean(answer?.feedback?.score);
     }).length,
-  [answers, homework?.questionOrder, questions]);
+  [answers, questions]);
 
   const progressPercent = totalQuestions === 0 ? 0 : Math.round((answeredCount / totalQuestions) * 100);
   const activeQuestion = activeQuestionId ? questionsById.get(activeQuestionId) : undefined;
@@ -354,7 +359,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         <nav className={styles.navigator}>
           <h3>{t("runner.nav.heading")}</h3>
           <ul>
-            {(homework.questionOrder ?? questions.map((question) => question.id)).map((questionId, index) => {
+            {questions.map((question, index) => {
+              const questionId = question.id;
               const answer = answers[questionId];
               const isActive = questionId === activeQuestionId;
               const isCompleted = Boolean(answer?.feedback?.score);
@@ -367,7 +373,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                     onClick={() => setActiveQuestionId(questionId)}
                   >
                     <span className={styles.navIndex}>{formatNumber(index + 1)}</span>
-                    <span className={styles.navLabel}>{questionsById.get(questionId)?.prompt ?? t("runner.nav.fallback")}</span>
+                    <span className={styles.navLabel}>{question.prompt ?? t("runner.nav.fallback")}</span>
                     <span className={styles.navStatus} data-state={isCompleted ? "complete" : hasDraft ? "draft" : "todo"}>
                       {isCompleted
                         ? t("runner.nav.status.complete")
@@ -387,7 +393,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         <header className={styles.workspaceHeader}>
           {/* Question Stepper */}
           <div className={styles.questionStepper}>
-            {(homework?.questionOrder ?? questions.map((q) => q.id)).map((qId, index) => {
+            {questions.map((question, index) => {
+              const qId = question.id;
               const isActive = qId === activeQuestionId;
               const answer = answers[qId];
               const isCompleted = Boolean(answer?.feedback?.score);
@@ -401,7 +408,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   >
                     {isCompleted ? '✓' : questionNum}
                   </div>
-                  {index < (homework?.questionOrder ?? questions.map((q) => q.id)).length - 1 && (
+                  {index < questions.length - 1 && (
                     <div className={`${styles.stepperLine} ${isCompleted ? styles.stepperLineCompleted : ''}`} />
                   )}
                 </div>
@@ -411,7 +418,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           
           <div className={styles.questionContent}>
             <h3>{activeQuestion?.prompt ?? t("runner.question.placeholder")}</h3>
-            <p className={styles.instructions}>{activeQuestion?.instructions}</p>
+            {/* <p className={styles.instructions}>{activeQuestion?.instructions}</p> */}
           </div>
         </header>
 

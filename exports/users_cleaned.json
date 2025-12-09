@@ -1,0 +1,438 @@
+{
+  "collection": "users",
+  "exportDate": "2025-10-16T05:17:00.602Z",
+  "documentCount": 61,
+  "documents": [
+    {
+      "_id": "66a732485966e8928ac9c7d8",
+      "email": "roeizer@shenkar.ac.il",
+      "password": "roei1111",
+      "firstName": "רואי",
+      "lastName": "זרחיה",
+      "isFirst": true
+    },
+    {
+      "_id": "66a732545966e8928ac9c7d9",
+      "email": "orperets11@gmail.com",
+      "password": "12",
+      "firstName": "פרץ",
+      "lastName": "אור",
+      "isFirst": true
+    },
+    {
+      "_id": "66aa499c4b3f2d41b78e11b5",
+      "email": "michal.pauzner@shenkar.ac.il",
+      "password": "MP2024mp",
+      "firstName": "מיכל",
+      "lastName": "פאוזנר",
+      "isFirst": true
+    },
+    {
+      "_id": "67208698508df523ef9e0a0e",
+      "email": "president@shenkar.ac.il",
+      "password": "shenkar",
+      "firstName": "שיזף",
+      "lastName": "רפאלי",
+      "isFirst": true
+    },
+    {
+      "isFirst": true,
+      "lastName": "חמו",
+      "firstName": "עמית",
+      "email": "amithemo2344@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "יעקובוב",
+      "firstName": "ליאל",
+      "email": "lielyak@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "מזעקי",
+      "firstName": "עדי",
+      "email": "adi.mazaki@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "מיזן",
+      "firstName": "לירין",
+      "email": "lirin2001@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "מילוטין",
+      "firstName": "תמר",
+      "email": "tamar995@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "מכבי",
+      "firstName": " טל ",
+      "email": "tal.macabi@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "מלמוד",
+      "firstName": "יואב ",
+      "email": "yoav225@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "מנחם",
+      "firstName": "איב",
+      "email": "evemenachem19@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "מעלם",
+      "firstName": "אבישג",
+      "email": "avishag6900@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "מרדכי",
+      "firstName": " שגיא ",
+      "email": "sagimor202@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "נווה",
+      "firstName": "יעל",
+      "email": "yaelnaveh74@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "נקש",
+      "firstName": "טל",
+      "email": "nakash.tal@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "סופר",
+      "firstName": "עלמה",
+      "email": "alma666s666@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "סיטבון",
+      "firstName": "אטל ",
+      "email": "ethel.sitbon@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "סער",
+      "firstName": "אראל",
+      "email": "erelxsaar@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "ספקטור",
+      "firstName": "שלי",
+      "email": "shellyspector22@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "עמר",
+      "firstName": "סתיו",
+      "email": "stavamr6@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "עצמון",
+      "firstName": "לירן",
+      "email": "liranatzmontrips@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "פדהצור",
+      "firstName": "גילי",
+      "email": "gpedhazur@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "פורת",
+      "firstName": "ירדן",
+      "email": "jorden510@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "פלג",
+      "firstName": "נועה",
+      "email": "noa050100@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "פלקסר",
+      "firstName": "תמר",
+      "email": "tamarflaxer@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "פרג",
+      "firstName": "נויה",
+      "email": "noyapr123@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "פרחי",
+      "firstName": " רוני",
+      "email": "ronifarhi11@gmail.com;ronifarhi11@gmail.co",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "פרס",
+      "firstName": "דור",
+      "email": "dorpress27@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "צובארה",
+      "firstName": "רותם",
+      "email": "rotemtzubara1@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "צוברי",
+      "firstName": " שקד",
+      "email": "shkedonia@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "קדמי",
+      "firstName": "אור",
+      "email": "orikd12@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "קופולוביץ",
+      "firstName": "אדם",
+      "email": "adam72832@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "קוקוס",
+      "firstName": "יואב",
+      "email": "yoavkokos4@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "קורדובה",
+      "firstName": "מאי ",
+      "email": "maycordova2000@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "קורנבלום",
+      "firstName": "איתמר ",
+      "email": "itamarkor1@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "קלדה",
+      "firstName": "ירין ",
+      "email": "yarinkalda1999@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "קרמר",
+      "firstName": "מאיה",
+      "email": "maya12kremer@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "רביב",
+      "firstName": "דנה",
+      "email": "dana14261999@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "רביב",
+      "firstName": "יותם",
+      "email": "yotamr444@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "רבינוביץ",
+      "firstName": "ניב",
+      "email": "niv.rabinovich1@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "רבס",
+      "firstName": "רני",
+      "email": "29ranile@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "רואש",
+      "firstName": "שי",
+      "email": "srohash@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "רודיטי",
+      "firstName": " רביד ",
+      "email": "ravid820@gmail.com;ravid820@gmail.co",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "רוזנבאום",
+      "firstName": "אחינועם",
+      "email": "achinoam.ros@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "שביב",
+      "firstName": "אריאל ",
+      "email": "shavivariel@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "שהם",
+      "firstName": "יונתן",
+      "email": "yonatan.shoham@stu.shenkar.ac.il",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "שובבו",
+      "firstName": "עדן",
+      "email": "edenshovavo123@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "שחף",
+      "firstName": "מאיר נור",
+      "email": "nurki31.5@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "שחר",
+      "firstName": "אור",
+      "email": "orshachar118@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "שחר",
+      "firstName": "סתיו",
+      "email": "stavshahar99@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "שחר",
+      "firstName": "שיר",
+      "email": "shirshachar115@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "שטרן",
+      "firstName": "נוי ",
+      "email": "noy.stern@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "שטרנבאום",
+      "firstName": "אופק",
+      "email": "ofekpika@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "שטרנברג",
+      "firstName": "עמית",
+      "email": "ashternberg@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "שטרנברג",
+      "firstName": "רון",
+      "email": "ron007sh@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "שינפלד",
+      "firstName": "עירון",
+      "email": "eronsh@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "שלו",
+      "firstName": "מאיה",
+      "email": "maya.shalev21@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "שלו",
+      "firstName": "רועי",
+      "email": "roie.shalev2001@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "שמיע",
+      "firstName": "אור",
+      "email": "orshamia98@gmail.com",
+      "password": "shenkar"
+    },
+    {
+      "isFirst": true,
+      "lastName": "שניידר",
+      "firstName": "שחר",
+      "email": "shahar1999@gmail.com",
+      "password": "shenkar"
+    }
+  ]
+}

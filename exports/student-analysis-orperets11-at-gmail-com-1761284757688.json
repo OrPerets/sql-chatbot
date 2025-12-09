@@ -1,0 +1,2125 @@
+{
+  "studentInfo": {
+    "userId": "68f080c5b12119f72a11a1f2",
+    "email": "orperets11@gmail.com"
+  },
+  "profile": {
+    "_id": "68fa6f705ed36c5768d0a04b",
+    "userId": "68f080c5b12119f72a11a1f2",
+    "knowledgeScore": "empty",
+    "knowledgeScoreHistory": [
+      {
+        "score": "empty",
+        "updatedAt": "2025-10-23T18:09:52.487Z",
+        "reason": "Initial profile creation",
+        "updatedBy": "system"
+      },
+      {
+        "score": "empty",
+        "updatedAt": "2025-10-23T18:09:53.145Z",
+        "reason": "Calculated from aggregated data",
+        "updatedBy": "system"
+      },
+      {
+        "score": "empty",
+        "updatedAt": "2025-10-24T05:16:30.194Z",
+        "reason": "Calculated from aggregated data",
+        "updatedBy": "system"
+      },
+      {
+        "score": "empty",
+        "updatedAt": "2025-10-24T05:19:55.433Z",
+        "reason": "Calculated from aggregated data",
+        "updatedBy": "system"
+      }
+    ],
+    "lastActivity": "2025-10-24T05:19:56.320Z",
+    "totalQuestions": 0,
+    "correctAnswers": 0,
+    "homeworkSubmissions": 0,
+    "averageGrade": 0,
+    "commonChallenges": [
+      "Understanding the application of WHERE and HAVING in complex queries"
+    ],
+    "learningProgress": {
+      "sqlBasics": 0,
+      "joins": 0,
+      "aggregations": 40,
+      "subqueries": 0,
+      "advancedQueries": 0
+    },
+    "engagementMetrics": {
+      "chatSessions": 262,
+      "averageSessionDuration": 0,
+      "helpRequests": 0,
+      "selfCorrections": 0
+    },
+    "riskFactors": {
+      "isAtRisk": true,
+      "riskLevel": "high",
+      "riskFactors": [
+        "Understanding the application of WHERE and HAVING in complex queries"
+      ],
+      "lastAssessment": "2025-10-24T05:19:55.782Z"
+    },
+    "conversationInsights": {
+      "totalSessions": 1,
+      "averageSessionDuration": 0,
+      "mostCommonTopics": [
+        "WHERE clause",
+        "HAVING clause",
+        "GROUP BY",
+        "Filtering data",
+        "Aggregation functions"
+      ],
+      "learningTrend": "improving",
+      "commonChallenges": [
+        "Understanding the application of WHERE and HAVING in complex queries"
+      ],
+      "overallEngagement": "medium",
+      "lastAnalysisDate": "2025-10-24T05:19:55.905Z"
+    },
+    "createdAt": "2025-10-23T18:09:52.487Z",
+    "updatedAt": "2025-10-24T05:25:59.675Z",
+    "email": "orperets11@gmail.com",
+    "name": "orperets11"
+  },
+  "activities": {
+    "total": 6,
+    "byType": {
+      "chat": 6
+    },
+    "data": [
+      {
+        "_id": "68fa6af75ed36c5768d0a009",
+        "userId": "orperets11@gmail.com",
+        "activityType": "chat",
+        "activityData": {
+          "messageCount": 1,
+          "topic": "general_sql",
+          "questionComplexity": "intermediate",
+          "helpRequested": false
+        },
+        "timestamp": "2025-10-23T17:50:47.161Z",
+        "sessionId": null
+      },
+      {
+        "_id": "68fa6b135ed36c5768d0a00c",
+        "userId": "orperets11@gmail.com",
+        "activityType": "chat",
+        "activityData": {
+          "messageCount": 1,
+          "topic": "general_sql",
+          "questionComplexity": "intermediate",
+          "helpRequested": false
+        },
+        "timestamp": "2025-10-23T17:51:15.923Z",
+        "sessionId": null
+      },
+      {
+        "_id": "68fa6b245ed36c5768d0a010",
+        "userId": "orperets11@gmail.com",
+        "activityType": "chat",
+        "activityData": {
+          "messageCount": 1,
+          "topic": "joins",
+          "questionComplexity": "advanced",
+          "helpRequested": false
+        },
+        "timestamp": "2025-10-23T17:51:32.460Z",
+        "sessionId": null
+      },
+      {
+        "_id": "68fa6b595ed36c5768d0a014",
+        "userId": "orperets11@gmail.com",
+        "activityType": "chat",
+        "activityData": {
+          "messageCount": 1,
+          "topic": "general_sql",
+          "questionComplexity": "intermediate",
+          "helpRequested": false
+        },
+        "timestamp": "2025-10-23T17:52:25.336Z",
+        "sessionId": null
+      },
+      {
+        "_id": "68fa6cba5ed36c5768d0a019",
+        "userId": "orperets11@gmail.com",
+        "activityType": "chat",
+        "activityData": {
+          "messageCount": 1,
+          "topic": "general_sql",
+          "questionComplexity": "intermediate",
+          "helpRequested": false
+        },
+        "timestamp": "2025-10-23T17:58:18.510Z",
+        "sessionId": null
+      },
+      {
+        "_id": "68fa6dc65ed36c5768d0a01d",
+        "userId": "orperets11@gmail.com",
+        "activityType": "chat",
+        "activityData": {
+          "messageCount": 1,
+          "topic": "general_sql",
+          "questionComplexity": "intermediate",
+          "helpRequested": false
+        },
+        "timestamp": "2025-10-23T18:02:46.046Z",
+        "sessionId": null
+      }
+    ]
+  },
+  "conversations": {
+    "summaries": {
+      "total": 1,
+      "data": [
+        {
+          "_id": "68fa6d68c2e34403f8982c14",
+          "userId": "orperets11@gmail.com",
+          "sessionId": "68fa6cb85ed36c5768d0a017",
+          "sessionTitle": "היי מייקל :) מה ההבדל בין wher (2025-10-23)",
+          "summaryPoints": [
+            "The student demonstrates a basic understanding of SQL concepts, specifically the differences between WHERE and HAVING clauses.",
+            "They are actively seeking clarification on SQL topics, indicating a willingness to learn and improve their knowledge.",
+            "The conversation suggests that the student may benefit from further examples and practical applications of SQL concepts to solidify their understanding."
+          ],
+          "keyTopics": [
+            "WHERE clause",
+            "HAVING clause",
+            "GROUP BY",
+            "Filtering data",
+            "Aggregation functions"
+          ],
+          "learningIndicators": {
+            "comprehensionLevel": "medium",
+            "helpSeekingBehavior": "high",
+            "engagementLevel": "medium",
+            "challengeAreas": [
+              "Understanding the application of WHERE and HAVING in complex queries"
+            ]
+          },
+          "conversationMetadata": {
+            "messageCount": 2,
+            "sessionDuration": 0,
+            "averageResponseTime": 16,
+            "complexityLevel": "basic"
+          },
+          "aiInsights": {
+            "rawAnalysis": "```json\n{\n  \"summaryPoints\": [\n    \"The student demonstrates a basic understanding of SQL concepts, specifically the differences between WHERE and HAVING clauses.\",\n    \"They are actively seeking clarification on SQL topics, indicating a willingness to learn and improve their knowledge.\",\n    \"The conversation suggests that the student may benefit from further examples and practical applications of SQL concepts to solidify their understanding.\"\n  ],\n  \"keyTopics\": [\n    \"WHERE clause\",\n    \"HAVING clause\",\n    \"GROUP BY\",\n    \"Filtering data\",\n    \"Aggregation functions\"\n  ],\n  \"learningIndicators\": {\n    \"comprehensionLevel\": \"medium\",\n    \"helpSeekingBehavior\": \"high\",\n    \"engagementLevel\": \"medium\",\n    \"challengeAreas\": [\"Understanding the application of WHERE and HAVING in complex queries\"]\n  },\n  \"complexityLevel\": \"basic\",\n  \"confidenceScore\": 85,\n  \"recommendedActions\": [\n    \"Provide additional examples that incorporate both WHERE and HAVING in more complex scenarios to enhance understanding.\",\n    \"Encourage the student to practice writing queries that utilize both clauses in different contexts, such as filtering on different aggregation functions.\",\n    \"Consider offering exercises that require the student to explain their reasoning for using WHERE versus HAVING in various situations.\"\n  ]\n}\n```",
+            "confidenceScore": 85,
+            "recommendedActions": [
+              "Provide additional examples that incorporate both WHERE and HAVING in more complex scenarios to enhance understanding.",
+              "Encourage the student to practice writing queries that utilize both clauses in different contexts, such as filtering on different aggregation functions.",
+              "Consider offering exercises that require the student to explain their reasoning for using WHERE versus HAVING in various situations."
+            ]
+          },
+          "createdAt": "2025-10-23T18:01:12.133Z",
+          "updatedAt": "2025-10-23T18:01:12.133Z"
+        }
+      ]
+    },
+    "sessions": {
+      "total": 262,
+      "data": [
+        {
+          "_id": "6707d4a475f3a28c81d219eb",
+          "userId": "orperets11@gmail.com",
+          "title": "עזרה בבניית שאילתה (2024-10-10)",
+          "createdAt": "2024-10-10T13:20:35.934Z",
+          "lastMessageTimestamp": "2024-10-10T13:20:35.934Z"
+        },
+        {
+          "_id": "6733033ceb19a5a0c64b5f0c",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, מה זה מודל היררכי ? (2024-11-12)",
+          "createdAt": "2024-11-12T07:26:52.139Z",
+          "lastMessageTimestamp": "2024-11-12T07:26:52.139Z"
+        },
+        {
+          "_id": "676bd9463bd1714387fd8e1c",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש, מה נשמע? (2024-12-25)",
+          "createdAt": "2024-12-25T10:07:01.450Z",
+          "lastMessageTimestamp": "2024-12-25T10:07:01.450Z"
+        },
+        {
+          "_id": "676bdcb9def083937607833d",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק (2024-12-25)",
+          "createdAt": "2024-12-25T10:21:45.029Z",
+          "lastMessageTimestamp": "2024-12-25T10:21:45.029Z"
+        },
+        {
+          "_id": "676bde7442ce37ac62903371",
+          "userId": "orperets11@gmail.com",
+          "title": "היי (2024-12-25)",
+          "createdAt": "2024-12-25T10:29:07.381Z",
+          "lastMessageTimestamp": "2024-12-25T10:29:07.381Z"
+        },
+        {
+          "_id": "676cfc76d0dc802b5578337d",
+          "userId": "orperets11@gmail.com",
+          "title": "היי (2024-12-26)",
+          "createdAt": "2024-12-26T06:49:25.477Z",
+          "lastMessageTimestamp": "2024-12-26T06:49:25.477Z"
+        },
+        {
+          "_id": "676cfdea4566c24cc06ee8a6",
+          "userId": "orperets11@gmail.com",
+          "title": "היי (2024-12-26)",
+          "createdAt": "2024-12-26T06:55:37.986Z",
+          "lastMessageTimestamp": "2024-12-26T06:55:37.986Z"
+        },
+        {
+          "_id": "6770ff9189df713995a67fc4",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :) איך אני יכול לשלו (2024-12-29)",
+          "createdAt": "2024-12-29T07:51:44.139Z",
+          "lastMessageTimestamp": "2024-12-29T07:51:44.139Z"
+        },
+        {
+          "_id": "677100efba605e07427b4591",
+          "userId": "orperets11@gmail.com",
+          "title": "היי, איך אפשר לשלוף שמות סטודנ (2024-12-29)",
+          "createdAt": "2024-12-29T07:57:34.388Z",
+          "lastMessageTimestamp": "2024-12-29T07:57:34.388Z"
+        },
+        {
+          "_id": "67764322b2ee9e5dc16d2989",
+          "userId": "orperets11@gmail.com",
+          "title": "הגכגכגכגכגכ (2025-01-02)",
+          "createdAt": "2025-01-02T07:41:22.004Z",
+          "lastMessageTimestamp": "2025-01-02T07:41:22.004Z"
+        },
+        {
+          "_id": "67764323b2ee9e5dc16d298a",
+          "userId": "orperets11@gmail.com",
+          "title": "גכגכגכג (2025-01-02)",
+          "createdAt": "2025-01-02T07:41:22.967Z",
+          "lastMessageTimestamp": "2025-01-02T07:41:22.967Z"
+        },
+        {
+          "_id": "6776460ffcdddee2bea04c7d",
+          "userId": "orperets11@gmail.com",
+          "title": "dfdfdfddדגדדג\n\n (2025-01-02)",
+          "createdAt": "2025-01-02T07:53:51.009Z",
+          "lastMessageTimestamp": "2025-01-02T07:53:51.009Z"
+        },
+        {
+          "_id": "67765021805a7e7520ebbeb8",
+          "userId": "orperets11@gmail.com",
+          "title": "היי, איך אפשר לשלוף שם סטודנט  (2025-01-02)",
+          "createdAt": "2025-01-02T08:36:48.647Z",
+          "lastMessageTimestamp": "2025-01-02T08:36:48.647Z"
+        },
+        {
+          "_id": "677651c4805a7e7520ebbec8",
+          "userId": "orperets11@gmail.com",
+          "title": "איך אפשר לקבל סטודנטים מעל גיל (2025-01-02)",
+          "createdAt": "2025-01-02T08:43:48.035Z",
+          "lastMessageTimestamp": "2025-01-02T08:43:48.036Z"
+        },
+        {
+          "_id": "677a280880eefe94bd77da78",
+          "userId": "orperets11@gmail.com",
+          "title": "היי, אפשר דוגמה לשאילתה עם whe (2025-01-05)",
+          "createdAt": "2025-01-05T06:34:48.095Z",
+          "lastMessageTimestamp": "2025-01-05T06:34:48.095Z"
+        },
+        {
+          "_id": "677a3ec31522b2c4aad117c2",
+          "userId": "orperets11@gmail.com",
+          "title": "היי, אשמח לדוגמה של שאילתה עם  (2025-01-05)",
+          "createdAt": "2025-01-05T08:11:46.259Z",
+          "lastMessageTimestamp": "2025-01-05T08:11:46.259Z"
+        },
+        {
+          "_id": "677a3f1b1522b2c4aad117c4",
+          "userId": "orperets11@gmail.com",
+          "title": "היי (2025-01-05)",
+          "createdAt": "2025-01-05T08:13:14.864Z",
+          "lastMessageTimestamp": "2025-01-05T08:13:14.864Z"
+        },
+        {
+          "_id": "677a3f4d1522b2c4aad117c6",
+          "userId": "orperets11@gmail.com",
+          "title": "היי (2025-01-05)",
+          "createdAt": "2025-01-05T08:14:04.880Z",
+          "lastMessageTimestamp": "2025-01-05T08:14:04.880Z"
+        },
+        {
+          "_id": "677a3f901522b2c4aad117c8",
+          "userId": "orperets11@gmail.com",
+          "title": "היי, אני צריך דוגמה לשאילתה עם (2025-01-05)",
+          "createdAt": "2025-01-05T08:15:11.861Z",
+          "lastMessageTimestamp": "2025-01-05T08:15:11.861Z"
+        },
+        {
+          "_id": "677a3faaecb90ddfbdb19aac",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, אני צריך דוגמה לשאל (2025-01-05)",
+          "createdAt": "2025-01-05T08:15:37.457Z",
+          "lastMessageTimestamp": "2025-01-05T08:15:37.457Z"
+        },
+        {
+          "_id": "677a4008ecb90ddfbdb19ab1",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, אני צריך דוגמה לשאל (2025-01-05)",
+          "createdAt": "2025-01-05T08:17:12.064Z",
+          "lastMessageTimestamp": "2025-01-05T08:17:12.064Z"
+        },
+        {
+          "_id": "677a40711522b2c4aad117ca",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, אני צריך דוגמה לשאל (2025-01-05)",
+          "createdAt": "2025-01-05T08:18:56.800Z",
+          "lastMessageTimestamp": "2025-01-05T08:18:56.800Z"
+        },
+        {
+          "_id": "677a41851522b2c4aad117d0",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מיייקל אפשר דוגמה לשיאלתה  (2025-01-05)",
+          "createdAt": "2025-01-05T08:23:32.158Z",
+          "lastMessageTimestamp": "2025-01-05T08:23:32.158Z"
+        },
+        {
+          "_id": "677a41a8ecb90ddfbdb19ab8",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל אני צריך דוגמה שלאית (2025-01-05)",
+          "createdAt": "2025-01-05T08:24:08.087Z",
+          "lastMessageTimestamp": "2025-01-05T08:24:08.087Z"
+        },
+        {
+          "_id": "677a43701522b2c4aad117d2",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל אני צריך דוגמה שלאית (2025-01-05)",
+          "createdAt": "2025-01-05T08:31:43.467Z",
+          "lastMessageTimestamp": "2025-01-05T08:31:43.467Z"
+        },
+        {
+          "_id": "677a45f9ecb90ddfbdb19adb",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, אפשר דוגמה לשאילתת  (2025-01-05)",
+          "createdAt": "2025-01-05T08:42:32.526Z",
+          "lastMessageTimestamp": "2025-01-05T08:42:32.526Z"
+        },
+        {
+          "_id": "677d5dd1a92ca81ff5827254",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-01-07)",
+          "createdAt": "2025-01-07T17:01:04.966Z",
+          "lastMessageTimestamp": "2025-01-07T17:01:04.966Z"
+        },
+        {
+          "_id": "677d5e34d55d599fd4b6a79d",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, אשמח לעזרה בהבנת של (2025-01-07)",
+          "createdAt": "2025-01-07T17:02:43.544Z",
+          "lastMessageTimestamp": "2025-01-07T17:02:43.544Z"
+        },
+        {
+          "_id": "677d5e5ea92ca81ff5827258",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל אשמח לעזרה בהבנת של  (2025-01-07)",
+          "createdAt": "2025-01-07T17:03:25.417Z",
+          "lastMessageTimestamp": "2025-01-07T17:03:25.417Z"
+        },
+        {
+          "_id": "677d5f3da92ca81ff582725a",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, אשמח לעזרה בשאילתת  (2025-01-07)",
+          "createdAt": "2025-01-07T17:07:08.289Z",
+          "lastMessageTimestamp": "2025-01-07T17:07:08.289Z"
+        },
+        {
+          "_id": "677d606ea92ca81ff582725f",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, אשמח לעזרה בשאילתת  (2025-01-07)",
+          "createdAt": "2025-01-07T17:12:14.024Z",
+          "lastMessageTimestamp": "2025-01-07T17:12:14.024Z"
+        },
+        {
+          "_id": "677e3250f8290a5cc82fe29a",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-01-08)",
+          "createdAt": "2025-01-08T08:07:39.084Z",
+          "lastMessageTimestamp": "2025-01-08T08:07:39.084Z"
+        },
+        {
+          "_id": "677f90db9de3f85ad7ba3817",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-01-09)",
+          "createdAt": "2025-01-09T09:03:22.782Z",
+          "lastMessageTimestamp": "2025-01-09T09:03:22.782Z"
+        },
+        {
+          "_id": "6780d5b3f55e3a49796f6b48",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, כיצד להשתמש בgroupb (2025-01-10)",
+          "createdAt": "2025-01-10T08:09:22.367Z",
+          "lastMessageTimestamp": "2025-01-10T08:09:22.367Z"
+        },
+        {
+          "_id": "6780d7845ff59d567ca6c1bd",
+          "userId": "orperets11@gmail.com",
+          "title": "asdfasfasfsafasfas (2025-01-10)",
+          "createdAt": "2025-01-10T08:17:07.957Z",
+          "lastMessageTimestamp": "2025-01-10T08:17:07.957Z"
+        },
+        {
+          "_id": "6780d819f55e3a49796f6b4c",
+          "userId": "orperets11@gmail.com",
+          "title": "גכגכגכדכדכדכדגכ (2025-01-10)",
+          "createdAt": "2025-01-10T08:19:36.243Z",
+          "lastMessageTimestamp": "2025-01-10T08:19:36.243Z"
+        },
+        {
+          "_id": "6780d827f55e3a49796f6b4e",
+          "userId": "orperets11@gmail.com",
+          "title": "דגדגדגדגדג (2025-01-10)",
+          "createdAt": "2025-01-10T08:19:50.401Z",
+          "lastMessageTimestamp": "2025-01-10T08:19:50.401Z"
+        },
+        {
+          "_id": "6780d82febc7c6f7a71338b6",
+          "userId": "orperets11@gmail.com",
+          "title": "דגדגדגדד (2025-01-10)",
+          "createdAt": "2025-01-10T08:19:58.543Z",
+          "lastMessageTimestamp": "2025-01-10T08:19:58.543Z"
+        },
+        {
+          "_id": "678243b2d31658af8e736fe5",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :) מה נשמע? (2025-01-11)",
+          "createdAt": "2025-01-11T10:10:56.986Z",
+          "lastMessageTimestamp": "2025-01-11T10:10:56.986Z"
+        },
+        {
+          "_id": "67824401d31658af8e736fe9",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, מה נשמע? (2025-01-11)",
+          "createdAt": "2025-01-11T10:12:16.778Z",
+          "lastMessageTimestamp": "2025-01-11T10:12:16.778Z"
+        },
+        {
+          "_id": "67824423a2ee8ed1b315309f",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, מה נשמע? (2025-01-11)",
+          "createdAt": "2025-01-11T10:12:50.932Z",
+          "lastMessageTimestamp": "2025-01-11T10:12:50.932Z"
+        },
+        {
+          "_id": "6782445ca2ee8ed1b31530a3",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל! (2025-01-11)",
+          "createdAt": "2025-01-11T10:13:48.275Z",
+          "lastMessageTimestamp": "2025-01-11T10:13:48.275Z"
+        },
+        {
+          "_id": "6782730f6df3d006561df6ef",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-01-11)",
+          "createdAt": "2025-01-11T13:33:03.268Z",
+          "lastMessageTimestamp": "2025-01-11T13:33:03.268Z"
+        },
+        {
+          "_id": "67876b3f278f19dcb1c73477",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקלוש, מה המצב? דכדכדגכד (2025-01-15)",
+          "createdAt": "2025-01-15T08:01:02.991Z",
+          "lastMessageTimestamp": "2025-01-15T08:01:02.991Z"
+        },
+        {
+          "_id": "67a22925f8ad75d8880945f5",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל! :)  (2025-02-04)",
+          "createdAt": "2025-02-04T14:50:12.846Z",
+          "lastMessageTimestamp": "2025-02-04T14:50:12.846Z"
+        },
+        {
+          "_id": "67a22a4972492a7cf6c1b100",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל! (2025-02-04)",
+          "createdAt": "2025-02-04T14:55:04.751Z",
+          "lastMessageTimestamp": "2025-02-04T14:55:04.751Z"
+        },
+        {
+          "_id": "67a22ac1e60916a0687f3d14",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש:) (2025-02-04)",
+          "createdAt": "2025-02-04T14:57:04.224Z",
+          "lastMessageTimestamp": "2025-02-04T14:57:04.224Z"
+        },
+        {
+          "_id": "67a22c5da8f169a060f0756b",
+          "userId": "orperets11@gmail.com",
+          "title": "היי (2025-02-04)",
+          "createdAt": "2025-02-04T15:03:56.584Z",
+          "lastMessageTimestamp": "2025-02-04T15:03:56.584Z"
+        },
+        {
+          "_id": "67a22f5ba8f169a060f0756e",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-02-04)",
+          "createdAt": "2025-02-04T15:16:42.658Z",
+          "lastMessageTimestamp": "2025-02-04T15:16:42.658Z"
+        },
+        {
+          "_id": "6807266057086ad3ceb18308",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, קשה לי להבין את השי (2025-04-22)",
+          "createdAt": "2025-04-22T05:17:19.686Z",
+          "lastMessageTimestamp": "2025-04-22T05:17:19.686Z"
+        },
+        {
+          "_id": "680726dc22fe6fb9e05b7512",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, איך אני יכול להפעיל (2025-04-22)",
+          "createdAt": "2025-04-22T05:19:23.190Z",
+          "lastMessageTimestamp": "2025-04-22T05:19:23.190Z"
+        },
+        {
+          "_id": "680727ad7b02160f9be5e4ea",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, בתרגול 2, אני לא מב (2025-04-22)",
+          "createdAt": "2025-04-22T05:22:52.990Z",
+          "lastMessageTimestamp": "2025-04-22T05:22:52.990Z"
+        },
+        {
+          "_id": "6824262e0d7b8a8ac8fed370",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-05-14)",
+          "createdAt": "2025-05-14T05:12:13.674Z",
+          "lastMessageTimestamp": "2025-05-14T05:12:13.674Z"
+        },
+        {
+          "_id": "682429398f4e64a5bb6dbe9e",
+          "userId": "orperets11@gmail.com",
+          "title": "חיכחיח (2025-05-14)",
+          "createdAt": "2025-05-14T05:25:12.744Z",
+          "lastMessageTimestamp": "2025-05-14T05:25:12.744Z"
+        },
+        {
+          "_id": "68242ee98f4e64a5bb6dbea9",
+          "userId": "orperets11@gmail.com",
+          "title": "הההה (2025-05-14)",
+          "createdAt": "2025-05-14T05:49:28.858Z",
+          "lastMessageTimestamp": "2025-05-14T05:49:28.858Z"
+        },
+        {
+          "_id": "683ae47fd838b0d81ed0f874",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-05-31)",
+          "createdAt": "2025-05-31T11:14:06.180Z",
+          "lastMessageTimestamp": "2025-05-31T11:14:06.180Z"
+        },
+        {
+          "_id": "683d3efa51e0583903514525",
+          "userId": "orperets11@gmail.com",
+          "title": "הייי מיקל :)\nמה נשמע? (2025-06-02)",
+          "createdAt": "2025-06-02T06:04:41.409Z",
+          "lastMessageTimestamp": "2025-06-02T06:04:41.409Z"
+        },
+        {
+          "_id": "683d4065668897e3f6b99d28",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל! בוקר טוב :)  (2025-06-02)",
+          "createdAt": "2025-06-02T06:10:44.299Z",
+          "lastMessageTimestamp": "2025-06-02T06:10:44.299Z"
+        },
+        {
+          "_id": "683db4efe3ed623bfe8fda4b",
+          "userId": "orperets11@gmail.com",
+          "title": "דדדדגדג (2025-06-02)",
+          "createdAt": "2025-06-02T14:27:58.695Z",
+          "lastMessageTimestamp": "2025-06-02T14:27:58.695Z"
+        },
+        {
+          "_id": "684170e3b0d5d35d65bde661",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :) מה אתה רואה בתמונ (2025-06-05)",
+          "createdAt": "2025-06-05T10:26:42.910Z",
+          "lastMessageTimestamp": "2025-06-05T10:26:42.910Z"
+        },
+        {
+          "_id": "684198e9f7be5d5318a57ed1",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :) מה יש בתמונה? (2025-06-05)",
+          "createdAt": "2025-06-05T13:17:28.404Z",
+          "lastMessageTimestamp": "2025-06-05T13:17:28.404Z"
+        },
+        {
+          "_id": "6841a05e99a8653e5d4a1805",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :) מה יש בתמונה ?  (2025-06-05)",
+          "createdAt": "2025-06-05T13:49:17.696Z",
+          "lastMessageTimestamp": "2025-06-05T13:49:17.696Z"
+        },
+        {
+          "_id": "6841a20f99a8653e5d4a1807",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, מה יש בתמונה? (2025-06-05)",
+          "createdAt": "2025-06-05T13:56:31.164Z",
+          "lastMessageTimestamp": "2025-06-05T13:56:31.164Z"
+        },
+        {
+          "_id": "6841a2f399a8653e5d4a1809",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל ,מה יש בתמונה ?  (2025-06-05)",
+          "createdAt": "2025-06-05T14:00:18.687Z",
+          "lastMessageTimestamp": "2025-06-05T14:00:18.687Z"
+        },
+        {
+          "_id": "6841a40399a8653e5d4a180b",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל , מה יש בתמונה ? (2025-06-05)",
+          "createdAt": "2025-06-05T14:04:50.204Z",
+          "lastMessageTimestamp": "2025-06-05T14:04:50.204Z"
+        },
+        {
+          "_id": "6841a75599a8653e5d4a180e",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :) מה יש בתמונה הזאת (2025-06-05)",
+          "createdAt": "2025-06-05T14:19:00.663Z",
+          "lastMessageTimestamp": "2025-06-05T14:19:00.663Z"
+        },
+        {
+          "_id": "6841aa1799a8653e5d4a1810",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, מה יש בתמונה? (2025-06-05)",
+          "createdAt": "2025-06-05T14:30:46.575Z",
+          "lastMessageTimestamp": "2025-06-05T14:30:46.575Z"
+        },
+        {
+          "_id": "6841abaf4e3f6d78d1319fca",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל ,מה יש בתמונה ? (2025-06-05)",
+          "createdAt": "2025-06-05T14:37:34.413Z",
+          "lastMessageTimestamp": "2025-06-05T14:37:34.413Z"
+        },
+        {
+          "_id": "6841acb7893d298d692813ad",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, מה יש בתמונה ? (2025-06-05)",
+          "createdAt": "2025-06-05T14:41:58.589Z",
+          "lastMessageTimestamp": "2025-06-05T14:41:58.589Z"
+        },
+        {
+          "_id": "6841bb2714e49d5a1a09a94f",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל ,מה יש בתמנה ? (2025-06-05)",
+          "createdAt": "2025-06-05T15:43:35.217Z",
+          "lastMessageTimestamp": "2025-06-05T15:43:35.217Z"
+        },
+        {
+          "_id": "6841d555ac416c874d8244d9",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :) מה אתה רואה בתמונ (2025-06-05)",
+          "createdAt": "2025-06-05T17:35:16.271Z",
+          "lastMessageTimestamp": "2025-06-05T17:35:16.271Z"
+        },
+        {
+          "_id": "684576a05a03727846d5de07",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :) מה יש בתמונה ?  (2025-06-08)",
+          "createdAt": "2025-06-08T11:40:15.967Z",
+          "lastMessageTimestamp": "2025-06-08T11:40:15.967Z"
+        },
+        {
+          "_id": "68484b56a9005f9b5a59b9c0",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, מה יש בתמונה? (2025-06-10)",
+          "createdAt": "2025-06-10T15:12:21.724Z",
+          "lastMessageTimestamp": "2025-06-10T15:12:21.724Z"
+        },
+        {
+          "_id": "68484c06a9005f9b5a59b9c3",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, מה יש בתמונה? (2025-06-10)",
+          "createdAt": "2025-06-10T15:15:17.218Z",
+          "lastMessageTimestamp": "2025-06-10T15:15:17.218Z"
+        },
+        {
+          "_id": "68484c2e010d3d632cf16334",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, מה יש בתמונה ? (2025-06-10)",
+          "createdAt": "2025-06-10T15:15:57.886Z",
+          "lastMessageTimestamp": "2025-06-10T15:15:57.886Z"
+        },
+        {
+          "_id": "68484ce21663c5a5b62734f7",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-06-10)",
+          "createdAt": "2025-06-10T15:18:57.320Z",
+          "lastMessageTimestamp": "2025-06-10T15:18:57.320Z"
+        },
+        {
+          "_id": "68484d151663c5a5b62734f9",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-06-10)",
+          "createdAt": "2025-06-10T15:19:48.176Z",
+          "lastMessageTimestamp": "2025-06-10T15:19:48.176Z"
+        },
+        {
+          "_id": "68484d491663c5a5b62734fa",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-06-10)",
+          "createdAt": "2025-06-10T15:20:40.584Z",
+          "lastMessageTimestamp": "2025-06-10T15:20:40.584Z"
+        },
+        {
+          "_id": "68485220d4b2db6578328f45",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מיקל :)  (2025-06-10)",
+          "createdAt": "2025-06-10T15:41:19.987Z",
+          "lastMessageTimestamp": "2025-06-10T15:41:19.987Z"
+        },
+        {
+          "_id": "68485253dd5c80b277b49bd7",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-06-10)",
+          "createdAt": "2025-06-10T15:42:10.950Z",
+          "lastMessageTimestamp": "2025-06-10T15:42:10.950Z"
+        },
+        {
+          "_id": "68485310dd5c80b277b49bd8",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל !  (2025-06-10)",
+          "createdAt": "2025-06-10T15:45:19.683Z",
+          "lastMessageTimestamp": "2025-06-10T15:45:19.683Z"
+        },
+        {
+          "_id": "68485394dd5c80b277b49bdc",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל  (2025-06-10)",
+          "createdAt": "2025-06-10T15:47:31.809Z",
+          "lastMessageTimestamp": "2025-06-10T15:47:31.809Z"
+        },
+        {
+          "_id": "6848544e2ea44116ae53e93a",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל! (2025-06-10)",
+          "createdAt": "2025-06-10T15:50:37.975Z",
+          "lastMessageTimestamp": "2025-06-10T15:50:37.975Z"
+        },
+        {
+          "_id": "684854772ea44116ae53e93d",
+          "userId": "orperets11@gmail.com",
+          "title": "הייי מייקל (2025-06-10)",
+          "createdAt": "2025-06-10T15:51:19.115Z",
+          "lastMessageTimestamp": "2025-06-10T15:51:19.115Z"
+        },
+        {
+          "_id": "684854db2ea44116ae53e93e",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-06-10)",
+          "createdAt": "2025-06-10T15:52:59.160Z",
+          "lastMessageTimestamp": "2025-06-10T15:52:59.160Z"
+        },
+        {
+          "_id": "684854fdd4b2db6578328f48",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-06-10)",
+          "createdAt": "2025-06-10T15:53:33.109Z",
+          "lastMessageTimestamp": "2025-06-10T15:53:33.109Z"
+        },
+        {
+          "_id": "684855712ea44116ae53e941",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל  (2025-06-10)",
+          "createdAt": "2025-06-10T15:55:28.443Z",
+          "lastMessageTimestamp": "2025-06-10T15:55:28.443Z"
+        },
+        {
+          "_id": "684917d0057d59ab080aa1d3",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-11)",
+          "createdAt": "2025-06-11T05:44:47.465Z",
+          "lastMessageTimestamp": "2025-06-11T05:44:47.465Z"
+        },
+        {
+          "_id": "68491d042af3aa592f2a14b8",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-06-11)",
+          "createdAt": "2025-06-11T06:06:59.304Z",
+          "lastMessageTimestamp": "2025-06-11T06:06:59.304Z"
+        },
+        {
+          "_id": "684956641452b2b274edb2a7",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל !  (2025-06-11)",
+          "createdAt": "2025-06-11T10:11:47.496Z",
+          "lastMessageTimestamp": "2025-06-11T10:11:47.496Z"
+        },
+        {
+          "_id": "684963ea24d11f9628ae1840",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-06-11)",
+          "createdAt": "2025-06-11T11:09:30.124Z",
+          "lastMessageTimestamp": "2025-06-11T11:09:30.124Z"
+        },
+        {
+          "_id": "6849803887b94c1dc42eb2f0",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-06-11)",
+          "createdAt": "2025-06-11T13:10:15.816Z",
+          "lastMessageTimestamp": "2025-06-11T13:10:15.816Z"
+        },
+        {
+          "_id": "684981be87b94c1dc42eb2f3",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-11)",
+          "createdAt": "2025-06-11T13:16:45.495Z",
+          "lastMessageTimestamp": "2025-06-11T13:16:45.495Z"
+        },
+        {
+          "_id": "684983b7ca5574c4b9e33cc1",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-11)",
+          "createdAt": "2025-06-11T13:25:11.061Z",
+          "lastMessageTimestamp": "2025-06-11T13:25:11.061Z"
+        },
+        {
+          "_id": "684984c587b94c1dc42eb2f6",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-11)",
+          "createdAt": "2025-06-11T13:29:40.809Z",
+          "lastMessageTimestamp": "2025-06-11T13:29:40.809Z"
+        },
+        {
+          "_id": "684992208b7b5e124771c5d1",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקללל (2025-06-11)",
+          "createdAt": "2025-06-11T14:26:39.960Z",
+          "lastMessageTimestamp": "2025-06-11T14:26:39.960Z"
+        },
+        {
+          "_id": "6849969f34f85de4c5686b9f",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-11)",
+          "createdAt": "2025-06-11T14:45:51.097Z",
+          "lastMessageTimestamp": "2025-06-11T14:45:51.097Z"
+        },
+        {
+          "_id": "684998917b09fc0bf2a2f7b5",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-11)",
+          "createdAt": "2025-06-11T14:54:08.545Z",
+          "lastMessageTimestamp": "2025-06-11T14:54:08.545Z"
+        },
+        {
+          "_id": "68499acc85f13943cc720acb",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-11)",
+          "createdAt": "2025-06-11T15:03:39.664Z",
+          "lastMessageTimestamp": "2025-06-11T15:03:39.664Z"
+        },
+        {
+          "_id": "68499c0e85f13943cc720ace",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-06-11)",
+          "createdAt": "2025-06-11T15:09:01.373Z",
+          "lastMessageTimestamp": "2025-06-11T15:09:01.373Z"
+        },
+        {
+          "_id": "68499d1fef191372dbb95671",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-11)",
+          "createdAt": "2025-06-11T15:13:34.959Z",
+          "lastMessageTimestamp": "2025-06-11T15:13:34.959Z"
+        },
+        {
+          "_id": "68499f28e3c16d03899655f7",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-11)",
+          "createdAt": "2025-06-11T15:22:15.992Z",
+          "lastMessageTimestamp": "2025-06-11T15:22:15.992Z"
+        },
+        {
+          "_id": "68499f78e3c16d03899655fa",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-11)",
+          "createdAt": "2025-06-11T15:23:35.405Z",
+          "lastMessageTimestamp": "2025-06-11T15:23:35.405Z"
+        },
+        {
+          "_id": "6849a08c85f13943cc720acf",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל ! :)  (2025-06-11)",
+          "createdAt": "2025-06-11T15:28:11.902Z",
+          "lastMessageTimestamp": "2025-06-11T15:28:11.902Z"
+        },
+        {
+          "_id": "6849a9b699a90d8ecf4e1197",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-11)",
+          "createdAt": "2025-06-11T16:07:17.726Z",
+          "lastMessageTimestamp": "2025-06-11T16:07:17.726Z"
+        },
+        {
+          "_id": "6849a9cb08a52178314b835e",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-11)",
+          "createdAt": "2025-06-11T16:07:38.583Z",
+          "lastMessageTimestamp": "2025-06-11T16:07:38.583Z"
+        },
+        {
+          "_id": "6849a9eb08a52178314b835f",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-11)",
+          "createdAt": "2025-06-11T16:08:10.430Z",
+          "lastMessageTimestamp": "2025-06-11T16:08:10.430Z"
+        },
+        {
+          "_id": "6849aaf299a90d8ecf4e119c",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-11)",
+          "createdAt": "2025-06-11T16:12:33.820Z",
+          "lastMessageTimestamp": "2025-06-11T16:12:33.820Z"
+        },
+        {
+          "_id": "6849ab1299a90d8ecf4e119d",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-11)",
+          "createdAt": "2025-06-11T16:13:05.393Z",
+          "lastMessageTimestamp": "2025-06-11T16:13:05.393Z"
+        },
+        {
+          "_id": "6849ab4213d8c47098f775ea",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-06-11)",
+          "createdAt": "2025-06-11T16:13:53.976Z",
+          "lastMessageTimestamp": "2025-06-11T16:13:53.976Z"
+        },
+        {
+          "_id": "6849ac3499a90d8ecf4e11a2",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-11)",
+          "createdAt": "2025-06-11T16:17:55.332Z",
+          "lastMessageTimestamp": "2025-06-11T16:17:55.332Z"
+        },
+        {
+          "_id": "6849adbd99a90d8ecf4e11a5",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל! ערב טוב (2025-06-11)",
+          "createdAt": "2025-06-11T16:24:29.075Z",
+          "lastMessageTimestamp": "2025-06-11T16:24:29.075Z"
+        },
+        {
+          "_id": "6849addb08a52178314b8364",
+          "userId": "orperets11@gmail.com",
+          "title": "היי (2025-06-11)",
+          "createdAt": "2025-06-11T16:24:59.040Z",
+          "lastMessageTimestamp": "2025-06-11T16:24:59.040Z"
+        },
+        {
+          "_id": "6849aeeb99a90d8ecf4e11a8",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-11)",
+          "createdAt": "2025-06-11T16:29:31.159Z",
+          "lastMessageTimestamp": "2025-06-11T16:29:31.159Z"
+        },
+        {
+          "_id": "6849af0fbde2ed6698ce1f22",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-11)",
+          "createdAt": "2025-06-11T16:30:06.858Z",
+          "lastMessageTimestamp": "2025-06-11T16:30:06.858Z"
+        },
+        {
+          "_id": "6849af9499a90d8ecf4e11ab",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-11)",
+          "createdAt": "2025-06-11T16:32:20.158Z",
+          "lastMessageTimestamp": "2025-06-11T16:32:20.158Z"
+        },
+        {
+          "_id": "6849afdebde2ed6698ce1f25",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-11)",
+          "createdAt": "2025-06-11T16:33:33.877Z",
+          "lastMessageTimestamp": "2025-06-11T16:33:33.877Z"
+        },
+        {
+          "_id": "6849b00708a52178314b8367",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-11)",
+          "createdAt": "2025-06-11T16:34:14.607Z",
+          "lastMessageTimestamp": "2025-06-11T16:34:14.607Z"
+        },
+        {
+          "_id": "6849b03dbde2ed6698ce1f26",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-11)",
+          "createdAt": "2025-06-11T16:35:08.194Z",
+          "lastMessageTimestamp": "2025-06-11T16:35:08.194Z"
+        },
+        {
+          "_id": "6849b07b08a52178314b8369",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-11)",
+          "createdAt": "2025-06-11T16:36:10.772Z",
+          "lastMessageTimestamp": "2025-06-11T16:36:10.772Z"
+        },
+        {
+          "_id": "6849b0f6bde2ed6698ce1f28",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-11)",
+          "createdAt": "2025-06-11T16:38:13.190Z",
+          "lastMessageTimestamp": "2025-06-11T16:38:13.190Z"
+        },
+        {
+          "_id": "684a78f06b95c8dd15a6a478",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :) (2025-06-12)",
+          "createdAt": "2025-06-12T06:51:27.562Z",
+          "lastMessageTimestamp": "2025-06-12T06:51:27.562Z"
+        },
+        {
+          "_id": "684a7adc6b95c8dd15a6a47a",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :)  (2025-06-12)",
+          "createdAt": "2025-06-12T06:59:39.556Z",
+          "lastMessageTimestamp": "2025-06-12T06:59:39.556Z"
+        },
+        {
+          "_id": "684a7bbbdc12d9548f1b2ebf",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-12)",
+          "createdAt": "2025-06-12T07:03:23.058Z",
+          "lastMessageTimestamp": "2025-06-12T07:03:23.058Z"
+        },
+        {
+          "_id": "684a7ee3ff058d014e04a71e",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-12)",
+          "createdAt": "2025-06-12T07:16:50.469Z",
+          "lastMessageTimestamp": "2025-06-12T07:16:50.469Z"
+        },
+        {
+          "_id": "684a94ec2f02a032d72cdc94",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק (2025-06-12)",
+          "createdAt": "2025-06-12T08:50:51.781Z",
+          "lastMessageTimestamp": "2025-06-12T08:50:51.781Z"
+        },
+        {
+          "_id": "684a9643e5b1771015e1ae90",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-12)",
+          "createdAt": "2025-06-12T08:56:34.414Z",
+          "lastMessageTimestamp": "2025-06-12T08:56:34.414Z"
+        },
+        {
+          "_id": "684aa9858ba410c00160e829",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מיי׳וש (2025-06-12)",
+          "createdAt": "2025-06-12T10:18:45.043Z",
+          "lastMessageTimestamp": "2025-06-12T10:18:45.043Z"
+        },
+        {
+          "_id": "684aaad58ba410c00160e82b",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-12)",
+          "createdAt": "2025-06-12T10:24:20.345Z",
+          "lastMessageTimestamp": "2025-06-12T10:24:20.345Z"
+        },
+        {
+          "_id": "684aabe40193fa78372cc188",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל !  (2025-06-12)",
+          "createdAt": "2025-06-12T10:28:51.220Z",
+          "lastMessageTimestamp": "2025-06-12T10:28:51.220Z"
+        },
+        {
+          "_id": "684aacad8ba410c00160e82d",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-06-12)",
+          "createdAt": "2025-06-12T10:32:12.505Z",
+          "lastMessageTimestamp": "2025-06-12T10:32:12.505Z"
+        },
+        {
+          "_id": "684aacbf3d66536ceb8761c5",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק (2025-06-12)",
+          "createdAt": "2025-06-12T10:32:30.766Z",
+          "lastMessageTimestamp": "2025-06-12T10:32:30.766Z"
+        },
+        {
+          "_id": "684aacdc0193fa78372cc18a",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל  (2025-06-12)",
+          "createdAt": "2025-06-12T10:32:59.596Z",
+          "lastMessageTimestamp": "2025-06-12T10:32:59.596Z"
+        },
+        {
+          "_id": "684aad6f0193fa78372cc18c",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק (2025-06-12)",
+          "createdAt": "2025-06-12T10:35:26.231Z",
+          "lastMessageTimestamp": "2025-06-12T10:35:26.231Z"
+        },
+        {
+          "_id": "684aadf1099eaf9f32014767",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק (2025-06-12)",
+          "createdAt": "2025-06-12T10:37:37.037Z",
+          "lastMessageTimestamp": "2025-06-12T10:37:37.037Z"
+        },
+        {
+          "_id": "684ad571147060482b97b2af",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-12)",
+          "createdAt": "2025-06-12T13:26:08.911Z",
+          "lastMessageTimestamp": "2025-06-12T13:26:08.911Z"
+        },
+        {
+          "_id": "684ad5fbf099f347ae2d537e",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק (2025-06-12)",
+          "createdAt": "2025-06-12T13:28:26.310Z",
+          "lastMessageTimestamp": "2025-06-12T13:28:26.310Z"
+        },
+        {
+          "_id": "684ad619147060482b97b2b1",
+          "userId": "orperets11@gmail.com",
+          "title": "הייי מייקוש (2025-06-12)",
+          "createdAt": "2025-06-12T13:28:56.821Z",
+          "lastMessageTimestamp": "2025-06-12T13:28:56.821Z"
+        },
+        {
+          "_id": "684ad644147060482b97b2b2",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-12)",
+          "createdAt": "2025-06-12T13:29:39.270Z",
+          "lastMessageTimestamp": "2025-06-12T13:29:39.270Z"
+        },
+        {
+          "_id": "684ad673f099f347ae2d5380",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק (2025-06-12)",
+          "createdAt": "2025-06-12T13:30:26.531Z",
+          "lastMessageTimestamp": "2025-06-12T13:30:26.531Z"
+        },
+        {
+          "_id": "684ad7edf099f347ae2d5382",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק (2025-06-12)",
+          "createdAt": "2025-06-12T13:36:45.022Z",
+          "lastMessageTimestamp": "2025-06-12T13:36:45.022Z"
+        },
+        {
+          "_id": "684ad93d497a54a29acb98af",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מיי׳קל (2025-06-12)",
+          "createdAt": "2025-06-12T13:42:20.487Z",
+          "lastMessageTimestamp": "2025-06-12T13:42:20.487Z"
+        },
+        {
+          "_id": "684ad9c1f099f347ae2d5384",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-12)",
+          "createdAt": "2025-06-12T13:44:32.486Z",
+          "lastMessageTimestamp": "2025-06-12T13:44:32.486Z"
+        },
+        {
+          "_id": "684ad9ddf099f347ae2d5386",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש  (2025-06-12)",
+          "createdAt": "2025-06-12T13:45:00.292Z",
+          "lastMessageTimestamp": "2025-06-12T13:45:00.292Z"
+        },
+        {
+          "_id": "684adabf497a54a29acb98b1",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-12)",
+          "createdAt": "2025-06-12T13:48:47.094Z",
+          "lastMessageTimestamp": "2025-06-12T13:48:47.094Z"
+        },
+        {
+          "_id": "684ae04bc9d263188ec70bec",
+          "userId": "orperets11@gmail.com",
+          "title": "vיי מייקל (2025-06-12)",
+          "createdAt": "2025-06-12T14:12:26.358Z",
+          "lastMessageTimestamp": "2025-06-12T14:12:26.358Z"
+        },
+        {
+          "_id": "684ae5e305489096d7ffd63f",
+          "userId": "orperets11@gmail.com",
+          "title": "vיי מייק (2025-06-12)",
+          "createdAt": "2025-06-12T14:36:18.375Z",
+          "lastMessageTimestamp": "2025-06-12T14:36:18.375Z"
+        },
+        {
+          "_id": "684aec42fa1dd3ac9d45a914",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-12)",
+          "createdAt": "2025-06-12T15:03:30.126Z",
+          "lastMessageTimestamp": "2025-06-12T15:03:30.126Z"
+        },
+        {
+          "_id": "684be6e5c46600b1f3e5a6b5",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-13)",
+          "createdAt": "2025-06-13T08:52:53.078Z",
+          "lastMessageTimestamp": "2025-06-13T08:52:53.078Z"
+        },
+        {
+          "_id": "684e661dce8cef8377b6b2ab",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-06-15)",
+          "createdAt": "2025-06-15T06:20:12.916Z",
+          "lastMessageTimestamp": "2025-06-15T06:20:12.916Z"
+        },
+        {
+          "_id": "684e66cd5b25d25c4efccc06",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-15)",
+          "createdAt": "2025-06-15T06:23:08.214Z",
+          "lastMessageTimestamp": "2025-06-15T06:23:08.214Z"
+        },
+        {
+          "_id": "684e675327ce07be39d90962",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-15)",
+          "createdAt": "2025-06-15T06:25:23.105Z",
+          "lastMessageTimestamp": "2025-06-15T06:25:23.105Z"
+        },
+        {
+          "_id": "684e6e1703f63d794d9af9e1",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש!  (2025-06-15)",
+          "createdAt": "2025-06-15T06:54:14.752Z",
+          "lastMessageTimestamp": "2025-06-15T06:54:14.752Z"
+        },
+        {
+          "_id": "684e7445cddc06966fa37839",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-15)",
+          "createdAt": "2025-06-15T07:20:36.245Z",
+          "lastMessageTimestamp": "2025-06-15T07:20:36.245Z"
+        },
+        {
+          "_id": "684e92f06f4c6a67f816725e",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-15)",
+          "createdAt": "2025-06-15T09:31:28.129Z",
+          "lastMessageTimestamp": "2025-06-15T09:31:28.129Z"
+        },
+        {
+          "_id": "684e9392c5362af5cb44a26c",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש! (2025-06-15)",
+          "createdAt": "2025-06-15T09:34:09.780Z",
+          "lastMessageTimestamp": "2025-06-15T09:34:09.780Z"
+        },
+        {
+          "_id": "684e94376f4c6a67f8167263",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מיי׳וש (2025-06-15)",
+          "createdAt": "2025-06-15T09:36:55.081Z",
+          "lastMessageTimestamp": "2025-06-15T09:36:55.081Z"
+        },
+        {
+          "_id": "684e946ec5362af5cb44a26d",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-15)",
+          "createdAt": "2025-06-15T09:37:49.854Z",
+          "lastMessageTimestamp": "2025-06-15T09:37:49.854Z"
+        },
+        {
+          "_id": "684e94ea726145f304369165",
+          "userId": "orperets11@gmail.com",
+          "title": "היי! (2025-06-15)",
+          "createdAt": "2025-06-15T09:39:53.895Z",
+          "lastMessageTimestamp": "2025-06-15T09:39:53.895Z"
+        },
+        {
+          "_id": "684fce19c8e480b1c28789d8",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-16)",
+          "createdAt": "2025-06-16T07:56:08.560Z",
+          "lastMessageTimestamp": "2025-06-16T07:56:08.560Z"
+        },
+        {
+          "_id": "684fcf53032450477c974223",
+          "userId": "orperets11@gmail.com",
+          "title": "היי ! (2025-06-16)",
+          "createdAt": "2025-06-16T08:01:22.216Z",
+          "lastMessageTimestamp": "2025-06-16T08:01:22.216Z"
+        },
+        {
+          "_id": "68500df7c68e9c38ff718e26",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק (2025-06-16)",
+          "createdAt": "2025-06-16T12:28:38.650Z",
+          "lastMessageTimestamp": "2025-06-16T12:28:38.650Z"
+        },
+        {
+          "_id": "68500e8fc68e9c38ff718e32",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-16)",
+          "createdAt": "2025-06-16T12:31:10.395Z",
+          "lastMessageTimestamp": "2025-06-16T12:31:10.395Z"
+        },
+        {
+          "_id": "6850104d303a317d25e6b29e",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :)  (2025-06-16)",
+          "createdAt": "2025-06-16T12:38:36.193Z",
+          "lastMessageTimestamp": "2025-06-16T12:38:36.193Z"
+        },
+        {
+          "_id": "6850105c61b655f56492481a",
+          "userId": "orperets11@gmail.com",
+          "title": "היי!  (2025-06-16)",
+          "createdAt": "2025-06-16T12:38:51.598Z",
+          "lastMessageTimestamp": "2025-06-16T12:38:51.598Z"
+        },
+        {
+          "_id": "685010e2303a317d25e6b29f",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-16)",
+          "createdAt": "2025-06-16T12:41:06.048Z",
+          "lastMessageTimestamp": "2025-06-16T12:41:06.048Z"
+        },
+        {
+          "_id": "68501162c68e9c38ff718e37",
+          "userId": "orperets11@gmail.com",
+          "title": "היי! (2025-06-16)",
+          "createdAt": "2025-06-16T12:43:13.473Z",
+          "lastMessageTimestamp": "2025-06-16T12:43:13.473Z"
+        },
+        {
+          "_id": "68501170c68e9c38ff718e3a",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק (2025-06-16)",
+          "createdAt": "2025-06-16T12:43:27.777Z",
+          "lastMessageTimestamp": "2025-06-16T12:43:27.777Z"
+        },
+        {
+          "_id": "6850119c303a317d25e6b2a1",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק :)  (2025-06-16)",
+          "createdAt": "2025-06-16T12:44:11.194Z",
+          "lastMessageTimestamp": "2025-06-16T12:44:11.194Z"
+        },
+        {
+          "_id": "685011f361b655f56492481d",
+          "userId": "orperets11@gmail.com",
+          "title": "היי! (2025-06-16)",
+          "createdAt": "2025-06-16T12:45:38.558Z",
+          "lastMessageTimestamp": "2025-06-16T12:45:38.558Z"
+        },
+        {
+          "_id": "68501277303a317d25e6b2a2",
+          "userId": "orperets11@gmail.com",
+          "title": "היי! (2025-06-16)",
+          "createdAt": "2025-06-16T12:47:51.132Z",
+          "lastMessageTimestamp": "2025-06-16T12:47:51.132Z"
+        },
+        {
+          "_id": "685013f6c68e9c38ff718e3f",
+          "userId": "orperets11@gmail.com",
+          "title": "היי! (2025-06-16)",
+          "createdAt": "2025-06-16T12:54:13.646Z",
+          "lastMessageTimestamp": "2025-06-16T12:54:13.646Z"
+        },
+        {
+          "_id": "68501447c68e9c38ff718e42",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-16)",
+          "createdAt": "2025-06-16T12:55:34.267Z",
+          "lastMessageTimestamp": "2025-06-16T12:55:34.267Z"
+        },
+        {
+          "_id": "685015c9c68e9c38ff718e45",
+          "userId": "orperets11@gmail.com",
+          "title": "היי (2025-06-16)",
+          "createdAt": "2025-06-16T13:02:00.705Z",
+          "lastMessageTimestamp": "2025-06-16T13:02:00.705Z"
+        },
+        {
+          "_id": "685016488b72a5870e1ab795",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-16)",
+          "createdAt": "2025-06-16T13:04:07.023Z",
+          "lastMessageTimestamp": "2025-06-16T13:04:07.023Z"
+        },
+        {
+          "_id": "685016668b72a5870e1ab796",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק  (2025-06-16)",
+          "createdAt": "2025-06-16T13:04:37.534Z",
+          "lastMessageTimestamp": "2025-06-16T13:04:37.534Z"
+        },
+        {
+          "_id": "6850172a7e2a4e9db44be2bc",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-16)",
+          "createdAt": "2025-06-16T13:07:53.810Z",
+          "lastMessageTimestamp": "2025-06-16T13:07:53.810Z"
+        },
+        {
+          "_id": "6850181f7e2a4e9db44be2bf",
+          "userId": "orperets11@gmail.com",
+          "title": "היי! (2025-06-16)",
+          "createdAt": "2025-06-16T13:11:58.363Z",
+          "lastMessageTimestamp": "2025-06-16T13:11:58.363Z"
+        },
+        {
+          "_id": "6852742191e5e4d922bb9404",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק (2025-06-18)",
+          "createdAt": "2025-06-18T08:09:04.816Z",
+          "lastMessageTimestamp": "2025-06-18T08:09:04.816Z"
+        },
+        {
+          "_id": "685275d03bcd2d771028bfe5",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-18)",
+          "createdAt": "2025-06-18T08:16:15.840Z",
+          "lastMessageTimestamp": "2025-06-18T08:16:15.840Z"
+        },
+        {
+          "_id": "685276db3bcd2d771028bff6",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקק (2025-06-18)",
+          "createdAt": "2025-06-18T08:20:42.633Z",
+          "lastMessageTimestamp": "2025-06-18T08:20:42.633Z"
+        },
+        {
+          "_id": "685277be82c2e90bda7a1538",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש:)  (2025-06-18)",
+          "createdAt": "2025-06-18T08:24:30.051Z",
+          "lastMessageTimestamp": "2025-06-18T08:24:30.051Z"
+        },
+        {
+          "_id": "68527863a26199a39008e60a",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-18)",
+          "createdAt": "2025-06-18T08:27:14.337Z",
+          "lastMessageTimestamp": "2025-06-18T08:27:14.337Z"
+        },
+        {
+          "_id": "6852799e457aa19f2171d06c",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקק  (2025-06-18)",
+          "createdAt": "2025-06-18T08:32:29.953Z",
+          "lastMessageTimestamp": "2025-06-18T08:32:29.953Z"
+        },
+        {
+          "_id": "685279bd82c2e90bda7a1541",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק :)  (2025-06-18)",
+          "createdAt": "2025-06-18T08:33:00.852Z",
+          "lastMessageTimestamp": "2025-06-18T08:33:00.852Z"
+        },
+        {
+          "_id": "68527a74457aa19f2171d071",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקושש (2025-06-18)",
+          "createdAt": "2025-06-18T08:36:03.544Z",
+          "lastMessageTimestamp": "2025-06-18T08:36:03.544Z"
+        },
+        {
+          "_id": "68527a8631a0962be878b46c",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-18)",
+          "createdAt": "2025-06-18T08:36:21.268Z",
+          "lastMessageTimestamp": "2025-06-18T08:36:21.268Z"
+        },
+        {
+          "_id": "68527cea8c4a59a168940802",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מיי׳וש (2025-06-18)",
+          "createdAt": "2025-06-18T08:46:34.003Z",
+          "lastMessageTimestamp": "2025-06-18T08:46:34.003Z"
+        },
+        {
+          "_id": "68527daf82c2e90bda7a155f",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש! :)  (2025-06-18)",
+          "createdAt": "2025-06-18T08:49:50.934Z",
+          "lastMessageTimestamp": "2025-06-18T08:49:50.934Z"
+        },
+        {
+          "_id": "68527e8c82c2e90bda7a1569",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-18)",
+          "createdAt": "2025-06-18T08:53:31.530Z",
+          "lastMessageTimestamp": "2025-06-18T08:53:31.530Z"
+        },
+        {
+          "_id": "68527f6f82c2e90bda7a156c",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש  (2025-06-18)",
+          "createdAt": "2025-06-18T08:57:18.572Z",
+          "lastMessageTimestamp": "2025-06-18T08:57:18.572Z"
+        },
+        {
+          "_id": "6852811840624c9dd2505933",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-18)",
+          "createdAt": "2025-06-18T09:04:23.472Z",
+          "lastMessageTimestamp": "2025-06-18T09:04:23.472Z"
+        },
+        {
+          "_id": "6852813e40624c9dd2505936",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק  (2025-06-18)",
+          "createdAt": "2025-06-18T09:05:01.643Z",
+          "lastMessageTimestamp": "2025-06-18T09:05:01.643Z"
+        },
+        {
+          "_id": "6852834d7b32a11c82d33d98",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק (2025-06-18)",
+          "createdAt": "2025-06-18T09:13:49.070Z",
+          "lastMessageTimestamp": "2025-06-18T09:13:49.070Z"
+        },
+        {
+          "_id": "6852837340624c9dd250593b",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק (2025-06-18)",
+          "createdAt": "2025-06-18T09:14:26.426Z",
+          "lastMessageTimestamp": "2025-06-18T09:14:26.426Z"
+        },
+        {
+          "_id": "6852866b02275dadc0a20a2a",
+          "userId": "orperets11@gmail.com",
+          "title": "היייי (2025-06-18)",
+          "createdAt": "2025-06-18T09:27:06.374Z",
+          "lastMessageTimestamp": "2025-06-18T09:27:06.374Z"
+        },
+        {
+          "_id": "6852869502275dadc0a20a2b",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק מייק (2025-06-18)",
+          "createdAt": "2025-06-18T09:27:48.365Z",
+          "lastMessageTimestamp": "2025-06-18T09:27:48.365Z"
+        },
+        {
+          "_id": "685286b532a1fa3378248820",
+          "userId": "orperets11@gmail.com",
+          "title": "היייי (2025-06-18)",
+          "createdAt": "2025-06-18T09:28:20.145Z",
+          "lastMessageTimestamp": "2025-06-18T09:28:20.145Z"
+        },
+        {
+          "_id": "68529113287169a48d6242eb",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :)  (2025-06-18)",
+          "createdAt": "2025-06-18T10:12:34.578Z",
+          "lastMessageTimestamp": "2025-06-18T10:12:34.578Z"
+        },
+        {
+          "_id": "6852932402f6105473ca581e",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקק (2025-06-18)",
+          "createdAt": "2025-06-18T10:21:23.324Z",
+          "lastMessageTimestamp": "2025-06-18T10:21:23.324Z"
+        },
+        {
+          "_id": "68529e1da4a3cb81f5593204",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :)  (2025-06-18)",
+          "createdAt": "2025-06-18T11:08:12.457Z",
+          "lastMessageTimestamp": "2025-06-18T11:08:12.457Z"
+        },
+        {
+          "_id": "68529f14a4a3cb81f559320e",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-18)",
+          "createdAt": "2025-06-18T11:12:20.072Z",
+          "lastMessageTimestamp": "2025-06-18T11:12:20.072Z"
+        },
+        {
+          "_id": "6852a3479f67c481f1acf745",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-18)",
+          "createdAt": "2025-06-18T11:30:14.897Z",
+          "lastMessageTimestamp": "2025-06-18T11:30:14.897Z"
+        },
+        {
+          "_id": "6852a42417301b4c5fe11422",
+          "userId": "orperets11@gmail.com",
+          "title": "הייי (2025-06-18)",
+          "createdAt": "2025-06-18T11:33:55.190Z",
+          "lastMessageTimestamp": "2025-06-18T11:33:55.190Z"
+        },
+        {
+          "_id": "6852b1bd50362aa0f4546162",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-18)",
+          "createdAt": "2025-06-18T12:31:56.621Z",
+          "lastMessageTimestamp": "2025-06-18T12:31:56.621Z"
+        },
+        {
+          "_id": "6852b64dea883bf3504e669a",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מיייקק (2025-06-18)",
+          "createdAt": "2025-06-18T12:51:24.366Z",
+          "lastMessageTimestamp": "2025-06-18T12:51:24.366Z"
+        },
+        {
+          "_id": "6853d6902b80ed62cc9202bb",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקושש! מה קורה?  (2025-06-19)",
+          "createdAt": "2025-06-19T09:21:19.373Z",
+          "lastMessageTimestamp": "2025-06-19T09:21:19.373Z"
+        },
+        {
+          "_id": "685422e62ee30ed59490b7e0",
+          "userId": "orperets11@gmail.com",
+          "title": "vhh nhhek (2025-06-19)",
+          "createdAt": "2025-06-19T14:47:01.328Z",
+          "lastMessageTimestamp": "2025-06-19T14:47:01.328Z"
+        },
+        {
+          "_id": "68542668fb93a08ce8556702",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :)  (2025-06-19)",
+          "createdAt": "2025-06-19T15:01:59.948Z",
+          "lastMessageTimestamp": "2025-06-19T15:01:59.948Z"
+        },
+        {
+          "_id": "6854279030cee38332ab3bc4",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-06-19)",
+          "createdAt": "2025-06-19T15:06:56.115Z",
+          "lastMessageTimestamp": "2025-06-19T15:06:56.115Z"
+        },
+        {
+          "_id": "68542825d3855a84643c31d4",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקי (2025-06-19)",
+          "createdAt": "2025-06-19T15:09:24.273Z",
+          "lastMessageTimestamp": "2025-06-19T15:09:24.273Z"
+        },
+        {
+          "_id": "68542969501111e32368f855",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק (2025-06-19)",
+          "createdAt": "2025-06-19T15:14:48.298Z",
+          "lastMessageTimestamp": "2025-06-19T15:14:48.298Z"
+        },
+        {
+          "_id": "68542a7e501111e32368f858",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש  (2025-06-19)",
+          "createdAt": "2025-06-19T15:19:25.401Z",
+          "lastMessageTimestamp": "2025-06-19T15:19:25.401Z"
+        },
+        {
+          "_id": "68542bc0ff74125814a20124",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק (2025-06-19)",
+          "createdAt": "2025-06-19T15:24:47.967Z",
+          "lastMessageTimestamp": "2025-06-19T15:24:47.967Z"
+        },
+        {
+          "_id": "685964ade507d4f384082aac",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :)  (2025-06-23)",
+          "createdAt": "2025-06-23T14:29:00.972Z",
+          "lastMessageTimestamp": "2025-06-23T14:29:00.972Z"
+        },
+        {
+          "_id": "685966dd183852364abb835a",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :)  (2025-06-23)",
+          "createdAt": "2025-06-23T14:38:20.587Z",
+          "lastMessageTimestamp": "2025-06-23T14:38:20.587Z"
+        },
+        {
+          "_id": "6859671b183852364abb835d",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :)  (2025-06-23)",
+          "createdAt": "2025-06-23T14:39:23.048Z",
+          "lastMessageTimestamp": "2025-06-23T14:39:23.048Z"
+        },
+        {
+          "_id": "68596a65e70757c7b900b86c",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :)  (2025-06-23)",
+          "createdAt": "2025-06-23T14:53:24.193Z",
+          "lastMessageTimestamp": "2025-06-23T14:53:24.193Z"
+        },
+        {
+          "_id": "68596d111480009b1a9ec3d8",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :)  (2025-06-23)",
+          "createdAt": "2025-06-23T15:04:48.494Z",
+          "lastMessageTimestamp": "2025-06-23T15:04:48.494Z"
+        },
+        {
+          "_id": "68596d451480009b1a9ec3db",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוששש (2025-06-23)",
+          "createdAt": "2025-06-23T15:05:40.738Z",
+          "lastMessageTimestamp": "2025-06-23T15:05:40.738Z"
+        },
+        {
+          "_id": "68596e92f60f42bb28254463",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקושש (2025-06-23)",
+          "createdAt": "2025-06-23T15:11:13.780Z",
+          "lastMessageTimestamp": "2025-06-23T15:11:13.780Z"
+        },
+        {
+          "_id": "685970684d76a899300c2173",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :) מה נשמע? מה שלומ (2025-06-23)",
+          "createdAt": "2025-06-23T15:19:03.208Z",
+          "lastMessageTimestamp": "2025-06-23T15:19:03.208Z"
+        },
+        {
+          "_id": "688f700a731a1cbda53335ef",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :)  (2025-08-03)",
+          "createdAt": "2025-08-03T14:19:54.874Z",
+          "lastMessageTimestamp": "2025-08-03T14:19:54.874Z"
+        },
+        {
+          "_id": "68a5ba4cad8a5c48d1ee3f51",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-08-20)",
+          "createdAt": "2025-08-20T12:06:36.691Z",
+          "lastMessageTimestamp": "2025-08-20T12:06:36.691Z"
+        },
+        {
+          "_id": "68a5beac2da5f11b9d3bff65",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש! :)  (2025-08-20)",
+          "createdAt": "2025-08-20T12:25:16.331Z",
+          "lastMessageTimestamp": "2025-08-20T12:25:16.331Z"
+        },
+        {
+          "_id": "68a5c01efe2abd9011ec00e2",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :)  (2025-08-20)",
+          "createdAt": "2025-08-20T12:31:25.883Z",
+          "lastMessageTimestamp": "2025-08-20T12:31:25.883Z"
+        },
+        {
+          "_id": "68a5c15f1609cf8b4712358f",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוששש (2025-08-20)",
+          "createdAt": "2025-08-20T12:36:47.845Z",
+          "lastMessageTimestamp": "2025-08-20T12:36:47.845Z"
+        },
+        {
+          "_id": "68a5c2711609cf8b47123590",
+          "userId": "orperets11@gmail.com",
+          "title": "הייי מייקוש (2025-08-20)",
+          "createdAt": "2025-08-20T12:41:21.693Z",
+          "lastMessageTimestamp": "2025-08-20T12:41:21.693Z"
+        },
+        {
+          "_id": "68a5c2d9b2a5915c8cba8810",
+          "userId": "orperets11@gmail.com",
+          "title": "הייי מייקוש (2025-08-20)",
+          "createdAt": "2025-08-20T12:43:05.818Z",
+          "lastMessageTimestamp": "2025-08-20T12:43:05.818Z"
+        },
+        {
+          "_id": "68a5c84a946f9b5b824e3ba4",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש! (2025-08-20)",
+          "createdAt": "2025-08-20T13:06:18.287Z",
+          "lastMessageTimestamp": "2025-08-20T13:06:18.287Z"
+        },
+        {
+          "_id": "68a5c9b66d3806113373f168",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :)  (2025-08-20)",
+          "createdAt": "2025-08-20T13:12:21.967Z",
+          "lastMessageTimestamp": "2025-08-20T13:12:21.967Z"
+        },
+        {
+          "_id": "68a5ca4ffebfe2a024069733",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקושששש :)  (2025-08-20)",
+          "createdAt": "2025-08-20T13:14:55.691Z",
+          "lastMessageTimestamp": "2025-08-20T13:14:55.691Z"
+        },
+        {
+          "_id": "68a5ca7a8913dde2eb18d79d",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק! :)  (2025-08-20)",
+          "createdAt": "2025-08-20T13:15:38.428Z",
+          "lastMessageTimestamp": "2025-08-20T13:15:38.428Z"
+        },
+        {
+          "_id": "68a5cbcc415927a7eaa1ff88",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :)  (2025-08-20)",
+          "createdAt": "2025-08-20T13:21:16.195Z",
+          "lastMessageTimestamp": "2025-08-20T13:21:16.195Z"
+        },
+        {
+          "_id": "68a5cbef415927a7eaa1ff8a",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש! (2025-08-20)",
+          "createdAt": "2025-08-20T13:21:51.108Z",
+          "lastMessageTimestamp": "2025-08-20T13:21:51.108Z"
+        },
+        {
+          "_id": "68a5cc136d3806113373f16c",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייק!  (2025-08-20)",
+          "createdAt": "2025-08-20T13:22:27.644Z",
+          "lastMessageTimestamp": "2025-08-20T13:22:27.644Z"
+        },
+        {
+          "_id": "68ca50ca90b985d46a4ca1dc",
+          "userId": "orperets11@gmail.com",
+          "title": "Hey Michael! I can't understan (2025-09-17)",
+          "createdAt": "2025-09-17T06:10:18.579Z",
+          "lastMessageTimestamp": "2025-09-17T06:10:18.579Z"
+        },
+        {
+          "_id": "68ca524e358acf331862b20f",
+          "userId": "orperets11@gmail.com",
+          "title": "What are the options to combin (2025-09-17)",
+          "createdAt": "2025-09-17T06:16:46.311Z",
+          "lastMessageTimestamp": "2025-09-17T06:16:46.311Z"
+        },
+        {
+          "_id": "68cbf71ab5228364308ae497",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל (2025-09-18)",
+          "createdAt": "2025-09-18T12:12:10.638Z",
+          "lastMessageTimestamp": "2025-09-18T12:12:10.638Z"
+        },
+        {
+          "_id": "68cbf73cdcaed1e7e3bd128a",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, מה זה תתי-שאילתות? (2025-09-18)",
+          "createdAt": "2025-09-18T12:12:44.041Z",
+          "lastMessageTimestamp": "2025-09-18T12:12:44.041Z"
+        },
+        {
+          "_id": "68cbf76eb5228364308ae498",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, מה זה תתי שאילתות? (2025-09-18)",
+          "createdAt": "2025-09-18T12:13:34.606Z",
+          "lastMessageTimestamp": "2025-09-18T12:13:34.606Z"
+        },
+        {
+          "_id": "68cc0e655c39496f89a4c9e0",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :)  (2025-09-18)",
+          "createdAt": "2025-09-18T13:51:33.002Z",
+          "lastMessageTimestamp": "2025-09-18T13:51:33.002Z"
+        },
+        {
+          "_id": "68ce6cb9bfdb9f45db28c72f",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-09-20)",
+          "createdAt": "2025-09-20T08:58:33.898Z",
+          "lastMessageTimestamp": "2025-09-20T08:58:40.260Z"
+        },
+        {
+          "_id": "68ce6d5fbfdb9f45db28c732",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש! :)  (2025-09-20)",
+          "createdAt": "2025-09-20T09:01:19.035Z",
+          "lastMessageTimestamp": "2025-09-20T09:03:42.849Z"
+        },
+        {
+          "_id": "68ce70a0bfdb9f45db28c738",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש, מה זה sub-query? (2025-09-20)",
+          "createdAt": "2025-09-20T09:15:11.970Z",
+          "lastMessageTimestamp": "2025-09-20T09:22:59.902Z"
+        },
+        {
+          "_id": "68ce73e5bfdb9f45db28c74c",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מיקוש! (2025-09-20)",
+          "createdAt": "2025-09-20T09:29:09.409Z",
+          "lastMessageTimestamp": "2025-09-20T09:29:12.938Z"
+        },
+        {
+          "_id": "68ce753f437df25a6d81c46f",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-09-20)",
+          "createdAt": "2025-09-20T09:34:55.074Z",
+          "lastMessageTimestamp": "2025-09-20T09:36:08.604Z"
+        },
+        {
+          "_id": "68ce7ee257972f790ba68b46",
+          "userId": "orperets11@gmail.com",
+          "title": "היייי מייקלוש (2025-09-20)",
+          "createdAt": "2025-09-20T10:16:02.330Z",
+          "lastMessageTimestamp": "2025-09-20T10:16:07.151Z"
+        },
+        {
+          "_id": "68ce7f2957972f790ba68b49",
+          "userId": "orperets11@gmail.com",
+          "title": "הייי מייקוש (2025-09-20)",
+          "createdAt": "2025-09-20T10:17:13.667Z",
+          "lastMessageTimestamp": "2025-09-20T10:17:18.946Z"
+        },
+        {
+          "_id": "68ce8c1a10ec66004d9fe2a7",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש (2025-09-20)",
+          "createdAt": "2025-09-20T11:12:26.218Z",
+          "lastMessageTimestamp": "2025-09-20T11:14:11.020Z"
+        },
+        {
+          "_id": "68cfc9f368f7de62ec303f05",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש! מה הנושא השבוע בקו (2025-09-21)",
+          "createdAt": "2025-09-21T09:48:35.569Z",
+          "lastMessageTimestamp": "2025-09-21T09:48:41.351Z"
+        },
+        {
+          "_id": "68cfcb7268f7de62ec303f08",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש! מה הנושא השבוע בקו (2025-09-21)",
+          "createdAt": "2025-09-21T09:54:58.095Z",
+          "lastMessageTimestamp": "2025-09-21T09:55:08.780Z"
+        },
+        {
+          "_id": "68d0f3023cf4196f9774b978",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש!  (2025-09-22)",
+          "createdAt": "2025-09-22T06:56:02.170Z",
+          "lastMessageTimestamp": "2025-09-22T06:56:07.278Z"
+        },
+        {
+          "_id": "68d0f31c7e35c1b7ac3926cb",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :) (2025-09-22)",
+          "createdAt": "2025-09-22T06:56:28.404Z",
+          "lastMessageTimestamp": "2025-09-22T06:56:36.329Z"
+        },
+        {
+          "_id": "68e37834ed0a0a9d8ce73807",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל, תסביר לי בבקשה על ח (2025-10-06)",
+          "createdAt": "2025-10-06T08:05:08.206Z",
+          "lastMessageTimestamp": "2025-10-06T08:05:19.077Z"
+        },
+        {
+          "_id": "68e37c36b90c73332ff17e35",
+          "userId": "orperets11@gmail.com",
+          "title": "hey  - what is joins ?  (2025-10-06)",
+          "createdAt": "2025-10-06T08:22:14.373Z",
+          "lastMessageTimestamp": "2025-10-06T08:22:24.032Z"
+        },
+        {
+          "_id": "68e64a7b5e298991aeaec9e7",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש :) מה זה תת-שאילתה? (2025-10-08)",
+          "createdAt": "2025-10-08T11:26:51.808Z",
+          "lastMessageTimestamp": "2025-10-08T11:27:02.149Z"
+        },
+        {
+          "_id": "68e64b488057057a2962a9c2",
+          "userId": "orperets11@gmail.com",
+          "title": "הייי מייקוש. מה זה תת-שאילתה? (2025-10-08)",
+          "createdAt": "2025-10-08T11:30:16.741Z",
+          "lastMessageTimestamp": "2025-10-08T11:30:17.229Z"
+        },
+        {
+          "_id": "68e64b6b8057057a2962a9c4",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש! מה זה תת-שאילתה? (2025-10-08)",
+          "createdAt": "2025-10-08T11:30:51.102Z",
+          "lastMessageTimestamp": "2025-10-08T11:31:00.732Z"
+        },
+        {
+          "_id": "68fa6af55ed36c5768d0a007",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקוש! מה זה תתי שאילתות? (2025-10-23)",
+          "createdAt": "2025-10-23T17:50:45.228Z",
+          "lastMessageTimestamp": "2025-10-23T17:52:31.693Z"
+        },
+        {
+          "_id": "68fa6cb85ed36c5768d0a017",
+          "userId": "orperets11@gmail.com",
+          "title": "היי מייקל :) מה ההבדל בין wher (2025-10-23)",
+          "createdAt": "2025-10-23T17:58:16.541Z",
+          "lastMessageTimestamp": "2025-10-23T17:58:33.945Z"
+        },
+        {
+          "_id": "68fa6dc55ed36c5768d0a01b",
+          "userId": "orperets11@gmail.com",
+          "title": "היי! מה ההבדל בין where לבין h (2025-10-23)",
+          "createdAt": "2025-10-23T18:02:45.181Z",
+          "lastMessageTimestamp": "2025-10-23T18:02:55.512Z"
+        }
+      ]
+    },
+    "messages": {
+      "total": 0,
+      "byRole": {},
+      "data": []
+    }
+  },
+  "homework": {
+    "submissions": {
+      "total": 0,
+      "data": []
+    }
+  },
+  "engagement": {
+    "userPoints": {
+      "total": 0,
+      "data": []
+    },
+    "feedbacks": {
+      "total": 3,
+      "data": [
+        {
+          "_id": "6771019dba605e07427b4596",
+          "chatId": "677100efba605e07427b4591",
+          "userId": "orperets11@gmail.com",
+          "message": "ברוך הבא לשיעור! כדי לשלוף שמות של סטודנטים מטבלת `student` עם ממוצע מעל 60, תצטרך להשתמש בפקודת `SELECT` בשילוב עם פקודת `WHERE`. \n\nנתחיל לבנות את השאילתה ביחד:\n1. **SELECT** - פה אתה צריך לציין אילו עמודות אתה רוצה לשלוף, במקרה הזה נניח שהעמודה עם שמות הסטודנטים נקראת `name`.\n2. **FROM** - כאן אתה מציין מאיזו טבלה אתה שולף את הנתונים, כלומר `student`.\n3. **WHERE** - כאן אתה מגדיר מהם התנאים לסינון הנתונים. נניח שהעמודה עם הממוצעים נקראת `average` אז תרצה להשתמש בתנאי שמסנן רק סטודנטים עם ממוצע גבוה מ-60.\n\nהשאילתה תיראה כך:\n```sql\nSELECT name\nFROM student\nWHERE average > 60;\n```\n\nאיך הייתה ממשיך לממש את השאילתה אם תרצה לשלוף גם את שמות המחלקות של הסטודנטים אם נניח שיש טבלת מחלקות שמקושרת לטבלת סטודנטים?",
+          "feedback": "like"
+        },
+        {
+          "_id": "6771028cba605e07427b459d",
+          "chatId": "677100efba605e07427b4591",
+          "userId": "orperets11@gmail.com",
+          "message": "ברוך הבא לשיעור! כדי לשלוף שמות של סטודנטים מטבלת `student` עם ממוצע מעל 60, תצטרך להשתמש בפקודת `SELECT` בשילוב עם פקודת `WHERE`. \n\nנתחיל לבנות את השאילתה ביחד:\n1. **SELECT** - פה אתה צריך לציין אילו עמודות אתה רוצה לשלוף, במקרה הזה נניח שהעמודה עם שמות הסטודנטים נקראת `name`.\n2. **FROM** - כאן אתה מציין מאיזו טבלה אתה שולף את הנתונים, כלומר `student`.\n3. **WHERE** - כאן אתה מגדיר מהם התנאים לסינון הנתונים. נניח שהעמודה עם הממוצעים נקראת `average` אז תרצה להשתמש בתנאי שמסנן רק סטודנטים עם ממוצע גבוה מ-60.\n\nהשאילתה תיראה כך:\n```sql\nSELECT name\nFROM student\nWHERE average > 60;\n```\n\nאיך הייתה ממשיך לממש את השאילתה אם תרצה לשלוף גם את שמות המחלקות של הסטודנטים אם נניח שיש טבלת מחלקות שמקושרת לטבלת סטודנטים?",
+          "feedback": null
+        },
+        {
+          "_id": "684a7eefff058d014e04a720",
+          "chatId": "684a7ee3ff058d014e04a71e",
+          "userId": "orperets11@gmail.com",
+          "message": "היי! איזה כיף לשמוע ממך 😊 איך אפשר לעזור לך היום בלימודי מסדי הנתונים או אלגברה יחסית? יש משהו מסוים שאתה רוצה להבין או תרגיל שצריך הכוונה?",
+          "feedback": "like",
+          "timestamp": "2025-06-12T07:17:02.607Z"
+        }
+      ]
+    }
+  },
+  "analytics": {
+    "totalChatSessions": 262,
+    "totalMessages": 0,
+    "totalConversationSummaries": 1,
+    "totalActivities": 6,
+    "totalHomeworkSubmissions": 0,
+    "averageSessionDuration": 0.06455209923664124,
+    "mostActiveTopics": {
+      "WHERE clause": 1,
+      "HAVING clause": 1,
+      "GROUP BY": 1,
+      "Filtering data": 1,
+      "Aggregation functions": 1
+    },
+    "commonChallenges": {
+      "Understanding the application of WHERE and HAVING in complex queries": 1
+    }
+  },
+  "generatedAt": "2025-10-24T05:45:57.687Z"
+}

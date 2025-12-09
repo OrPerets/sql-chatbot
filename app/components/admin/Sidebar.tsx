@@ -74,6 +74,18 @@ const navigationItems: NavigationItem[] = [
     type: 'tab',
   },
   {
+    id: 'students',
+    label: 'פרופילי סטודנטים',
+    icon: Users,
+    type: 'tab',
+  },
+  {
+    id: 'analysis',
+    label: 'ניתוחי AI',
+    icon: Brain,
+    type: 'tab',
+  },
+  {
     id: 'settings',
     label: 'הגדרות מערכת',
     icon: Settings,
@@ -91,6 +103,13 @@ const navigationItems: NavigationItem[] = [
         icon: FileText,
         type: 'route',
         route: '/homework/questions'
+      },
+      {
+        id: 'templates',
+        label: 'תבניות שאלות',
+        icon: FileText,
+        type: 'route',
+        route: '/admin/templates'
       },
       {
         id: 'homework',

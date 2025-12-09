@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Settings, BarChart3, Search, Upload, Shield, Clock } from 'lucide-react';
+import { Users, Settings, BarChart3, Search, Upload, Shield, Clock, Plus, X } from 'lucide-react';
 import ModernAdminLayout from './admin/ModernAdminLayout';
 import ModernDashboard from './admin/ModernDashboard';
 import StatsCard from './admin/StatsCard';
@@ -13,6 +13,8 @@ import SearchBar from './admin/SearchBar';
 import BulkActions from './admin/BulkActions';
 import UsersList from './admin/UsersList';
 import EnhancedSettingsToggle from './admin/EnhancedSettingsToggle';
+import StudentProfiles from './admin/StudentProfiles';
+import AnalysisManagement from './admin/AnalysisManagement';
 import styles from './admin_page.module.css';
 
 const options = {
@@ -35,6 +37,9 @@ const AdminPage: React.FC = () => {
  const [activeTab, setActiveTab] = useState('dashboard');
  const [loading, setLoading] = useState(true);
  const [dismissedMessages, setDismissedMessages] = useState<string[]>([]);
+ const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+ const [newUser, setNewUser] = useState({ firstName: '', lastName: '', email: '' });
+ const [isCreatingUser, setIsCreatingUser] = useState(false);
 
  // Fetch initial token visibility state
  useEffect(() => {
@@ -342,10 +347,61 @@ const AdminPage: React.FC = () => {
    </div>
  );
 
+ const handleAddUser = async () => {
+   if (!newUser.firstName || !newUser.lastName || !newUser.email) {
+     handleError('יש למלא את כל השדות');
+     return;
+   }
+
+   setIsCreatingUser(true);
+   try {
+     const response = await fetch('/api/users', {
+       method: 'POST',
+       headers: {
+         'Content-Type': 'application/json',
+       },
+       body: JSON.stringify({
+         firstName: newUser.firstName,
+         lastName: newUser.lastName,
+         email: newUser.email,
+         password: 'shenkar',
+         isFirst: true
+       }),
+     });
+
+     const result = await response.json();
+
+     if (!response.ok) {
+       handleError(result.error || 'שגיאה ביצירת משתמש');
+       return;
+     }
+
+     handleSuccess('המשתמש נוצר בהצלחה!');
+     setIsAddUserModalOpen(false);
+     setNewUser({ firstName: '', lastName: '', email: '' });
+     // Refresh users data
+     fetchUsersData();
+   } catch (error) {
+     console.error('Error creating user:', error);
+     handleError('שגיאה ביצירת משתמש');
+   } finally {
+     setIsCreatingUser(false);
+   }
+ };
+
  const renderUserManagement = () => (
    <div className={styles.userManagementSection}>
      <div className={styles.sectionHeader}>
-       <h2 className={styles.sectionTitle}>ניהול משתמשים</h2>
+       <div className={styles.sectionHeaderRow}>
+         <h2 className={styles.sectionTitle}>ניהול משתמשים</h2>
+         <button
+           className={styles.addUserButton}
+           onClick={() => setIsAddUserModalOpen(true)}
+         >
+           <Plus size={18} />
+           <span>הוסף משתמש חדש</span>
+         </button>
+       </div>
        <p className={styles.sectionDescription}>
          ניהול משתמשים, יתרות מטבעות ופעולות מרובות
        </p>
@@ -382,6 +438,86 @@ const AdminPage: React.FC = () => {
          loading={loading}
        />
      </div>
+
+     {/* Add User Modal */}
+     {isAddUserModalOpen && (
+       <div className={styles.modalOverlay} onClick={() => setIsAddUserModalOpen(false)}>
+         <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+           <div className={styles.modalHeader}>
+             <h3 className={styles.modalTitle}>הוסף משתמש חדש</h3>
+             <button
+               className={styles.modalCloseButton}
+               onClick={() => setIsAddUserModalOpen(false)}
+             >
+               <X size={20} />
+             </button>
+           </div>
+           
+           <div className={styles.modalBody}>
+             <div className={styles.formGroup}>
+               <label className={styles.formLabel}>שם פרטי *</label>
+               <input
+                 type="text"
+                 className={styles.formInput}
+                 value={newUser.firstName}
+                 onChange={(e) => setNewUser({ ...newUser, firstName: e.target.value })}
+                 placeholder="הכנס שם פרטי"
+                 dir="rtl"
+               />
+             </div>
+             
+             <div className={styles.formGroup}>
+               <label className={styles.formLabel}>שם משפחה *</label>
+               <input
+                 type="text"
+                 className={styles.formInput}
+                 value={newUser.lastName}
+                 onChange={(e) => setNewUser({ ...newUser, lastName: e.target.value })}
+                 placeholder="הכנס שם משפחה"
+                 dir="rtl"
+               />
+             </div>
+             
+             <div className={styles.formGroup}>
+               <label className={styles.formLabel}>אימייל *</label>
+               <input
+                 type="email"
+                 className={styles.formInput}
+                 value={newUser.email}
+                 onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                 placeholder="הכנס כתובת אימייל"
+                 dir="ltr"
+               />
+             </div>
+             
+             <div className={styles.formInfo}>
+               <p>ערכי ברירת מחדל:</p>
+               <ul>
+                 <li>סיסמה: shenkar</li>
+                 <li>isFirst: true</li>
+               </ul>
+             </div>
+           </div>
+           
+           <div className={styles.modalFooter}>
+             <button
+               className={styles.modalCancelButton}
+               onClick={() => setIsAddUserModalOpen(false)}
+               disabled={isCreatingUser}
+             >
+               ביטול
+             </button>
+             <button
+               className={styles.modalSubmitButton}
+               onClick={handleAddUser}
+               disabled={isCreatingUser || !newUser.firstName || !newUser.lastName || !newUser.email}
+             >
+               {isCreatingUser ? 'יוצר...' : 'צור משתמש'}
+             </button>
+           </div>
+         </div>
+       </div>
+     )}
    </div>
  );
 
@@ -452,10 +588,12 @@ const AdminPage: React.FC = () => {
        />
      )}
 
-     {/* Tab Content */}
-     {activeTab === 'dashboard' && renderDashboard()}
-     {activeTab === 'settings' && renderSystemSettings()}
-     {activeTab === 'users' && renderUserManagement()}
+    {/* Tab Content */}
+    {activeTab === 'dashboard' && renderDashboard()}
+    {activeTab === 'settings' && renderSystemSettings()}
+    {activeTab === 'users' && renderUserManagement()}
+    {activeTab === 'students' && <StudentProfiles />}
+    {activeTab === 'analysis' && <AnalysisManagement />}
    </ModernAdminLayout>
  );
 };

@@ -5,20 +5,15 @@ import {
   Users, 
   BookOpen, 
   Database, 
-  TrendingUp,
   Activity,
-  Clock,
-  CheckCircle,
-  AlertTriangle,
   Plus,
-  Calendar,
   BarChart3,
   Target,
   Award,
-  Zap
+  Clock,
+  CheckCircle
 } from 'lucide-react';
 import ModernStatsCard from './ModernStatsCard';
-import MissingAnswersAudit from './MissingAnswersAudit';
 import ErrorBanner from './ErrorBanner';
 import styles from './ModernDashboard.module.css';
 
@@ -30,25 +25,6 @@ interface ModernDashboardProps {
   onNavigate: (tab: string) => void;
 }
 
-interface SystemAlert {
-  id: string;
-  type: 'info' | 'warning' | 'error' | 'success';
-  title: string;
-  message: string;
-  timestamp: string;
-  isRead: boolean;
-}
-
-const mockSystemAlerts: SystemAlert[] = [
-  {
-    id: '1',
-    type: 'success',
-    title: 'ממשק אדמין חדש',
-    message: '',
-    timestamp: '10:30',
-    isRead: false
-  },
-];
 
 const ModernDashboard: React.FC<ModernDashboardProps> = ({
   users,
@@ -57,13 +33,9 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
   onError,
   onNavigate
 }) => {
-  const [systemAlerts, setSystemAlerts] = useState(mockSystemAlerts);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [dashboardStats, setDashboardStats] = useState({
-    activeUsers: 0,
-    completedExercises: 0,
-    systemUptime: '99.9%',
-    avgResponseTime: '1.2s'
+    activeUsers: 0
   });
 
   // Update time every minute
@@ -88,18 +60,6 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
     }));
   }, [users]);
 
-  const dismissAlert = (alertId: string) => {
-    setSystemAlerts(prev => prev.filter(alert => alert.id !== alertId));
-  };
-
-  const getAlertIcon = (type: string) => {
-    switch (type) {
-      case 'error': return '❌';
-      case 'warning': return '⚠️';
-      case 'success': return '✅';
-      default: return 'ℹ️';
-    }
-  };
 
   const formatTime = (date: Date) => {
     return date.toLocaleString('he-IL', {
@@ -162,41 +122,6 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
         </div>
       </div>
 
-      {/* System Alerts */}
-      {systemAlerts.filter(alert => !alert.isRead).length > 0 && (
-        <div className={styles.alertsSection}>
-          <div className={styles.alertsHeader}>
-            <h3>התראות מערכת</h3>
-            <span className={styles.alertsCount}>
-              {systemAlerts.filter(alert => !alert.isRead).length} חדשות
-            </span>
-          </div>
-          
-          <div className={styles.alertsList}>
-            {systemAlerts.filter(alert => !alert.isRead).map(alert => (
-              <div key={alert.id} className={`${styles.alert} ${styles[`alert${alert.type.charAt(0).toUpperCase() + alert.type.slice(1)}`]}`}>
-                <div className={styles.alertIcon}>
-                  {getAlertIcon(alert.type)}
-                </div>
-                <div className={styles.alertContent}>
-                  <h4 className={styles.alertTitle}>{alert.title}</h4>
-                  <p className={styles.alertMessage}>{alert.message}</p>
-                </div>
-                <div className={styles.alertMeta}>
-                  <span className={styles.alertTime}>{alert.timestamp}</span>
-                  <button 
-                    className={styles.alertDismiss}
-                    onClick={() => dismissAlert(alert.id)}
-                    title="הסתר התראה"
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Main KPI Cards */}
       <div className={styles.statsGrid}>
@@ -214,53 +139,6 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
           onClick={() => onNavigate('users')}
           loading={loading}
           sparklineData={generateSparklineData('up')}
-        />
-
-        <ModernStatsCard
-          icon={BookOpen}
-          title="תרגילים הושלמו"
-          value={dashboardStats.completedExercises}
-          description="תרגילי SQL שהושלמו היום"
-          trend={{
-            value: 8,
-            label: "מאתמול",
-            direction: "up"
-          }}
-          color="success"
-          onClick={() => console.log('Navigate to exercises')}
-          loading={loading}
-          sparklineData={generateSparklineData('up')}
-        />
-
-        <ModernStatsCard
-          icon={Activity}
-          title="זמינות המערכת"
-          value={dashboardStats.systemUptime}
-          description="זמינות השרת ב-30 הימים האחרונים"
-          trend={{
-            value: 0.1,
-            label: "מהחודש הקודם",
-            direction: "up"
-          }}
-          color="info"
-          loading={loading}
-          sparklineData={generateSparklineData('stable')}
-        />
-
-        <ModernStatsCard
-          icon={Zap}
-          title="זמן תגובה"
-          value={dashboardStats.avgResponseTime}
-          description="זמן תגובה ממוצע של השרת"
-          trend={{
-            value: 5,
-            label: "מהשבוע הקודם",
-            direction: "down"
-          }}
-          color="warning"
-          loading={loading}
-          sparklineData={generateSparklineData('down')}
-          badge="!חשוב"
         />
       </div>
 
@@ -299,9 +177,12 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
         </div>
       </div>
 
-      {/* Quick Actions Grid */}
+      {/* System Tools Section */}
       <div className={styles.quickActionsSection}>
-        <h3 className={styles.sectionTitle}>פעולות מהירות</h3>
+        <h3 className={styles.sectionTitle}>🔧 כלי מערכת</h3>
+        <p className={styles.sectionDescription}>
+          כלים מתקדמים לניהול המערכת, ניטור ביצועים ותחזוקה
+        </p>
         
         <div className={styles.quickActionsGrid}>
           <div 
@@ -312,34 +193,9 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
               <Users size={24} />
             </div>
             <div className={styles.quickActionContent}>
-              <h4>ניהול משתמשים</h4>
-              <p>הוסף, ערוך או הסר משתמשים</p>
-            </div>
-          </div>
-
-          <div 
-            className={styles.quickAction}
-            onClick={() => window.open('/admin/homework', '_blank')}
-          >
-            <div className={styles.quickActionIcon}>
-              <BookOpen size={24} />
-            </div>
-            <div className={styles.quickActionContent}>
-              <h4>מטלות ובחינות</h4>
-              <p>צור ונהל מטלות חדשות</p>
-            </div>
-          </div>
-
-          <div 
-            className={styles.quickAction}
-            onClick={() => window.open('/admin/databases', '_blank')}
-          >
-            <div className={styles.quickActionIcon}>
-              <Database size={24} />
-            </div>
-            <div className={styles.quickActionContent}>
-              <h4>מסדי נתונים</h4>
-              <p>צור מסדי נתונים חדשים</p>
+              <h4>👥 ניהול משתמשים</h4>
+              <p>הוסף משתמשים, עדכן הרשאות וניהול מטבעות</p>
+              <span className={styles.actionBadge}>חיוני</span>
             </div>
           </div>
 
@@ -351,20 +207,108 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
               <Activity size={24} />
             </div>
             <div className={styles.quickActionContent}>
-              <h4>הגדרות מערכת</h4>
-              <p>קנה הגדרות ותצורות</p>
+              <h4>⚙️ הגדרות מערכת</h4>
+              <p>הגדרות מייקל AI, מטבעות וירטואליים וזמני בחינה</p>
+              <span className={styles.actionBadge}>מערכת</span>
+            </div>
+          </div>
+
+          <div 
+            className={styles.quickAction}
+            onClick={() => window.open('/admin/datasets', '_blank')}
+          >
+            <div className={styles.quickActionIcon}>
+              <Database size={24} />
+            </div>
+            <div className={styles.quickActionContent}>
+              <h4>📊 ניהול נתונים</h4>
+              <p>הרחב מסדי נתונים, צור נתונים חדשים ובדוק תקינות</p>
+              <span className={styles.actionBadge}>נתונים</span>
+            </div>
+          </div>
+
+          <div 
+            className={styles.quickAction}
+            onClick={() => window.open('/admin/templates', '_blank')}
+          >
+            <div className={styles.quickActionIcon}>
+              <BookOpen size={24} />
+            </div>
+            <div className={styles.quickActionContent}>
+              <h4>📝 תבניות שאלות</h4>
+              <p>צור שאלות דינמיות עם משתנים לכל תלמיד</p>
+              <span className={styles.actionBadge}>חדש</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Missing Answers Audit Component */}
-      <div className={styles.auditSection}>
-        <MissingAnswersAudit
-          onSuccess={onSuccess}
-          onError={onError}
-        />
+      {/* Content Management Section */}
+      <div className={styles.quickActionsSection}>
+        <h3 className={styles.sectionTitle}>📚 ניהול תוכן</h3>
+        <p className={styles.sectionDescription}>
+          יצירה וניהול של תוכן לימודי, מטלות, שאלות ומערכי שיעור
+        </p>
+        
+        <div className={styles.quickActionsGrid}>
+          <div 
+            className={styles.quickAction}
+            onClick={() => window.open('/admin/homework', '_blank')}
+          >
+            <div className={styles.quickActionIcon}>
+              <BookOpen size={24} />
+            </div>
+            <div className={styles.quickActionContent}>
+              <h4>📋 מטלות ובחינות</h4>
+              <p>צור מטלות חדשות, ערוך שאלות וקבע לוחות זמנים</p>
+              <span className={styles.actionBadge}>לימודים</span>
+            </div>
+          </div>
+
+          <div 
+            className={styles.quickAction}
+            onClick={() => window.open('/admin/questions', '_blank')}
+          >
+            <div className={styles.quickActionIcon}>
+              <Target size={24} />
+            </div>
+            <div className={styles.quickActionContent}>
+              <h4>❓ מאגר שאלות</h4>
+              <p>נהל שאלות SQL, ערוך רמות קושי ובדוק תשובות</p>
+              <span className={styles.actionBadge}>תוכן</span>
+            </div>
+          </div>
+
+          <div 
+            className={styles.quickAction}
+            onClick={() => window.open('/admin/databases', '_blank')}
+          >
+            <div className={styles.quickActionIcon}>
+              <Database size={24} />
+            </div>
+            <div className={styles.quickActionContent}>
+              <h4>🗄️ מסדי נתונים</h4>
+              <p>צור מסדי נתונים חדשים, הוסף טבלאות ונתונים</p>
+              <span className={styles.actionBadge}>נתונים</span>
+            </div>
+          </div>
+
+          <div 
+            className={styles.quickAction}
+            onClick={() => window.open('/admin/research-analytics', '_blank')}
+          >
+            <div className={styles.quickActionIcon}>
+              <BarChart3 size={24} />
+            </div>
+            <div className={styles.quickActionContent}>
+              <h4>📈 מחקר ואנליטיקה</h4>
+              <p>ניתוח ביצועי תלמידים, דוחות מתקדמים ומחקר</p>
+              <span className={styles.actionBadge}>מחקר</span>
+            </div>
+          </div>
+        </div>
       </div>
+
     </div>
   );
 };

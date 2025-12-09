@@ -142,6 +142,31 @@
   gap: 24px;
 }
 
+.welcomeMessage {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid #fbbf24;
+  border-radius: 16px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #92400e;
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);
+}
+
+.welcomeMessage span:first-child {
+  font-size: 28px;
+  animation: wave 1s ease-in-out infinite;
+}
+
+@keyframes wave {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(20deg); }
+  75% { transform: rotate(-20deg); }
+}
+
 .homeworkInfo {
   background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 100%);
   border: 2px solid #7dd3fc;

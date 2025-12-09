@@ -1,0 +1,102 @@
+{
+  "submissions": [
+    {
+      "_id": "68d51a2ec3123ab5646a5b7c",
+      "id": "68d51a2ec3123ab5646a5b7b",
+      "homeworkSetId": "68d4ff1ec3508aa230f2cd91",
+      "studentId": "student-demo",
+      "attemptNumber": 1,
+      "answers": {
+        "68d519c9c3123ab5646a5b67": {
+          "sql": "select *\nfrom Employees;",
+          "resultPreview": {
+            "columns": [
+              "id",
+              "name",
+              "department",
+              "salary",
+              "hire_date"
+            ],
+            "rows": [
+              {
+                "id": 1,
+                "name": "Alice Johnson",
+                "department": "Engineering",
+                "salary": 95000,
+                "hire_date": "2020-01-15"
+              },
+              {
+                "id": 2,
+                "name": "Bob Smith",
+                "department": "Marketing",
+                "salary": 75000,
+                "hire_date": "2019-03-22"
+              },
+              {
+                "id": 3,
+                "name": "Carol White",
+                "department": "Engineering",
+                "salary": 98000,
+                "hire_date": "2018-07-10"
+              },
+              {
+                "id": 4,
+                "name": "David Brown",
+                "department": "Sales",
+                "salary": 68000,
+                "hire_date": "2021-05-30"
+              },
+              {
+                "id": 5,
+                "name": "Eve Davis",
+                "department": "HR",
+                "salary": 72000,
+                "hire_date": "2020-11-12"
+              }
+            ],
+            "executionMs": 2,
+            "truncated": false
+          },
+          "feedback": {
+            "questionId": "68d519c9c3123ab5646a5b67",
+            "score": 8,
+            "autoNotes": "Query executed successfully. Returned 5 row(s).",
+            "rubricBreakdown": []
+          },
+          "lastExecutedAt": "2025-10-05T15:47:05.642Z",
+          "executionCount": 2
+        },
+        "68d519c9c3123ab5646a5b69": {
+          "sql": "xccxccx\n"
+        }
+      },
+      "overallScore": 0,
+      "status": "in_progress",
+      "createdAt": "2025-09-25T10:32:14.863Z",
+      "updatedAt": "2025-10-05T15:54:51.773Z"
+    },
+    {
+      "_id": "68e356e2bc1d24633ec51956",
+      "id": "68e356e2bc1d24633ec51955",
+      "homeworkSetId": "68d4ff1ec3508aa230f2cd91",
+      "studentId": "304993082",
+      "attemptNumber": 1,
+      "answers": {
+        "68d519c9c3123ab5646a5b67": {
+          "sql": "select * \nfrom Employees;"
+        }
+      },
+      "overallScore": 0,
+      "status": "in_progress",
+      "createdAt": "2025-10-06T05:42:58.478Z",
+      "updatedAt": "2025-10-20T14:22:04.497Z"
+    }
+  ],
+  "metadata": {
+    "exportDate": "2025-10-23T05:15:50.510Z",
+    "homeworkSetId": "68d4ff1ec3508aa230f2cd91",
+    "totalQuestions": 10,
+    "totalSubmissions": 2,
+    "totalDatasets": 0
+  }
+}

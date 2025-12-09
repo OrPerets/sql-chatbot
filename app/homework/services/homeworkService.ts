@@ -23,8 +23,14 @@ export async function getHomeworkSet(setId: string): Promise<HomeworkSet> {
   return http(`${BASE_PATH}/${setId}`, { method: "GET" });
 }
 
-export async function getHomeworkQuestions(setId: string): Promise<Question[]> {
-  return http(`${BASE_PATH}/${setId}/questions`, { method: "GET" });
+export async function getHomeworkQuestions(setId: string, studentId?: string): Promise<Question[]> {
+  if (studentId) {
+    // For students, get parametric questions
+    return http(`${BASE_PATH}/${setId}/questions/student/${studentId}`, { method: "GET" });
+  } else {
+    // For admins, get regular questions
+    return http(`${BASE_PATH}/${setId}/questions`, { method: "GET" });
+  }
 }
 
 export interface UpsertQuestionPayload extends Partial<Question> {

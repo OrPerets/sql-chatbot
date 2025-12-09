@@ -1,9 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import styles from "./Wizard.module.css";
 import { createQuestionDraft } from "./defaults";
 import type { QuestionDraft, WizardStepId } from "./types";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
+import type { QuestionTemplate } from "@/app/homework/types";
 
 interface QuestionsStepProps {
   questions: QuestionDraft[];
@@ -19,10 +21,39 @@ const MAX_QUESTIONS = 10;
 
 export function QuestionsStep({ questions, onChange, onBack, onNext, primaryDatasetId }: QuestionsStepProps) {
   const { t } = useHomeworkLocale();
+  const [templates, setTemplates] = useState<QuestionTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+
   const canContinue =
     questions.length > 0 &&
     questions.length <= MAX_QUESTIONS &&
-    questions.every((question) => question.instructions.trim().length > 0);
+    questions.every((question) => {
+      if (question.isParametric) {
+        return question.templateId && question.templateId.trim().length > 0;
+      } else {
+        return question.instructions.trim().length > 0;
+      }
+    });
+
+  // Load templates when component mounts
+  useEffect(() => {
+    const loadTemplates = async () => {
+      setLoadingTemplates(true);
+      try {
+        const response = await fetch('/api/templates');
+        const data = await response.json();
+        if (data.success) {
+          setTemplates(data.data);
+        }
+      } catch (error) {
+        console.error('Failed to load templates:', error);
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+
+    loadTemplates();
+  }, []);
 
   const handleQuestionChange = (id: string, partial: Partial<QuestionDraft>) => {
     onChange(questions.map((question) => (question.id === id ? { ...question, ...partial } : question)));
@@ -61,14 +92,76 @@ export function QuestionsStep({ questions, onChange, onBack, onNext, primaryData
               </header>
 
               <div className={styles.field}>
-                <label htmlFor={`instructions-${question.id}`}>{t("builder.questions.instructions")}</label>
-                <textarea
-                  id={`instructions-${question.id}`}
-                  value={question.instructions}
-                  onChange={(event) => handleQuestionChange(question.id, { instructions: event.target.value })}
-                  placeholder={t("builder.questions.instructionsPlaceholder")}
-                />
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={question.isParametric || false}
+                    onChange={(event) => handleQuestionChange(question.id, { 
+                      isParametric: event.target.checked,
+                      templateId: event.target.checked ? question.templateId : undefined
+                    })}
+                  />
+                  {' '}שאלה פרמטרית (תבנית)
+                </label>
               </div>
+
+              {question.isParametric ? (
+                <div className={styles.field}>
+                  <label htmlFor={`template-${question.id}`}>בחר תבנית:</label>
+                  <select
+                    id={`template-${question.id}`}
+                    value={question.templateId || ''}
+                    onChange={(event) => handleQuestionChange(question.id, { templateId: event.target.value })}
+                    disabled={loadingTemplates}
+                  >
+                    <option value="">בחר תבנית...</option>
+                    {templates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} ({template.variables.length} משתנים)
+                      </option>
+                    ))}
+                  </select>
+                  {loadingTemplates && <p>טוען תבניות...</p>}
+                  <div style={{ marginTop: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => window.open('/admin/templates/new', '_blank')}
+                      style={{
+                        padding: '4px 8px',
+                        fontSize: '12px',
+                        backgroundColor: '#007bff',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      צור תבנית חדשה
+                    </button>
+                  </div>
+                  {question.templateId && (
+                    <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                      <strong>תבנית נבחרת:</strong>
+                      <p style={{ margin: '4px 0', fontSize: '14px' }}>
+                        {templates.find(t => t.id === question.templateId)?.description || 'אין תיאור'}
+                      </p>
+                      <p style={{ margin: '4px 0', fontSize: '12px', color: '#666' }}>
+                        משתנים: {templates.find(t => t.id === question.templateId)?.variables.map(v => v.name).join(', ') || 'אין משתנים'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className={styles.field}>
+                  <label htmlFor={`instructions-${question.id}`}>{t("builder.questions.instructions")}</label>
+                  <textarea
+                    id={`instructions-${question.id}`}
+                    value={question.instructions}
+                    onChange={(event) => handleQuestionChange(question.id, { instructions: event.target.value })}
+                    placeholder={t("builder.questions.instructionsPlaceholder")}
+                  />
+                </div>
+              )}
 
               <div className={styles.fieldRow}>
                 <div className={styles.field}>

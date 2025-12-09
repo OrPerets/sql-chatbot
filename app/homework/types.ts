@@ -36,6 +36,10 @@ export interface Question {
   maxAttempts: number;
   points: number;
   evaluationMode?: "auto" | "manual" | "custom";
+  // Parametric question fields
+  isTemplate?: boolean;
+  templateId?: string;
+  variables?: any[]; // VariableValue[] for instantiated questions
 }
 
 export interface HomeworkSet {
@@ -199,4 +203,86 @@ export interface ApiError {
 export interface SaveSubmissionDraftPayload {
   studentId: string;
   answers: Record<string, SqlAnswer>;
+}
+
+// Template system types
+export type VariableType = 
+  | 'number' 
+  | 'string' 
+  | 'date' 
+  | 'list' 
+  | 'range' 
+  | 'sql_value'
+  | 'table_name'
+  | 'column_name';
+
+export interface VariableConstraints {
+  min?: number;
+  max?: number;
+  step?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  options?: string[];
+  start?: number;
+  end?: number;
+  minDate?: string;
+  maxDate?: string;
+  format?: string;
+  tableNames?: string[];
+  columnNames?: string[];
+  dataTypes?: string[];
+}
+
+export interface VariableDefinition {
+  id: string;
+  name: string;
+  type: VariableType;
+  description?: string;
+  constraints?: VariableConstraints;
+  defaultValue?: any;
+  required?: boolean;
+}
+
+export interface VariableValue {
+  variableId: string;
+  value: any;
+  generatedAt: string;
+}
+
+export interface QuestionTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  template: string;
+  variables: VariableDefinition[];
+  expectedResultSchema?: Array<{ column: string; type: string }>;
+  starterSql?: string;
+  instructions?: string;
+  gradingRubric?: any[];
+  datasetId?: string;
+  maxAttempts?: number;
+  points?: number;
+  evaluationMode?: "auto" | "manual" | "custom";
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InstantiatedQuestion {
+  id: string;
+  templateId: string;
+  studentId: string;
+  homeworkSetId: string;
+  variables: VariableValue[];
+  prompt: string;
+  instructions: string;
+  starterSql?: string;
+  expectedResultSchema: Array<{ column: string; type: string }>;
+  gradingRubric: any[];
+  datasetId?: string;
+  maxAttempts: number;
+  points: number;
+  evaluationMode?: "auto" | "manual" | "custom";
+  createdAt: string;
 }

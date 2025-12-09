@@ -3,12 +3,15 @@ import nodemailer from 'nodemailer';
 // Create reusable transporter object using SMTP transport
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT),
-  secure: true,
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: process.env.SMTP_PORT === '465', // Use SSL only for port 465
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  tls: {
+    rejectUnauthorized: false // Allow self-signed certificates
+  }
 });
 
 interface EmailContent {
@@ -20,6 +23,19 @@ interface EmailContent {
 
 export async function sendEmail({ to, subject, text, html }: EmailContent) {
   try {
+    // Log email configuration (without sensitive data)
+    console.log('Email configuration:', {
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      secure: process.env.SMTP_PORT === '465',
+      from: process.env.SMTP_FROM,
+      to
+    });
+
+    // Verify transporter configuration
+    await transporter.verify();
+    console.log('SMTP connection verified successfully');
+
     const info = await transporter.sendMail({
       from: process.env.SMTP_FROM,
       to,
@@ -27,10 +43,16 @@ export async function sendEmail({ to, subject, text, html }: EmailContent) {
       text,
       html: html || text,
     });
-    console.log('Email sent:', info.messageId);
+    console.log('Email sent successfully:', info.messageId);
     return true;
   } catch (error) {
     console.error('Error sending email:', error);
+    console.error('SMTP configuration:', {
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      secure: process.env.SMTP_PORT === '465',
+      hasAuth: !!(process.env.SMTP_USER && process.env.SMTP_PASS)
+    });
     return false;
   }
 }

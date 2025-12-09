@@ -120,6 +120,9 @@ export const COLLECTIONS = {
   SUBMISSIONS: 'submissions',
   ANALYTICS: 'analytics_events',
   AUDIT_LOGS: 'audit_logs',
+  QUESTION_TEMPLATES: 'question_templates',
+  INSTANTIATED_QUESTIONS: 'instantiated_questions',
+  ANALYSIS_RESULTS: 'analysis_results',
   // Consolidated mentor-server collections
   USERS: 'users',
   CHAT_SESSIONS: 'chatSessions',
@@ -136,4 +139,13 @@ export const COLLECTIONS = {
   WEEKLY_CONTENT: 'weekly_content',
   SEMESTER_CONFIG: 'semester_config',
   NOTIFICATIONS: 'notifications',
+  PASSWORD_RESET_TOKENS: 'password_reset_tokens',
+  // Sprint 2: Student Profiles Management System
+  STUDENT_PROFILES: 'student_profiles',
+  STUDENT_ACTIVITIES: 'student_activities',
+  CONVERSATION_SUMMARIES: 'conversation_summaries',
+  // Security collections
+  RATE_LIMITS: 'rate_limits',
+  IP_RATE_LIMITS: 'ip_rate_limits',
+  SECURITY_EVENTS: 'security_events',
 } as const;

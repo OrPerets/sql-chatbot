@@ -15,7 +15,14 @@
     "test:component": "jest --testPathPattern=components",
     "test:api": "jest --testPathPattern=api",
     "compress:glb": "npx gltfpack -i public/avatars/michael.glb -o public/avatars/michael.min.glb -cc -kn -km",
-    "compress:textures": "echo 'Use basisu/toktx to compress textures to .ktx2'"
+    "compress:textures": "echo 'Use basisu/toktx to compress textures to .ktx2'",
+    "setup-database": "ts-node scripts/setup-database-security.ts",
+    "verify-deployment": "ts-node scripts/verify-deployment.ts",
+    "cleanup-tokens": "ts-node scripts/cleanup-expired-tokens.ts",
+    "cleanup-stats": "ts-node scripts/cleanup-expired-tokens.ts --stats-only",
+    "maintenance": "ts-node scripts/maintenance.ts",
+    "maintenance:list": "ts-node scripts/maintenance.ts --list",
+    "maintenance:task": "ts-node scripts/maintenance.ts --task"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
@@ -28,6 +35,7 @@
     "cytoscape": "^3.30.2",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.445.0",
+    "mongodb": "^6.8.0",
     "next": "^14.2.32",
     "nodemailer": "^6.10.1",
     "openai": "^4.46.0",
@@ -39,7 +47,7 @@
     "sql.js": "^1.11.0",
     "styled-components": "^6.1.13",
     "three": "^0.177.0",
-    "mongodb": "^6.8.0"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",

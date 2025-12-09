@@ -5,8 +5,11 @@ import type {
   Question, 
   Submission, 
   AnalyticsEvent,
-  AuditLogEntry 
+  AuditLogEntry,
+  QuestionTemplate,
+  InstantiatedQuestion
 } from '@/app/homework/types';
+import type { AnalysisResult } from './ai-analysis';
 
 /**
  * Database model interfaces with MongoDB-specific fields
@@ -39,6 +42,21 @@ export interface AnalyticsEventModel extends Omit<AnalyticsEvent, 'id'> {
 }
 
 export interface AuditLogEntryModel extends Omit<AuditLogEntry, 'id'> {
+  _id?: ObjectId;
+  id: string;
+}
+
+export interface QuestionTemplateModel extends Omit<QuestionTemplate, 'id'> {
+  _id?: ObjectId;
+  id: string;
+}
+
+export interface InstantiatedQuestionModel extends Omit<InstantiatedQuestion, 'id'> {
+  _id?: ObjectId;
+  id: string;
+}
+
+export interface AnalysisResultModel extends Omit<AnalysisResult, 'id'> {
   _id?: ObjectId;
   id: string;
 }
@@ -85,6 +103,27 @@ export const DATABASE_INDEXES = {
     { action: 1 }, // For action type filtering
     { createdAt: -1 }, // For time-based queries
     { targetId: 1 }, // For specific entity audit trails
+  ],
+  QUESTION_TEMPLATES: [
+    { name: 1 }, // For template name searches
+    { createdAt: -1 }, // For creation date sorting
+    { updatedAt: -1 }, // For update date sorting
+    { version: 1 }, // For version tracking
+  ],
+  INSTANTIATED_QUESTIONS: [
+    { templateId: 1 }, // For template-based queries
+    { studentId: 1 }, // For student-specific questions
+    { homeworkSetId: 1 }, // For homework set queries
+    { templateId: 1, studentId: 1 }, // Compound for unique student-template combinations
+    { createdAt: -1 }, // For creation date sorting
+  ],
+  ANALYSIS_RESULTS: [
+    { submissionId: 1 }, // For submission-based queries
+    { studentId: 1 }, // For student analytics
+    { homeworkSetId: 1 }, // For homework set analytics
+    { status: 1 }, // For status filtering
+    { createdAt: -1 }, // For creation date sorting
+    { submissionId: 1, status: 1 }, // Compound for active analyses
   ],
 } as const;
 
@@ -165,6 +204,46 @@ export const VALIDATION_SCHEMAS = {
     status: { type: 'string', enum: ['in_progress', 'submitted', 'graded'], required: true },
     submittedAt: { type: 'string' }, // ISO date string
     gradedAt: { type: 'string' }, // ISO date string
+  },
+  QUESTION_TEMPLATE: {
+    name: { type: 'string', required: true, minLength: 1, maxLength: 200 },
+    description: { type: 'string', maxLength: 1000 },
+    template: { type: 'string', required: true, minLength: 1, maxLength: 2000 },
+    variables: { type: 'array', items: { type: 'object' } },
+    expectedResultSchema: { type: 'array', items: { type: 'object' } },
+    starterSql: { type: 'string', maxLength: 2000 },
+    instructions: { type: 'string', maxLength: 1000 },
+    gradingRubric: { type: 'array', items: { type: 'object' } },
+    datasetId: { type: 'string' },
+    maxAttempts: { type: 'number', minimum: 1, maximum: 10, default: 3 },
+    points: { type: 'number', minimum: 1, maximum: 100, default: 10 },
+    evaluationMode: { type: 'string', enum: ['auto', 'manual', 'custom'] },
+    version: { type: 'number', minimum: 1, required: true },
+  },
+  INSTANTIATED_QUESTION: {
+    templateId: { type: 'string', required: true },
+    studentId: { type: 'string', required: true },
+    homeworkSetId: { type: 'string', required: true },
+    variables: { type: 'array', items: { type: 'object' } },
+    prompt: { type: 'string', required: true, minLength: 1, maxLength: 500 },
+    instructions: { type: 'string', required: true, minLength: 1, maxLength: 1000 },
+    starterSql: { type: 'string', maxLength: 2000 },
+    expectedResultSchema: { type: 'array', items: { type: 'object' } },
+    gradingRubric: { type: 'array', items: { type: 'object' } },
+    datasetId: { type: 'string' },
+    maxAttempts: { type: 'number', minimum: 1, maximum: 10, default: 3 },
+    points: { type: 'number', minimum: 1, maximum: 100, default: 10 },
+    evaluationMode: { type: 'string', enum: ['auto', 'manual', 'custom'] },
+  },
+  ANALYSIS_RESULT: {
+    submissionId: { type: 'string', required: true },
+    studentId: { type: 'string', required: true },
+    homeworkSetId: { type: 'string', required: true },
+    analysisType: { type: 'string', enum: ['failure_analysis', 'pattern_recognition', 'feedback_generation'], required: true },
+    status: { type: 'string', enum: ['pending', 'processing', 'completed', 'failed'], required: true },
+    confidence: { type: 'number', minimum: 0, maximum: 1, required: true },
+    results: { type: 'object', required: true },
+    metadata: { type: 'object', required: true },
   },
 } as const;
 

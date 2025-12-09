@@ -1,7 +1,7 @@
 {
   "collection": "chatSessions",
-  "exportDate": "2025-09-22T07:42:46.296Z",
-  "documentCount": 1276,
+  "exportDate": "2025-10-23T05:14:38.760Z",
+  "documentCount": 1286,
   "documents": [
     {
       "_id": "6707d4a475f3a28c81d219eb",
@@ -8934,6 +8934,76 @@
       "title": "היי מייקוש :) (2025-09-22)",
       "createdAt": "2025-09-22T06:56:28.404Z",
       "lastMessageTimestamp": "2025-09-22T06:56:36.329Z"
+    },
+    {
+      "_id": "68e37834ed0a0a9d8ce73807",
+      "userId": "orperets11@gmail.com",
+      "title": "היי מייקל, תסביר לי בבקשה על ח (2025-10-06)",
+      "createdAt": "2025-10-06T08:05:08.206Z",
+      "lastMessageTimestamp": "2025-10-06T08:05:19.077Z"
+    },
+    {
+      "_id": "68e37c36b90c73332ff17e35",
+      "userId": "orperets11@gmail.com",
+      "title": "hey  - what is joins ?  (2025-10-06)",
+      "createdAt": "2025-10-06T08:22:14.373Z",
+      "lastMessageTimestamp": "2025-10-06T08:22:24.032Z"
+    },
+    {
+      "_id": "68e64a7b5e298991aeaec9e7",
+      "userId": "orperets11@gmail.com",
+      "title": "היי מייקוש :) מה זה תת-שאילתה? (2025-10-08)",
+      "createdAt": "2025-10-08T11:26:51.808Z",
+      "lastMessageTimestamp": "2025-10-08T11:27:02.149Z"
+    },
+    {
+      "_id": "68e64b488057057a2962a9c2",
+      "userId": "orperets11@gmail.com",
+      "title": "הייי מייקוש. מה זה תת-שאילתה? (2025-10-08)",
+      "createdAt": "2025-10-08T11:30:16.741Z",
+      "lastMessageTimestamp": "2025-10-08T11:30:17.229Z"
+    },
+    {
+      "_id": "68e64b6b8057057a2962a9c4",
+      "userId": "orperets11@gmail.com",
+      "title": "היי מייקוש! מה זה תת-שאילתה? (2025-10-08)",
+      "createdAt": "2025-10-08T11:30:51.102Z",
+      "lastMessageTimestamp": "2025-10-08T11:31:00.732Z"
+    },
+    {
+      "_id": "68ebc390e5ecfbc4bd5a8f46",
+      "userId": "levijeka@gmail.com",
+      "title": "היי מה קורה? אני רוצה לקחת את  (2025-10-12)",
+      "createdAt": "2025-10-12T15:04:48.778Z",
+      "lastMessageTimestamp": "2025-10-12T15:10:34.395Z"
+    },
+    {
+      "_id": "68ee1c8867379b51ac98ad08",
+      "userId": "barmalca100@gmail.com",
+      "title": "CREATE TABLE Orders (\n    Numb (2025-10-14)",
+      "createdAt": "2025-10-14T09:48:56.713Z",
+      "lastMessageTimestamp": "2025-10-14T09:49:03.828Z"
+    },
+    {
+      "_id": "68f78165f2fb9a5661154d47",
+      "userId": "noa050100@gmail.com",
+      "title": "היי (2025-10-21)",
+      "createdAt": "2025-10-21T12:49:41.087Z",
+      "lastMessageTimestamp": "2025-10-21T12:49:47.030Z"
+    },
+    {
+      "_id": "68f7b46b2db221b925ddbb89",
+      "userId": "tal.macabi@gmail.com",
+      "title": "היי, אנחנו הולכים ללמוד קורס ב (2025-10-21)",
+      "createdAt": "2025-10-21T16:27:23.036Z",
+      "lastMessageTimestamp": "2025-10-21T16:29:51.539Z"
+    },
+    {
+      "_id": "68f7df632ff07fe863f7191b",
+      "userId": "roie.shalev2001@gmail.com",
+      "title": "היי (2025-10-21)",
+      "createdAt": "2025-10-21T19:30:43.534Z",
+      "lastMessageTimestamp": "2025-10-21T19:31:29.297Z"
     }
   ]
 }

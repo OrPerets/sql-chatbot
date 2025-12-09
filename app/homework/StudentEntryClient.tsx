@@ -14,6 +14,12 @@ interface HomeworkSet {
   dueAt?: string;
 }
 
+// Allowed students list
+const ALLOWED_STUDENTS: { [id: string]: string } = {
+  "304993082": "אור פרץ",
+  "123456789": "סטודנט דמו",
+};
+
 export function StudentEntryClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -21,6 +27,7 @@ export function StudentEntryClient() {
 
   const [step, setStep] = useState<"id" | "instructions" | "loading">("id");
   const [studentId, setStudentId] = useState("");
+  const [studentName, setStudentName] = useState("");
   const [error, setError] = useState("");
   const [homework, setHomework] = useState<HomeworkSet | null>(null);
 
@@ -38,6 +45,15 @@ export function StudentEntryClient() {
       setError("תעודת זהות לא תקינה");
       return;
     }
+
+    // Check if student is in the allowed list
+    if (!ALLOWED_STUDENTS[studentId]) {
+      setError("תעודת זהות לא מורשית לביצוע שיעור בית זה");
+      return;
+    }
+
+    // Set the student name from the allowed list
+    setStudentName(ALLOWED_STUDENTS[studentId]);
 
     setStep("loading");
 
@@ -89,6 +105,7 @@ export function StudentEntryClient() {
   const handleBack = () => {
     setStep("id");
     setStudentId("");
+    setStudentName("");
   };
 
   if (step === "loading") {
@@ -116,6 +133,12 @@ export function StudentEntryClient() {
           </div>
 
           <div className={styles.instructionsContent}>
+            {studentName && (
+              <div className={styles.welcomeMessage}>
+                <span>👋</span>
+                <span>שלום {studentName}!</span>
+              </div>
+            )}
             <div className={styles.homeworkInfo}>
               <h2 className={styles.homeworkTitle}>{homework.title}</h2>
               <div className={styles.homeworkMeta}>

@@ -20,6 +20,12 @@ const LoginPage = () => {
   const [loginMode, setLoginMode] = useState('user'); // 'user' or 'admin'
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
+  
+  // Forgot password states
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
 
   const setEmailandAdmin = (val) => {
     if (val === "orperets11@gmail.com") {
@@ -207,6 +213,37 @@ const LoginPage = () => {
     setIsLoading(false);
   };
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setForgotPasswordLoading(true);
+    setForgotPasswordMessage('');
+
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: forgotPasswordEmail })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setForgotPasswordMessage('נשלח קישור לאיפוס סיסמה למייל שלך');
+        setShowForgotPassword(false);
+        setForgotPasswordEmail('');
+      } else {
+        setForgotPasswordMessage(data.error || 'שגיאה בשליחת המייל');
+      }
+    } catch (error) {
+      console.error('Error sending forgot password:', error);
+      setForgotPasswordMessage('שגיאה בשליחת המייל');
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  };
+
   if (isFetchingUsers) {
     return (
       <div className={styles.loginContainer}>
@@ -285,9 +322,30 @@ const LoginPage = () => {
                     required
                   />
                 </div>
+                
+                
+                
                 <button type="submit" className={styles.button} disabled={isLoading}>
                   {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : (loginMode === 'admin' ? 'כניסה כמנהל' : 'אישור')}
                 </button>
+                {!changePassword && (
+                  <div style={{ textAlign: 'center', marginTop: '10px' }}>
+                    <button 
+                      type="button"
+                      onClick={() => setShowForgotPassword(true)}
+                      style={{ 
+                        background: 'none', 
+                        border: 'none', 
+                        color: '#007bff', 
+                        textDecoration: 'underline',
+                        cursor: 'pointer',
+                        fontSize: '14px'
+                      }}
+                    >
+                      איפוס סיסמה
+                    </button>
+                  </div>
+                )}
               </form>
             ) : (
               <>
@@ -347,6 +405,88 @@ const LoginPage = () => {
               <Loader className={styles.loadingSpinner} size={48} />
             </div>
           )}
+        </div>
+      )}
+      
+      {/* Forgot Password Modal */}
+      {showForgotPassword && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '30px',
+            borderRadius: '10px',
+            maxWidth: '400px',
+            width: '90%',
+            textAlign: 'center'
+          }}>
+            <h3>איפוס סיסמה</h3>
+            <p style={{ marginBottom: '20px', color: '#666' }}>
+              הזן את כתובת המייל שלך ונשלח לך קישור לאיפוס הסיסמה
+            </p>
+            
+            <form onSubmit={handleForgotPassword}>
+              <div className={styles.inputGroup}>
+                <span className={styles.iconWrapper}>
+                  <User size={18} />
+                </span>
+                <input 
+                  type="email" 
+                  className={styles.input}
+                  placeholder="כתובת מייל" 
+                  value={forgotPasswordEmail}
+                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                <button 
+                  type="submit" 
+                  className={styles.button} 
+                  disabled={forgotPasswordLoading}
+                  style={{ flex: 1 }}
+                >
+                  {forgotPasswordLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'שלח קישור'}
+                </button>
+                <button 
+                  type="button" 
+                  className={styles.button}
+                  style={{ backgroundColor: '#666', flex: 1 }}
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setForgotPasswordEmail('');
+                    setForgotPasswordMessage('');
+                  }}
+                >
+                  ביטול
+                </button>
+              </div>
+            </form>
+            
+            {forgotPasswordMessage && (
+              <div style={{ 
+                marginTop: '15px', 
+                padding: '10px', 
+                backgroundColor: forgotPasswordMessage.includes('שגיאה') ? '#f8d7da' : '#d4edda',
+                color: forgotPasswordMessage.includes('שגיאה') ? '#721c24' : '#155724',
+                borderRadius: '5px',
+                fontSize: '14px'
+              }}>
+                {forgotPasswordMessage}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

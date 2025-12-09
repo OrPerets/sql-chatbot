@@ -31,6 +31,9 @@ export interface QuestionDraft {
   datasetId?: string;
   rubric: RubricCriterion[];
   evaluationMode: EvaluationMode;
+  // Parametric question fields
+  isParametric?: boolean;
+  templateId?: string;
 }
 
 export interface HomeworkDraftState {

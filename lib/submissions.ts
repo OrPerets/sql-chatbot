@@ -239,6 +239,36 @@ export class SubmissionsService {
 
     if (!result) return null;
 
+    // Track student performance for AI analysis (Sprint 3)
+    try {
+      const { trackStudentPerformance } = await import('@/lib/data-collection-hooks')
+      
+      // Extract performance data from submission
+      const answers = result.answers || {}
+      const questionIds = Object.keys(answers)
+      
+      for (const questionId of questionIds) {
+        const answer = answers[questionId] as any
+        const grade = answer.feedback?.score || 0
+        const errors = this.extractErrorsFromAnswer(answer)
+        const attempts = answer.executionCount || 1
+        const timeSpent = this.calculateTimeSpent(answer)
+        
+        await trackStudentPerformance(
+          result.studentId,
+          result.homeworkSetId,
+          questionId,
+          grade,
+          timeSpent,
+          attempts,
+          errors
+        )
+      }
+    } catch (trackingError) {
+      console.error('Error tracking student performance:', trackingError)
+      // Don't fail the main operation if tracking fails
+    }
+
     return {
       id: result._id?.toString() || result.id,
       homeworkSetId: result.homeworkSetId,
@@ -250,6 +280,36 @@ export class SubmissionsService {
       submittedAt: result.submittedAt,
       gradedAt: result.gradedAt,
     };
+  }
+
+  /**
+   * Extract errors from answer for tracking
+   */
+  private extractErrorsFromAnswer(answer: any): string[] {
+    const errors: string[] = []
+    
+    if (answer.feedback?.autoNotes) {
+      const notes = answer.feedback.autoNotes.toLowerCase()
+      if (notes.includes('syntax error')) errors.push('syntax_error')
+      if (notes.includes('logical error')) errors.push('logical_error')
+      if (notes.includes('missing')) errors.push('missing_element')
+      if (notes.includes('incorrect')) errors.push('incorrect_logic')
+      if (notes.includes('performance')) errors.push('performance_issue')
+    }
+    
+    return errors
+  }
+
+  /**
+   * Calculate time spent on question (rough estimate)
+   */
+  private calculateTimeSpent(answer: any): number {
+    // Simple time estimation based on execution count and complexity
+    const executionCount = answer.executionCount || 1
+    const sqlLength = answer.sql?.length || 0
+    
+    // Estimate: 2 minutes base + 1 minute per execution + 0.1 minutes per 10 characters
+    return Math.round(2 + executionCount + (sqlLength / 10) * 0.1)
   }
 
   /**

@@ -1,7 +1,7 @@
 {
   "collection": "UserForms",
-  "exportDate": "2025-09-22T07:42:41.291Z",
-  "documentCount": 504,
+  "exportDate": "2025-10-23T05:14:30.898Z",
+  "documentCount": 516,
   "documents": [
     {
       "_id": "6729d3c74de6ade2349cebc6",
@@ -14967,6 +14967,366 @@
         }
       },
       "time": "2025-09-17T08:16:54.554Z"
+    },
+    {
+      "_id": "68f77ff813b9fb3b814361bb",
+      "user": {
+        "email": "lirin2001@gmail.com",
+        "name": "לירין"
+      },
+      "form": {
+        "firstName": "לירין ",
+        "lastName": "מיזן",
+        "idCode": "4819",
+        "gender": "female",
+        "birthYear": "2001",
+        "preferredLanguage": "hebrew",
+        "worksInIndustry": "no",
+        "aiUsage": "yes",
+        "statements": {
+          "aiLearningPotential": 4,
+          "aiEaseOfUse": 4,
+          "aiComplexity": 1,
+          "aiLearningImprovement": 5,
+          "selfLearningComfort": 5,
+          "selfLearningWithTech": 5,
+          "selfLearningWithAI": 1,
+          "aiDecisionComfort": 2,
+          "aiTrustworthiness": 2,
+          "aiIndependencePreference": 3
+        }
+      },
+      "time": "2025-10-21T12:43:35.160Z"
+    },
+    {
+      "_id": "68f7801113b9fb3b814361bc",
+      "user": {
+        "email": "edenshovavo123@gmail.com",
+        "name": "עדן"
+      },
+      "form": {
+        "firstName": "עדן",
+        "lastName": "שובבו",
+        "idCode": "2252",
+        "gender": "female",
+        "birthYear": "2001",
+        "preferredLanguage": "hebrew",
+        "worksInIndustry": "no",
+        "aiUsage": "yes",
+        "statements": {
+          "aiLearningPotential": 5,
+          "aiEaseOfUse": 4,
+          "aiComplexity": 4,
+          "aiLearningImprovement": 5,
+          "selfLearningComfort": 4,
+          "selfLearningWithTech": 3,
+          "selfLearningWithAI": 5,
+          "aiDecisionComfort": 3,
+          "aiTrustworthiness": 3,
+          "aiIndependencePreference": 5
+        }
+      },
+      "time": "2025-10-21T12:44:00.963Z"
+    },
+    {
+      "_id": "68f7807213b9fb3b814361bd",
+      "user": {
+        "email": "stavshahar99@gmail.com",
+        "name": "סתיו"
+      },
+      "form": {
+        "firstName": "סתיו",
+        "lastName": "שחר",
+        "idCode": "4795",
+        "gender": "female",
+        "birthYear": "2001",
+        "preferredLanguage": "hebrew",
+        "worksInIndustry": "no",
+        "aiUsage": "yes",
+        "statements": {
+          "aiLearningPotential": 5,
+          "aiEaseOfUse": 5,
+          "aiComplexity": 2,
+          "aiLearningImprovement": 5,
+          "selfLearningComfort": 4,
+          "selfLearningWithTech": 5,
+          "selfLearningWithAI": 1,
+          "aiDecisionComfort": 4,
+          "aiTrustworthiness": 2,
+          "aiIndependencePreference": 2
+        }
+      },
+      "time": "2025-10-21T12:45:38.618Z"
+    },
+    {
+      "_id": "68f781459a0ec9ca8f16d74f",
+      "user": {
+        "email": "noa050100@gmail.com",
+        "name": "נועה"
+      },
+      "form": {
+        "firstName": "נועה",
+        "lastName": "פלג",
+        "idCode": "9461",
+        "gender": "female",
+        "birthYear": "2000",
+        "preferredLanguage": "hebrew",
+        "worksInIndustry": "no",
+        "aiUsage": "yes",
+        "statements": {
+          "aiLearningPotential": 5,
+          "aiEaseOfUse": 5,
+          "aiComplexity": 1,
+          "aiLearningImprovement": 5,
+          "selfLearningComfort": 2,
+          "selfLearningWithTech": 4,
+          "selfLearningWithAI": 4,
+          "aiDecisionComfort": 5,
+          "aiTrustworthiness": 5,
+          "aiIndependencePreference": 2
+        }
+      },
+      "time": "2025-10-21T12:49:08.827Z"
+    },
+    {
+      "_id": "68f78adc92c245c8f1b0cf55",
+      "user": {
+        "email": "dana14261999@gmail.com",
+        "name": "דנה"
+      },
+      "form": {
+        "firstName": "דנה",
+        "lastName": "רביב",
+        "idCode": "6566",
+        "gender": "female",
+        "birthYear": "1999",
+        "preferredLanguage": "hebrew",
+        "worksInIndustry": "no",
+        "aiUsage": "yes",
+        "statements": {
+          "aiLearningPotential": 4,
+          "aiEaseOfUse": 5,
+          "aiComplexity": 1,
+          "aiLearningImprovement": 5,
+          "selfLearningComfort": 5,
+          "selfLearningWithTech": 5,
+          "selfLearningWithAI": 2,
+          "aiDecisionComfort": 3,
+          "aiTrustworthiness": 3,
+          "aiIndependencePreference": 3
+        }
+      },
+      "time": "2025-10-21T13:30:03.809Z"
+    },
+    {
+      "_id": "68f78adc92c245c8f1b0cf56",
+      "user": {
+        "email": "dana14261999@gmail.com",
+        "name": "דנה"
+      },
+      "form": {
+        "firstName": "דנה",
+        "lastName": "רביב",
+        "idCode": "6566",
+        "gender": "female",
+        "birthYear": "1999",
+        "preferredLanguage": "hebrew",
+        "worksInIndustry": "no",
+        "aiUsage": "yes",
+        "statements": {
+          "aiLearningPotential": 4,
+          "aiEaseOfUse": 5,
+          "aiComplexity": 1,
+          "aiLearningImprovement": 5,
+          "selfLearningComfort": 5,
+          "selfLearningWithTech": 5,
+          "selfLearningWithAI": 2,
+          "aiDecisionComfort": 3,
+          "aiTrustworthiness": 3,
+          "aiIndependencePreference": 3
+        }
+      },
+      "time": "2025-10-21T13:30:04.574Z"
+    },
+    {
+      "_id": "68f795b60f29dd5eb21020fe",
+      "user": {
+        "email": "roie.shalev2001@gmail.com",
+        "name": "רועי"
+      },
+      "form": {
+        "firstName": "רועי ",
+        "lastName": "שלו",
+        "idCode": "6102",
+        "gender": "male",
+        "birthYear": "2001",
+        "preferredLanguage": "hebrew",
+        "worksInIndustry": "no",
+        "aiUsage": "yes",
+        "statements": {
+          "aiLearningPotential": 5,
+          "aiEaseOfUse": 5,
+          "aiComplexity": 2,
+          "aiLearningImprovement": 5,
+          "selfLearningComfort": 5,
+          "selfLearningWithTech": 5,
+          "selfLearningWithAI": 2,
+          "aiDecisionComfort": 3,
+          "aiTrustworthiness": 4,
+          "aiIndependencePreference": 3
+        }
+      },
+      "time": "2025-10-21T14:16:21.498Z"
+    },
+    {
+      "_id": "68f7a24ba4dfecd8d81b427c",
+      "user": {
+        "email": "eronsh@gmail.com",
+        "name": "עירון"
+      },
+      "form": {
+        "firstName": "עירון",
+        "lastName": "שינפלד",
+        "idCode": "1572",
+        "gender": "male",
+        "birthYear": "1999",
+        "preferredLanguage": "hebrew",
+        "worksInIndustry": "no",
+        "aiUsage": "yes",
+        "statements": {
+          "aiLearningPotential": 5,
+          "aiEaseOfUse": 5,
+          "aiComplexity": 2,
+          "aiLearningImprovement": 5,
+          "selfLearningComfort": 4,
+          "selfLearningWithTech": 4,
+          "selfLearningWithAI": 4,
+          "aiDecisionComfort": 3,
+          "aiTrustworthiness": 3,
+          "aiIndependencePreference": 4
+        }
+      },
+      "time": "2025-10-21T15:10:02.866Z"
+    },
+    {
+      "_id": "68f7ab760160927c7915eb03",
+      "user": {
+        "email": "achinoam.ros@gmail.com",
+        "name": "אחינועם"
+      },
+      "form": {
+        "firstName": "אחינועם",
+        "lastName": "רוזנבאום ",
+        "idCode": "7338",
+        "gender": "female",
+        "birthYear": "2001",
+        "preferredLanguage": "hebrew",
+        "worksInIndustry": "no",
+        "aiUsage": "yes",
+        "statements": {
+          "aiLearningPotential": 4,
+          "aiEaseOfUse": 4,
+          "aiComplexity": 3,
+          "aiLearningImprovement": 4,
+          "selfLearningComfort": 4,
+          "selfLearningWithTech": 4,
+          "selfLearningWithAI": 3,
+          "aiDecisionComfort": 3,
+          "aiTrustworthiness": 3,
+          "aiIndependencePreference": 2
+        }
+      },
+      "time": "2025-10-21T15:49:10.094Z"
+    },
+    {
+      "_id": "68f7b44031153941ff9528c6",
+      "user": {
+        "email": "tal.macabi@gmail.com",
+        "name": " טל "
+      },
+      "form": {
+        "firstName": "טל",
+        "lastName": "מכבי",
+        "idCode": "3773",
+        "gender": "female",
+        "birthYear": "1999",
+        "preferredLanguage": "hebrew",
+        "worksInIndustry": "no",
+        "aiUsage": "yes",
+        "statements": {
+          "aiLearningPotential": 5,
+          "aiEaseOfUse": 5,
+          "aiComplexity": 1,
+          "aiLearningImprovement": 5,
+          "selfLearningComfort": 2,
+          "selfLearningWithTech": 5,
+          "selfLearningWithAI": 2,
+          "aiDecisionComfort": 5,
+          "aiTrustworthiness": 5,
+          "aiIndependencePreference": 2
+        }
+      },
+      "time": "2025-10-21T16:26:40.337Z"
+    },
+    {
+      "_id": "68f7c44145f4e6b9a6b0ab57",
+      "user": {
+        "email": "lielyak@gmail.com",
+        "name": "ליאל"
+      },
+      "form": {
+        "firstName": "ליאל",
+        "lastName": "יעקובוב",
+        "idCode": "3887",
+        "gender": "female",
+        "birthYear": "2002",
+        "preferredLanguage": "hebrew",
+        "worksInIndustry": "no",
+        "aiUsage": "yes",
+        "statements": {
+          "aiLearningPotential": 5,
+          "aiEaseOfUse": 5,
+          "aiComplexity": 5,
+          "aiLearningImprovement": 5,
+          "selfLearningComfort": 4,
+          "selfLearningWithTech": 4,
+          "selfLearningWithAI": 2,
+          "aiDecisionComfort": 3,
+          "aiTrustworthiness": 3,
+          "aiIndependencePreference": 3
+        }
+      },
+      "time": "2025-10-21T17:34:54.986Z"
+    },
+    {
+      "_id": "68f88313a25f7cf19ca8956a",
+      "user": {
+        "email": "yonatan.shoham@stu.shenkar.ac.il",
+        "name": "יונתן"
+      },
+      "form": {
+        "firstName": "יונתן",
+        "lastName": "שהם",
+        "idCode": "3644",
+        "gender": "male",
+        "birthYear": "1998",
+        "preferredLanguage": "hebrew",
+        "worksInIndustry": "no",
+        "aiUsage": "yes",
+        "statements": {
+          "aiLearningPotential": 5,
+          "aiEaseOfUse": 5,
+          "aiComplexity": 3,
+          "aiLearningImprovement": 5,
+          "selfLearningComfort": 2,
+          "selfLearningWithTech": 4,
+          "selfLearningWithAI": 4,
+          "aiDecisionComfort": 3,
+          "aiTrustworthiness": 4,
+          "aiIndependencePreference": 1
+        }
+      },
+      "time": "2025-10-22T07:09:07.454Z"
     }
   ]
 }
