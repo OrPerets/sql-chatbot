@@ -1,4 +1,4 @@
-import { Db } from 'mongodb'
+import { Db, ObjectId } from 'mongodb'
 import { connectToDatabase, executeWithRetry, COLLECTIONS } from './database'
 
 export interface StudentProfile {
@@ -165,7 +165,7 @@ export class StudentProfilesService {
       const now = new Date()
       
       // Get user data to include name and email
-      const user = await db.collection(COLLECTIONS.USERS).findOne({ _id: userId })
+      const user = await db.collection(COLLECTIONS.USERS).findOne({ _id: new ObjectId(userId) })
       
       const profile: StudentProfile = {
         userId,
@@ -229,7 +229,7 @@ export class StudentProfilesService {
 
   async updateKnowledgeScore(
     userId: string, 
-    newScore: string, 
+    newScore: 'empty' | 'good' | 'needs_attention' | 'struggling', 
     reason: string, 
     updatedBy: 'system' | 'admin' | 'ai'
   ): Promise<boolean> {
@@ -296,14 +296,29 @@ export class StudentProfilesService {
     metrics: Partial<StudentProfile['engagementMetrics']>
   ): Promise<boolean> {
     return executeWithRetry(async (db) => {
+      const updateFields: any = {
+        updatedAt: new Date()
+      }
+      
+      // Set individual engagement metric fields
+      if (metrics.chatSessions !== undefined) {
+        updateFields['engagementMetrics.chatSessions'] = metrics.chatSessions
+      }
+      if (metrics.averageSessionDuration !== undefined) {
+        updateFields['engagementMetrics.averageSessionDuration'] = metrics.averageSessionDuration
+      }
+      if (metrics.helpRequests !== undefined) {
+        updateFields['engagementMetrics.helpRequests'] = metrics.helpRequests
+      }
+      if (metrics.selfCorrections !== undefined) {
+        updateFields['engagementMetrics.selfCorrections'] = metrics.selfCorrections
+      }
+
       const result = await db.collection<StudentProfile>(COLLECTIONS.STUDENT_PROFILES)
         .updateOne(
           { userId },
           {
-            $set: {
-              'engagementMetrics': metrics,
-              updatedAt: new Date()
-            }
+            $set: updateFields
           }
         )
 
@@ -316,14 +331,32 @@ export class StudentProfilesService {
     progress: Partial<StudentProfile['learningProgress']>
   ): Promise<boolean> {
     return executeWithRetry(async (db) => {
+      const updateFields: any = {
+        updatedAt: new Date()
+      }
+      
+      // Set individual learning progress fields
+      if (progress.sqlBasics !== undefined) {
+        updateFields['learningProgress.sqlBasics'] = progress.sqlBasics
+      }
+      if (progress.joins !== undefined) {
+        updateFields['learningProgress.joins'] = progress.joins
+      }
+      if (progress.aggregations !== undefined) {
+        updateFields['learningProgress.aggregations'] = progress.aggregations
+      }
+      if (progress.subqueries !== undefined) {
+        updateFields['learningProgress.subqueries'] = progress.subqueries
+      }
+      if (progress.advancedQueries !== undefined) {
+        updateFields['learningProgress.advancedQueries'] = progress.advancedQueries
+      }
+
       const result = await db.collection<StudentProfile>(COLLECTIONS.STUDENT_PROFILES)
         .updateOne(
           { userId },
           {
-            $set: {
-              'learningProgress': progress,
-              updatedAt: new Date()
-            }
+            $set: updateFields
           }
         )
 
@@ -336,14 +369,29 @@ export class StudentProfilesService {
     riskFactors: Partial<StudentProfile['riskFactors']>
   ): Promise<boolean> {
     return executeWithRetry(async (db) => {
+      const updateFields: any = {
+        updatedAt: new Date()
+      }
+      
+      // Set individual risk factor fields
+      if (riskFactors.isAtRisk !== undefined) {
+        updateFields['riskFactors.isAtRisk'] = riskFactors.isAtRisk
+      }
+      if (riskFactors.riskLevel !== undefined) {
+        updateFields['riskFactors.riskLevel'] = riskFactors.riskLevel
+      }
+      if (riskFactors.riskFactors !== undefined) {
+        updateFields['riskFactors.riskFactors'] = riskFactors.riskFactors
+      }
+      if (riskFactors.lastAssessment !== undefined) {
+        updateFields['riskFactors.lastAssessment'] = riskFactors.lastAssessment
+      }
+
       const result = await db.collection<StudentProfile>(COLLECTIONS.STUDENT_PROFILES)
         .updateOne(
           { userId },
           {
-            $set: {
-              'riskFactors': riskFactors,
-              updatedAt: new Date()
-            }
+            $set: updateFields
           }
         )
 
@@ -356,14 +404,38 @@ export class StudentProfilesService {
     insights: Partial<StudentProfile['conversationInsights']>
   ): Promise<boolean> {
     return executeWithRetry(async (db) => {
+      const updateFields: any = {
+        updatedAt: new Date()
+      }
+      
+      // Set individual conversation insight fields
+      if (insights.totalSessions !== undefined) {
+        updateFields['conversationInsights.totalSessions'] = insights.totalSessions
+      }
+      if (insights.averageSessionDuration !== undefined) {
+        updateFields['conversationInsights.averageSessionDuration'] = insights.averageSessionDuration
+      }
+      if (insights.mostCommonTopics !== undefined) {
+        updateFields['conversationInsights.mostCommonTopics'] = insights.mostCommonTopics
+      }
+      if (insights.learningTrend !== undefined) {
+        updateFields['conversationInsights.learningTrend'] = insights.learningTrend
+      }
+      if (insights.commonChallenges !== undefined) {
+        updateFields['conversationInsights.commonChallenges'] = insights.commonChallenges
+      }
+      if (insights.overallEngagement !== undefined) {
+        updateFields['conversationInsights.overallEngagement'] = insights.overallEngagement
+      }
+      if (insights.lastAnalysisDate !== undefined) {
+        updateFields['conversationInsights.lastAnalysisDate'] = insights.lastAnalysisDate
+      }
+
       const result = await db.collection<StudentProfile>(COLLECTIONS.STUDENT_PROFILES)
         .updateOne(
           { userId },
           {
-            $set: {
-              'conversationInsights': insights,
-              updatedAt: new Date()
-            }
+            $set: updateFields
           }
         )
 
@@ -473,7 +545,7 @@ export class StudentProfilesService {
             .findOne({ userId: user._id })
 
           if (!existingProfile) {
-            await this.createStudentProfile(user._id)
+            await this.createStudentProfile(user._id.toString())
             migrated++
           }
         } catch (error) {
@@ -495,7 +567,7 @@ export class StudentProfilesService {
       const issueId = `issue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       const now = new Date()
 
-      const result = await db.collection(COLLECTIONS.STUDENT_PROFILES).updateOne(
+      const result = await db.collection<StudentProfile>(COLLECTIONS.STUDENT_PROFILES).updateOne(
         { userId },
         {
           $push: {
@@ -504,7 +576,7 @@ export class StudentProfilesService {
               description,
               detectedAt: now,
               severity
-            }
+            } as StudentProfile['issueHistory'][0]
           },
           $inc: { issueCount: 1 },
           $set: { 
@@ -586,7 +658,7 @@ export class StudentProfilesService {
     return executeWithRetry(async (db) => {
       const now = new Date()
 
-      const result = await db.collection(COLLECTIONS.STUDENT_PROFILES).updateOne(
+      const result = await db.collection<StudentProfile>(COLLECTIONS.STUDENT_PROFILES).updateOne(
         { userId },
         {
           $set: {
@@ -599,7 +671,7 @@ export class StudentProfilesService {
               updatedAt: now,
               reason,
               updatedBy: 'ai'
-            }
+            } as StudentProfile['knowledgeScoreHistory'][0]
           }
         }
       )
@@ -635,7 +707,7 @@ export async function createStudentProfile(userId: string) {
   return service.createStudentProfile(userId)
 }
 
-export async function updateKnowledgeScore(userId: string, newScore: string, reason: string, updatedBy: 'system' | 'admin' | 'ai') {
+export async function updateKnowledgeScore(userId: string, newScore: 'empty' | 'good' | 'needs_attention' | 'struggling', reason: string, updatedBy: 'system' | 'admin' | 'ai') {
   const service = await getStudentProfilesService()
   return service.updateKnowledgeScore(userId, newScore, reason, updatedBy)
 }

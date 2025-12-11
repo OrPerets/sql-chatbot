@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       sessionId,
       sessionTitle: sessionTitle || 'Chat Session',
       messages: messages.map(msg => ({
-        role: msg.role,
+        role: (msg.role === 'user' || msg.role === 'assistant' ? msg.role : 'user') as 'user' | 'assistant',
         text: msg.text,
         timestamp: msg.timestamp
       })),

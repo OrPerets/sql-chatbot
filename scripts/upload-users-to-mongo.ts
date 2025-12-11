@@ -48,14 +48,9 @@ async function uploadUsersToMongo(jsonFilePath: string): Promise<void> {
     // Prepare users for insertion
     console.log('🔄 Preparing users for insertion...');
     const usersToInsert = data.documents.map(user => {
-      const userDoc = { ...user };
-      
-      // Remove _id from users that have it (MongoDB will generate new ones)
-      if (userDoc._id) {
-        delete userDoc._id;
-      }
-      
-      return userDoc;
+      const { _id, ...userDoc } = user;
+      // MongoDB will generate new _id values
+      return userDoc as any;
     });
     
     // Insert all users

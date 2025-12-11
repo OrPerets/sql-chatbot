@@ -52,7 +52,7 @@ export async function POST(
       sessionId,
       sessionTitle: finalSessionTitle,
       messages: messages.map(msg => ({
-        role: msg.role,
+        role: (msg.role === 'user' || msg.role === 'assistant' ? msg.role : 'user') as 'user' | 'assistant',
         text: msg.text,
         timestamp: msg.timestamp
       })),

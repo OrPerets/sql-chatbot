@@ -68,6 +68,49 @@ export class UsersService {
     })
   }
 
+  async updateUser(email: string, userData: { firstName?: string; lastName?: string; email?: string }): Promise<{ success: boolean; modifiedCount: number; error?: string }> {
+    return executeWithRetry(async (db) => {
+      // Check if user exists
+      const existingUser = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({ email })
+      if (!existingUser) {
+        return { success: false, modifiedCount: 0, error: 'User not found' }
+      }
+
+      // If email is being changed, check if new email already exists
+      if (userData.email && userData.email !== email) {
+        const emailExists = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({ email: userData.email })
+        if (emailExists) {
+          return { success: false, modifiedCount: 0, error: 'Email already exists' }
+        }
+      }
+
+      // Build update object
+      const updateData: any = {}
+      if (userData.firstName !== undefined) {
+        updateData.firstName = userData.firstName
+      }
+      if (userData.lastName !== undefined) {
+        updateData.lastName = userData.lastName
+      }
+      if (userData.email !== undefined && userData.email !== email) {
+        updateData.email = userData.email
+      }
+
+      // Update name field if firstName or lastName changed
+      if (userData.firstName !== undefined || userData.lastName !== undefined) {
+        const firstName = userData.firstName !== undefined ? userData.firstName : existingUser.firstName
+        const lastName = userData.lastName !== undefined ? userData.lastName : existingUser.lastName
+        updateData.name = `${firstName} ${lastName}`
+      }
+
+      const result = await db
+        .collection<UserModel>(COLLECTIONS.USERS)
+        .updateOne({ email }, { $set: updateData })
+      
+      return { success: true, modifiedCount: result.modifiedCount ?? 0 }
+    })
+  }
+
   async getCoinsBalance(email: string): Promise<any[]> {
     return executeWithRetry(async (db) => {
       const docs = await db.collection(COLLECTIONS.COINS).find({ user: email }).toArray()
@@ -232,6 +275,11 @@ export async function checkPasswordResetRateLimit(email: string) {
 export async function createUser(userData: { email: string; firstName: string; lastName: string; password?: string; isFirst?: boolean }) {
   const service = await getUsersService()
   return service.createUser(userData)
+}
+
+export async function updateUser(email: string, userData: { firstName?: string; lastName?: string; email?: string }) {
+  const service = await getUsersService()
+  return service.updateUser(email, userData)
 }
 
 

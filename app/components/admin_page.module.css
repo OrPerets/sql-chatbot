@@ -1282,7 +1282,7 @@ input:checked + .slider:before {
   background: white;
   border-radius: 12px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  max-width: 500px;
+  max-width: 600px;
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
@@ -1441,4 +1441,194 @@ input:checked + .slider:before {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
+}
+
+/* Modal Tabs */
+.modalTabs {
+  display: flex;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0 1.5rem;
+}
+
+.modalTab {
+  padding: 1rem 1.5rem;
+  border: none;
+  background: none;
+  color: #6b7280;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.modalTab:hover {
+  color: #374151;
+  background-color: #f9fafb;
+}
+
+.modalTabActive {
+  color: #667eea;
+  border-bottom-color: #667eea;
+  background-color: #f9fafb;
+}
+
+/* Users List in Modal */
+.usersListModal {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.usersListTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 1rem 0;
+}
+
+.modalSearchContainer {
+  position: relative;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.modalSearchIcon {
+  position: absolute;
+  right: 0.75rem;
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.modalSearchInput {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  background: #f9fafb;
+}
+
+.modalSearchInput:focus {
+  outline: none;
+  border-color: #667eea;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.modalNoResults {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.95rem;
+}
+
+.usersListContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.userListItem {
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.userListItem:hover {
+  border-color: #667eea;
+  background-color: #f9fafb;
+  transform: translateX(-2px);
+}
+
+.userListItemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.userListItemName {
+  font-weight: 500;
+  color: #1f2937;
+  font-size: 0.95rem;
+}
+
+.userListItemEmail {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+/* Edit User Section */
+.editUserSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.editUserHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.editUserHeader h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.backButton {
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.backButton:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.userActions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.resetPasswordButton {
+  padding: 0.75rem 1.5rem;
+  border: 1px solid #ef4444;
+  background: white;
+  color: #ef4444;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.resetPasswordButton:hover:not(:disabled) {
+  background-color: #ef4444;
+  color: white;
+}
+
+.resetPasswordButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
