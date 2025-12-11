@@ -46,8 +46,8 @@ async function testAutomaticAnalysis() {
       userId: recentSession.userId,
       sessionId: recentSession._id.toString(),
       sessionTitle: recentSession.title,
-      messages: messages.map(msg => ({
-        role: msg.role,
+      messages: messages.map((msg: any) => ({
+        role: (msg.role === 'user' || msg.role === 'assistant' ? msg.role : 'user') as 'user' | 'assistant',
         text: msg.text,
         timestamp: msg.timestamp
       })),

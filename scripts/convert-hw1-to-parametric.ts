@@ -252,7 +252,13 @@ async function convertHW1ToParametric() {
       console.log(`\n📝 Creating template ${i + 1}/5: ${templateData.name}`);
       
       try {
-        const createdTemplate = await templateService.createTemplate(templateData);
+        const createdTemplate = await templateService.createTemplate({
+          ...templateData,
+          variables: templateData.variables.map(v => ({
+            ...v,
+            type: v.type as any
+          }))
+        });
         createdTemplates.push(createdTemplate);
         console.log(`✅ Successfully created template: ${createdTemplate.name} (ID: ${createdTemplate.id})`);
         

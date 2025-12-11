@@ -75,6 +75,7 @@ function convertExcelToUser(excelUser: ExcelUser, index: number): UserDocument {
   
   const user: UserDocument = {
     _id: `excel_${Date.now()}_${index}`, // Generate unique ID
+    email: '', // Will be populated from Excel data
     isFirst: true, // Default value
   };
   

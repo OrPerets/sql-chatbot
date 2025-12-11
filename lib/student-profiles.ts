@@ -1,4 +1,4 @@
-import { Db } from 'mongodb'
+import { Db, ObjectId } from 'mongodb'
 import { connectToDatabase, executeWithRetry, COLLECTIONS } from './database'
 
 export interface StudentProfile {
@@ -165,7 +165,14 @@ export class StudentProfilesService {
       const now = new Date()
       
       // Get user data to include name and email
-      const user = await db.collection(COLLECTIONS.USERS).findOne({ _id: userId })
+      // Convert userId to ObjectId if it's a valid ObjectId string, otherwise try to find by email
+      let user
+      if (ObjectId.isValid(userId)) {
+        user = await db.collection(COLLECTIONS.USERS).findOne({ _id: new ObjectId(userId) })
+      } else {
+        // If userId is not a valid ObjectId, try finding by email
+        user = await db.collection(COLLECTIONS.USERS).findOne({ email: userId })
+      }
       
       const profile: StudentProfile = {
         userId,
@@ -229,7 +236,7 @@ export class StudentProfilesService {
 
   async updateKnowledgeScore(
     userId: string, 
-    newScore: string, 
+    newScore: 'empty' | 'good' | 'needs_attention' | 'struggling', 
     reason: string, 
     updatedBy: 'system' | 'admin' | 'ai'
   ): Promise<boolean> {
@@ -251,7 +258,7 @@ export class StudentProfilesService {
                 reason,
                 updatedBy
               }
-            }
+            } as any
           }
         )
 
@@ -301,7 +308,7 @@ export class StudentProfilesService {
           { userId },
           {
             $set: {
-              'engagementMetrics': metrics,
+              'engagementMetrics': metrics as StudentProfile['engagementMetrics'],
               updatedAt: new Date()
             }
           }
@@ -321,7 +328,7 @@ export class StudentProfilesService {
           { userId },
           {
             $set: {
-              'learningProgress': progress,
+              'learningProgress': progress as StudentProfile['learningProgress'],
               updatedAt: new Date()
             }
           }
@@ -341,7 +348,7 @@ export class StudentProfilesService {
           { userId },
           {
             $set: {
-              'riskFactors': riskFactors,
+              'riskFactors': riskFactors as StudentProfile['riskFactors'],
               updatedAt: new Date()
             }
           }
@@ -361,7 +368,7 @@ export class StudentProfilesService {
           { userId },
           {
             $set: {
-              'conversationInsights': insights,
+              'conversationInsights': insights as StudentProfile['conversationInsights'],
               updatedAt: new Date()
             }
           }
@@ -473,7 +480,7 @@ export class StudentProfilesService {
             .findOne({ userId: user._id })
 
           if (!existingProfile) {
-            await this.createStudentProfile(user._id)
+            await this.createStudentProfile(user._id.toString())
             migrated++
           }
         } catch (error) {
@@ -495,17 +502,19 @@ export class StudentProfilesService {
       const issueId = `issue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       const now = new Date()
 
-      const result = await db.collection(COLLECTIONS.STUDENT_PROFILES).updateOne(
+      const issueEntry = {
+        issueId,
+        description,
+        detectedAt: now,
+        severity
+      }
+
+      const result = await db.collection<StudentProfile>(COLLECTIONS.STUDENT_PROFILES).updateOne(
         { userId },
         {
           $push: {
-            issueHistory: {
-              issueId,
-              description,
-              detectedAt: now,
-              severity
-            }
-          },
+            issueHistory: issueEntry as StudentProfile['issueHistory'][0]
+          } as any,
           $inc: { issueCount: 1 },
           $set: { 
             lastIssueUpdate: now,
@@ -600,7 +609,7 @@ export class StudentProfilesService {
               reason,
               updatedBy: 'ai'
             }
-          }
+          } as any
         }
       )
 
@@ -635,7 +644,7 @@ export async function createStudentProfile(userId: string) {
   return service.createStudentProfile(userId)
 }
 
-export async function updateKnowledgeScore(userId: string, newScore: string, reason: string, updatedBy: 'system' | 'admin' | 'ai') {
+export async function updateKnowledgeScore(userId: string, newScore: 'empty' | 'good' | 'needs_attention' | 'struggling', reason: string, updatedBy: 'system' | 'admin' | 'ai') {
   const service = await getStudentProfilesService()
   return service.updateKnowledgeScore(userId, newScore, reason, updatedBy)
 }

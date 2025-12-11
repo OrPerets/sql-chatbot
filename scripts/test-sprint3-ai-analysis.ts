@@ -238,7 +238,7 @@ async function testAIAnalysisPerformance() {
       try {
         return await aiAnalysisEngine.analyzeStudent({
           studentId,
-          analysisType: 'performance_test',
+          analysisType: 'manual',
           triggerReason: 'Performance testing'
         })
       } catch (error) {

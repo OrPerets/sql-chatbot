@@ -136,7 +136,7 @@ export class TemplateSystem {
     let isValid = true;
 
     // Find all variable references
-    const matches = template.matchAll(this.VARIABLE_PATTERN);
+    const matches = Array.from(template.matchAll(this.VARIABLE_PATTERN));
     
     for (const match of matches) {
       const variableName = match[1].trim();

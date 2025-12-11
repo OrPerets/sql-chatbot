@@ -177,7 +177,7 @@ async function analyzeStudentData(email: string) {
     if (Object.keys(analysis.analytics.mostActiveTopics).length > 0) {
       console.log(`\n🎯 Most Active Topics:`)
       Object.entries(analysis.analytics.mostActiveTopics)
-        .sort(([,a], [,b]) => b - a)
+        .sort(([,a], [,b]) => (b as number) - (a as number))
         .slice(0, 5)
         .forEach(([topic, count]) => {
           console.log(`  • ${topic}: ${count} times`)
@@ -187,7 +187,7 @@ async function analyzeStudentData(email: string) {
     if (Object.keys(analysis.analytics.commonChallenges).length > 0) {
       console.log(`\n⚠️ Common Challenges:`)
       Object.entries(analysis.analytics.commonChallenges)
-        .sort(([,a], [,b]) => b - a)
+        .sort(([,a], [,b]) => (b as number) - (a as number))
         .slice(0, 5)
         .forEach(([challenge, count]) => {
           console.log(`  • ${challenge}: ${count} times`)

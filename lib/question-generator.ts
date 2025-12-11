@@ -275,7 +275,8 @@ export class QuestionGenerator {
    */
   async cleanupQuestionsForHomeworkSet(homeworkSetId: string): Promise<number> {
     try {
-      const deletedCount = await this.templateService.deleteInstantiatedQuestionsByHomeworkSet(homeworkSetId);
+      const templateService = await this.templateService;
+      const deletedCount = await templateService.deleteInstantiatedQuestionsByHomeworkSet(homeworkSetId);
       return deletedCount;
     } catch (error) {
       console.error('Error cleaning up questions for homework set:', error);
@@ -288,7 +289,8 @@ export class QuestionGenerator {
    */
   async cleanupQuestionsForStudent(studentId: string, homeworkSetId?: string): Promise<number> {
     try {
-      const deletedCount = await this.templateService.deleteInstantiatedQuestionsByStudent(studentId, homeworkSetId);
+      const templateService = await this.templateService;
+      const deletedCount = await templateService.deleteInstantiatedQuestionsByStudent(studentId, homeworkSetId);
       return deletedCount;
     } catch (error) {
       console.error('Error cleaning up questions for student:', error);
