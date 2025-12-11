@@ -11,7 +11,7 @@ const quickLinks = [
     color: "primary",
   },
   {
-    href: "/homework/runner/hw-set-analytics?studentId=student-demo",
+    href: "/homework/start",
     label: "ממשק הסטודנט",
     description: "חוויית פתרון המטלות עבור הסטודנטים",
     icon: <Play size={24} />,
