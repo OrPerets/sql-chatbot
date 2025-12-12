@@ -212,7 +212,8 @@ export function StudentEntryClient() {
           <div className={styles.icon}>
             <Play size={40} />
           </div>
-          <h1 className={styles.title}>שיעורי בית SQL</h1>
+          <p className={styles.subtitle}>היי לוטן ויעל</p>
+          <h1 className={styles.title}>תרגיל בית 3</h1>
           <p className={styles.subtitle}>נא להזין את תעודת הזהות שלך להתחלה</p>
         </div>
 

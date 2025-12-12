@@ -1,95 +1,196 @@
-# SQL Chatbot OpenAI Enhancement Roadmap
+# Michael - SQL Teaching Assistant
 
-The SQL Chatbot combines a Next.js front-end with the provided Express + Assistants API backend to help students master SQL. This document captures the forward-looking plan for integrating advanced OpenAI capabilities that deliver richer tutoring, safer SQL experimentation, and better personalization for every learner.
+An AI-powered SQL teaching assistant platform designed to help students master database queries through interactive learning, personalized homework assignments, and intelligent AI analysis.
 
-## Guiding Principles
-- **Pedagogy first**: Each feature must increase clarity, feedback quality, or motivation for SQL learners.
-- **Transparent AI**: Students and instructors should understand when and how AI suggestions are produced.
-- **Secure data handling**: Database credentials, student submissions, and analytics stay protected across every API call.
-- **Incremental rollout**: Ship improvements behind feature flags with measurable success metrics before broad release.
+## Project Overview
 
-## Top 5 OpenAI-powered Improvements
-Each initiative below highlights the relevant OpenAI features and lists the core tasks required to deliver the enhancement.
+Michael is a comprehensive web-based learning platform that provides:
 
-### 1. Multi-model Tutor Profiles & Smart Fallbacks
-**OpenAI capabilities**: Responses API with model selection (e.g., `gpt-4.1`, `gpt-4o-mini`, `o4-mini`), per-request `reasoning` toggles, and cost telemetry.
+- **Interactive SQL Chat Assistant**: Real-time AI-powered chat interface that helps students learn SQL through conversation and guided assistance
+- **Homework Management System**: Create, assign, and grade SQL homework assignments with automatic grading capabilities
+- **Student Profiling & Analytics**: Track student progress, analyze learning patterns, and identify areas for improvement using AI-powered analysis
+- **Admin Dashboard**: Comprehensive administrative interface for managing students, homework, datasets, and system analytics
+- **AI-Powered Learning Insights**: Automatic analysis of student behavior, performance trends, and knowledge gaps using OpenAI's GPT models
+- **Practice Mode**: Interactive SQL practice sessions with immediate feedback
+- **Voice Interface**: Voice-enabled interactions for enhanced accessibility
 
-**Learner benefit**: Students can pick between fast/explanatory/advanced tutors, while admins maintain guardrails on latency and token spend.
+### Technology Stack
 
-**TODO**
-- [ ] Extend user settings UI and `/chat-sessions` payloads to store preferred model + reasoning level.
-- [ ] Update backend request builder to map selections to OpenAI Responses API parameters with safe defaults.
-- [ ] Implement automatic fallback ladder (e.g., 4o ➝ 4o-mini ➝ 4-mini) when rate limits or outages occur; persist fallback events for monitoring.
-- [ ] Surface model + reasoning metadata in the chat transcript so learners understand which tutor responded.
+- **Framework**: Next.js 14 (React 18)
+- **Language**: TypeScript
+- **Database**: MongoDB
+- **AI Integration**: OpenAI API (GPT-4)
+- **SQL Execution**: sql.js
+- **UI Libraries**: Styled Components, React Three Fiber (3D avatars), Monaco Editor (code editor)
+- **Testing**: Jest, Playwright, React Testing Library
 
-### 2. Schema-aware Function Calling for SQL Guidance
-**OpenAI capabilities**: Responses API `tool_choice='auto'`, JSON function calling, function result streaming.
+## Installation Guide
 
-**Learner benefit**: The assistant can inspect live schema snapshots, validate learner SQL, and produce tailored hints before executing anything on the database.
+### Prerequisites
 
-**TODO**
-- [ ] Design server-side tool schema (e.g., `describe_tables`, `explain_query`, `run_safe_example`) that expose read-only metadata via the Express server.
-- [ ] Register tool definitions with the assistant and implement execution handlers that call existing `DB` utilities.
-- [ ] Add guardrails to block destructive statements and sanitize parameters before any DB call.
-- [ ] Cache recent schema/function outputs per thread to reduce redundant DB hits and improve response times.
+- **Node.js**: Version 18 or higher
+- **npm** or **yarn**: Package manager
+- **MongoDB**: Access to a MongoDB instance (local or cloud)
+- **OpenAI API Key**: For AI assistant functionality
 
-### 3. Retrieval-Augmented Explanations & Course Handouts
-**OpenAI capabilities**: Assistants API vector stores, file search, and re-ranking; `response_format` for structured citations.
+### Step 1: Clone the Repository
 
-**Learner benefit**: Answers reference official course materials, homework rubrics, and instructor notes, giving students trustworthy, citation-backed explanations.
+```bash
+git clone <repository-url>
+cd sql-chatbot
+```
 
-**TODO**
-- [ ] Ingest syllabi, lecture decks, and graded exemplar answers into an OpenAI vector store via the server’s admin tools.
-- [ ] Link chat threads to the appropriate retrieval index (per course, semester, or instructor) during assistant creation.
-- [ ] Update UI to display cited snippets with source metadata (lecture title, slide number, etc.) in the message bubble.
-- [ ] Build an indexing maintenance job that refreshes embeddings when instructors upload new content.
+### Step 2: Install Dependencies
 
-### 4. Structured SQL Critique & Auto-Scoring Pipeline
-**OpenAI capabilities**: Responses API with JSON mode, parallel tool calls, and function calling for rubric checks.
+```bash
+npm install
+```
 
-**Learner benefit**: Students receive actionable, rubric-aligned feedback and automated scoring on practice and exam questions while instructors can audit AI rationale.
+### Step 3: Environment Configuration
 
-**TODO**
-- [ ] Define a JSON critique schema (score, error categories, fix-it steps) and enforce it via `response_format`.
-- [ ] Combine OpenAI analysis with existing `/submitExerciseAnswer` logic to cross-validate keyword checks against AI rubric findings.
-- [ ] Persist critiques and scores alongside `DB.saveExamAnswer` results for instructor review dashboards.
-- [ ] Add an instructor moderation queue that highlights low-confidence critiques or model disagreements for manual override.
+Create a `.env.local` file in the project root directory:
 
-### 5. Real-time Voice & Streaming SQL Walkthroughs
-**OpenAI capabilities**: Responses API streaming, Realtime API for audio input/output, `audio.speech` TTS + `audio.transcriptions` STT.
+```bash
+cp .env.example .env.local
+```
 
-**Learner benefit**: A hands-free tutoring mode where the assistant narrates step-by-step reasoning, listens to follow-up questions, and keeps the 3D Michael avatar in sync.
+Configure the following environment variables in `.env.local`:
 
-**TODO**
-- [ ] Upgrade the chat front-end to use server-sent events or websockets that relay streaming deltas from the Responses API.
-- [ ] Integrate the Realtime API to capture microphone input, transcribe via Whisper, and feed transcripts into the conversation thread.
-- [ ] Synchronize avatar state changes (thinking/speaking/listening) with streaming lifecycle events for natural interactions.
-- [ ] Provide a downloadable session recap (audio + transcript + SQL snippets) generated from streamed content once a conversation ends.
+```bash
+# OpenAI API Configuration
+OPENAI_API_KEY=your_openai_api_key_here
+ASSISTANT_ID=your_assistant_id_here
 
-## Milestones & Measurement
-1. **Foundation (Weeks 1–2)**: Ship model switcher + telemetry dashboard. KPI: ≥80% of beta users customize tutor profile without support tickets.
-2. **Guided SQL (Weeks 3–5)**: Release function calling + critique pipeline to a pilot class. KPI: 25% reduction in manual grading time; <5% incorrect AI critiques.
-3. **Knowledge Depth (Weeks 6–7)**: Turn on retrieval with instructor content. KPI: ≥60% of explanations cite at least one course artifact.
-4. **Immersive Mode (Weeks 8–10)**: Deploy streaming voice experience. KPI: 30% of active users complete at least one voice-guided session; CSAT ≥ 4.2/5.
+# Database Configuration
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority&appName=SQLMentor
+# OR use individual credentials:
+DB_USERNAME=your_db_username
+DB_PASSWORD=your_db_password
+DB_NAME=your_database_name
 
-## Risk Mitigation
-- Maintain feature flags for every new capability and provide instant rollback paths.
-- Log OpenAI request metadata (model, latency, token usage) to monitor cost and reliability.
-- Establish human-in-the-loop review for auto-scoring before releasing grades to students.
-- Document privacy impact assessments whenever new student data flows through OpenAI endpoints.
+# Feature Flags (optional)
+FEATURE_VOICE=1
+```
 
-## Getting Involved
-- **Developers**: Track feature branches and tasks in the project board; pair on tool schema design and UI experiments.
-- **Instructors**: Curate the canonical course materials and provide feedback on AI-generated critiques.
-- **Students**: Opt into beta tests, report confusing explanations, and help evaluate new tutoring modes.
+**Important**: 
+- Replace all placeholder values with your actual credentials
+- Never commit `.env.local` to version control
+- The `.env.local` file is already included in `.gitignore`
 
-Together, these enhancements leverage OpenAI’s latest APIs to deliver a safer, smarter, and more personalized SQL learning companion.
+### Step 4: Database Setup
 
-## Homework Module Quick Start
+If you're setting up a new database instance, run the database setup script:
 
-- Builder dashboard: [`/homework/builder`](http://localhost:3000/homework/builder)
-- Student runner demo: [`/homework/runner/hw-set-analytics?studentId=student-demo`](http://localhost:3000/homework/runner/hw-set-analytics?studentId=student-demo)
-- Grading workspace: [`/homework/builder/hw-set-analytics/grade`](http://localhost:3000/homework/builder/hw-set-analytics/grade)
+```bash
+npm run setup-database
+```
 
-Refer to `docs/homework-module/runner-grading-guide.md` for detailed setup, endpoints, and testing instructions spanning Sprints 0–4.
+This script will:
+- Create necessary database collections
+- Set up indexes for optimal performance
+- Validate the database connection
 
+### Step 5: Run the Development Server
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+The application will be available at `http://localhost:3000`
+
+### Step 6: Verify Installation
+
+1. Open your browser and navigate to `http://localhost:3000`
+2. You should see the login page
+3. If everything is configured correctly, you should be able to access the application
+
+## Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
+- `npm test` - Run Jest tests
+- `npm run test:watch` - Run tests in watch mode
+- `npm run test:coverage` - Run tests with coverage report
+- `npm run test:e2e` - Run Playwright end-to-end tests
+- `npm run test:component` - Run component tests
+- `npm run test:api` - Run API tests
+- `npm run setup-database` - Set up database collections and indexes
+- `npm run verify-deployment` - Verify deployment configuration
+- `npm run cleanup-tokens` - Clean up expired tokens
+- `npm run maintenance` - Run maintenance tasks
+
+## Project Structure
+
+```
+sql-chatbot/
+├── app/                    # Next.js app directory (pages, components, API routes)
+│   ├── api/               # API endpoints
+│   ├── components/        # React components
+│   └── [routes]/          # Application routes
+├── lib/                   # Core libraries and services
+│   ├── database.ts        # MongoDB connection and utilities
+│   ├── ai-analysis.ts     # AI analysis engine
+│   ├── homework.ts        # Homework service
+│   └── ...                # Other service modules
+├── scripts/               # Utility scripts
+├── docs/                  # Documentation
+├── public/                # Static assets
+└── __tests__/             # Test files
+```
+
+## Features Documentation
+
+For detailed documentation on specific features, see the `docs/` directory:
+
+- [Database Setup](./docs/database-setup.md) - Database configuration and migration
+- [Sprint 2 Implementation](./docs/sprint2-implementation.md) - Student profiling system
+- [Sprint 3 Implementation](./docs/sprint3-implementation.md) - AI-powered knowledge score updates
+- [Conversation Summary System](./docs/conversation-summary-system.md) - AI conversation analysis
+- [Admin Panel Enhancement](./docs/admin-panel-enhancement.md) - Admin dashboard features
+
+## Troubleshooting
+
+### Database Connection Issues
+
+If you encounter database connection errors:
+
+1. Verify your MongoDB connection string is correct
+2. Ensure your IP address is whitelisted (for MongoDB Atlas)
+3. Check that your database credentials are valid
+4. Verify network connectivity
+
+### OpenAI API Issues
+
+If the AI assistant is not working:
+
+1. Verify your `OPENAI_API_KEY` is set correctly
+2. Check your OpenAI account has available credits
+3. Ensure the API key has proper permissions
+
+### Port Already in Use
+
+If port 3000 is already in use:
+
+```bash
+# Kill the process using port 3000 (macOS/Linux)
+lsof -ti:3000 | xargs kill -9
+
+# Or specify a different port
+PORT=3001 npm run dev
+```
+
+## Contributing
+
+1. Create a feature branch
+2. Make your changes
+3. Write/update tests
+4. Ensure all tests pass (`npm test`)
+5. Submit a pull request
+
+## License
+
+See the [LICENSE](./LICENSE) file for details.
