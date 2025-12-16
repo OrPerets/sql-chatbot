@@ -8,7 +8,7 @@ const QuestionnaireContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  background-color: #f9f9f9;
+  background-color:rgb(9, 8, 8);
   padding: 20px;
   border-radius: 16px;
   margin: auto;
