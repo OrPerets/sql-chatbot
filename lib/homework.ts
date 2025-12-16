@@ -113,13 +113,15 @@ export class HomeworkService {
    * Get a single homework set by ID
    */
   async getHomeworkSetById(id: string): Promise<HomeworkSet | null> {
+    // Check if the id is a valid ObjectId format (24 hex characters)
+    const isValidObjectId = ObjectId.isValid(id);
+    
     const homework = await this.db
       .collection<HomeworkSetModel>(COLLECTIONS.HOMEWORK_SETS)
       .findOne({ 
-        $or: [
-          { _id: new ObjectId(id) },
-          { id: id }
-        ]
+        $or: isValidObjectId
+          ? [{ _id: new ObjectId(id) }, { id: id }]
+          : [{ id: id }]
       });
 
     if (!homework) return null;
@@ -176,14 +178,16 @@ export class HomeworkService {
       updatedAt: now,
     };
 
+    // Check if the id is a valid ObjectId format (24 hex characters)
+    const isValidObjectId = ObjectId.isValid(id);
+
     const result = await this.db
       .collection<HomeworkSetModel>(COLLECTIONS.HOMEWORK_SETS)
       .findOneAndUpdate(
         { 
-          $or: [
-            { _id: new ObjectId(id) },
-            { id: id }
-          ]
+          $or: isValidObjectId
+            ? [{ _id: new ObjectId(id) }, { id: id }]
+            : [{ id: id }]
         },
         { $set: updateData },
         { returnDocument: 'after' }
@@ -213,13 +217,15 @@ export class HomeworkService {
    * Delete a homework set
    */
   async deleteHomeworkSet(id: string): Promise<boolean> {
+    // Check if the id is a valid ObjectId format (24 hex characters)
+    const isValidObjectId = ObjectId.isValid(id);
+    
     const result = await this.db
       .collection<HomeworkSetModel>(COLLECTIONS.HOMEWORK_SETS)
       .deleteOne({ 
-        $or: [
-          { _id: new ObjectId(id) },
-          { id: id }
-        ]
+        $or: isValidObjectId
+          ? [{ _id: new ObjectId(id) }, { id: id }]
+          : [{ id: id }]
       });
 
     return result.deletedCount > 0;

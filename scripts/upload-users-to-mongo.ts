@@ -47,10 +47,10 @@ async function uploadUsersToMongo(jsonFilePath: string): Promise<void> {
     
     // Prepare users for insertion
     console.log('🔄 Preparing users for insertion...');
-    const usersToInsert: Omit<UserDocument, '_id'>[] = data.documents.map(user => {
-      // Destructure to exclude _id - MongoDB will generate new ones
+    const usersToInsert = data.documents.map(user => {
       const { _id, ...userDoc } = user;
-      return userDoc;
+      // MongoDB will generate new _id values
+      return userDoc as any;
     });
     
     // Insert all users

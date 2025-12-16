@@ -4,6 +4,7 @@ import { getTemplateService } from '../lib/template-service';
 import { getHomeworkService } from '../lib/homework';
 import { getQuestionsService } from '../lib/questions';
 import { getQuestionGenerator } from '../lib/question-generator';
+import type { VariableDefinition, VariableType, VariableConstraints } from '../app/homework/types';
 
 /**
  * Script to convert HW1 from static questions to parametric templates
@@ -20,9 +21,9 @@ interface HW1TemplateData {
   variables: Array<{
     id: string;
     name: string;
-    type: string;
+    type: VariableType;
     description: string;
-    constraints: any;
+    constraints?: VariableConstraints;
     required: boolean;
   }>;
   expectedResultSchema?: Array<{ column: string; type: string }>;
@@ -252,13 +253,19 @@ async function convertHW1ToParametric() {
       console.log(`\n📝 Creating template ${i + 1}/5: ${templateData.name}`);
       
       try {
-        const createdTemplate = await templateService.createTemplate({
+        // Convert to proper format
+        const templateToCreate = {
           ...templateData,
           variables: templateData.variables.map(v => ({
-            ...v,
-            type: v.type as any
-          }))
-        });
+            id: v.id,
+            name: v.name,
+            type: v.type,
+            description: v.description,
+            constraints: v.constraints,
+            required: v.required
+          } as VariableDefinition))
+        };
+        const createdTemplate = await templateService.createTemplate(templateToCreate);
         createdTemplates.push(createdTemplate);
         console.log(`✅ Successfully created template: ${createdTemplate.name} (ID: ${createdTemplate.id})`);
         

@@ -108,7 +108,7 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
               onClick={() => onNavigate('users')}
             >
               <Plus size={18} />
-              <span>הוסף משתמש</span>
+              <span> ניהול משתמשים </span>
             </button>
             
             <button 
@@ -129,10 +129,10 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
           icon={Users}
           title="משתמשים פעילים"
           value={dashboardStats.activeUsers}
-          description="משתמשים פעילים ב-24 שעות האחרונות"
+          description="משתמשים פעילים"
           trend={{
             value: 12,
-            label: "השבוע האחרון",
+            label: "",
             direction: "up"
           }}
           color="primary"
@@ -142,41 +142,7 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
         />
       </div>
 
-      {/* Secondary Stats */}
-      <div className={styles.secondaryStats}>
-        <div className={styles.statItem}>
-          <Target size={20} className={styles.statIcon} />
-          <div className={styles.statContent}>
-            <span className={styles.statValue}>94%</span>
-            <span className={styles.statLabel}>שביעות רצון</span>
-          </div>
-        </div>
-
-        <div className={styles.statItem}>
-          <Award size={20} className={styles.statIcon} />
-          <div className={styles.statContent}>
-            <span className={styles.statValue}>156</span>
-            <span className={styles.statLabel}>תעודות הוענקו</span>
-          </div>
-        </div>
-
-        <div className={styles.statItem}>
-          <Clock size={20} className={styles.statIcon} />
-          <div className={styles.statContent}>
-            <span className={styles.statValue}>2.3h</span>
-            <span className={styles.statLabel}>זמן ממוצע בפלטפורמה</span>
-          </div>
-        </div>
-
-        <div className={styles.statItem}>
-          <CheckCircle size={20} className={styles.statIcon} />
-          <div className={styles.statContent}>
-            <span className={styles.statValue}>89%</span>
-            <span className={styles.statLabel}>שיעור הצלחה</span>
-          </div>
-        </div>
-      </div>
-
+  
       {/* System Tools Section */}
       <div className={styles.quickActionsSection}>
         <h3 className={styles.sectionTitle}>🔧 כלי מערכת</h3>

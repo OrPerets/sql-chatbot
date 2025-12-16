@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, Settings, BarChart3, Search, Upload, Shield, Clock, Plus, X } from 'lucide-react';
 import ModernAdminLayout from './admin/ModernAdminLayout';
@@ -37,9 +37,26 @@ const AdminPage: React.FC = () => {
  const [activeTab, setActiveTab] = useState('dashboard');
  const [loading, setLoading] = useState(true);
  const [dismissedMessages, setDismissedMessages] = useState<string[]>([]);
- const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
- const [newUser, setNewUser] = useState({ firstName: '', lastName: '', email: '' });
- const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [newUser, setNewUser] = useState({ firstName: '', lastName: '', email: '' });
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [modalMode, setModalMode] = useState<'add' | 'manage'>('add');
+  const [selectedUserForEdit, setSelectedUserForEdit] = useState<any>(null);
+  const [editUserData, setEditUserData] = useState({ firstName: '', lastName: '', email: '' });
+  const [isUpdatingUser, setIsUpdatingUser] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [modalSearchTerm, setModalSearchTerm] = useState('');
+
+  // Filter users for modal search
+  const filteredModalUsers = useMemo(() => {
+    if (!modalSearchTerm) return users;
+    const searchLower = modalSearchTerm.toLowerCase();
+    return users.filter(user => {
+      const userName = (user.name || `${user.firstName || ''} ${user.lastName || ''}`).toLowerCase();
+      const userEmail = (user.email || '').toLowerCase();
+      return userName.includes(searchLower) || userEmail.includes(searchLower);
+    });
+  }, [users, modalSearchTerm]);
 
  // Fetch initial token visibility state
  useEffect(() => {
@@ -379,6 +396,7 @@ const AdminPage: React.FC = () => {
      handleSuccess('המשתמש נוצר בהצלחה!');
      setIsAddUserModalOpen(false);
      setNewUser({ firstName: '', lastName: '', email: '' });
+     setModalMode('add');
      // Refresh users data
      fetchUsersData();
    } catch (error) {
@@ -386,6 +404,101 @@ const AdminPage: React.FC = () => {
      handleError('שגיאה ביצירת משתמש');
    } finally {
      setIsCreatingUser(false);
+   }
+ };
+
+const handleSelectUser = (user: any) => {
+  setSelectedUserForEdit(user);
+  setModalSearchTerm(''); // Clear search when selecting a user
+  
+  // Parse name if firstName/lastName are not available
+  let firstName = user.firstName || '';
+  let lastName = user.lastName || '';
+  
+  if (!firstName && !lastName && user.name) {
+    const nameParts = user.name.trim().split(/\s+/);
+    if (nameParts.length >= 2) {
+      firstName = nameParts[0];
+      lastName = nameParts.slice(1).join(' ');
+    } else {
+      firstName = user.name;
+      lastName = '';
+    }
+  }
+  
+  setEditUserData({
+    firstName,
+    lastName,
+    email: user.email || ''
+  });
+};
+
+ const handleResetPassword = async () => {
+   if (!selectedUserForEdit) return;
+
+   setIsResettingPassword(true);
+   try {
+     const response = await fetch(`/api/users/${encodeURIComponent(selectedUserForEdit.email)}`, {
+       method: 'PUT',
+       headers: {
+         'Content-Type': 'application/json',
+       },
+       body: JSON.stringify({ password: 'shenkar' }),
+     });
+
+     const result = await response.json();
+
+     if (!response.ok) {
+       handleError(result.error || 'שגיאה באיפוס סיסמה');
+       return;
+     }
+
+     handleSuccess('הסיסמה אופסה בהצלחה ל-"shenkar"');
+     fetchUsersData();
+   } catch (error) {
+     console.error('Error resetting password:', error);
+     handleError('שגיאה באיפוס סיסמה');
+   } finally {
+     setIsResettingPassword(false);
+   }
+ };
+
+ const handleUpdateUser = async () => {
+   if (!selectedUserForEdit || !editUserData.firstName || !editUserData.lastName || !editUserData.email) {
+     handleError('יש למלא את כל השדות');
+     return;
+   }
+
+   setIsUpdatingUser(true);
+   try {
+     const response = await fetch(`/api/users/${encodeURIComponent(selectedUserForEdit.email)}`, {
+       method: 'PUT',
+       headers: {
+         'Content-Type': 'application/json',
+       },
+       body: JSON.stringify({
+         firstName: editUserData.firstName,
+         lastName: editUserData.lastName,
+         email: editUserData.email
+       }),
+     });
+
+     const result = await response.json();
+
+     if (!response.ok) {
+       handleError(result.error || 'שגיאה בעדכון משתמש');
+       return;
+     }
+
+     handleSuccess('פרטי המשתמש עודכנו בהצלחה!');
+     setSelectedUserForEdit(null);
+     setEditUserData({ firstName: '', lastName: '', email: '' });
+     fetchUsersData();
+   } catch (error) {
+     console.error('Error updating user:', error);
+     handleError('שגיאה בעדכון משתמש');
+   } finally {
+     setIsUpdatingUser(false);
    }
  };
 
@@ -399,7 +512,7 @@ const AdminPage: React.FC = () => {
            onClick={() => setIsAddUserModalOpen(true)}
          >
            <Plus size={18} />
-           <span>הוסף משתמש חדש</span>
+           <span> ערוך / הוסף  </span>
          </button>
        </div>
        <p className={styles.sectionDescription}>
@@ -439,81 +552,238 @@ const AdminPage: React.FC = () => {
        />
      </div>
 
-     {/* Add User Modal */}
+     {/* Add/Manage User Modal */}
      {isAddUserModalOpen && (
-       <div className={styles.modalOverlay} onClick={() => setIsAddUserModalOpen(false)}>
+       <div className={styles.modalOverlay} onClick={() => {
+         setIsAddUserModalOpen(false);
+         setModalMode('add');
+         setSelectedUserForEdit(null);
+         setEditUserData({ firstName: '', lastName: '', email: '' });
+         setModalSearchTerm('');
+       }}>
          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
            <div className={styles.modalHeader}>
-             <h3 className={styles.modalTitle}>הוסף משתמש חדש</h3>
+             <h3 className={styles.modalTitle}>ניהול משתמשים</h3>
              <button
                className={styles.modalCloseButton}
-               onClick={() => setIsAddUserModalOpen(false)}
+               onClick={() => {
+                 setIsAddUserModalOpen(false);
+                 setModalMode('add');
+                 setSelectedUserForEdit(null);
+                 setEditUserData({ firstName: '', lastName: '', email: '' });
+                 setModalSearchTerm('');
+               }}
              >
                <X size={20} />
              </button>
            </div>
            
+           {/* Mode Tabs */}
+           <div className={styles.modalTabs}>
+             <button
+               className={`${styles.modalTab} ${modalMode === 'add' ? styles.modalTabActive : ''}`}
+               onClick={() => {
+                 setModalMode('add');
+                 setSelectedUserForEdit(null);
+                 setEditUserData({ firstName: '', lastName: '', email: '' });
+                 setModalSearchTerm('');
+               }}
+             >
+               הוסף משתמש חדש
+             </button>
+             <button
+               className={`${styles.modalTab} ${modalMode === 'manage' ? styles.modalTabActive : ''}`}
+               onClick={() => setModalMode('manage')}
+             >
+               נהל משתמש קיים
+             </button>
+           </div>
+           
            <div className={styles.modalBody}>
-             <div className={styles.formGroup}>
-               <label className={styles.formLabel}>שם פרטי *</label>
-               <input
-                 type="text"
-                 className={styles.formInput}
-                 value={newUser.firstName}
-                 onChange={(e) => setNewUser({ ...newUser, firstName: e.target.value })}
-                 placeholder="הכנס שם פרטי"
-                 dir="rtl"
-               />
-             </div>
-             
-             <div className={styles.formGroup}>
-               <label className={styles.formLabel}>שם משפחה *</label>
-               <input
-                 type="text"
-                 className={styles.formInput}
-                 value={newUser.lastName}
-                 onChange={(e) => setNewUser({ ...newUser, lastName: e.target.value })}
-                 placeholder="הכנס שם משפחה"
-                 dir="rtl"
-               />
-             </div>
-             
-             <div className={styles.formGroup}>
-               <label className={styles.formLabel}>אימייל *</label>
-               <input
-                 type="email"
-                 className={styles.formInput}
-                 value={newUser.email}
-                 onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                 placeholder="הכנס כתובת אימייל"
-                 dir="ltr"
-               />
-             </div>
-             
-             <div className={styles.formInfo}>
-               <p>ערכי ברירת מחדל:</p>
-               <ul>
-                 <li>סיסמה: shenkar</li>
-                 <li>isFirst: true</li>
-               </ul>
-             </div>
+             {modalMode === 'add' ? (
+               <>
+                 <div className={styles.formGroup}>
+                   <label className={styles.formLabel}>שם פרטי *</label>
+                   <input
+                     type="text"
+                     className={styles.formInput}
+                     value={newUser.firstName}
+                     onChange={(e) => setNewUser({ ...newUser, firstName: e.target.value })}
+                     placeholder="הכנס שם פרטי"
+                     dir="rtl"
+                   />
+                 </div>
+                 
+                 <div className={styles.formGroup}>
+                   <label className={styles.formLabel}>שם משפחה *</label>
+                   <input
+                     type="text"
+                     className={styles.formInput}
+                     value={newUser.lastName}
+                     onChange={(e) => setNewUser({ ...newUser, lastName: e.target.value })}
+                     placeholder="הכנס שם משפחה"
+                     dir="rtl"
+                   />
+                 </div>
+                 
+                 <div className={styles.formGroup}>
+                   <label className={styles.formLabel}>אימייל *</label>
+                   <input
+                     type="email"
+                     className={styles.formInput}
+                     value={newUser.email}
+                     onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                     placeholder="הכנס כתובת אימייל"
+                     dir="ltr"
+                   />
+                 </div>
+                 
+                 <div className={styles.formInfo}>
+                   <p>ערכי ברירת מחדל:</p>
+                   <ul>
+                     <li>סיסמה: shenkar</li>
+                     <li>isFirst: true</li>
+                   </ul>
+                 </div>
+               </>
+             ) : (
+               <>
+                 {!selectedUserForEdit ? (
+                   <div className={styles.usersListModal} key="user-list">
+                     <h4 className={styles.usersListTitle}>בחר משתמש לעריכה:</h4>
+                     <div className={styles.modalSearchContainer}>
+                       <Search size={18} className={styles.modalSearchIcon} />
+                       <input
+                         type="text"
+                         className={styles.modalSearchInput}
+                         placeholder="חפש לפי שם או אימייל..."
+                         value={modalSearchTerm}
+                         onChange={(e) => setModalSearchTerm(e.target.value)}
+                         dir="rtl"
+                       />
+                     </div>
+                     <div className={styles.usersListContainer}>
+                       {filteredModalUsers.length > 0 ? (
+                         filteredModalUsers.map(user => (
+                           <div
+                             key={user.email}
+                             className={styles.userListItem}
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               handleSelectUser(user);
+                             }}
+                           >
+                             <div className={styles.userListItemInfo}>
+                               <div className={styles.userListItemName}>{user.name || `${user.firstName || ''} ${user.lastName || ''}`}</div>
+                               <div className={styles.userListItemEmail}>{user.email}</div>
+                             </div>
+                           </div>
+                         ))
+                       ) : modalSearchTerm ? (
+                         <div className={styles.modalNoResults}>
+                           לא נמצאו משתמשים התואמים לחיפוש
+                         </div>
+                       ) : null}
+                     </div>
+                   </div>
+                 ) : (
+                   <div className={styles.editUserSection} key={`edit-${selectedUserForEdit?.email || 'user'}`}>
+                     <div className={styles.editUserHeader}>
+                       <h4>ערוך משתמש: {selectedUserForEdit.name || selectedUserForEdit.email}</h4>
+                       <button
+                         className={styles.backButton}
+                         onClick={() => {
+                           setSelectedUserForEdit(null);
+                           setEditUserData({ firstName: '', lastName: '', email: '' });
+                           setModalSearchTerm('');
+                         }}
+                       >
+                         חזור לרשימה
+                       </button>
+                     </div>
+                     
+                     <div className={styles.formGroup}>
+                       <label className={styles.formLabel}>שם פרטי *</label>
+                       <input
+                         type="text"
+                         className={styles.formInput}
+                         value={editUserData.firstName}
+                         onChange={(e) => setEditUserData({ ...editUserData, firstName: e.target.value })}
+                         placeholder="הכנס שם פרטי"
+                         dir="rtl"
+                       />
+                     </div>
+                     
+                     <div className={styles.formGroup}>
+                       <label className={styles.formLabel}>שם משפחה *</label>
+                       <input
+                         type="text"
+                         className={styles.formInput}
+                         value={editUserData.lastName}
+                         onChange={(e) => setEditUserData({ ...editUserData, lastName: e.target.value })}
+                         placeholder="הכנס שם משפחה"
+                         dir="rtl"
+                       />
+                     </div>
+                     
+                     <div className={styles.formGroup}>
+                       <label className={styles.formLabel}>אימייל *</label>
+                       <input
+                         type="email"
+                         className={styles.formInput}
+                         value={editUserData.email}
+                         onChange={(e) => setEditUserData({ ...editUserData, email: e.target.value })}
+                         placeholder="הכנס כתובת אימייל"
+                         dir="ltr"
+                       />
+                     </div>
+                     
+                     <div className={styles.userActions}>
+                       <button
+                         className={styles.resetPasswordButton}
+                         onClick={handleResetPassword}
+                         disabled={isResettingPassword}
+                       >
+                         {isResettingPassword ? 'מאפס...' : 'איפוס סיסמה ל-"shenkar"'}
+                       </button>
+                     </div>
+                   </div>
+                 )}
+               </>
+             )}
            </div>
            
            <div className={styles.modalFooter}>
              <button
                className={styles.modalCancelButton}
-               onClick={() => setIsAddUserModalOpen(false)}
-               disabled={isCreatingUser}
+               onClick={() => {
+                 setIsAddUserModalOpen(false);
+                 setModalMode('add');
+                 setSelectedUserForEdit(null);
+                 setEditUserData({ firstName: '', lastName: '', email: '' });
+                 setModalSearchTerm('');
+               }}
+               disabled={isCreatingUser || isUpdatingUser}
              >
                ביטול
              </button>
-             <button
-               className={styles.modalSubmitButton}
-               onClick={handleAddUser}
-               disabled={isCreatingUser || !newUser.firstName || !newUser.lastName || !newUser.email}
-             >
-               {isCreatingUser ? 'יוצר...' : 'צור משתמש'}
-             </button>
+             {modalMode === 'add' ? (
+               <button
+                 className={styles.modalSubmitButton}
+                 onClick={handleAddUser}
+                 disabled={isCreatingUser || !newUser.firstName || !newUser.lastName || !newUser.email}
+               >
+                 {isCreatingUser ? 'יוצר...' : 'צור משתמש'}
+               </button>
+             ) : selectedUserForEdit ? (
+               <button
+                 className={styles.modalSubmitButton}
+                 onClick={handleUpdateUser}
+                 disabled={isUpdatingUser || !editUserData.firstName || !editUserData.lastName || !editUserData.email}
+               >
+                 {isUpdatingUser ? 'מעדכן...' : 'שמור שינויים'}
+               </button>
+             ) : null}
            </div>
          </div>
        </div>

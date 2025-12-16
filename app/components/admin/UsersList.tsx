@@ -29,8 +29,9 @@ const UsersList: React.FC<UsersListProps> = ({
 }) => {
   const filteredUsers = users.filter(user =>
     (selectedClass === 0 || user.classId === selectedClass) &&
-    (user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()))
+    ((user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+    (user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+    (user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false))
   );
 
   return (

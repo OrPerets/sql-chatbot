@@ -275,7 +275,7 @@ export class QuestionGenerator {
    */
   async cleanupQuestionsForHomeworkSet(homeworkSetId: string): Promise<number> {
     try {
-      const templateService = await this.templateService;
+      const { templateService } = await this.getServices();
       const deletedCount = await templateService.deleteInstantiatedQuestionsByHomeworkSet(homeworkSetId);
       return deletedCount;
     } catch (error) {
@@ -289,7 +289,7 @@ export class QuestionGenerator {
    */
   async cleanupQuestionsForStudent(studentId: string, homeworkSetId?: string): Promise<number> {
     try {
-      const templateService = await this.templateService;
+      const { templateService } = await this.getServices();
       const deletedCount = await templateService.deleteInstantiatedQuestionsByStudent(studentId, homeworkSetId);
       return deletedCount;
     } catch (error) {

@@ -303,14 +303,29 @@ export class StudentProfilesService {
     metrics: Partial<StudentProfile['engagementMetrics']>
   ): Promise<boolean> {
     return executeWithRetry(async (db) => {
+      const updateFields: any = {
+        updatedAt: new Date()
+      }
+      
+      // Set individual engagement metric fields
+      if (metrics.chatSessions !== undefined) {
+        updateFields['engagementMetrics.chatSessions'] = metrics.chatSessions
+      }
+      if (metrics.averageSessionDuration !== undefined) {
+        updateFields['engagementMetrics.averageSessionDuration'] = metrics.averageSessionDuration
+      }
+      if (metrics.helpRequests !== undefined) {
+        updateFields['engagementMetrics.helpRequests'] = metrics.helpRequests
+      }
+      if (metrics.selfCorrections !== undefined) {
+        updateFields['engagementMetrics.selfCorrections'] = metrics.selfCorrections
+      }
+
       const result = await db.collection<StudentProfile>(COLLECTIONS.STUDENT_PROFILES)
         .updateOne(
           { userId },
           {
-            $set: {
-              'engagementMetrics': metrics as StudentProfile['engagementMetrics'],
-              updatedAt: new Date()
-            }
+            $set: updateFields
           }
         )
 
@@ -323,14 +338,32 @@ export class StudentProfilesService {
     progress: Partial<StudentProfile['learningProgress']>
   ): Promise<boolean> {
     return executeWithRetry(async (db) => {
+      const updateFields: any = {
+        updatedAt: new Date()
+      }
+      
+      // Set individual learning progress fields
+      if (progress.sqlBasics !== undefined) {
+        updateFields['learningProgress.sqlBasics'] = progress.sqlBasics
+      }
+      if (progress.joins !== undefined) {
+        updateFields['learningProgress.joins'] = progress.joins
+      }
+      if (progress.aggregations !== undefined) {
+        updateFields['learningProgress.aggregations'] = progress.aggregations
+      }
+      if (progress.subqueries !== undefined) {
+        updateFields['learningProgress.subqueries'] = progress.subqueries
+      }
+      if (progress.advancedQueries !== undefined) {
+        updateFields['learningProgress.advancedQueries'] = progress.advancedQueries
+      }
+
       const result = await db.collection<StudentProfile>(COLLECTIONS.STUDENT_PROFILES)
         .updateOne(
           { userId },
           {
-            $set: {
-              'learningProgress': progress as StudentProfile['learningProgress'],
-              updatedAt: new Date()
-            }
+            $set: updateFields
           }
         )
 
@@ -343,14 +376,29 @@ export class StudentProfilesService {
     riskFactors: Partial<StudentProfile['riskFactors']>
   ): Promise<boolean> {
     return executeWithRetry(async (db) => {
+      const updateFields: any = {
+        updatedAt: new Date()
+      }
+      
+      // Set individual risk factor fields
+      if (riskFactors.isAtRisk !== undefined) {
+        updateFields['riskFactors.isAtRisk'] = riskFactors.isAtRisk
+      }
+      if (riskFactors.riskLevel !== undefined) {
+        updateFields['riskFactors.riskLevel'] = riskFactors.riskLevel
+      }
+      if (riskFactors.riskFactors !== undefined) {
+        updateFields['riskFactors.riskFactors'] = riskFactors.riskFactors
+      }
+      if (riskFactors.lastAssessment !== undefined) {
+        updateFields['riskFactors.lastAssessment'] = riskFactors.lastAssessment
+      }
+
       const result = await db.collection<StudentProfile>(COLLECTIONS.STUDENT_PROFILES)
         .updateOne(
           { userId },
           {
-            $set: {
-              'riskFactors': riskFactors as StudentProfile['riskFactors'],
-              updatedAt: new Date()
-            }
+            $set: updateFields
           }
         )
 
@@ -363,14 +411,38 @@ export class StudentProfilesService {
     insights: Partial<StudentProfile['conversationInsights']>
   ): Promise<boolean> {
     return executeWithRetry(async (db) => {
+      const updateFields: any = {
+        updatedAt: new Date()
+      }
+      
+      // Set individual conversation insight fields
+      if (insights.totalSessions !== undefined) {
+        updateFields['conversationInsights.totalSessions'] = insights.totalSessions
+      }
+      if (insights.averageSessionDuration !== undefined) {
+        updateFields['conversationInsights.averageSessionDuration'] = insights.averageSessionDuration
+      }
+      if (insights.mostCommonTopics !== undefined) {
+        updateFields['conversationInsights.mostCommonTopics'] = insights.mostCommonTopics
+      }
+      if (insights.learningTrend !== undefined) {
+        updateFields['conversationInsights.learningTrend'] = insights.learningTrend
+      }
+      if (insights.commonChallenges !== undefined) {
+        updateFields['conversationInsights.commonChallenges'] = insights.commonChallenges
+      }
+      if (insights.overallEngagement !== undefined) {
+        updateFields['conversationInsights.overallEngagement'] = insights.overallEngagement
+      }
+      if (insights.lastAnalysisDate !== undefined) {
+        updateFields['conversationInsights.lastAnalysisDate'] = insights.lastAnalysisDate
+      }
+
       const result = await db.collection<StudentProfile>(COLLECTIONS.STUDENT_PROFILES)
         .updateOne(
           { userId },
           {
-            $set: {
-              'conversationInsights': insights as StudentProfile['conversationInsights'],
-              updatedAt: new Date()
-            }
+            $set: updateFields
           }
         )
 
@@ -502,19 +574,17 @@ export class StudentProfilesService {
       const issueId = `issue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       const now = new Date()
 
-      const issueEntry = {
-        issueId,
-        description,
-        detectedAt: now,
-        severity
-      }
-
       const result = await db.collection<StudentProfile>(COLLECTIONS.STUDENT_PROFILES).updateOne(
         { userId },
         {
           $push: {
-            issueHistory: issueEntry as StudentProfile['issueHistory'][0]
-          } as any,
+            issueHistory: {
+              issueId,
+              description,
+              detectedAt: now,
+              severity
+            } as StudentProfile['issueHistory'][0]
+          },
           $inc: { issueCount: 1 },
           $set: { 
             lastIssueUpdate: now,
@@ -595,7 +665,7 @@ export class StudentProfilesService {
     return executeWithRetry(async (db) => {
       const now = new Date()
 
-      const result = await db.collection(COLLECTIONS.STUDENT_PROFILES).updateOne(
+      const result = await db.collection<StudentProfile>(COLLECTIONS.STUDENT_PROFILES).updateOne(
         { userId },
         {
           $set: {
@@ -608,8 +678,8 @@ export class StudentProfilesService {
               updatedAt: now,
               reason,
               updatedBy: 'ai'
-            }
-          } as any
+            } as StudentProfile['knowledgeScoreHistory'][0]
+          }
         }
       )
 

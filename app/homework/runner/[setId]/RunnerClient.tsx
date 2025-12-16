@@ -290,7 +290,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       <div className={styles.errorState} dir={direction}>
         <h2>{t("runner.error.title")}</h2>
         <p>{t("runner.error.description")}</p>
-        <Link href="/homework" className={styles.backLink}>
+        <Link href="/homework/start" className={styles.backLink}>
           {backArrow} {t("runner.error.back")}
         </Link>
       </div>
@@ -304,7 +304,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     <div className={styles.runner} dir={direction}>
       <aside className={styles.sidebar}>
         <div className={styles.assignmentMeta}>
-          <Link href="/homework" className={styles.backLink}>
+          <Link href="/homework/start" className={styles.backLink}>
             {backArrow} {t("runner.back")}
           </Link>
           
