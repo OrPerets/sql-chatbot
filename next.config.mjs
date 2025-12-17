@@ -56,6 +56,22 @@ const nextConfig = {
       exprContextCritical: false,
     };
     
+    // Ignore react-native modules which alasql tries to import but aren't needed
+    // This applies to both server and client builds
+    config.plugins = config.plugins || [];
+    config.plugins.push(
+      new webpack.IgnorePlugin({
+        resourceRegExp: /^(react-native|react-native-fs|react-native-fetch-blob)$/,
+      })
+    );
+    
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      'react-native': false,
+      'react-native-fs': false,
+      'react-native-fetch-blob': false,
+    };
+    
     // Handle sql.js and alasql for server-side execution
     if (isServer) {
       config.externals = config.externals || [];
@@ -65,20 +81,6 @@ const nextConfig = {
         fs: false,
         path: false,
         crypto: false,
-      };
-      
-      // Ignore react-native modules which alasql tries to import but aren't needed for server
-      config.plugins = config.plugins || [];
-      config.plugins.push(
-        new webpack.IgnorePlugin({
-          resourceRegExp: /^(react-native-fs|react-native-fetch-blob)$/,
-        })
-      );
-      
-      config.resolve.alias = {
-        ...(config.resolve.alias || {}),
-        'react-native-fs': false,
-        'react-native-fetch-blob': false,
       };
     }
     
