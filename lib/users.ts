@@ -111,6 +111,13 @@ export class UsersService {
     })
   }
 
+  async getUserByEmail(email: string): Promise<UserModel | null> {
+    return executeWithRetry(async (db) => {
+      const user = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({ email })
+      return user || null
+    })
+  }
+
   async getCoinsBalance(email: string): Promise<any[]> {
     return executeWithRetry(async (db) => {
       const docs = await db.collection(COLLECTIONS.COINS).find({ user: email }).toArray()
@@ -280,6 +287,11 @@ export async function createUser(userData: { email: string; firstName: string; l
 export async function updateUser(email: string, userData: { firstName?: string; lastName?: string; email?: string }) {
   const service = await getUsersService()
   return service.updateUser(email, userData)
+}
+
+export async function getUserByEmail(email: string) {
+  const service = await getUsersService()
+  return service.getUserByEmail(email)
 }
 
 

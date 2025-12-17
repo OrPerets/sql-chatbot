@@ -125,10 +125,11 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       console.log("🔵 executeMutation mutationFn called", payload);
       return executeSql(payload);
     },
-    onSuccess: (result, variables) => {
+    onSuccess: async (result, variables) => {
       console.log("✅ SQL execution successful", result);
       console.log("📊 Result has", result.rows.length, "rows and", result.columns.length, "columns");
       
+      // Update the query cache first for immediate UI update
       queryClient.setQueryData<Submission | undefined>(["submission", setId, studentId], (prev) => {
         console.log("🔄 Updating query cache, prev submission:", prev);
         if (!prev) {
@@ -162,6 +163,21 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         console.log("✅ Updated submission with resultPreview:", updatedSubmission.answers[variables.questionId]?.resultPreview);
         return updatedSubmission;
       });
+      
+      // Save the result to the database
+      try {
+        const updatedSubmission = queryClient.getQueryData<Submission>(["submission", setId, studentId]);
+        if (updatedSubmission) {
+          await saveSubmissionDraft(setId, {
+            studentId,
+            answers: updatedSubmission.answers,
+          });
+          console.log("💾 Saved execution result to database");
+        }
+      } catch (error) {
+        console.error("⚠️ Failed to save execution result to database:", error);
+        // Don't fail the whole operation if save fails - the cache is already updated
+      }
       
       queryClient.invalidateQueries({ queryKey: ["submission", setId, studentId] });
     },

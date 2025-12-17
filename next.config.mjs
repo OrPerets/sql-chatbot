@@ -1,3 +1,7 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const webpack = require('webpack');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Security headers for production
@@ -52,8 +56,35 @@ const nextConfig = {
       exprContextCritical: false,
     };
     
+    // Handle sql.js and alasql for server-side execution
+    if (isServer) {
+      config.externals = config.externals || [];
+      // Don't bundle sql.js for server - it will be loaded at runtime
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+      };
+      
+      // Ignore react-native modules which alasql tries to import but aren't needed for server
+      config.plugins = config.plugins || [];
+      config.plugins.push(
+        new webpack.IgnorePlugin({
+          resourceRegExp: /^(react-native-fs|react-native-fetch-blob)$/,
+        })
+      );
+      
+      config.resolve.alias = {
+        ...(config.resolve.alias || {}),
+        'react-native-fs': false,
+        'react-native-fetch-blob': false,
+      };
+    }
+    
     return config;
   },
+  
   
   i18n: {
     defaultLocale: 'he',

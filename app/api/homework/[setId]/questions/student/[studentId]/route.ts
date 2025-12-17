@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getQuestionGenerator } from '@/lib/question-generator';
 import { getHomeworkService } from '@/lib/homework';
+import { getQuestionsService } from '@/lib/questions';
 
 interface RouteParams {
   params: {
@@ -35,6 +36,18 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
     
     // Check if this homework set uses parametric templates
+    // A homework set uses templates if questionOrder contains template IDs (not regular question IDs)
+    // We'll check by trying to get regular questions first
+    const questionsService = await getQuestionsService();
+    const regularQuestions = await questionsService.getQuestionsByHomeworkSet(setId);
+    
+    // If we have regular questions, this is not a parametric homework set
+    if (regularQuestions.length > 0) {
+      console.log(`📋 Homework set ${setId} has ${regularQuestions.length} regular questions, returning them for student ${studentId}`);
+      return NextResponse.json(regularQuestions);
+    }
+    
+    // Otherwise, check if it uses parametric templates
     const isParametric = homeworkSet.questionOrder && homeworkSet.questionOrder.length > 0;
     
     if (isParametric) {

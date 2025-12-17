@@ -12,7 +12,7 @@ export async function POST() {
     
     if (!homeworkSet) {
       // Create homework set for Exercise 3 if it doesn't exist
-      homeworkSet = await createHomeworkSet({
+      const createdHomeworkSet = await createHomeworkSet({
         title: "תרגיל 3",
         courseId: "sql-course",
         dueAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
@@ -24,6 +24,12 @@ export async function POST() {
         overview: "תרגיל 3 - שאלות SQL מתקדמות",
         backgroundStory: "תרגיל זה כולל שאלות SQL מתקדמות על מסד נתונים של מכללה",
       });
+      // Add missing properties to match HomeworkSummary type
+      homeworkSet = {
+        ...createdHomeworkSet,
+        draftQuestionCount: 0,
+        submissionCount: 0,
+      };
     } else {
       // If homework set exists, get existing questions and delete them
       const existingQuestions = await getQuestionsByHomeworkSet(homeworkSet.id);

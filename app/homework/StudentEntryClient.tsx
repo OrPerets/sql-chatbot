@@ -14,50 +14,59 @@ interface HomeworkSet {
   dueAt?: string;
 }
 
-// Allowed students list
-const ALLOWED_STUDENTS: { [id: string]: string } = {
-  "304993082": "אור פרץ",
-  "123456789": "סטודנט דמו",
-};
-
 export function StudentEntryClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setId = searchParams.get("setId");
 
   const [step, setStep] = useState<"id" | "instructions" | "loading">("id");
+  const [studentEmail, setStudentEmail] = useState("");
   const [studentId, setStudentId] = useState("");
   const [studentName, setStudentName] = useState("");
   const [error, setError] = useState("");
   const [homework, setHomework] = useState<HomeworkSet | null>(null);
 
-  const handleIdSubmit = async (e: React.FormEvent) => {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    // Validate ID (Israeli ID should be 9 digits)
-    if (!studentId.trim()) {
-      setError("נא להזין תעודת זהות");
+    // Validate email
+    if (!studentEmail.trim()) {
+      setError("נא להזין כתובת אימייל");
       return;
     }
 
-    if (studentId.length < 6 || studentId.length > 9) {
-      setError("תעודת זהות לא תקינה");
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(studentEmail.trim())) {
+      setError("כתובת אימייל לא תקינה");
       return;
     }
-
-    // Check if student is in the allowed list
-    if (!ALLOWED_STUDENTS[studentId]) {
-      setError("תעודת זהות לא מורשית לביצוע שיעור בית זה");
-      return;
-    }
-
-    // Set the student name from the allowed list
-    setStudentName(ALLOWED_STUDENTS[studentId]);
 
     setStep("loading");
 
     try {
+      // Look up user by email
+      const lookupResponse = await fetch("/api/users/lookup-by-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: studentEmail.trim() }),
+      });
+
+      if (!lookupResponse.ok) {
+        const errorData = await lookupResponse.json();
+        setError(errorData.error || "משתמש לא נמצא במערכת");
+        setStep("id");
+        return;
+      }
+
+      const userData = await lookupResponse.json();
+      setStudentId(userData.id);
+      setStudentName(userData.name || userData.email);
+
+      // Now load the homework set
       let homeworkSetId = setId;
       
       // If no setId provided, fetch the first available homework
@@ -69,7 +78,7 @@ export function StudentEntryClient() {
         }
         const setsData = await setsResponse.json();
         
-        // Find first published homework set
+        // Find published homework sets
         const publishedSets = setsData.items?.filter((hw: any) => hw.published) || [];
         if (publishedSets.length === 0) {
           setError("אין שיעורי בית זמינים כרגע");
@@ -77,8 +86,10 @@ export function StudentEntryClient() {
           return;
         }
         
-        homeworkSetId = publishedSets[0].id;
-        console.log("✅ Using homework set:", homeworkSetId);
+        // Prioritize "תרגיל 3" if it exists, otherwise use the first published one
+        const exercise3 = publishedSets.find((hw: any) => hw.title === "תרגיל 3" || hw.title === "תרגיל בית 3");
+        homeworkSetId = exercise3 ? exercise3.id : publishedSets[0].id;
+        console.log("✅ Using homework set:", homeworkSetId, exercise3 ? "(תרגיל 3)" : "");
       }
 
       // Fetch homework details
@@ -104,6 +115,7 @@ export function StudentEntryClient() {
 
   const handleBack = () => {
     setStep("id");
+    setStudentEmail("");
     setStudentId("");
     setStudentName("");
   };
@@ -213,19 +225,18 @@ export function StudentEntryClient() {
             <Play size={40} />
           </div>
           <h1 className={styles.title}>שיעורי בית SQL</h1>
-          <p className={styles.subtitle}>נא להזין את תעודת הזהות שלך להתחלה</p>
+          <p className={styles.subtitle}>נא להזין את כתובת האימייל שלך להתחלה</p>
         </div>
 
-        <form className={styles.form} onSubmit={handleIdSubmit}>
+        <form className={styles.form} onSubmit={handleEmailSubmit}>
           <div className={styles.inputGroup}>
-            <label className={styles.label}>תעודת זהות</label>
+            <label className={styles.label}>כתובת אימייל</label>
             <input
-              type="text"
+              type="email"
               className={styles.input}
-              placeholder="123456789"
-              value={studentId}
-              onChange={(e) => setStudentId(e.target.value.replace(/\D/g, ""))}
-              maxLength={9}
+              placeholder="your.email@example.com"
+              value={studentEmail}
+              onChange={(e) => setStudentEmail(e.target.value)}
               autoFocus
             />
           </div>
@@ -237,7 +248,7 @@ export function StudentEntryClient() {
             </div>
           )}
 
-          <button type="submit" className={styles.button} disabled={!studentId.trim()}>
+          <button type="submit" className={styles.button} disabled={!studentEmail.trim()}>
             המשך
           </button>
         </form>

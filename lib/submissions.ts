@@ -432,82 +432,352 @@ export class SubmissionsService {
         };
       }
       
-      // Import sql.js dynamically
-      const initSqlJs = (await import('sql.js')).default;
-      const SQL = await initSqlJs({
-        locateFile: (file: string) => `https://sql.js.org/dist/${file}`
-      });
+      // Use alasql for server-side SQL execution (works better in Node.js than sql.js)
+      const alasql = (await import('alasql')).default;
       
-      // Load the database
-      let db;
-      try {
-        // If connectionUri is a URL, fetch it
-        if (dataset.connectionUri.startsWith('http')) {
-          const response = await fetch(dataset.connectionUri);
-          const buffer = await response.arrayBuffer();
-          db = new SQL.Database(new Uint8Array(buffer));
-        } else {
-          // Otherwise treat it as base64 or local path
-          // For now, create an empty database with sample data as fallback
-          db = new SQL.Database();
-          console.warn('⚠️ Using empty database with sample data - connectionUri:', dataset.connectionUri);
-          
-          // Create a sample Employees table for testing
-          try {
-            db.run(`
-              CREATE TABLE IF NOT EXISTS Employees (
-                id INTEGER PRIMARY KEY,
-                name TEXT NOT NULL,
-                department TEXT,
-                salary REAL,
-                hire_date TEXT
-              );
-              
-              INSERT INTO Employees (id, name, department, salary, hire_date) VALUES
-                (1, 'Alice Johnson', 'Engineering', 95000, '2020-01-15'),
-                (2, 'Bob Smith', 'Marketing', 75000, '2019-03-22'),
-                (3, 'Carol White', 'Engineering', 98000, '2018-07-10'),
-                (4, 'David Brown', 'Sales', 68000, '2021-05-30'),
-                (5, 'Eve Davis', 'HR', 72000, '2020-11-12');
-            `);
-            console.log('✅ Created sample Employees table');
-          } catch (sampleError) {
-            console.error('Error creating sample data:', sampleError);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading database:', error);
-        db = new SQL.Database();
+      // Helper function to initialize Exercise 3 data
+      const initializeExercise3Data = () => {
+        // Clear any existing data
+        alasql('DROP TABLE IF EXISTS Students');
+        alasql('DROP TABLE IF EXISTS Courses');
+        alasql('DROP TABLE IF EXISTS Lecturers');
+        alasql('DROP TABLE IF EXISTS Enrollments');
         
-        // Create sample data even on error
-        try {
-          db.run(`
-            CREATE TABLE IF NOT EXISTS Employees (
-              id INTEGER PRIMARY KEY,
-              name TEXT NOT NULL,
-              department TEXT,
-              salary REAL,
-              hire_date TEXT
-            );
-            
-            INSERT INTO Employees (id, name, department, salary, hire_date) VALUES
-              (1, 'Alice Johnson', 'Engineering', 95000, '2020-01-15'),
-              (2, 'Bob Smith', 'Marketing', 75000, '2019-03-22'),
-              (3, 'Carol White', 'Engineering', 98000, '2018-07-10'),
-              (4, 'David Brown', 'Sales', 68000, '2021-05-30'),
-              (5, 'Eve Davis', 'HR', 72000, '2020-11-12');
-          `);
-        } catch (sampleError) {
-          console.error('Error creating sample data after error:', sampleError);
-        }
+        // Create tables and insert data
+        alasql(`
+          CREATE TABLE Students (
+            StudentID TEXT PRIMARY KEY,
+            FirstName TEXT,
+            LastName TEXT,
+            BirthDate TEXT,
+            City TEXT,
+            Email TEXT
+          );
+        `);
+        
+        alasql(`
+          CREATE TABLE Courses (
+            CourseID INTEGER PRIMARY KEY,
+            CourseName TEXT,
+            Credits INTEGER,
+            Department TEXT
+          );
+        `);
+        
+        alasql(`
+          CREATE TABLE Lecturers (
+            LecturerID TEXT PRIMARY KEY,
+            FirstName TEXT,
+            LastName TEXT,
+            City TEXT,
+            HireDate TEXT,
+            CourseID INTEGER,
+            Seniority TEXT
+          );
+        `);
+        
+        alasql(`
+          CREATE TABLE Enrollments (
+            StudentID TEXT,
+            CourseID INTEGER,
+            EnrollmentDate TEXT,
+            Grade INTEGER,
+            PRIMARY KEY (StudentID, CourseID)
+          );
+        `);
+        
+        // Insert Students data
+        alasql(`
+          INSERT INTO Students VALUES
+            ('87369214', 'John', 'Doe', '1999-05-15', 'Tel Aviv', 'john.doe@gmail.com'),
+            ('194DEF23', 'Jane', 'Smith', '2000-07-22', 'Haifa', 'jane.smith@gmail.com'),
+            ('38741562', 'Michael', 'Brown', '1998-12-01', 'Jerusalem', 'michael.brown@gmail.com'),
+            ('95718234', 'Emily', 'Davis', '2001-03-14', 'Beer Sheva', 'emily.davis@gmail.com'),
+            ('21394GHI', 'Daniel', 'Wilson', '1997-11-09', 'Herzliya', 'daniel.wilson@gmail.com'),
+            ('48273916', 'Sarah', 'Thompson', '2002-06-18', 'Petah Tikva', 'sarah.thompson@gmail.com'),
+            ('63918472', 'Robert', 'Johnson', '1999-08-21', 'Ramat Gan', 'robert.johnson@gmail.com'),
+            ('75193486', 'Laura', 'Martinez', '2000-04-12', 'Netanya', 'laura.martinez@gmail.com'),
+            ('28471639', 'James', 'Taylor', '2001-09-25', 'Tel Aviv', 'james.taylor@gmail.com'),
+            ('56782941', 'Olivia', 'White', '2000-02-14', 'Haifa', 'olivia.white@gmail.com'),
+            ('39284756', 'William', 'Harris', '1999-11-08', 'Jerusalem', 'william.harris@gmail.com'),
+            ('64829173', 'Sophia', 'Martin', '2002-04-30', 'Beer Sheva', 'sophia.martin@gmail.com'),
+            ('71938462', 'Benjamin', 'Garcia', '1998-07-19', 'Herzliya', 'benjamin.garcia@gmail.com'),
+            ('83572914', 'Isabella', 'Rodriguez', '2001-12-03', 'Petah Tikva', 'isabella.rodriguez@gmail.com'),
+            ('46281937', 'Lucas', 'Lewis', '2000-05-27', 'Ramat Gan', 'lucas.lewis@gmail.com'),
+            ('92738461', 'Mia', 'Walker', '1999-10-11', 'Netanya', 'mia.walker@gmail.com'),
+            ('18374629', 'Henry', 'Hall', '2002-01-22', 'Tel Aviv', 'henry.hall@gmail.com'),
+            ('74938216', 'Charlotte', 'Allen', '2001-08-05', 'Haifa', 'charlotte.allen@gmail.com'),
+            ('52839174', 'Alexander', 'Young', '1998-03-16', 'Jerusalem', 'alexander.young@gmail.com'),
+            ('69482735', 'Amelia', 'King', '2000-06-28', 'Beer Sheva', 'amelia.king@gmail.com'),
+            ('37192846', 'Mason', 'Wright', '1999-12-09', 'Herzliya', 'mason.wright@gmail.com'),
+            ('85629374', 'Harper', 'Lopez', '2002-02-20', 'Petah Tikva', 'harper.lopez@gmail.com'),
+            ('42918376', 'Ethan', 'Hill', '2001-09-13', 'Ramat Gan', 'ethan.hill@gmail.com'),
+            ('71829463', 'Evelyn', 'Scott', '2000-04-25', 'Netanya', 'evelyn.scott@gmail.com'),
+            ('56372819', 'Aiden', 'Green', '1998-11-07', 'Tel Aviv', 'aiden.green@gmail.com'),
+            ('84729163', 'Abigail', 'Adams', '2001-07-19', 'Haifa', 'abigail.adams@gmail.com'),
+            ('39281746', 'Noah', 'Baker', '1999-01-31', 'Jerusalem', 'noah.baker@gmail.com'),
+            ('62839471', 'Elizabeth', 'Nelson', '2002-05-14', 'Beer Sheva', 'elizabeth.nelson@gmail.com'),
+            ('17483926', 'Liam', 'Carter', '2000-10-26', 'Herzliya', 'liam.carter@gmail.com'),
+            ('73928461', 'Sofia', 'Mitchell', '1998-08-08', 'Petah Tikva', 'sofia.mitchell@gmail.com'),
+            ('48572913', 'Logan', 'Perez', '2001-03-21', 'Ramat Gan', 'logan.perez@gmail.com'),
+            ('61938472', 'Avery', 'Roberts', '2000-12-04', 'Netanya', 'avery.roberts@gmail.com'),
+            ('82739164', 'Jackson', 'Turner', '1999-06-17', 'Tel Aviv', 'jackson.turner@gmail.com'),
+            ('39482715', 'Ella', 'Phillips', '2002-09-29', 'Haifa', 'ella.phillips@gmail.com'),
+            ('72839461', 'Levi', 'Campbell', '2001-02-11', 'Jerusalem', 'levi.campbell@gmail.com'),
+            ('56381947', 'Scarlett', 'Parker', '2000-08-23', 'Beer Sheva', 'scarlett.parker@gmail.com'),
+            ('81937462', 'Sebastian', 'Evans', '1998-04-06', 'Herzliya', 'sebastian.evans@gmail.com'),
+            ('47283916', 'Victoria', 'Edwards', '2001-11-18', 'Petah Tikva', 'victoria.edwards@gmail.com'),
+            ('63829174', 'Jack', 'Collins', '2000-05-01', 'Ramat Gan', 'jack.collins@gmail.com'),
+            ('72938416', 'Aria', 'Stewart', '1999-01-13', 'Netanya', 'aria.stewart@gmail.com'),
+            ('38472961', 'Owen', 'Sanchez', '2002-07-25', 'Tel Aviv', 'owen.sanchez@gmail.com'),
+            ('59183746', 'Grace', 'Morris', '2001-10-07', 'Haifa', 'grace.morris@gmail.com');
+        `);
+        
+        // Insert Courses data
+        alasql(`
+          INSERT INTO Courses VALUES
+            (101, 'Introduction to CS', 4, 'Computer Science'),
+            (102, 'Organic Chemistry', 3, 'Chemistry'),
+            (103, 'Modern Physics', 4, 'Chemistry'),
+            (104, 'Calculus I', 3, 'Mathematics'),
+            (105, 'General Biology', 5, 'Biology'),
+            (106, 'Database', 4, 'Computer Science'),
+            (107, 'Statistics', 3, 'Mathematics'),
+            (108, 'Data Structures', 4, 'Computer Science'),
+            (109, 'Algorithms', 4, 'Computer Science'),
+            (110, 'Software Engineering', 5, 'Computer Science'),
+            (111, 'Linear Algebra', 3, 'Mathematics'),
+            (112, 'Calculus II', 3, 'Mathematics'),
+            (113, 'Discrete Mathematics', 4, 'Mathematics'),
+            (114, 'Inorganic Chemistry', 3, 'Chemistry'),
+            (115, 'Biochemistry', 4, 'Chemistry'),
+            (116, 'Cell Biology', 4, 'Biology'),
+            (117, 'Genetics', 5, 'Biology'),
+            (118, 'Ecology', 3, 'Biology'),
+            (119, 'Probability Theory', 3, 'Mathematics'),
+            (120, 'Machine Learning', 5, 'Computer Science'),
+            (121, 'Web Development', 4, 'Computer Science'),
+            (122, 'Operating Systems', 4, 'Computer Science');
+        `);
+        
+        // Insert Lecturers data
+        alasql(`
+          INSERT INTO Lecturers VALUES
+            ('ABC95716', 'Alice', 'Johnson', 'Tel Aviv', '2010-08-15', 101, '14'),
+            ('74819253', 'Bob', 'Lee', 'Haifa', '2015-01-30', 106, 'D'),
+            ('91738254', 'Carol', 'Miller', 'Jerusalem', '2012-09-22', 103, '12'),
+            ('28194675', 'David', 'Anderson', 'Ramat Gan', '2008-03-10', 104, '16'),
+            ('62719384', 'Eve', 'Clark', 'Netanya', '2011-11-05', 105, '13'),
+            ('34982715', 'Frank', 'Harris', 'Beer Sheva', '2009-06-18', 102, '15'),
+            ('48273916', 'George', 'Moore', 'Tel Aviv', '2013-04-20', 108, '11'),
+            ('63918472', 'Helen', 'Taylor', 'Haifa', '2014-07-12', 109, '10'),
+            ('75193486', 'Ian', 'Wilson', 'Jerusalem', '2016-02-28', 110, '8'),
+            ('28471639', 'Julia', 'Brown', 'Ramat Gan', '2011-09-05', 111, '13'),
+            ('56782941', 'Kevin', 'Davis', 'Netanya', '2012-11-18', 112, '12'),
+            ('39284756', 'Linda', 'Miller', 'Beer Sheva', '2015-05-22', 113, '9'),
+            ('64829173', 'Mark', 'Garcia', 'Tel Aviv', '2009-03-14', 114, '15'),
+            ('71938462', 'Nancy', 'Rodriguez', 'Haifa', '2010-10-30', 115, '14'),
+            ('83572914', 'Oliver', 'Martinez', 'Jerusalem', '2014-01-08', 116, '10'),
+            ('46281937', 'Patricia', 'Lopez', 'Ramat Gan', '2013-06-25', 117, '11'),
+            ('92738461', 'Quinn', 'Gonzalez', 'Netanya', '2016-08-17', 118, '8'),
+            ('18374629', 'Rachel', 'Hernandez', 'Beer Sheva', '2011-12-03', 119, '13'),
+            ('74938216', 'Samuel', 'Smith', 'Tel Aviv', '2012-04-19', 120, '12'),
+            ('52839174', 'Tina', 'Johnson', 'Haifa', '2015-09-11', 121, '9'),
+            ('69482735', 'Victor', 'Williams', 'Jerusalem', '2014-11-26', 122, '10');
+        `);
+        
+        // Insert Enrollments data
+        alasql(`
+          INSERT INTO Enrollments VALUES
+            ('87369214', 101, '2023-09-01', 92),
+            ('87369214', 104, '2023-09-01', 76),
+            ('87369214', 106, '2024-06-10', 61),
+            ('87369214', 108, '2023-09-15', 88),
+            ('87369214', 120, '2024-01-10', 85),
+            ('194DEF23', 102, '2023-09-02', 78),
+            ('194DEF23', 106, '2024-07-05', 83),
+            ('194DEF23', 114, '2023-09-20', 75),
+            ('194DEF23', 115, '2024-02-05', 82),
+            ('38741562', 104, '2023-09-03', 95),
+            ('38741562', 111, '2023-09-10', 91),
+            ('38741562', 112, '2024-01-15', 89),
+            ('38741562', 113, '2024-02-20', 87),
+            ('95718234', 103, '2024-06-20', 82),
+            ('95718234', 106, '2024-07-01', 90),
+            ('95718234', 108, '2023-09-12', 79),
+            ('95718234', 109, '2024-01-08', 84),
+            ('21394GHI', 102, '2023-09-05', 74),
+            ('21394GHI', 114, '2023-09-18', 68),
+            ('21394GHI', 115, '2024-02-12', 72),
+            ('48273916', 101, '2023-09-01', 96),
+            ('48273916', 104, '2023-09-05', 88),
+            ('48273916', 108, '2023-09-20', 92),
+            ('48273916', 109, '2024-01-10', 90),
+            ('48273916', 120, '2024-02-15', 87),
+            ('63918472', 103, '2024-07-15', 67),
+            ('63918472', 114, '2023-09-15', 71),
+            ('63918472', 115, '2024-02-08', 65),
+            ('75193486', 101, '2023-09-01', 98),
+            ('75193486', 106, '2024-06-12', 94),
+            ('75193486', 108, '2023-09-18', 96),
+            ('75193486', 109, '2024-01-12', 95),
+            ('75193486', 110, '2024-02-20', 93),
+            ('28471639', 101, '2023-09-02', 85),
+            ('28471639', 104, '2023-09-06', 78),
+            ('28471639', 106, '2024-06-15', 81),
+            ('28471639', 108, '2023-09-22', 83),
+            ('56782941', 102, '2023-09-03', 80),
+            ('56782941', 114, '2023-09-22', 76),
+            ('56782941', 115, '2024-02-10', 79),
+            ('39284756', 103, '2024-06-22', 88),
+            ('39284756', 114, '2023-09-25', 82),
+            ('39284756', 115, '2024-02-15', 85),
+            ('64829173', 105, '2023-09-08', 90),
+            ('64829173', 116, '2023-09-28', 87),
+            ('64829173', 117, '2024-01-18', 89),
+            ('64829173', 118, '2024-02-25', 86),
+            ('71938462', 105, '2023-09-10', 92),
+            ('71938462', 116, '2023-10-02', 88),
+            ('71938462', 117, '2024-01-20', 91),
+            ('83572914', 104, '2023-09-04', 94),
+            ('83572914', 111, '2023-09-12', 90),
+            ('83572914', 112, '2024-01-18', 92),
+            ('83572914', 113, '2024-02-22', 89),
+            ('46281937', 105, '2023-09-12', 86),
+            ('46281937', 116, '2023-10-05', 83),
+            ('46281937', 117, '2024-01-22', 85),
+            ('92738461', 101, '2023-09-03', 91),
+            ('92738461', 106, '2024-06-18', 88),
+            ('92738461', 108, '2023-09-25', 89),
+            ('92738461', 121, '2024-01-15', 87),
+            ('18374629', 104, '2023-09-07', 82),
+            ('18374629', 111, '2023-09-15', 79),
+            ('18374629', 112, '2024-01-20', 81),
+            ('18374629', 119, '2024-02-28', 77),
+            ('74938216', 102, '2023-09-06', 75),
+            ('74938216', 114, '2023-09-28', 72),
+            ('52839174', 103, '2024-06-25', 84),
+            ('52839174', 115, '2024-02-18', 80),
+            ('69482735', 105, '2023-09-14', 88),
+            ('69482735', 116, '2023-10-08', 85),
+            ('69482735', 118, '2024-03-02', 82),
+            ('37192846', 101, '2023-09-04', 89),
+            ('37192846', 108, '2023-09-28', 86),
+            ('37192846', 109, '2024-01-18', 88),
+            ('37192846', 120, '2024-02-22', 85),
+            ('85629374', 106, '2024-06-20', 91),
+            ('85629374', 108, '2023-10-02', 88),
+            ('85629374', 110, '2024-02-25', 90),
+            ('85629374', 121, '2024-01-20', 87),
+            ('42918376', 104, '2023-09-08', 93),
+            ('42918376', 111, '2023-09-18', 90),
+            ('42918376', 112, '2024-01-22', 92),
+            ('42918376', 113, '2024-03-05', 89),
+            ('71829463', 102, '2023-09-07', 77),
+            ('71829463', 114, '2023-10-05', 74),
+            ('56372819', 101, '2023-09-05', 87),
+            ('56372819', 108, '2023-10-08', 84),
+            ('56372819', 109, '2024-01-22', 86),
+            ('56372819', 122, '2024-02-28', 83),
+            ('84729163', 103, '2024-06-28', 86),
+            ('84729163', 115, '2024-02-20', 82),
+            ('39281746', 105, '2023-09-16', 91),
+            ('39281746', 116, '2023-10-10', 88),
+            ('39281746', 117, '2024-01-25', 90),
+            ('62839471', 104, '2023-09-09', 96),
+            ('62839471', 111, '2023-09-20', 93),
+            ('62839471', 112, '2024-01-25', 95),
+            ('62839471', 119, '2024-03-08', 92),
+            ('17483926', 106, '2024-06-22', 89),
+            ('17483926', 110, '2024-02-28', 87),
+            ('17483926', 121, '2024-01-22', 85),
+            ('73928461', 101, '2023-09-06', 90),
+            ('73928461', 108, '2023-10-10', 87),
+            ('73928461', 120, '2024-03-02', 88),
+            ('48572913', 102, '2023-09-08', 79),
+            ('48572913', 114, '2023-10-12', 76),
+            ('61938472', 103, '2024-07-01', 83),
+            ('61938472', 115, '2024-02-22', 79),
+            ('82739164', 105, '2023-09-18', 89),
+            ('82739164', 116, '2023-10-15', 86),
+            ('82739164', 118, '2024-03-05', 84),
+            ('39482715', 104, '2023-09-10', 97),
+            ('39482715', 111, '2023-09-22', 94),
+            ('39482715', 112, '2024-01-28', 96),
+            ('72839461', 106, '2024-06-25', 92),
+            ('72839461', 109, '2024-01-25', 90),
+            ('72839461', 110, '2024-03-08', 88),
+            ('56381947', 101, '2023-09-07', 88),
+            ('56381947', 108, '2023-10-12', 85),
+            ('56381947', 109, '2024-01-28', 87),
+            ('81937462', 102, '2023-09-09', 81),
+            ('81937462', 114, '2023-10-15', 78),
+            ('47283916', 103, '2024-07-03', 85),
+            ('47283916', 115, '2024-02-25', 81),
+            ('63829174', 105, '2023-09-20', 90),
+            ('63829174', 116, '2023-10-18', 87),
+            ('63829174', 117, '2024-01-30', 89),
+            ('72938416', 104, '2023-09-11', 95),
+            ('72938416', 111, '2023-09-25', 92),
+            ('72938416', 112, '2024-02-02', 94),
+            ('38472961', 106, '2024-06-28', 93),
+            ('38472961', 110, '2024-03-10', 91),
+            ('38472961', 121, '2024-01-28', 89),
+            ('59183746', 101, '2023-09-08', 86),
+            ('59183746', 108, '2023-10-15', 83),
+            ('59183746', 122, '2024-03-05', 80);
+        `);
+      };
+      
+      // Initialize data based on dataset
+      const isExercise3 = dataset.connectionUri.includes('exercise3-college') || 
+                          dataset.name?.includes('תרגיל 3') ||
+                          dataset.name?.includes('מכללה');
+      
+      if (isExercise3) {
+        initializeExercise3Data();
+        console.log('✅ Initialized Exercise 3 tables with data using alasql');
+      } else {
+        // Default: Create Employees table
+        alasql('DROP TABLE IF EXISTS Employees');
+        alasql(`
+          CREATE TABLE Employees (
+            id INTEGER,
+            name TEXT,
+            department TEXT,
+            salary REAL,
+            hire_date TEXT
+          );
+        `);
+        alasql(`
+          INSERT INTO Employees VALUES
+            (1, 'Alice Johnson', 'Engineering', 95000, '2020-01-15'),
+            (2, 'Bob Smith', 'Marketing', 75000, '2019-03-22'),
+            (3, 'Carol White', 'Engineering', 98000, '2018-07-10'),
+            (4, 'David Brown', 'Sales', 68000, '2021-05-30'),
+            (5, 'Eve Davis', 'HR', 72000, '2020-11-12');
+        `);
+        console.log('✅ Created sample Employees table using alasql');
       }
       
-      // Execute the SQL query
-      let result;
+      // Execute the SQL query using alasql
+      let result: any[];
+      let columns: string[] = [];
       try {
-        result = db.exec(payload.sql);
+        result = alasql(payload.sql);
+        console.log('✅ SQL executed successfully, result type:', typeof result, 'length:', Array.isArray(result) ? result.length : 'N/A');
+        
+        // If result is an array of objects, extract columns from first row
+        if (Array.isArray(result) && result.length > 0 && typeof result[0] === 'object') {
+          columns = Object.keys(result[0]);
+        } else if (Array.isArray(result) && result.length > 0) {
+          // If result is array of arrays, we need to handle differently
+          // This shouldn't happen with SELECT queries, but handle it
+          console.warn('⚠️ Unexpected result format from alasql');
+        }
       } catch (sqlError: any) {
         const executionMs = Date.now() - startTime;
+        console.error('❌ SQL execution error:', sqlError.message);
         return {
           columns: [],
           rows: [],
@@ -524,8 +794,8 @@ export class SubmissionsService {
       
       const executionMs = Date.now() - startTime;
       
-      // Convert SQL.js result format to our format
-      if (!result || result.length === 0) {
+      // Convert alasql result format to our format
+      if (!result || !Array.isArray(result) || result.length === 0) {
         return {
           columns: [],
           rows: [],
@@ -540,14 +810,19 @@ export class SubmissionsService {
         };
       }
       
-      const columns = result[0].columns;
-      const rows = result[0].values.map(row => {
-        const rowObj: any = {};
-        columns.forEach((col, i) => {
-          rowObj[col] = row[i];
-        });
-        return rowObj;
+      // Convert array of objects to our format
+      const rows = result.map((row: any) => {
+        if (typeof row === 'object' && row !== null) {
+          return row;
+        }
+        // Handle non-object results (shouldn't happen with SELECT)
+        return { value: row };
       });
+      
+      // Get columns from first row if not already set
+      if (columns.length === 0 && rows.length > 0) {
+        columns = Object.keys(rows[0]);
+      }
       
       // Truncate if too many rows
       const maxRows = 50;
@@ -556,8 +831,6 @@ export class SubmissionsService {
       
       // Simple scoring based on result
       const score = rows.length > 0 ? 8 : 5;
-      
-      db.close();
       
       return {
         columns,
