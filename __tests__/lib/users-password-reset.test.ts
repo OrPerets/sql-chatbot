@@ -44,15 +44,28 @@ describe('UsersService - Password Reset', () => {
     it('should create a password reset token for existing user', async () => {
       const email = 'test@example.com'
       const mockUser = { _id: '1', email, name: 'Test User' }
-      const mockToken = 'generated-token-123'
+      const mockToken = 'a'.repeat(64) // 32 bytes = 64 hex characters
 
-      // Mock crypto.randomBytes
+      // Mock crypto.randomBytes to return a buffer that when converted to hex gives mockToken
       const originalRandomBytes = crypto.randomBytes
-      crypto.randomBytes = jest.fn().mockReturnValue(Buffer.from(mockToken, 'hex'))
+      const mockBuffer = Buffer.from(mockToken, 'hex')
+      crypto.randomBytes = jest.fn().mockReturnValue(mockBuffer)
 
-      mockDb.collection.mockReturnValue({
-        findOne: jest.fn().mockResolvedValue(mockUser),
+      const usersCollection = {
+        findOne: jest.fn().mockResolvedValue(mockUser)
+      }
+      const tokensCollection = {
         insertOne: jest.fn().mockResolvedValue({ insertedId: 'token-id' })
+      }
+
+      mockDb.collection.mockImplementation((collectionName) => {
+        if (collectionName === COLLECTIONS.USERS) {
+          return usersCollection
+        }
+        if (collectionName === COLLECTIONS.PASSWORD_RESET_TOKENS) {
+          return tokensCollection
+        }
+        return { findOne: jest.fn(), insertOne: jest.fn() }
       })
 
       const result = await usersService.createPasswordResetToken(email)
@@ -60,8 +73,8 @@ describe('UsersService - Password Reset', () => {
       expect(result).toBe(mockToken)
       expect(mockDb.collection).toHaveBeenCalledWith(COLLECTIONS.USERS)
       expect(mockDb.collection).toHaveBeenCalledWith(COLLECTIONS.PASSWORD_RESET_TOKENS)
-      expect(mockDb.collection().findOne).toHaveBeenCalledWith({ email })
-      expect(mockDb.collection().insertOne).toHaveBeenCalledWith({
+      expect(usersCollection.findOne).toHaveBeenCalledWith({ email })
+      expect(tokensCollection.insertOne).toHaveBeenCalledWith({
         email,
         token: mockToken,
         expiresAt: expect.any(Date),
@@ -87,21 +100,34 @@ describe('UsersService - Password Reset', () => {
     it('should generate token with 1 hour expiration', async () => {
       const email = 'test@example.com'
       const mockUser = { _id: '1', email, name: 'Test User' }
-      const mockToken = 'generated-token-123'
+      const mockToken = 'a'.repeat(64) // 32 bytes = 64 hex characters
 
       const originalRandomBytes = crypto.randomBytes
-      crypto.randomBytes = jest.fn().mockReturnValue(Buffer.from(mockToken, 'hex'))
+      const mockBuffer = Buffer.from(mockToken, 'hex')
+      crypto.randomBytes = jest.fn().mockReturnValue(mockBuffer)
 
-      mockDb.collection.mockReturnValue({
-        findOne: jest.fn().mockResolvedValue(mockUser),
+      const usersCollection = {
+        findOne: jest.fn().mockResolvedValue(mockUser)
+      }
+      const tokensCollection = {
         insertOne: jest.fn().mockResolvedValue({ insertedId: 'token-id' })
+      }
+
+      mockDb.collection.mockImplementation((collectionName) => {
+        if (collectionName === COLLECTIONS.USERS) {
+          return usersCollection
+        }
+        if (collectionName === COLLECTIONS.PASSWORD_RESET_TOKENS) {
+          return tokensCollection
+        }
+        return { findOne: jest.fn(), insertOne: jest.fn() }
       })
 
       const beforeTime = new Date()
       await usersService.createPasswordResetToken(email)
       const afterTime = new Date()
 
-      const insertCall = mockDb.collection().insertOne.mock.calls[0][0]
+      const insertCall = tokensCollection.insertOne.mock.calls[0][0]
       const expiresAt = insertCall.expiresAt
 
       expect(expiresAt.getTime()).toBeGreaterThan(beforeTime.getTime() + 59 * 60 * 1000) // At least 59 minutes
@@ -304,17 +330,19 @@ describe('UsersService - Password Reset', () => {
 
     it('should deny request when at rate limit', async () => {
       const email = 'test@example.com'
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+      const oneHourAgo = new Date(Date.now() - 30 * 60 * 1000) // 30 minutes ago
       const oldestToken = {
         _id: 'oldest-token',
         email,
         createdAt: oneHourAgo
       }
 
-      mockDb.collection.mockReturnValue({
+      const tokensCollection = {
         countDocuments: jest.fn().mockResolvedValue(3), // At limit
         findOne: jest.fn().mockResolvedValue(oldestToken)
-      })
+      }
+
+      mockDb.collection.mockReturnValue(tokensCollection)
 
       const result = await usersService.checkPasswordResetRateLimit(email)
 
@@ -325,10 +353,19 @@ describe('UsersService - Password Reset', () => {
 
     it('should deny request when over rate limit', async () => {
       const email = 'test@example.com'
+      const oneHourAgo = new Date(Date.now() - 30 * 60 * 1000) // 30 minutes ago
+      const oldestToken = {
+        _id: 'oldest-token',
+        email,
+        createdAt: oneHourAgo
+      }
 
-      mockDb.collection.mockReturnValue({
-        countDocuments: jest.fn().mockResolvedValue(5) // Over limit
-      })
+      const tokensCollection = {
+        countDocuments: jest.fn().mockResolvedValue(5), // Over limit
+        findOne: jest.fn().mockResolvedValue(oldestToken)
+      }
+
+      mockDb.collection.mockReturnValue(tokensCollection)
 
       const result = await usersService.checkPasswordResetRateLimit(email)
 
@@ -345,10 +382,12 @@ describe('UsersService - Password Reset', () => {
         createdAt: thirtyMinutesAgo
       }
 
-      mockDb.collection.mockReturnValue({
+      const tokensCollection = {
         countDocuments: jest.fn().mockResolvedValue(3),
         findOne: jest.fn().mockResolvedValue(oldestToken)
-      })
+      }
+
+      mockDb.collection.mockReturnValue(tokensCollection)
 
       const result = await usersService.checkPasswordResetRateLimit(email)
 

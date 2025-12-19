@@ -214,7 +214,7 @@ export class AIAnalysisService {
   private extractTopicAreas(question: Question): string[] {
     const topics: string[] = [];
     const prompt = question.prompt.toLowerCase();
-    const instructions = question.instructions.toLowerCase();
+    const instructions = question.instructions?.toLowerCase() || '';
     
     // Basic topic detection based on keywords
     const topicKeywords = {
@@ -229,13 +229,29 @@ export class AIAnalysisService {
       'WINDOW FUNCTIONS': ['window', 'over', 'partition', 'row_number'],
     };
     
+    // Always include SELECT as a base topic for SQL queries
+    let hasSelect = false;
+    
     for (const [topic, keywords] of Object.entries(topicKeywords)) {
       if (keywords.some(keyword => prompt.includes(keyword) || instructions.includes(keyword))) {
         topics.push(topic);
+        if (topic === 'SELECT') {
+          hasSelect = true;
+        }
       }
     }
     
-    return topics.length > 0 ? topics : ['GENERAL SQL'];
+    // If no specific topics found, return GENERAL SQL
+    if (topics.length === 0) {
+      return ['GENERAL SQL'];
+    }
+    
+    // If we found other topics but not SELECT, add it as a base topic
+    if (!hasSelect && topics.length > 0) {
+      topics.unshift('SELECT');
+    }
+    
+    return topics;
   }
 
   /**
@@ -410,6 +426,16 @@ Always respond with valid JSON in the exact format requested.`;
   private generateSuggestedFix(failedQuestion: FailedQuestionAnalysis): string {
     const sql = failedQuestion.studentAnswer.sql;
     const reasons = failedQuestion.failureReasons;
+    const topicAreas = failedQuestion.topicAreas;
+    
+    // Check topic areas first, then failure reasons
+    if (topicAreas.includes('JOIN')) {
+      return 'Review JOIN syntax and table relationships. Ensure proper ON conditions.';
+    }
+    
+    if (topicAreas.includes('GROUP BY')) {
+      return 'When using GROUP BY, ensure all non-aggregated columns are included in the GROUP BY clause.';
+    }
     
     // Basic fix suggestions based on common errors
     if (reasons.some(r => r.toLowerCase().includes('syntax'))) {

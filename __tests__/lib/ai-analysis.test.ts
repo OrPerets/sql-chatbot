@@ -216,17 +216,23 @@ describe('AIAnalysisService', () => {
     });
 
     it('should handle API errors gracefully', async () => {
-      // Mock OpenAI to throw an error
-      const mockOpenAI = require('openai').default;
-      const mockInstance = new mockOpenAI();
-      mockInstance.chat.completions.create.mockRejectedValueOnce(new Error('API Error'));
+      // Get the mocked OpenAI instance
+      const MockOpenAI = require('openai').default;
+      const mockInstance = new MockOpenAI();
+      
+      // Mock the create method to throw an error
+      mockInstance.chat.completions.create = jest.fn().mockRejectedValueOnce(new Error('API Error'));
+
+      // Create a new service instance and replace its OpenAI instance
+      const errorService = new AIAnalysisService();
+      (errorService as any).openai = mockInstance;
 
       const analysisRequest = {
         submissionId: 'submission-1',
         analysisTypes: ['failure_analysis']
       };
 
-      const result = await aiService.analyzeSubmission(mockSubmission, mockQuestions, analysisRequest);
+      const result = await errorService.analyzeSubmission(mockSubmission, mockQuestions, analysisRequest);
 
       expect(result.status).toBe('failed');
       expect(result.confidence).toBe(0);
@@ -260,10 +266,12 @@ describe('AIAnalysisService', () => {
     });
 
     it('should continue processing even if some submissions fail', async () => {
-      // Mock one submission to fail
-      const mockOpenAI = require('openai').default;
-      const mockInstance = new mockOpenAI();
-      mockInstance.chat.completions.create
+      // Get the mocked OpenAI instance
+      const MockOpenAI = require('openai').default;
+      const mockInstance = new MockOpenAI();
+      
+      // Mock the create method to succeed once then fail
+      mockInstance.chat.completions.create = jest.fn()
         .mockResolvedValueOnce({
           choices: [{
             message: {
@@ -278,12 +286,16 @@ describe('AIAnalysisService', () => {
         })
         .mockRejectedValueOnce(new Error('API Error'));
 
+      // Create a new service instance and replace its OpenAI instance
+      const batchService = new AIAnalysisService();
+      (batchService as any).openai = mockInstance;
+
       const submissions = [mockSubmission, { ...mockSubmission, id: 'submission-2' }];
       const analysisRequest = {
         analysisTypes: ['failure_analysis']
       };
 
-      const results = await aiService.batchAnalyzeSubmissions(submissions, mockQuestions, analysisRequest);
+      const results = await batchService.batchAnalyzeSubmissions(submissions, mockQuestions, analysisRequest);
 
       expect(results).toHaveLength(2);
       expect(results[0].status).toBe('completed');
@@ -321,8 +333,8 @@ describe('AIAnalysisService', () => {
     it('should return GENERAL SQL for questions without specific keywords', () => {
       const genericQuestion: Question = {
         ...mockQuestions[0],
-        prompt: 'Write a query to get some data',
-        instructions: 'Just write any query'
+        prompt: 'Write something to get some data',
+        instructions: 'Just write something'
       };
 
       const result = aiService['extractTopicAreas'](genericQuestion);
