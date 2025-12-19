@@ -92,6 +92,12 @@ export interface SqlAnswer {
   executionCount?: number;
 }
 
+export interface StudentTableData {
+  tableName: string;
+  rows: any[]; // Array of row objects
+  assignedAt: string; // Timestamp when data was assigned
+}
+
 export interface Submission {
   id: string;
   homeworkSetId: string;
@@ -104,6 +110,7 @@ export interface Submission {
   gradedAt?: string;
   createdAt?: string;
   updatedAt?: string;
+  studentTableData?: Record<string, any[]>; // Key: table name, Value: array of row data
 }
 
 export interface SubmissionSummary {

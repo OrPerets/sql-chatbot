@@ -296,16 +296,22 @@ type ChatProps = {
   functionCallHandler?: (
     toolCall: RequiredActionFunctionToolCall
   ) => Promise<string>;
-  chatId: string;
+  chatId: string | null;
   onUserMessage?: (message: string) => void;
   onAssistantResponse?: (response: string) => void;
+  hideSidebar?: boolean;
+  hideAvatar?: boolean;
+  minimalMode?: boolean;
 };
 
 const Chat = ({
   functionCallHandler = () => Promise.resolve(""), // default to return empty string
   chatId: initialChatId,
   onUserMessage,
-  onAssistantResponse
+  onAssistantResponse,
+  hideSidebar = false,
+  hideAvatar = false,
+  minimalMode = false
 }: ChatProps) => {
   const [userInput, setUserInput] = useState("");
   const [messages, setMessages] = useState([]);
@@ -1336,8 +1342,8 @@ const loadChatMessages = (chatId: string) => {
   }
 
 return (
-  <div className={`${styles.main} ${!sidebarVisible ? styles.mainFullWidth : ''}`}>
-    {sidebarVisible && (
+  <div className={`${styles.main} ${!sidebarVisible || hideSidebar || minimalMode ? styles.mainFullWidth : ''}`}>
+    {sidebarVisible && !hideSidebar && !minimalMode && (
       <Sidebar 
         chatSessions={chatSessions} 
         onChatSelect={loadChatMessages} 
@@ -1347,8 +1353,8 @@ return (
         onToggleSidebar={toggleSidebar}
       />
     )}
-         <div className={`${styles.container} ${!sidebarVisible ? styles.containerFullWidth : ''}`}>
-      {!sidebarVisible && (
+         <div className={`${styles.container} ${!sidebarVisible || hideSidebar || minimalMode ? styles.containerFullWidth : ''}`}>
+      {!sidebarVisible && !hideSidebar && !minimalMode && (
         <button
           className={styles.openSidebarButton}
           onClick={toggleSidebar}
@@ -1499,6 +1505,7 @@ return (
             </button>
 
             {/* Action Buttons Row */}
+            {!minimalMode && (
             <div className={styles.actionButtons}>
               {/* Audio Recorder - hidden for clean version */}
               {/* {enableVoice && (
@@ -1583,6 +1590,7 @@ return (
               </button>
 
             </div>
+            )}
 
 
 
@@ -1634,6 +1642,7 @@ return (
   </div>
 )} */}
     
+    {!hideAvatar && !minimalMode && (
     <div className={styles.rightColumn}>
       {!isHydrated ? (
         <div 
@@ -1791,6 +1800,7 @@ return (
         </div>
       )}
     </div>
+    )}
     {/* Exercise Modal */}
     <Modal isOpen={showExerciseModal} onClose={() => {
       setShowExerciseModal(false);

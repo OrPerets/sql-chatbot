@@ -44,6 +44,7 @@ export class SubmissionsService {
       status: submission.status,
       submittedAt: submission.submittedAt,
       gradedAt: submission.gradedAt,
+      studentTableData: submission.studentTableData,
     };
   }
 
@@ -72,6 +73,7 @@ export class SubmissionsService {
       status: submission.status,
       submittedAt: submission.submittedAt,
       gradedAt: submission.gradedAt,
+      studentTableData: submission.studentTableData,
     };
   }
 
@@ -172,6 +174,59 @@ export class SubmissionsService {
         status: "in_progress",
       };
     }
+  }
+
+  /**
+   * Update student table data for a submission
+   */
+  async updateSubmissionTableData(
+    homeworkSetId: string,
+    studentId: string,
+    tableData: Record<string, any[]>
+  ): Promise<void> {
+    await this.db
+      .collection<SubmissionModel>(COLLECTIONS.SUBMISSIONS)
+      .updateOne(
+        { homeworkSetId, studentId },
+        { $set: { studentTableData: tableData } }
+      );
+  }
+
+  /**
+   * Get or assign student-specific table data for Exercise 3
+   * This ensures each student gets a consistent, unique subset of data
+   */
+  async getOrAssignStudentTableData(
+    studentId: string,
+    homeworkSetId: string
+  ): Promise<Record<string, any[]>> {
+    // Get existing submission
+    const submission = await this.getSubmissionForStudent(homeworkSetId, studentId);
+    
+    // If submission exists and has table data, return it
+    if (submission?.studentTableData && Object.keys(submission.studentTableData).length > 0) {
+      console.log('✅ Using existing student table data from submission');
+      return submission.studentTableData;
+    }
+    
+    // Otherwise, generate new assignment
+    console.log('📝 Generating new student-specific table data');
+    const { assignStudentTableData } = await import('./student-data-assignment');
+    const assignedData = assignStudentTableData(studentId, homeworkSetId);
+    
+    // Save to submission (create if doesn't exist)
+    if (!submission) {
+      await this.saveSubmissionDraft(homeworkSetId, {
+        studentId,
+        answers: {},
+      });
+    }
+    
+    // Update submission with assigned data
+    await this.updateSubmissionTableData(homeworkSetId, studentId, assignedData);
+    
+    console.log('✅ Saved student-specific table data to submission');
+    return assignedData;
   }
 
   /**
@@ -735,8 +790,16 @@ export class SubmissionsService {
                           dataset.name?.includes('מכללה');
       
       if (isExercise3) {
-        initializeExercise3Data();
-        console.log('✅ Initialized Exercise 3 tables with data using alasql');
+        // Get or assign student-specific table data
+        const studentTableData = await this.getOrAssignStudentTableData(
+          payload.studentId,
+          payload.setId
+        );
+        
+        // Initialize only student's assigned data
+        const { initializeStudentSpecificData } = await import('./student-data-assignment');
+        initializeStudentSpecificData(alasql, studentTableData);
+        console.log('✅ Initialized Exercise 3 tables with student-specific data using alasql');
       } else {
         // Default: Create Employees table
         alasql('DROP TABLE IF EXISTS Employees');

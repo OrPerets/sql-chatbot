@@ -15,6 +15,7 @@ import type { Question, SqlExecutionRequest, Submission } from "@/app/homework/t
 import styles from "./runner.module.css";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 import { InstructionsSection } from "./InstructionsSection";
+import Chat from "@/app/components/chat";
 
 import Editor from "@monaco-editor/react";
 
@@ -318,123 +319,45 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
 
   return (
     <div className={styles.runner} dir={direction}>
+      {/* Right Sidebar: Background Story */}
       <aside className={styles.sidebar}>
         <div className={styles.assignmentMeta}>
-          <Link href="/homework/start" className={styles.backLink}>
-            {backArrow} {t("runner.back")}
-          </Link>
-          
-          {/* Student Info */}
-          <div className={styles.studentInfo}>
-            <div className={styles.studentAvatar}>
-              {STUDENT_NAMES[studentId]?.charAt(0) || studentId.charAt(0)}
-            </div>
-            <div className={styles.studentDetails}>
-              <div className={styles.studentName}>
-                {STUDENT_NAMES[studentId] || "סטודנט"}
-              </div>
-              <div className={styles.studentId}>ת.ז: {studentId}</div>
-            </div>
-          </div>
-
-          <h2>{homework.title}</h2>
-          {/* <p className={styles.courseTag}>{homework.courseId}</p> */}
-          <div className={styles.metaGrid}>
-            <div className={styles.progressCircle}>
-              <svg width="120" height="120">
-                <defs>
-                  <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#3b82f6" />
-                    <stop offset="100%" stopColor="#8b5cf6" />
-                  </linearGradient>
-                </defs>
-                <circle
-                  className={styles.progressCircleBackground}
-                  cx="60"
-                  cy="60"
-                  r="52"
-                />
-                <circle
-                  className={styles.progressCircleForeground}
-                  cx="60"
-                  cy="60"
-                  r="52"
-                  strokeDasharray={`${2 * Math.PI * 52}`}
-                  strokeDashoffset={`${2 * Math.PI * 52 * (1 - progressPercent / 100)}`}
-                />
-              </svg>
-              <div className={styles.progressText}>
-                <span className={styles.progressPercent}>{formatNumber(progressPercent)}%</span>
-                <span className={styles.progressLabel}>{t("runner.meta.progress")}</span>
-              </div>
-            </div>
-          </div>
           {homework.backgroundStory && <InstructionsSection instructions={homework.backgroundStory} />}
         </div>
-
-        <nav className={styles.navigator}>
-          <h3>{t("runner.nav.heading")}</h3>
-          <ul>
-            {questions.map((question, index) => {
-              const questionId = question.id;
-              const answer = answers[questionId];
-              const isActive = questionId === activeQuestionId;
-              const isCompleted = Boolean(answer?.feedback?.score);
-              const hasDraft = Boolean(answer?.sql?.trim());
-              return (
-                <li key={questionId}>
-                  <button
-                    type="button"
-                    className={isActive ? `${styles.navButton} ${styles.navButtonActive}` : styles.navButton}
-                    onClick={() => setActiveQuestionId(questionId)}
-                  >
-                    <span className={styles.navIndex}>{formatNumber(index + 1)}</span>
-                    <span className={styles.navLabel}>{question.prompt ?? t("runner.nav.fallback")}</span>
-                    <span className={styles.navStatus} data-state={isCompleted ? "complete" : hasDraft ? "draft" : "todo"}>
-                      {isCompleted
-                        ? t("runner.nav.status.complete")
-                        : hasDraft
-                          ? t("runner.nav.status.draft")
-                          : t("runner.nav.status.new")}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
       </aside>
 
+      {/* Middle Section: Question + SQL Editor */}
       <section className={styles.workspace}>
         <header className={styles.workspaceHeader}>
-          {/* Question Stepper */}
-          <div className={styles.questionStepper}>
-            {questions.map((question, index) => {
-              const qId = question.id;
-              const isActive = qId === activeQuestionId;
-              const answer = answers[qId];
-              const isCompleted = Boolean(answer?.feedback?.score);
-              const questionNum = index + 1;
-              
-              return (
-                <div key={qId} className={styles.stepperItem}>
-                  <div 
-                    className={`${styles.stepperCircle} ${isActive ? styles.stepperCircleActive : ''} ${isCompleted ? styles.stepperCircleCompleted : ''}`}
-                    onClick={() => setActiveQuestionId(qId)}
-                  >
-                    {isCompleted ? '✓' : questionNum}
+          {/* Question Stepper - full width with proper padding */}
+          <div className={styles.questionStepperWrapper}>
+            <div className={styles.questionStepper}>
+              {questions.map((question, index) => {
+                const qId = question.id;
+                const isActive = qId === activeQuestionId;
+                const answer = answers[qId];
+                const isCompleted = Boolean(answer?.feedback?.score);
+                const questionNum = index + 1;
+                
+                return (
+                  <div key={qId} className={styles.stepperItem}>
+                    <div 
+                      className={`${styles.stepperCircle} ${isActive ? styles.stepperCircleActive : ''} ${isCompleted ? styles.stepperCircleCompleted : ''}`}
+                      onClick={() => setActiveQuestionId(qId)}
+                    >
+                      {isCompleted ? '✓' : questionNum}
+                    </div>
+                    {index < questions.length - 1 && (
+                      <div className={`${styles.stepperLine} ${isCompleted ? styles.stepperLineCompleted : ''}`} />
+                    )}
                   </div>
-                  {index < questions.length - 1 && (
-                    <div className={`${styles.stepperLine} ${isCompleted ? styles.stepperLineCompleted : ''}`} />
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
           
           <div className={styles.questionContent}>
             <h3>{activeQuestion?.prompt ?? t("runner.question.placeholder")}</h3>
-            {/* <p className={styles.instructions}>{activeQuestion?.instructions}</p> */}
           </div>
         </header>
 
@@ -480,12 +403,14 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 onClick={handleExecute}
                 disabled={executeMutation.isPending || !activeQuestionId}
               >
-                <span>{executeMutation.isPending ? "⏳" : "▶️"}</span>
+                <span className={styles.runIcon}>{executeMutation.isPending ? "⏳" : "▶"}</span>
                 {executeMutation.isPending ? t("runner.actions.running") : t("runner.actions.run")}
               </button>
+              
+              {/* Submit button moved here */}
               <button
                 type="button"
-                className={styles.submitButton}
+                className={styles.submitButtonMain}
                 onClick={() => submitMutation.mutate()}
                 disabled={submitMutation.isPending || submission?.status === "submitted" || submission?.status === "graded"}
               >
@@ -538,6 +463,17 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           </div>
         </div>
       </section>
+
+      {/* Right Sidebar: Michael Chat */}
+      <aside className={styles.chatSidebar}>
+        <div className={styles.chatHeader}>
+          <span className={styles.chatIcon}>💬</span>
+          <h3 className={styles.chatTitle}>שאל את Michael</h3>
+        </div>
+        <div className={styles.chatContent}>
+          <Chat chatId={null} hideSidebar={true} hideAvatar={true} minimalMode={true} />
+        </div>
+      </aside>
     </div>
   );
 }

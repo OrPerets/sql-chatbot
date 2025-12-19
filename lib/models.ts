@@ -34,6 +34,7 @@ export interface QuestionModel extends Omit<Question, 'id'> {
 export interface SubmissionModel extends Omit<Submission, 'id'> {
   _id?: ObjectId;
   id: string;
+  studentTableData?: Record<string, any[]>; // Key: table name, Value: array of row data
 }
 
 export interface AnalyticsEventModel extends Omit<AnalyticsEvent, 'id'> {

@@ -137,13 +137,6 @@ export function StudentEntryClient() {
     return (
       <div className={styles.container} dir="rtl">
         <div className={styles.card}>
-          <div className={styles.header}>
-            <div className={styles.icon}>
-              <BookOpen size={40} />
-            </div>
-            <h1 className={styles.title}>הנחיות</h1>
-          </div>
-
           <div className={styles.instructionsContent}>
             {studentName && (
               <div className={styles.welcomeMessage}>
