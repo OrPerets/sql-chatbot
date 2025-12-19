@@ -154,6 +154,9 @@ describe('MCP Michael System', () => {
 
   describe('Course Context Function Endpoint', () => {
     test('get_course_week_context returns stringified JSON payload', async () => {
+      // Reset modules to ensure fresh imports with mocks
+      jest.resetModules();
+      
       const { getCurrentWeekContextNormalized } = await import('@/lib/content');
       (getCurrentWeekContextNormalized as jest.Mock).mockResolvedValue({
         weekNumber: 5,
@@ -162,6 +165,10 @@ describe('MCP Michael System', () => {
         updatedAt: '2024-01-27T10:00:00.000Z',
         updatedBy: 'admin',
       });
+
+      const { getAllowedConceptsForWeek, getForbiddenConceptsForWeek } = await import('@/lib/sql-curriculum');
+      (getAllowedConceptsForWeek as jest.Mock).mockReturnValue([]);
+      (getForbiddenConceptsForWeek as jest.Mock).mockReturnValue([]);
 
       const { POST } = await import('../app/api/assistants/functions/course-context/route');
       const req = new (NextRequest as any)('http://localhost:3000/api/assistants/functions/course-context', {
@@ -177,6 +184,9 @@ describe('MCP Michael System', () => {
     })
 
     test('list_course_week_summaries returns summaries object', async () => {
+      // Reset modules to ensure fresh imports with mocks
+      jest.resetModules();
+      
       const { getWeeklyContent } = await import('@/lib/content');
       (getWeeklyContent as jest.Mock).mockResolvedValue([
         { week: 1, content: 'Intro', updatedAt: '2024-01-01T00:00:00.000Z', updatedBy: 'admin' },
@@ -196,6 +206,9 @@ describe('MCP Michael System', () => {
     })
 
     test('out-of-range week gracefully clamps', async () => {
+      // Reset modules to ensure fresh imports with mocks
+      jest.resetModules();
+      
       const { getWeekContextByNumberNormalized } = await import('@/lib/content');
       (getWeekContextByNumberNormalized as jest.Mock).mockResolvedValue({ 
         weekNumber: 14, 
@@ -204,6 +217,10 @@ describe('MCP Michael System', () => {
         updatedAt: '2024-01-01T00:00:00.000Z',
         updatedBy: 'admin',
       });
+
+      const { getAllowedConceptsForWeek, getForbiddenConceptsForWeek } = await import('@/lib/sql-curriculum');
+      (getAllowedConceptsForWeek as jest.Mock).mockReturnValue([]);
+      (getForbiddenConceptsForWeek as jest.Mock).mockReturnValue([]);
 
       const { POST } = await import('../app/api/assistants/functions/course-context/route');
       const req = new (NextRequest as any)('http://localhost:3000/api/assistants/functions/course-context', {
