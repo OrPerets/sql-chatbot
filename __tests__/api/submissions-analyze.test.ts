@@ -16,7 +16,8 @@ const mockAIAnalysisService = {
 
 const mockAnalysisService = {
   getAnalysisResultsForSubmission: jest.fn(),
-  saveAnalysisResult: jest.fn()
+  getAnalysisResultsForStudent: jest.fn(),
+  getAnalysisResultsForHomeworkSet: jest.fn()
 };
 
 const mockSubmissionsService = {
@@ -34,9 +35,7 @@ jest.mock('@/lib/ai-analysis', () => ({
 
 
 jest.mock('@/lib/analysis-service', () => ({
-  getAnalysisService: jest.fn(() => ({
-    getAnalysisResultsForSubmission: jest.fn()
-  })),
+  getAnalysisService: jest.fn(() => mockAnalysisService),
   saveAnalysisResult: jest.fn()
 }));
 
@@ -138,6 +137,10 @@ describe('/api/submissions/[setId]/analyze', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Ensure all mock methods return arrays by default
+    mockAnalysisService.getAnalysisResultsForSubmission.mockResolvedValue([]);
+    mockAnalysisService.getAnalysisResultsForStudent.mockResolvedValue([]);
+    mockAnalysisService.getAnalysisResultsForHomeworkSet.mockResolvedValue([]);
   });
 
   describe('POST', () => {
