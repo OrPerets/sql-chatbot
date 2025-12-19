@@ -10,20 +10,26 @@ import { POST as POST_VALIDATE } from '@/app/api/templates/validate/route';
 import { POST as POST_PARSE } from '@/app/api/templates/parse/route';
 
 // Mock the template service
+const mockTemplateService = {
+  getTemplates: jest.fn(),
+  createTemplate: jest.fn(),
+  getTemplateById: jest.fn(),
+  updateTemplate: jest.fn(),
+  deleteTemplate: jest.fn(),
+  previewTemplate: jest.fn(),
+  validateTemplate: jest.fn(),
+  parseTemplate: jest.fn(),
+};
+
 jest.mock('@/lib/template-service', () => ({
-  getTemplateService: jest.fn(() => ({
-    getTemplates: jest.fn(),
-    createTemplate: jest.fn(),
-    getTemplateById: jest.fn(),
-    updateTemplate: jest.fn(),
-    deleteTemplate: jest.fn(),
-    previewTemplate: jest.fn(),
-    validateTemplate: jest.fn(),
-    parseTemplate: jest.fn(),
-  })),
+  getTemplateService: jest.fn(() => Promise.resolve(mockTemplateService)),
 }));
 
 describe('/api/templates', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe('GET /api/templates', () => {
     it('should return all templates', async () => {
       const mockTemplates = [
@@ -38,9 +44,7 @@ describe('/api/templates', () => {
         }
       ];
 
-      const { getTemplateService } = require('@/lib/template-service');
-      const mockService = getTemplateService();
-      mockService.getTemplates.mockResolvedValue(mockTemplates);
+      mockTemplateService.getTemplates.mockResolvedValue(mockTemplates);
 
       const request = new NextRequest('http://localhost:3000/api/templates');
       const response = await GET();
@@ -52,9 +56,7 @@ describe('/api/templates', () => {
     });
 
     it('should handle errors when fetching templates', async () => {
-      const { getTemplateService } = require('@/lib/template-service');
-      const mockService = getTemplateService();
-      mockService.getTemplates.mockRejectedValue(new Error('Database error'));
+      mockTemplateService.getTemplates.mockRejectedValue(new Error('Database error'));
 
       const request = new NextRequest('http://localhost:3000/api/templates');
       const response = await GET();
@@ -89,9 +91,7 @@ describe('/api/templates', () => {
         updatedAt: '2024-01-01T00:00:00Z'
       };
 
-      const { getTemplateService } = require('@/lib/template-service');
-      const mockService = getTemplateService();
-      mockService.createTemplate.mockResolvedValue(createdTemplate);
+      mockTemplateService.createTemplate.mockResolvedValue(createdTemplate);
 
       const request = new NextRequest('http://localhost:3000/api/templates', {
         method: 'POST',
@@ -134,9 +134,7 @@ describe('/api/templates', () => {
         variables: []
       };
 
-      const { getTemplateService } = require('@/lib/template-service');
-      const mockService = getTemplateService();
-      mockService.createTemplate.mockRejectedValue(new Error('Validation error'));
+      mockTemplateService.createTemplate.mockRejectedValue(new Error('Validation error'));
 
       const request = new NextRequest('http://localhost:3000/api/templates', {
         method: 'POST',
@@ -167,9 +165,7 @@ describe('/api/templates/[id]', () => {
         updatedAt: '2024-01-01T00:00:00Z'
       };
 
-      const { getTemplateService } = require('@/lib/template-service');
-      const mockService = getTemplateService();
-      mockService.getTemplateById.mockResolvedValue(template);
+      mockTemplateService.getTemplateById.mockResolvedValue(template);
 
       const request = new NextRequest('http://localhost:3000/api/templates/1');
       const response = await GET_TEMPLATE(request, { params: { id: '1' } });
@@ -181,9 +177,7 @@ describe('/api/templates/[id]', () => {
     });
 
     it('should return 404 for non-existent template', async () => {
-      const { getTemplateService } = require('@/lib/template-service');
-      const mockService = getTemplateService();
-      mockService.getTemplateById.mockResolvedValue(null);
+      mockTemplateService.getTemplateById.mockResolvedValue(null);
 
       const request = new NextRequest('http://localhost:3000/api/templates/nonexistent');
       const response = await GET_TEMPLATE(request, { params: { id: 'nonexistent' } });
@@ -211,9 +205,7 @@ describe('/api/templates/[id]', () => {
         updatedAt: '2024-01-02T00:00:00Z'
       };
 
-      const { getTemplateService } = require('@/lib/template-service');
-      const mockService = getTemplateService();
-      mockService.updateTemplate.mockResolvedValue(updatedTemplate);
+      mockTemplateService.updateTemplate.mockResolvedValue(updatedTemplate);
 
       const request = new NextRequest('http://localhost:3000/api/templates/1', {
         method: 'PUT',
@@ -230,9 +222,7 @@ describe('/api/templates/[id]', () => {
     });
 
     it('should return 404 for non-existent template', async () => {
-      const { getTemplateService } = require('@/lib/template-service');
-      const mockService = getTemplateService();
-      mockService.updateTemplate.mockResolvedValue(null);
+      mockTemplateService.updateTemplate.mockResolvedValue(null);
 
       const request = new NextRequest('http://localhost:3000/api/templates/nonexistent', {
         method: 'PUT',
@@ -251,9 +241,7 @@ describe('/api/templates/[id]', () => {
 
   describe('DELETE /api/templates/[id]', () => {
     it('should delete a template', async () => {
-      const { getTemplateService } = require('@/lib/template-service');
-      const mockService = getTemplateService();
-      mockService.deleteTemplate.mockResolvedValue(true);
+      mockTemplateService.deleteTemplate.mockResolvedValue(true);
 
       const request = new NextRequest('http://localhost:3000/api/templates/1', {
         method: 'DELETE'
@@ -268,9 +256,7 @@ describe('/api/templates/[id]', () => {
     });
 
     it('should return 404 for non-existent template', async () => {
-      const { getTemplateService } = require('@/lib/template-service');
-      const mockService = getTemplateService();
-      mockService.deleteTemplate.mockResolvedValue(false);
+      mockTemplateService.deleteTemplate.mockResolvedValue(false);
 
       const request = new NextRequest('http://localhost:3000/api/templates/nonexistent', {
         method: 'DELETE'
@@ -295,9 +281,7 @@ describe('/api/templates/[id]/preview', () => {
       }
     ];
 
-    const { getTemplateService } = require('@/lib/template-service');
-    const mockService = getTemplateService();
-    mockService.previewTemplate.mockResolvedValue(previewData);
+    mockTemplateService.previewTemplate.mockResolvedValue(previewData);
 
     const request = new NextRequest('http://localhost:3000/api/templates/1/preview?sampleCount=3');
     const response = await GET_PREVIEW(request, { params: { id: '1' } });
@@ -309,9 +293,7 @@ describe('/api/templates/[id]/preview', () => {
   });
 
   it('should return 404 for non-existent template', async () => {
-    const { getTemplateService } = require('@/lib/template-service');
-    const mockService = getTemplateService();
-    mockService.previewTemplate.mockResolvedValue(null);
+    mockTemplateService.previewTemplate.mockResolvedValue(null);
 
     const request = new NextRequest('http://localhost:3000/api/templates/nonexistent/preview');
     const response = await GET_PREVIEW(request, { params: { id: 'nonexistent' } });
@@ -342,9 +324,7 @@ describe('/api/templates/validate', () => {
       errors: []
     };
 
-    const { getTemplateService } = require('@/lib/template-service');
-    const mockService = getTemplateService();
-    mockService.validateTemplate.mockResolvedValue(validationResult);
+    mockTemplateService.validateTemplate.mockResolvedValue(validationResult);
 
     const request = new NextRequest('http://localhost:3000/api/templates/validate', {
       method: 'POST',
@@ -388,9 +368,7 @@ describe('/api/templates/parse', () => {
       errors: []
     };
 
-    const { getTemplateService } = require('@/lib/template-service');
-    const mockService = getTemplateService();
-    mockService.parseTemplate.mockResolvedValue(parseResult);
+    mockTemplateService.parseTemplate.mockResolvedValue(parseResult);
 
     const request = new NextRequest('http://localhost:3000/api/templates/parse', {
       method: 'POST',
