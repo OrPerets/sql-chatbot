@@ -21,14 +21,28 @@ export function StudentEntryClient() {
 
   const [step, setStep] = useState<"id" | "instructions" | "loading">("id");
   const [studentEmail, setStudentEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
   const [studentId, setStudentId] = useState("");
   const [studentName, setStudentName] = useState("");
   const [error, setError] = useState("");
   const [homework, setHomework] = useState<HomeworkSet | null>(null);
+  
+  const ADMIN_PASSWORD = "r123";
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    // Validate admin password
+    if (!adminPassword.trim()) {
+      setError("נא להזין סיסמת מנהל");
+      return;
+    }
+
+    if (adminPassword.trim() !== ADMIN_PASSWORD) {
+      setError("סיסמת מנהל שגויה");
+      return;
+    }
 
     // Validate email
     if (!studentEmail.trim()) {
@@ -116,6 +130,7 @@ export function StudentEntryClient() {
   const handleBack = () => {
     setStep("id");
     setStudentEmail("");
+    setAdminPassword("");
     setStudentId("");
     setStudentName("");
   };
@@ -218,10 +233,22 @@ export function StudentEntryClient() {
             <Play size={40} />
           </div>
           <h1 className={styles.title}>שיעורי בית SQL</h1>
-          <p className={styles.subtitle}>נא להזין את כתובת האימייל שלך להתחלה</p>
+          <p className={styles.subtitle}>נא להזין את סיסמת המנהל וכתובת האימייל שלך להתחלה</p>
         </div>
 
         <form className={styles.form} onSubmit={handleEmailSubmit}>
+          <div className={styles.inputGroup}>
+            <label className={styles.label}>סיסמת מנהל</label>
+            <input
+              type="password"
+              className={styles.input}
+              placeholder="הזן סיסמת מנהל"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              autoFocus
+            />
+          </div>
+
           <div className={styles.inputGroup}>
             <label className={styles.label}>כתובת אימייל</label>
             <input
@@ -230,7 +257,6 @@ export function StudentEntryClient() {
               placeholder="your.email@example.com"
               value={studentEmail}
               onChange={(e) => setStudentEmail(e.target.value)}
-              autoFocus
             />
           </div>
 
@@ -241,7 +267,7 @@ export function StudentEntryClient() {
             </div>
           )}
 
-          <button type="submit" className={styles.button} disabled={!studentEmail.trim()}>
+          <button type="submit" className={styles.button} disabled={!adminPassword.trim() || !studentEmail.trim()}>
             המשך
           </button>
         </form>
