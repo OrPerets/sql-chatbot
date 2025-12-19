@@ -1,3 +1,7 @@
+/**
+ * @jest-environment node
+ */
+
 import { POST } from '@/app/api/auth/reset-password/route'
 import { applyPasswordResetToken, validatePasswordResetToken } from '@/lib/users'
 import { sendEmail } from '@/app/utils/email-service'

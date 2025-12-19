@@ -1,3 +1,7 @@
+/**
+ * @jest-environment node
+ */
+
 import { NextRequest } from 'next/server';
 import { POST, GET } from '@/app/api/submissions/[setId]/analyze/route';
 

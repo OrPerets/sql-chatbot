@@ -1,3 +1,7 @@
+/**
+ * @jest-environment node
+ */
+
 import { NextRequest } from 'next/server';
 import { GET, POST } from '@/app/api/templates/route';
 import { GET as GET_TEMPLATE, PUT, DELETE } from '@/app/api/templates/[id]/route';
