@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { getCurrentWeekContextNormalized, getWeekContextByNumberNormalized } from '@/lib/content'
+import { getAllowedConceptsForWeek, getForbiddenConceptsForWeek } from '@/lib/sql-curriculum'
 
 export const runtime = 'nodejs'
 
@@ -40,6 +41,10 @@ async function handleGetCourseWeekContext(params: GetCourseWeekContextParams) {
       ? await getWeekContextByNumberNormalized(week)
       : await getCurrentWeekContextNormalized(null)
 
+    const weekNumber = payload.weekNumber
+    const allowedConcepts = weekNumber ? getAllowedConceptsForWeek(weekNumber) : []
+    const forbiddenConcepts = weekNumber ? getForbiddenConceptsForWeek(weekNumber) : []
+
     // The Assistants API expects a STRING output for tool calls
     const out = JSON.stringify({
       weekNumber: payload.weekNumber,
@@ -47,6 +52,11 @@ async function handleGetCourseWeekContext(params: GetCourseWeekContextParams) {
       dateRange: payload.dateRange,
       updatedAt: payload.updatedAt || null,
       updatedBy: payload.updatedBy || null,
+      sqlRestrictions: {
+        allowedConcepts: allowedConcepts,
+        forbiddenConcepts: forbiddenConcepts,
+        weekNumber: weekNumber
+      },
       fetchedAt: new Date().toISOString(),
     })
     return new Response(out, { headers: { 'Content-Type': 'text/plain' } })
@@ -56,6 +66,11 @@ async function handleGetCourseWeekContext(params: GetCourseWeekContextParams) {
       weekNumber: null,
       content: null,
       dateRange: null,
+      sqlRestrictions: {
+        allowedConcepts: [],
+        forbiddenConcepts: [],
+        weekNumber: null
+      },
       error: 'Failed to retrieve course week context',
     })
     return new Response(out, { status: 500, headers: { 'Content-Type': 'text/plain' } })

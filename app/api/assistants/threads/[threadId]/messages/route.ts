@@ -24,22 +24,20 @@ export async function POST(request, { params: { threadId } }) {
   try {
     const { content, imageData } = await request.json();
 
-    // Optional prompt injection (temporary) - recommended to use function calls instead
+    // Always fetch weekly context to ensure SQL concept restrictions are applied
     let weeklyContext = '';
-    if (process.env.MCP_FORCE_PROMPT_CONTEXT === '1') {
-      try {
-        const weeklyResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/mcp-michael/current-week`);
-        if (weeklyResponse.ok) {
-          const weeklyData = await weeklyResponse.json();
-          const weekNum = weeklyData.weekNumber ?? weeklyData.currentWeek; // support both shapes during rollout
-          if (weeklyData.content && weeklyData.content.trim()) {
-            weeklyContext = `\n\n[הקשר שבועי נוכחי - שבוע ${weekNum}: ${weeklyData.content}]`;
-          }
+    try {
+      const weeklyResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/mcp-michael/current-week`);
+      if (weeklyResponse.ok) {
+        const weeklyData = await weeklyResponse.json();
+        const weekNum = weeklyData.weekNumber ?? weeklyData.currentWeek; // support both shapes during rollout
+        if (weeklyData.content && weeklyData.content.trim()) {
+          weeklyContext = `\n\n[Current Week Context - Week ${weekNum}: ${weeklyData.content}. IMPORTANT: Only use SQL concepts taught up to week ${weekNum}. Do NOT use JOINs before week 7, or sub-queries before week 9.]`;
         }
-      } catch (weeklyError) {
-        console.log('Could not fetch weekly context:', weeklyError);
-        // Continue without weekly context if fetch fails
       }
+    } catch (weeklyError) {
+      console.log('Could not fetch weekly context:', weeklyError);
+      // Continue without weekly context if fetch fails
     }
 
     // Prepare message content
