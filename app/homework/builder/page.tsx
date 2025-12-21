@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, Edit3, Eye, GraduationCap, CheckCircle, Clock, AlertCircle, Archive } from "lucide-react";
+import { Plus, Edit3, Eye, GraduationCap, CheckCircle, Clock, AlertCircle, Archive, Send } from "lucide-react";
 import { useHomeworkSets } from "@/app/homework/hooks/useHomeworkSets";
 import type { HomeworkStatusFilter, HomeworkSummary } from "@/app/homework/types";
 import styles from "./dashboard.module.css";
@@ -29,6 +29,7 @@ function calculateProgress(set: HomeworkSummary): number {
 const cardActions = [
   { key: "edit", icon: Edit3, isPrimary: true },
   { key: "preview", icon: Eye, isPrimary: false },
+  { key: "publish", icon: Send, isPrimary: false },
   { key: "grade", icon: GraduationCap, isPrimary: false },
 ];
 

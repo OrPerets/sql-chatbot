@@ -18,6 +18,7 @@
   "builder.dashboard.card.average": "Average Score",
   "builder.dashboard.card.edit": "Edit",
   "builder.dashboard.card.preview": "Preview",
+  "builder.dashboard.card.publish": "Publish",
   "builder.dashboard.card.grade": "Grade",
   "builder.dashboard.empty.title": "No homework sets yet",
   "builder.dashboard.empty.message": "Start by creating a new assignment and drafting ten SQL questions.",

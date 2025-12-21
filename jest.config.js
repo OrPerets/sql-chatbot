@@ -9,6 +9,10 @@ const createJestConfig = nextJest({
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jest-environment-jsdom',
+  // Use node environment for API tests (they test server-side code)
+  testEnvironmentOptions: {
+    customExportConditions: [''],
+  },
   testMatch: [
     '<rootDir>/**/__tests__/**/*.{js,jsx,ts,tsx}',
     '<rootDir>/**/*.{test,spec}.{js,jsx,ts,tsx}'
@@ -24,6 +28,7 @@ const customJestConfig = {
     'node_modules/(?!(mongodb|bson|@mongodb-js/.*)/)'
   ],
   moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/$1',
     '^mongodb$': '<rootDir>/__tests__/__mocks__/mongodb.js',
     '^bson$': '<rootDir>/__tests__/__mocks__/bson.js'
   },

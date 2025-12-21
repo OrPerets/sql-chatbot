@@ -1,28 +1,36 @@
 .runner {
   display: grid;
-  grid-template-columns: 380px 1fr;
-  gap: 24px;
+  /* Left: Instructions (340px), Middle: Workspace (flex), Right: Chat (320px) */
+  grid-template-columns: 340px minmax(0, 1fr) 320px;
+  gap: 16px;
   background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
-  padding: 24px;
-  border-radius: 16px;
+  padding: 16px;
   direction: inherit;
-  min-height: calc(100vh - 48px);
+  min-height: 100vh;
+  height: 100vh;
+  max-width: 100%;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 0;
   background: #ffffff;
-  border-radius: 20px;
-  padding: 24px;
+  border-radius: 16px;
+  padding: 0;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  max-height: calc(100vh - 96px);
-  overflow-y: auto;
-  overflow-x: hidden;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
+  max-height: calc(100vh - 32px);
+  height: calc(100vh - 32px);
+  overflow: hidden;
   position: sticky;
-  top: 24px;
+  top: 16px;
+  min-width: 0;
+  width: 100%;
+  min-height: 0;
 }
 
 /* Enhanced scrollbar styling */
@@ -91,48 +99,45 @@
 .navButton:nth-child(5) { animation-delay: 0.25s; }
 
 .assignmentMeta {
-  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
-  border-radius: 16px;
-  padding: 24px;
-  padding-top: 28px;
-  border: 2px solid #e0e7ff;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 14px;
+  padding: 0;
+  border: none;
   position: relative;
-  overflow: visible;
-}
-
-.assignmentMeta::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
-  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 /* Student Info Card */
 .studentInfo {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 16px;
+  gap: 12px;
+  padding: 14px;
   background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border-radius: 14px;
+  border-radius: 12px;
   border: 2px solid #bae6fd;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+}
+
+.studentInfo:hover {
+  box-shadow: 0 4px 12px rgba(186, 230, 253, 0.4);
 }
 
 .studentAvatar {
-  width: 50px;
-  height: 50px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   flex-shrink: 0;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
@@ -141,32 +146,41 @@
 .studentDetails {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   flex: 1;
   min-width: 0;
 }
 
 .studentName {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
   color: #0c4a6e;
-  line-height: 1.2;
+  line-height: 1.3;
 }
 
 .studentId {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: #0369a1;
   direction: ltr;
   text-align: right;
 }
 
+.studentEmail {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  direction: ltr;
+  text-align: right;
+  word-break: break-all;
+}
+
 .assignmentMeta h2 {
-  margin-block: 12px 8px;
-  font-size: 22px;
+  margin-block: 12px 10px;
+  font-size: 19px;
   font-weight: 700;
   color: #1e293b;
-  line-height: 1.3;
+  line-height: 1.4;
 }
 
 .courseTag {
@@ -183,20 +197,21 @@
 
 .metaGrid {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 16px;
-  margin-block: 20px;
-  padding: 20px;
+  justify-content: center;
+  gap: 10px;
+  margin-block: 10px;
+  padding: 10px;
   background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%);
-  border-radius: 12px;
-  border: 2px solid #dbeafe;
+  border-radius: 10px;
+  border: 1px solid #dbeafe;
 }
 
 .progressCircle {
   position: relative;
-  width: 120px;
-  height: 120px;
+  width: 60px;
+  height: 60px;
 }
 
 .progressCircle svg {
@@ -205,7 +220,7 @@
 
 .progressCircle circle {
   fill: none;
-  stroke-width: 8;
+  stroke-width: 5;
 }
 
 .progressCircleBackground {
@@ -228,7 +243,7 @@
 
 .progressPercent {
   display: block;
-  font-size: 28px;
+  font-size: 14px;
   font-weight: 700;
   color: #3b82f6;
   line-height: 1;
@@ -236,73 +251,123 @@
 
 .progressLabel {
   display: block;
-  font-size: 11px;
+  font-size: 8px;
   font-weight: 600;
   color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .metaGrid dt {
   font-weight: 600;
   color: #64748b;
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .metaGrid dd {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
   font-weight: 700;
   color: #1e293b;
-  font-size: 18px;
+  font-size: 15px;
 }
 
 .overview {
-  margin-block-start: 12px;
+  margin-block-start: 10px;
   color: #304052;
-  line-height: 1.6;
-  font-size: 14px;
+  line-height: 1.5;
+  font-size: 13px;
 }
 
-/* Enhanced Instructions Styling */
+/* Enhanced Instructions Styling - Clear and Readable */
 .instructionsSection {
-  margin-block-start: 20px;
-  padding: 20px;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border-radius: 12px;
-  border: 2px solid #bae6fd;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .instructionsHeader {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #7dd3fc;
+  gap: 12px;
+  padding: 16px 18px;
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  border-radius: 12px 12px 0 0;
+  position: relative;
+}
+
+.instructionsHeader::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 8px solid #6366f1;
 }
 
 .instructionsIcon {
   width: 22px;
   height: 22px;
-  color: #0284c7;
+  color: #ffffff;
   flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 
 .instructionsTitle {
   font-size: 17px;
   font-weight: 700;
-  color: #0c4a6e;
+  color: #ffffff;
   margin: 0;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .instructionsContent {
   font-size: 14px;
-  line-height: 1.7;
-  color: #1e293b;
+  line-height: 1.75;
+  color: #374151;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px 18px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  min-height: 0;
+}
+
+/* Scrollbar styling for instructions content */
+.instructionsContent::-webkit-scrollbar {
+  width: 6px;
+}
+
+.instructionsContent::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 8px;
+}
+
+.instructionsContent::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  border-radius: 8px;
+}
+
+.instructionsContent::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
 }
 
 .instructionsList {
@@ -360,47 +425,65 @@
 }
 
 .technicalTerm {
-  background: rgba(14, 98, 191, 0.1);
-  color: var(--homework-primary, #0e62bf);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+  color: #1e40af;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-weight: 600;
-  font-size: 11px;
+  font-size: 12px;
+  border: 1px solid #bfdbfe;
+  white-space: nowrap;
 }
 
 .importantNote {
   margin: 16px 0 0;
-  padding: 12px 16px;
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  border: 1px solid #f59e0b;
-  border-radius: 8px;
-  border-left: 4px solid #f59e0b;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%);
+  border: 2px solid #facc15;
+  border-radius: 10px;
+  border-right: 5px solid #eab308;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(234, 179, 8, 0.15);
 }
 
 .importantNote::before {
-  content: "⚠️ ";
-  font-weight: bold;
-  margin-right: 4px;
+  content: "⚠️";
+  position: absolute;
+  top: -10px;
+  right: 12px;
+  background: #ffffff;
+  padding: 2px 6px;
+  border-radius: 50%;
+  font-size: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .importantNoteText {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  color: #92400e;
+  color: #854d0e;
   margin: 0;
+  line-height: 1.6;
 }
 
 .storyParagraph {
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 8px;
-  border-left: 3px solid var(--homework-primary, #0e62bf);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  font-size: 13px;
-  line-height: 1.7;
-  color: #374151;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 10px;
+  border-right: 4px solid #3b82f6;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  font-size: 14px;
+  line-height: 1.8;
+  color: #1f2937;
+  font-weight: 450;
+  transition: all 0.2s ease;
+}
+
+.storyParagraph:hover {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
 }
 
 .storyParagraph:last-child {
@@ -409,33 +492,35 @@
 
 .backLink {
   text-decoration: none;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: #3b82f6;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 8px;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
   transition: all 0.2s ease;
   background: rgba(59, 130, 246, 0.05);
+  margin-bottom: 16px;
 }
 
 .backLink:hover {
   background: rgba(59, 130, 246, 0.1);
   transform: translateX(calc(var(--homework-nav-hover-translate, 2px) * -1));
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
 }
 
 .navigator {
   background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 16px;
   border: 2px solid #e0e7ff;
 }
 
 .navigator h3 {
-  margin-bottom: 16px;
-  font-size: 16px;
+  margin-bottom: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: #1e293b;
   display: flex;
@@ -447,7 +532,7 @@
 
 .navigator h3::before {
   content: "📝";
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .navigator ul {
@@ -456,19 +541,19 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .navButton {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 12px;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
   background: #f8fafc;
   border: 2px solid transparent;
-  font-size: 14px;
+  font-size: 13px;
   color: #334155;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -520,12 +605,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
   background: rgba(59, 130, 246, 0.1);
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   flex-shrink: 0;
 }
 
@@ -543,11 +628,11 @@
 }
 
 .navStatus {
-  font-size: 10px;
+  font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 700;
-  padding: 4px 8px;
+  padding: 3px 7px;
   border-radius: 999px;
   flex-shrink: 0;
 }
@@ -584,23 +669,33 @@
 
 .workspace {
   background: #ffffff;
-  border-radius: 20px;
+  border-radius: 16px;
   padding: 0;
   border: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  overflow: hidden;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: calc(100vh - 32px);
+  height: calc(100vh - 32px);
+  position: sticky;
+  top: 16px;
+  min-width: 0;
+  width: 100%;
 }
 
 .workspaceHeader {
-  padding: 32px 28px 28px;
-  background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
-  border-bottom: 2px solid #e0e7ff;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-bottom: 1px solid #e0e7ff;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 10px;
   position: relative;
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .workspaceHeader::before {
@@ -609,8 +704,75 @@
   top: 0;
   left: 0;
   right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
+  border-radius: 16px 16px 0 0;
+}
+
+/* Question Stepper Wrapper - prevents cutoff */
+.questionStepperWrapper {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 24px;
+  margin: 0 -16px;
+  width: calc(100% + 32px);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.questionStepperWrapper::-webkit-scrollbar {
   height: 4px;
-  background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+}
+
+.questionStepperWrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.questionStepperWrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+/* Hidden - submit button moved to editor actions */
+.submitButtonHeader {
+  display: none;
+}
+
+/* Main Submit Button - positioned with run button */
+.submitButtonMain {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+}
+
+.submitButtonMain:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+}
+
+.submitButtonMain:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.submitButtonMain span {
+  font-size: 15px;
 }
 
 /* Question Stepper */
@@ -619,30 +781,47 @@
   align-items: center;
   justify-content: center;
   gap: 0;
-  padding: 20px 0;
+  padding: 8px 16px;
+  min-width: fit-content;
+}
+
+.questionStepper::-webkit-scrollbar {
+  height: 3px;
+}
+
+.questionStepper::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 2px;
+}
+
+.questionStepper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
 }
 
 .stepperItem {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .stepperCircle {
-  width: 44px;
-  height: 44px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 700;
   background: #e2e8f0;
   color: #64748b;
-  border: 3px solid #e2e8f0;
+  border: 2px solid #e2e8f0;
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative;
   z-index: 2;
+  flex-shrink: 0;
 }
 
 .stepperCircle:hover {
@@ -671,12 +850,13 @@
 }
 
 .stepperLine {
-  width: 60px;
-  height: 3px;
+  width: 30px;
+  height: 2px;
   background: #e2e8f0;
   position: relative;
   z-index: 1;
   transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
 .stepperLineCompleted {
@@ -686,28 +866,35 @@
 .questionContent {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .questionContent h3 {
   margin: 0;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
   color: #1e293b;
-  line-height: 1.3;
+  line-height: 1.4;
   text-align: center;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .instructions {
   margin: 0;
   color: #475569;
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.5;
   background: rgba(255, 255, 255, 0.7);
-  padding: 16px 20px;
-  border-radius: 12px;
-  border-left: 4px solid #3b82f6;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border-left: 3px solid #3b82f6;
   text-align: center;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .editorSection {
@@ -715,144 +902,147 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  overflow: visible;
+  width: 100%;
 }
 
 .editorContainer {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  padding: 24px;
-  gap: 16px;
+  padding: 12px 16px;
+  gap: 8px;
   min-height: 0;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  background: #ffffff;
+  overflow: visible;
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .editorActions {
   display: flex;
-  gap: 12px;
   justify-content: flex-end;
-}
-
-.runButton,
-.submitButton {
-  border: none;
-  border-radius: 12px;
-  padding: 14px 24px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
   align-items: center;
-  gap: 8px;
-  position: relative;
-  overflow: hidden;
-}
-
-.runButton::before,
-.submitButton::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  transition: left 0.5s ease;
-}
-
-.runButton:hover::before,
-.submitButton:hover::before {
-  left: 100%;
+  gap: 12px;
+  padding: 8px 0 0;
+  flex-shrink: 0;
 }
 
 .runButton {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: #ffffff;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-}
-
-.runButton:disabled,
-.submitButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  box-shadow: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #3b82f6;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .runButton:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #2563eb;
 }
 
+.runButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.runIcon {
+  font-size: 14px;
+  color: #3b82f6;
+}
+
+.runButton:hover:not(:disabled) .runIcon {
+  color: #2563eb;
+}
+
+/* Keep submitButton styles for backwards compatibility but hide */
 .submitButton {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: #ffffff;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-}
-
-.submitButton:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5);
+  display: none;
 }
 
 .feedbackPanel {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 10px;
   font-size: 14px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f0f9ff 100%);
-  border: 2px solid #e0e7ff;
-  border-radius: 16px;
-  padding: 24px;
-  margin: 24px;
+  line-height: 1.5;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin: 0 16px 16px;
+  flex: 2;
+  min-height: 280px;
+  max-height: none;
+  overflow: hidden;
 }
 
 .feedbackPanel h4 {
-  margin: 0 0 12px;
-  font-size: 17px;
-  font-weight: 700;
-  color: #1e293b;
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .feedbackPanel h4::before {
   content: '📊';
-  font-size: 20px;
+  font-size: 14px;
 }
 
 .resultTableWrapper {
-  border: 2px solid #cbd5e1;
-  border-radius: 12px;
-  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: auto;
   background: #ffffff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  max-width: 100%;
+  flex: 1;
+  max-height: 100%;
+  direction: ltr;
 }
 
 .resultTable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13px;
+  min-width: 300px;
+  direction: ltr;
+  text-align: left;
 }
 
 .resultTable th {
-  padding: 14px 16px;
-  border-bottom: 2px solid #e0e7ff;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
   text-align: start;
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-  font-weight: 700;
-  color: #1e293b;
-  text-transform: uppercase;
+  background: #f8fafc;
+  font-weight: 600;
+  color: #475569;
   font-size: 12px;
-  letter-spacing: 0.05em;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .resultTable td {
-  padding: 12px 16px;
+  padding: 8px 12px;
   border-bottom: 1px solid #f1f5f9;
   text-align: start;
   color: #334155;
+  line-height: 1.4;
+  word-break: break-word;
+  max-width: 200px;
 }
 
 .resultTable tbody tr:hover {
@@ -866,11 +1056,13 @@
 .resultMeta {
   display: flex;
   justify-content: space-between;
-  padding: 12px 16px;
-  font-size: 12px;
+  padding: 8px 12px;
+  font-size: 11px;
   color: #64748b;
   background: #f8fafc;
-  font-weight: 600;
+  border-top: 1px solid #e2e8f0;
+  flex-shrink: 0;
+  direction: ltr;
 }
 
 .feedbackCard {
@@ -954,45 +1146,650 @@
   margin: 0;
   color: #94a3b8;
   font-style: italic;
+  font-size: 15px;
   text-align: center;
-  padding: 32px;
+  padding: 40px;
   background: rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
+  border-radius: 12px;
   border: 2px dashed #cbd5e1;
+  line-height: 1.6;
 }
 
 .loading,
 .errorState {
   background: var(--homework-surface, #ffffff);
-  padding: 32px;
+  padding: 48px 32px;
   border-radius: var(--homework-radius-md, 16px);
   text-align: center;
   box-shadow: var(--homework-shadow-lg, 0 16px 30px rgba(14, 53, 93, 0.08));
+  font-size: 16px;
 }
 
 .errorText {
   color: #dc2626;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  padding: 12px 16px;
+  line-height: 1.6;
+  padding: 16px 20px;
   background: #fee2e2;
   border: 2px solid #fecaca;
-  border-radius: 8px;
+  border-radius: 12px;
   border-left: 4px solid #dc2626;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .errorText::before {
   content: '⚠️';
-  font-size: 18px;
+  font-size: 20px;
+  flex-shrink: 0;
 }
 
-/* Enhanced responsive design */
-@media (max-width: 1200px) {
+/* Chat Sidebar Styles */
+.chatSidebar {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
+  max-height: calc(100vh - 32px);
+  min-height: 400px;
+  height: calc(100vh - 32px);
+  overflow: hidden;
+  position: sticky;
+  top: 16px;
+  min-width: 0;
+  width: 100%;
+}
+
+.chatHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-bottom: 1px solid #bfdbfe;
+  border-radius: 16px 16px 0 0;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.chatHeader::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6 0%, #6366f1 100%);
+  border-radius: 16px 16px 0 0;
+}
+
+.chatIcon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.chatTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e40af;
+  line-height: 1.3;
+  flex: 1;
+}
+
+.chatContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+}
+
+.chatContent > * {
+  height: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Override Chat component styles for homework runner sidebar */
+.chatContent :global(.main),
+.chatContent :global(.mainFullWidth) {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  position: relative !important;
+  max-width: 100% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.chatContent :global(.container),
+.chatContent :global(.containerFullWidth) {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: 100% !important;
+  min-height: 0 !important;
+}
+
+.chatContent :global(.chatContainer) {
+  flex: 1 !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #ffffff !important;
+  overflow: hidden !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  border-radius: 0 0 16px 16px !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  min-height: 0 !important;
+}
+
+/* Additional overrides for nested container with margin */
+.chatContent :global(.chatContainer.chatContainer) {
+  margin: 0 !important;
+}
+
+.chatContent :global(.messages) {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 8px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  min-height: 100px !important;
+  background: #ffffff !important;
+  border-radius: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+/* Empty state message for chat */
+.chatContent :global(.messages):empty::before {
+  content: "שאל את Michael שאלה על SQL..." !important;
+  display: block !important;
+  text-align: center !important;
+  color: #9ca3af !important;
+  margin-top: 40px !important;
+  font-size: 14px !important;
+}
+
+.chatContent :global(.inputForm) {
+  margin: 0 !important;
+  padding: 8px !important;
+  border-top: 1px solid #e2e8f0 !important;
+  background: #f8fafc !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  gap: 6px !important;
+  align-items: flex-end !important;
+}
+
+.chatContent :global(.inputContainer) {
+  flex: 1 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  position: relative !important;
+  min-height: 0 !important;
+}
+
+/* Make chat messages compact and clear in homework runner */
+.chatContent :global(.userMessage),
+.chatContent :global(.assistantMessage) {
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  padding: 8px 10px !important;
+  max-width: 88% !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  margin: 2px 0 !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+.chatContent :global(.userMessage) {
+  background: #3b82f6 !important;
+  color: white !important;
+  align-self: flex-end !important;
+  margin-right: 4px !important;
+  margin-left: auto !important;
+}
+
+.chatContent :global(.assistantMessage) {
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+  align-self: flex-start !important;
+  margin-left: 4px !important;
+  margin-right: auto !important;
+  border: none !important;
+}
+
+.chatContent :global(.input),
+.chatContent :global(.textarea) {
+  font-size: 12px !important;
+  padding: 8px 10px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  min-height: 36px !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 8px !important;
+  font-family: inherit !important;
+  resize: none !important;
+  transition: border-color 0.2s ease !important;
+}
+
+.chatContent :global(.input):focus,
+.chatContent :global(.textarea):focus {
+  outline: none !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important;
+}
+
+.chatContent :global(.input)::placeholder,
+.chatContent :global(.textarea)::placeholder {
+  color: #9ca3af !important;
+  font-size: 12px !important;
+}
+
+.chatContent :global(.sendButton) {
+  padding: 8px !important;
+  min-width: 36px !important;
+  width: 36px !important;
+  height: 36px !important;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s ease !important;
+  color: white !important;
+  flex-shrink: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.chatContent :global(.sendButton):hover:not(:disabled) {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
+}
+
+.chatContent :global(.sendButton):disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  background: #9ca3af !important;
+}
+
+/* Remove any default margins/paddings from chat wrapper elements */
+.chatContent :global(.messagesContainer),
+.chatContent :global(.messagesList) {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+}
+
+/* Ensure action buttons are compact */
+.chatContent :global(.actionButtons) {
+  padding: 8px 10px !important;
+  margin: 0 !important;
+  gap: 6px !important;
+}
+
+.chatContent :global(.actionButton) {
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+}
+
+/* Hide any extra padding on form elements */
+.chatContent :global(form) {
+  margin: 0 !important;
+}
+
+/* Hide right column (avatar) in chat when embedded in homework runner */
+.chatContent :global(.rightColumn) {
+  display: none !important;
+}
+
+/* Ensure sidebar is hidden */
+.chatContent :global(aside) {
+  display: none !important;
+}
+
+/* Hide the open sidebar button */
+.chatContent :global(.openSidebarButton) {
+  display: none !important;
+}
+
+/* Hide exercise/practice features in homework chat */
+.chatContent :global(.exerciseButton),
+.chatContent :global(.exerciseButtons),
+.chatContent :global(.exerciseModal) {
+  display: none !important;
+}
+
+/* Simplify the action buttons - only show essential ones or hide all */
+.chatContent :global(.actionButtons) {
+  display: none !important;
+}
+
+/* Ensure input container stays visible and functional */
+.chatContent :global(.inputContainer) {
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Ensure input form is always visible at the bottom */
+.chatContent :global(.inputForm) {
+  position: relative !important;
+  z-index: 10 !important;
+  flex-shrink: 0 !important;
+}
+
+/* Style feedback buttons in assistant messages */
+.chatContent :global(.feedbackButtons) {
+  display: flex !important;
+  gap: 6px !important;
+  margin-top: 6px !important;
+  opacity: 0.6 !important;
+}
+
+.chatContent :global(.feedbackButton) {
+  padding: 4px !important;
+  font-size: 11px !important;
+}
+
+/* Hide typing indicator or make it subtle */
+.chatContent :global(.typingIndicator) {
+  padding: 8px 12px !important;
+  margin: 6px 0 6px 8px !important;
+}
+
+/* Style loading states */
+.chatContent :global(.loadingIndicator) {
+  text-align: center !important;
+  padding: 20px !important;
+  color: #6b7280 !important;
+  font-size: 13px !important;
+}
+
+/* Compact the input wrapper */
+.chatContent :global(.inputWrapper) {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Remove all extra padding from chat component wrappers */
+.chatContent :global(div) {
+  max-width: 100% !important;
+}
+
+.chatContent :global(.chatWrapper),
+.chatContent :global(.chatMain),
+.chatContent :global(.chatBody) {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+/* Ensure the chat content fills available space */
+.chatContent > div {
+  height: 100% !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Hide any extra UI elements */
+.chatContent :global(.header),
+.chatContent :global(.chatHeader) {
+  display: none !important;
+}
+
+/* Make sure markdown content is compact */
+.chatContent :global(p) {
+  margin: 0 0 4px !important;
+}
+
+.chatContent :global(p:last-child) {
+  margin-bottom: 0 !important;
+}
+
+.chatContent :global(pre),
+.chatContent :global(code) {
+  font-size: 11px !important;
+  padding: 4px 6px !important;
+  margin: 4px 0 !important;
+}
+
+/* ==== RESPONSIVE DESIGN ==== */
+
+/* Large Desktop (1920px+) */
+@media (min-width: 1920px) {
   .runner {
-    grid-template-columns: 300px 1fr;
+    /* Left: Instructions, Middle: Workspace, Right: Chat */
+    grid-template-columns: 380px minmax(0, 1fr) 360px;
+    padding: 24px;
+    gap: 24px;
+  }
+  
+  .sidebar,
+  .workspace,
+  .chatSidebar {
+    max-height: calc(100vh - 48px);
+    height: calc(100vh - 48px);
+    top: 24px;
+  }
+}
+
+/* Desktop (1600px - 1919px) */
+@media (max-width: 1919px) and (min-width: 1600px) {
+  .runner {
+    grid-template-columns: 360px minmax(0, 1fr) 340px;
+    gap: 20px;
+    padding: 20px;
+  }
+  
+  .sidebar,
+  .workspace,
+  .chatSidebar {
+    max-height: calc(100vh - 40px);
+    height: calc(100vh - 40px);
+    top: 20px;
+  }
+}
+
+/* Desktop (1400px - 1599px) */
+@media (max-width: 1599px) and (min-width: 1400px) {
+  .runner {
+    grid-template-columns: 320px minmax(0, 1fr) 320px;
+    gap: 18px;
+    padding: 18px;
+  }
+  
+  .sidebar,
+  .workspace,
+  .chatSidebar {
+    max-height: calc(100vh - 36px);
+    height: calc(100vh - 36px);
+    top: 18px;
+  }
+  
+  .workspaceHeader {
+    padding: 18px;
+  }
+  
+  .editorContainer {
+    padding: 18px;
+  }
+}
+
+/* Laptop (1200px - 1399px) */
+@media (max-width: 1399px) and (min-width: 1200px) {
+  .runner {
+    grid-template-columns: 300px minmax(0, 1fr) 300px;
+    gap: 16px;
+    padding: 16px;
+  }
+  
+  .sidebar,
+  .workspace,
+  .chatSidebar {
+    max-height: calc(100vh - 32px);
+    height: calc(100vh - 32px);
+    top: 16px;
+  }
+  
+  .workspaceHeader {
+    padding: 16px;
+  }
+  
+  .editorContainer {
+    padding: 16px;
+  }
+}
+
+/* Laptop (1024px - 1199px) */
+@media (max-width: 1199px) and (min-width: 1024px) {
+  .runner {
+    grid-template-columns: 280px minmax(0, 1fr) 280px;
+    gap: 14px;
+    padding: 14px;
+  }
+  
+  .sidebar,
+  .workspace,
+  .chatSidebar {
+    max-height: calc(100vh - 28px);
+    height: calc(100vh - 28px);
+    top: 14px;
+  }
+  
+  .stepperCircle {
+    width: 36px;
+    height: 36px;
+    font-size: 13px;
+  }
+  
+  .stepperLine {
+    width: 45px;
+  }
+  
+  .studentAvatar {
+    width: 42px;
+    height: 42px;
+    font-size: 18px;
+  }
+  
+  .studentName {
+    font-size: 14px;
+  }
+  
+  .assignmentMeta h2 {
+    font-size: 18px;
+  }
+  
+  .workspaceHeader {
+    padding: 16px;
+  }
+  
+  .editorContainer {
+    padding: 16px;
+  }
+  
+  .questionContent h3 {
+    font-size: 18px;
+  }
+}
+
+/* Tablet (768px - 1023px) */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .runner {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 16px;
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+  
+  .sidebar,
+  .chatSidebar,
+  .workspace {
+    position: static;
+    max-height: none;
+    height: auto;
+    top: auto;
+  }
+  
+  /* Instructions sidebar first on tablet */
+  .sidebar {
+    order: 1;
+    padding: 0;
+  }
+  
+  /* Workspace second */
+  .workspace {
+    order: 2;
+    min-height: 500px;
+    padding: 0;
+  }
+  
+  /* Chat last on tablet */
+  .chatSidebar {
+    order: 3;
+    max-height: 450px;
+    min-height: 350px;
+    padding: 0;
+  }
+  
+  .questionStepperWrapper {
+    padding: 4px 20px;
+    margin: 0 -16px;
+    width: calc(100% + 32px);
+  }
+  
+  .workspaceHeader {
+    padding: 20px;
   }
   
   .stepperCircle {
@@ -1004,64 +1801,215 @@
   .stepperLine {
     width: 40px;
   }
+  
+  .editorContainer {
+    padding: 20px;
+  }
+  
+  .editorActions {
+    gap: 14px;
+  }
+  
+  .runButton {
+    padding: 10px 18px;
+    font-size: 14px;
+  }
+  
+  .submitButtonMain {
+    padding: 10px 18px;
+    font-size: 14px;
+  }
+  
+  .feedbackPanel {
+    margin: 0 20px 20px;
+    padding: 20px;
+  }
 }
 
-@media (max-width: 1000px) {
+/* Mobile (480px - 767px) */
+@media (max-width: 767px) {
   .runner {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-    gap: var(--hw-space-4);
-  }
-  
-  .sidebar {
-    position: static;
-    max-height: none;
-    overflow: visible;
-  }
-  
-  .navigator ul {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--hw-space-2);
-    max-height: 300px;
+    gap: 12px;
+    padding: 12px;
+    height: auto;
+    min-height: 100vh;
     overflow-y: auto;
   }
   
-  .workspaceHeader {
-    padding: 24px 20px 20px;
-  }
-  
-  .questionStepper {
-    padding: 16px 0;
-    overflow-x: auto;
-    justify-content: flex-start;
-  }
-}
-
-@media (max-width: 600px) {
-  .runner {
-    padding: var(--hw-space-4);
-    gap: var(--hw-space-3);
-  }
-  
   .sidebar,
+  .workspace,
+  .chatSidebar {
+    padding: 16px;
+    border-radius: 14px;
+    position: static;
+    max-height: none;
+    height: auto;
+    top: auto;
+  }
+  
+  /* Instructions sidebar first on mobile */
+  .sidebar {
+    order: 1;
+  }
+  
+  /* Workspace second on mobile */
   .workspace {
-    padding: var(--hw-space-4);
-    border-radius: var(--hw-radius-lg);
+    order: 2;
+    max-height: none;
+    min-height: 450px;
   }
   
-  .editorContainer {
-    padding: var(--hw-space-4);
+  /* Chat last on mobile */
+  .chatSidebar {
+    order: 3;
+    max-height: 380px;
+    min-height: 300px;
   }
   
-  .stepperCircle {
-    width: 36px;
-    height: 36px;
+  .assignmentMeta {
+    padding: 16px;
+    padding-top: 20px;
+  }
+  
+  .assignmentMeta h2 {
+    font-size: 20px;
+    margin-block: 12px 10px;
+  }
+  
+  .studentInfo {
+    padding: 16px;
+    margin-bottom: 16px;
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .studentAvatar {
+    width: 64px;
+    height: 64px;
+    font-size: 28px;
+  }
+  
+  .studentName {
+    font-size: 16px;
+  }
+  
+  .studentId {
     font-size: 13px;
   }
   
+  .metaGrid {
+    padding: 16px;
+    gap: 12px;
+  }
+  
+  .progressCircle {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .progressPercent {
+    font-size: 12px;
+  }
+  
+  .metaGrid dd {
+    font-size: 16px;
+  }
+  
+  .overview {
+    font-size: 13px;
+  }
+  
+  .instructionsSection {
+    padding: 16px;
+    margin-block-start: 16px;
+  }
+  
+  .instructionsTitle {
+    font-size: 16px;
+  }
+  
+  .instructionsContent {
+    font-size: 14px;
+  }
+  
+  .instructionsList > li {
+    padding: 10px 14px;
+    margin-bottom: 12px;
+  }
+  
+  .navigator {
+    padding: 16px;
+  }
+  
+  .navigator h3 {
+    font-size: 16px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+  }
+  
+  .navigator ul {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .navButton {
+    padding: 14px;
+    font-size: 14px;
+  }
+  
+  .navIndex {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+  
+  .navStatus {
+    font-size: 9px;
+    padding: 3px 6px;
+  }
+  
+  .workspace {
+    max-height: none;
+  }
+  
+  .workspaceHeader {
+    padding: 20px 16px;
+    gap: 16px;
+  }
+  
+  .questionStepper {
+    padding: 10px 4px;
+    gap: 0;
+    overflow-x: auto;
+    justify-content: flex-start;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .questionStepper::-webkit-scrollbar {
+    height: 2px;
+  }
+  
+  .stepperCircle {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+    border-width: 2px;
+  }
+  
   .stepperLine {
-    width: 30px;
+    width: 25px;
+    height: 2px;
+  }
+  
+  .questionContent h3 {
+    font-size: 16px;
+  }
+  
+  .instructions {
+    font-size: 12px;
+    padding: 8px 12px;
   }
   
   .questionContent h3 {
@@ -1071,5 +2019,537 @@
   .instructions {
     font-size: 14px;
     padding: 12px 16px;
+  }
+  
+  .editorContainer {
+    padding: 16px;
+    gap: 16px;
+  }
+  
+  .editorActions {
+    justify-content: flex-end;
+    padding: 8px 0 0;
+  }
+  
+  .runButton {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  
+  .submitButtonHeader {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  
+  .questionStepperWrapper {
+    padding: 4px 16px;
+    margin: 0 -12px;
+    width: calc(100% + 24px);
+  }
+  
+  .feedbackPanel {
+    margin: 0 16px 16px;
+    padding: 16px;
+    gap: 16px;
+  }
+  
+  .feedbackPanel h4 {
+    font-size: 16px;
+  }
+  
+  .resultTableWrapper {
+    overflow-x: auto;
+  }
+  
+  .resultTable {
+    font-size: 13px;
+    min-width: 350px;
+  }
+  
+  .resultTable th {
+    padding: 12px;
+    font-size: 12px;
+  }
+  
+  .resultTable td {
+    padding: 10px 12px;
+    font-size: 13px;
+    max-width: 200px;
+  }
+  
+  .resultMeta {
+    padding: 10px 12px;
+    font-size: 11px;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
+  }
+  
+  .feedbackCard {
+    padding: 16px;
+  }
+  
+  .successBanner {
+    padding: 14px;
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .successText {
+    font-size: 15px;
+  }
+  
+  .feedbackScore {
+    font-size: 16px;
+  }
+  
+  .rubricList li {
+    padding: 8px 12px;
+    font-size: 13px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .placeholder {
+    padding: 30px 20px;
+    font-size: 14px;
+  }
+  
+  .errorText {
+    padding: 14px 16px;
+    font-size: 14px;
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .backLink {
+    font-size: 14px;
+    padding: 10px 14px;
+  }
+}
+
+/* Small Mobile (< 480px) */
+@media (max-width: 479px) {
+  .runner {
+    gap: 10px;
+    padding: 10px;
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+  
+  .sidebar,
+  .workspace,
+  .chatSidebar {
+    border-radius: 12px;
+    position: static;
+    max-height: none;
+    height: auto;
+  }
+  
+  .sidebar {
+    order: 1;
+    padding: 0;
+  }
+  
+  .workspace {
+    order: 2;
+    min-height: 400px;
+    padding: 0;
+  }
+  
+  .chatSidebar {
+    order: 3;
+    max-height: 320px;
+    min-height: 280px;
+    padding: 0;
+  }
+  
+  .questionStepperWrapper {
+    padding: 4px 12px;
+    margin: 0 -8px;
+    width: calc(100% + 16px);
+  }
+  
+  .editorActions {
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+  
+  .submitButtonMain {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+  
+  .chatContent :global(.messages) {
+    padding: 10px 8px !important;
+  }
+  
+  .chatContent :global(.inputForm) {
+    padding: 8px !important;
+  }
+  
+  .chatContent :global(.userMessage),
+  .chatContent :global(.assistantMessage) {
+    font-size: 12px !important;
+    padding: 7px 9px !important;
+    max-width: 92% !important;
+  }
+  
+  .chatContent :global(.input),
+  .chatContent :global(.textarea) {
+    font-size: 12px !important;
+    padding: 7px 9px !important;
+  }
+  
+  .assignmentMeta {
+    padding: 0;
+  }
+  
+  .instructionsHeader {
+    padding: 12px 14px;
+  }
+  
+  .instructionsTitle {
+    font-size: 15px;
+  }
+  
+  .instructionsContent {
+    padding: 14px;
+    font-size: 13px;
+  }
+  
+  .storyParagraph {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  
+  .courseTag {
+    font-size: 11px;
+    padding-block: 5px;
+    padding-inline: 10px;
+  }
+  
+  .studentInfo {
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  
+  .studentAvatar {
+    width: 56px;
+    height: 56px;
+    font-size: 24px;
+  }
+  
+  .studentName {
+    font-size: 15px;
+  }
+  
+  .studentId {
+    font-size: 12px;
+  }
+  
+  .metaGrid {
+    padding: 12px;
+    gap: 10px;
+  }
+  
+  .progressCircle {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .progressPercent {
+    font-size: 12px;
+  }
+  
+  .progressLabel {
+    font-size: 8px;
+  }
+  
+  .metaGrid dt {
+    font-size: 10px;
+  }
+  
+  .metaGrid dd {
+    font-size: 15px;
+  }
+  
+  .overview {
+    font-size: 12px;
+  }
+  
+  .instructionsSection {
+    padding: 12px;
+    margin-block-start: 12px;
+  }
+  
+  .instructionsHeader {
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+  }
+  
+  .instructionsIcon {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .instructionsTitle {
+    font-size: 15px;
+  }
+  
+  .instructionsContent {
+    font-size: 13px;
+  }
+  
+  .instructionsList > li {
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    font-size: 13px;
+  }
+  
+  .instructionsList > li::before {
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
+    left: -10px;
+  }
+  
+  .instructionItem {
+    margin-left: 12px;
+  }
+  
+  .instructionSubList > li {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  
+  .technicalTerm {
+    font-size: 10px;
+    padding: 2px 5px;
+  }
+  
+  .importantNote {
+    padding: 10px 12px;
+    margin: 12px 0 0;
+  }
+  
+  .importantNoteText {
+    font-size: 11px;
+  }
+  
+  .storyParagraph {
+    padding: 10px 12px;
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+  
+  .navigator {
+    padding: 12px;
+  }
+  
+  .navigator h3 {
+    font-size: 15px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+  }
+  
+  .navigator ul {
+    gap: 8px;
+  }
+  
+  .navButton {
+    padding: 12px;
+    font-size: 13px;
+    gap: 10px;
+  }
+  
+  .navIndex {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+  }
+  
+  .navLabel {
+    font-size: 13px;
+  }
+  
+  .navStatus {
+    font-size: 8px;
+    padding: 3px 6px;
+  }
+  
+  .workspaceHeader {
+    padding: 16px 12px;
+    gap: 12px;
+  }
+  
+  .questionStepper {
+    padding: 10px 0;
+  }
+  
+  .stepperCircle {
+    width: 30px;
+    height: 30px;
+    font-size: 11px;
+    border-width: 2px;
+  }
+  
+  .stepperLine {
+    width: 20px;
+    height: 2px;
+  }
+  
+  .questionContent h3 {
+    font-size: 15px;
+  }
+  
+  .instructions {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+  
+  .chatHeader {
+    padding: 10px 12px;
+  }
+  
+  .chatIcon {
+    font-size: 16px;
+  }
+  
+  .chatTitle {
+    font-size: 13px;
+  }
+  
+  .editorContainer {
+    padding: 12px;
+    gap: 12px;
+  }
+  
+  .editorActions {
+    justify-content: flex-end;
+    padding: 6px 0 0;
+  }
+  
+  .runButton {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+  
+  .submitButtonHeader {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  
+  .workspaceTopBar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .questionStepper {
+    order: 1;
+  }
+  
+  .submitButtonHeader {
+    order: 2;
+    align-self: flex-end;
+  }
+  
+  .feedbackPanel {
+    margin: 0 12px 12px;
+    padding: 12px;
+    gap: 12px;
+  }
+  
+  .feedbackPanel h4 {
+    font-size: 15px;
+    margin: 0 0 12px;
+  }
+  
+  .resultTable {
+    font-size: 12px;
+    min-width: 320px;
+  }
+  
+  .resultTable th {
+    padding: 10px;
+    font-size: 11px;
+  }
+  
+  .resultTable td {
+    padding: 8px 10px;
+    font-size: 12px;
+    max-width: 150px;
+  }
+  
+  .resultMeta {
+    padding: 8px 10px;
+    font-size: 10px;
+  }
+  
+  .feedbackCard {
+    padding: 12px;
+  }
+  
+  .successBanner {
+    padding: 12px;
+    gap: 8px;
+  }
+  
+  .successIcon {
+    font-size: 28px;
+  }
+  
+  .successText {
+    font-size: 14px;
+  }
+  
+  .feedbackScore {
+    font-size: 15px;
+    margin: 0 0 10px;
+  }
+  
+  .feedbackScore::before {
+    font-size: 20px;
+  }
+  
+  .rubricList {
+    gap: 6px;
+    margin: 12px 0 0;
+  }
+  
+  .rubricList li {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  
+  .placeholder {
+    padding: 24px 16px;
+    font-size: 13px;
+  }
+  
+  .loading,
+  .errorState {
+    padding: 32px 20px;
+    font-size: 14px;
+  }
+  
+  .errorText {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+  
+  .errorText::before {
+    font-size: 18px;
+  }
+  
+  .backLink {
+    font-size: 13px;
+    padding: 8px 12px;
+    gap: 6px;
   }
 }

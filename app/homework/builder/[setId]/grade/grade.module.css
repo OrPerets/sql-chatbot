@@ -2,6 +2,10 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .header {
@@ -13,6 +17,7 @@
   padding: 20px 24px;
   border-radius: 16px;
   border: 1px solid rgba(12, 71, 124, 0.08);
+  flex-wrap: wrap;
 }
 
 .backLink {
@@ -43,6 +48,7 @@
   align-items: center;
   gap: 12px;
   font-size: 13px;
+  flex-wrap: wrap;
 }
 
 .publishButton {
@@ -75,6 +81,9 @@
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr) 260px;
   gap: 20px;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .sidebar,
@@ -86,6 +95,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow-y: auto;
+  max-height: calc(100vh - 300px);
 }
 
 .summaryList {
@@ -140,6 +151,10 @@
   border-radius: 14px;
   border: 1px solid rgba(12, 71, 124, 0.08);
   min-height: 520px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .placeholder {
@@ -153,6 +168,9 @@
   flex-direction: column;
   gap: 18px;
   padding: 20px 24px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .detailHeader {
@@ -160,6 +178,7 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .detailHeader h3 {
@@ -235,6 +254,7 @@
   justify-content: space-between;
   align-items: baseline;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .questionCard h4 {
@@ -264,6 +284,10 @@
   border-radius: 12px;
   font-size: 13px;
   overflow-x: auto;
+  overflow-y: hidden;
+  word-break: break-word;
+  white-space: pre-wrap;
+  max-width: 100%;
 }
 
 .resultPreview {
@@ -271,12 +295,15 @@
   border-radius: 12px;
   padding: 12px;
   background: #f5f8fb;
+  overflow-x: auto;
+  width: 100%;
 }
 
 .resultPreview table {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
+  min-width: 300px;
 }
 
 .resultPreview th,
@@ -284,6 +311,10 @@
   padding: 6px 8px;
   border-bottom: 1px solid rgba(12, 71, 124, 0.1);
   text-align: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
 }
 
 .gradeControls {
@@ -310,9 +341,10 @@
 }
 
 .notesField textarea {
-  min-width: 260px;
+  min-width: 200px;
   min-height: 70px;
   resize: vertical;
+  width: 100%;
 }
 
 .summaryBar {
@@ -357,12 +389,1172 @@
   box-shadow: 0 16px 30px rgba(14, 53, 93, 0.08);
 }
 
-@media (max-width: 1280px) {
+/* Progress Bar */
+.progressBarContainer {
+  background: #ffffff;
+  padding: 16px 24px;
+  border-radius: 14px;
+  border: 1px solid rgba(12, 71, 124, 0.08);
+}
+
+.progressBarLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2a37;
+  margin-bottom: 8px;
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background: #e6effa;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressBarFill {
+  height: 100%;
+  background: linear-gradient(90deg, #0f9d58, #0e62bf);
+  transition: width 0.3s ease;
+}
+
+/* View Mode Toggle */
+.viewModeToggle {
+  display: flex;
+  gap: 8px;
+  background: #ffffff;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(12, 71, 124, 0.08);
+}
+
+.viewModeButton {
+  flex: 1;
+  padding: 10px 16px;
+  border: 2px solid rgba(12, 71, 124, 0.2);
+  border-radius: 10px;
+  background: #ffffff;
+  color: #1f2a37;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.viewModeButton:hover {
+  background: #f5f8fb;
+  border-color: rgba(12, 71, 124, 0.4);
+}
+
+.viewModeButton.active {
+  background: #0e62bf;
+  color: #ffffff;
+  border-color: #0e62bf;
+}
+
+/* Question Status Colors */
+.questionStatusGraded {
+  color: #0f9d58 !important;
+}
+
+.questionStatusPartial {
+  color: #f57c00 !important;
+}
+
+.questionStatusUngraded {
+  color: #d32f2f !important;
+}
+
+/* Status Badges */
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.statusBadge.graded {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.statusBadge.partial {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.statusBadge.ungraded {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.statusBadge.inProgress {
+  background: #f5f5f5;
+  color: #616161;
+}
+
+.statusBadge.submitted {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.statusBadge svg,
+.statusBadge::before {
+  width: 12px;
+  height: 12px;
+}
+
+/* Filter & Sort Controls */
+.filterSortControls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(12, 71, 124, 0.1);
+  margin-bottom: 12px;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid rgba(12, 71, 124, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  background: #f5f8fb;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: #0e62bf;
+  background: #ffffff;
+}
+
+.filterChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.filterChip {
+  padding: 5px 10px;
+  border: 1px solid rgba(12, 71, 124, 0.2);
+  border-radius: 16px;
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  color: #4a5c6d;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filterChip:hover {
+  border-color: rgba(12, 71, 124, 0.4);
+  background: #f5f8fb;
+}
+
+.filterChip.active {
+  background: #0e62bf;
+  color: #ffffff;
+  border-color: #0e62bf;
+}
+
+.sortDropdown {
+  padding: 6px 10px;
+  border: 1px solid rgba(12, 71, 124, 0.2);
+  border-radius: 8px;
+  font-size: 12px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+/* Quick Score Presets */
+.quickScorePresets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.presetButton {
+  padding: 6px 12px;
+  border: 1px solid rgba(12, 71, 124, 0.2);
+  border-radius: 8px;
+  background: #f5f8fb;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f2a37;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.presetButton:hover {
+  background: #e6effa;
+  border-color: #0e62bf;
+}
+
+.presetButton.success {
+  background: #e8f5e9;
+  border-color: #0f9d58;
+  color: #2e7d32;
+}
+
+.presetButton.warning {
+  background: #fff3e0;
+  border-color: #f57c00;
+  color: #e65100;
+}
+
+.presetButton.danger {
+  background: #ffebee;
+  border-color: #d32f2f;
+  color: #c62828;
+}
+
+/* Keyboard Shortcuts Help */
+.keyboardShortcuts {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(11, 37, 64, 0.95);
+  color: #ffffff;
+  padding: 12px 20px;
+  border-radius: 12px;
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+}
+
+.keyboardShortcuts kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  margin-right: 4px;
+}
+
+.keyboardShortcuts span {
+  opacity: 0.85;
+}
+
+/* Auto-save Indicator */
+.autoSaveIndicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #4a5c6d;
+  padding: 6px 12px;
+  background: #f5f8fb;
+  border-radius: 8px;
+}
+
+.autoSaveIndicator.saving {
+  color: #f57c00;
+}
+
+.autoSaveIndicator.saved {
+  color: #0f9d58;
+}
+
+.autoSaveIndicator.unsaved {
+  color: #d32f2f;
+}
+
+.savingDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 1s infinite;
+}
+
+.savingDot.saving {
+  background: #f57c00;
+}
+
+.savingDot.saved {
+  background: #0f9d58;
+}
+
+.savingDot.unsaved {
+  background: #d32f2f;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Enhanced Progress Bar with Milestones */
+.progressBarEnhanced {
+  position: relative;
+  width: 100%;
+  height: 12px;
+  background: #e6effa;
+  border-radius: 6px;
+  overflow: visible;
+}
+
+.progressBarFillEnhanced {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.4s ease, background 0.3s ease;
+}
+
+.progressBarFillEnhanced.low {
+  background: linear-gradient(90deg, #d32f2f, #f57c00);
+}
+
+.progressBarFillEnhanced.medium {
+  background: linear-gradient(90deg, #f57c00, #ffc107);
+}
+
+.progressBarFillEnhanced.good {
+  background: linear-gradient(90deg, #ffc107, #0f9d58);
+}
+
+.progressBarFillEnhanced.complete {
+  background: linear-gradient(90deg, #0f9d58, #0e62bf);
+}
+
+.progressMilestones {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 5%;
+  pointer-events: none;
+}
+
+.milestone {
+  width: 2px;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+/* Next Ungraded Button */
+.nextUngradedButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 2px solid #f57c00;
+  border-radius: 10px;
+  background: #fff3e0;
+  color: #e65100;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nextUngradedButton:hover {
+  background: #ffe0b2;
+  border-color: #e65100;
+}
+
+.nextUngradedButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Student Submissions Grid */
+.studentSubmissionsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.studentSubmissionCard {
+  border: 2px solid rgba(12, 71, 124, 0.1);
+  border-radius: 14px;
+  padding: 16px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(10, 58, 99, 0.08);
+  transition: all 0.2s ease;
+}
+
+.studentSubmissionCard:hover {
+  box-shadow: 0 8px 24px rgba(10, 58, 99, 0.12);
+}
+
+.studentSubmissionCard.selected {
+  border-color: #0e62bf;
+  background: #f0f7ff;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(12, 71, 124, 0.1);
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.checkboxLabel input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.cardStatus {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #f5f8fb;
+  color: #4a5c6d;
+  font-weight: 600;
+}
+
+.cardContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cardGradeControls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(12, 71, 124, 0.1);
+}
+
+.cardGradeControls label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: #1f2a37;
+}
+
+.cardGradeControls input,
+.cardGradeControls textarea {
+  border-radius: 8px;
+  border: 1px solid rgba(12, 71, 124, 0.2);
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.pointsLabel {
+  font-size: 12px;
+  color: #4a5c6d;
+  margin-left: 4px;
+}
+
+.cardMeta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #5d6a7c;
+  padding-top: 8px;
+  border-top: 1px solid rgba(12, 71, 124, 0.05);
+}
+
+.autoFeedback {
+  padding: 8px 12px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #856404;
+}
+
+.autoFeedback strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* Bulk Grading Controls */
+.bulkControls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.bulkButton {
+  border: 2px solid rgba(12, 71, 124, 0.2);
+  border-radius: 10px;
+  padding: 8px 14px;
+  background: #ffffff;
+  color: #1f2a37;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bulkButton:hover {
+  background: #f5f8fb;
+  border-color: rgba(12, 71, 124, 0.4);
+}
+
+.bulkGradingPanel {
+  background: #f0f7ff;
+  border: 2px solid #0e62bf;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.bulkGradingPanel h4 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: #0e406f;
+}
+
+.bulkGradingControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.bulkGradingControls label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #1f2a37;
+  flex: 1;
+  min-width: 200px;
+  max-width: 100%;
+}
+
+.bulkGradingControls input,
+.bulkGradingControls textarea {
+  border-radius: 8px;
+  border: 1px solid rgba(12, 71, 124, 0.2);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+/* Question Analytics */
+.questionAnalytics {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.analyticsMetric {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f8fbff;
+  border-radius: 10px;
+  border: 1px solid rgba(12, 71, 124, 0.1);
+}
+
+.metricLabel {
+  font-size: 13px;
+  color: #4a5c6d;
+}
+
+.metricValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0e62bf;
+}
+
+.scoreDistribution {
+  padding: 12px;
+  background: #f8fbff;
+  border-radius: 10px;
+  border: 1px solid rgba(12, 71, 124, 0.1);
+}
+
+.scoreDistribution h4 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #1f2a37;
+}
+
+.distributionBars {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 120px;
+  padding: 8px 0;
+}
+
+.distributionBar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.barLabel {
+  font-size: 10px;
+  color: #4a5c6d;
+  font-weight: 600;
+}
+
+.barContainer {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  background: #e6effa;
+  border-radius: 4px 4px 0 0;
+  overflow: hidden;
+}
+
+.barFill {
+  width: 100%;
+  background: linear-gradient(180deg, #0e62bf, #0f9d58);
+  transition: height 0.3s ease;
+  border-radius: 4px 4px 0 0;
+}
+
+.barCount {
+  font-size: 11px;
+  color: #4a5c6d;
+  font-weight: 600;
+}
+
+.averageAttempts {
+  padding: 12px;
+  background: #f8fbff;
+  border-radius: 10px;
+  border: 1px solid rgba(12, 71, 124, 0.1);
+}
+
+.averageAttempts h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #1f2a37;
+}
+
+/* ==== RESPONSIVE DESIGN ==== */
+
+/* Large Desktop (1920px+) */
+@media (min-width: 1920px) {
   .layout {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: 300px minmax(0, 1fr) 300px;
+  }
+  
+  .sidebar,
+  .analyticsPane {
+    padding: 24px 20px;
+  }
+}
+
+/* Desktop (1280px - 1919px) - Default styles apply */
+
+/* Laptop (1024px - 1279px) */
+@media (max-width: 1279px) and (min-width: 1024px) {
+  .layout {
+    grid-template-columns: 240px minmax(0, 1fr) 240px;
+    gap: 16px;
+  }
+  
+  .studentSubmissionsGrid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+  
+  .header {
+    padding: 16px 20px;
+  }
+  
+  .detailInner {
+    padding: 16px 20px;
+  }
+}
+
+/* Tablet (768px - 1023px) */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .layout {
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 16px;
   }
 
   .analyticsPane {
+    grid-column: 1 / -1;
     order: 3;
+  }
+  
+  .sidebar {
+    max-height: 600px;
+    overflow-y: auto;
+  }
+  
+  .studentSubmissionsGrid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+  
+  .header {
+    padding: 16px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .headerMetrics {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .detailInner {
+    padding: 16px;
+  }
+  
+  .bulkControls {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .bulkControls button {
+    width: 100%;
+  }
+  
+  .bulkGradingControls {
+    flex-direction: column;
+  }
+  
+  .bulkGradingControls label {
+    min-width: 100%;
+    max-width: 100%;
+  }
+  
+  .progressBarContainer {
+    padding: 12px 16px;
+  }
+  
+  .viewModeToggle {
+    padding: 10px 12px;
+  }
+}
+
+/* Mobile (480px - 767px) */
+@media (max-width: 767px) {
+  .container {
+    gap: 12px;
+  }
+  
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .sidebar,
+  .analyticsPane {
+    padding: 16px;
+    max-height: none;
+    overflow-y: visible;
+  }
+  
+  .header {
+    padding: 12px 16px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .header h2 {
+    font-size: 18px;
+  }
+  
+  .subtitle {
+    font-size: 12px;
+  }
+  
+  .headerMetrics {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+  
+  .headerMetrics span {
+    font-size: 12px;
+  }
+  
+  .publishButton {
+    width: 100%;
+    padding: 12px;
+    font-size: 14px;
+  }
+  
+  .progressBarContainer {
+    padding: 12px 16px;
+  }
+  
+  .progressBarLabel {
+    font-size: 12px;
+  }
+  
+  .viewModeToggle {
+    padding: 10px;
+    gap: 6px;
+  }
+  
+  .viewModeButton {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  
+  .detailPane {
+    min-height: auto;
+    max-height: none;
+  }
+  
+  .detailInner {
+    padding: 12px 16px;
+    gap: 12px;
+  }
+  
+  .detailHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .detailHeader h3 {
+    font-size: 16px;
+  }
+  
+  .detailMeta {
+    font-size: 12px;
+  }
+  
+  .saveButton {
+    width: 100%;
+    padding: 12px;
+  }
+  
+  .studentSubmissionsGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .studentSubmissionCard {
+    padding: 12px;
+  }
+  
+  .cardHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .bulkControls {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+  
+  .bulkControls button {
+    width: 100%;
+  }
+  
+  .bulkGradingPanel {
+    padding: 12px;
+  }
+  
+  .bulkGradingControls {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .bulkGradingControls label {
+    min-width: 100%;
+    max-width: 100%;
+  }
+  
+  .progressGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .questionCard {
+    padding: 12px;
+  }
+  
+  .questionCard h4 {
+    font-size: 14px;
+  }
+  
+  .gradeControls {
+    flex-direction: column;
+  }
+  
+  .gradeControls label {
+    width: 100%;
+  }
+  
+  .notesField textarea {
+    min-width: 100%;
+    width: 100%;
+  }
+  
+  .sqlBlock {
+    font-size: 12px;
+    padding: 10px;
+  }
+  
+  .resultPreview {
+    padding: 10px;
+    overflow-x: auto;
+  }
+  
+  .resultPreview table {
+    font-size: 11px;
+  }
+  
+  .resultPreview th,
+  .resultPreview td {
+    padding: 4px 6px;
+    max-width: 150px;
+    white-space: normal;
+    word-break: break-word;
+  }
+  
+  .resultPreview table {
+    min-width: 250px;
+  }
+  
+  .distributionBars {
+    height: 100px;
+    gap: 4px;
+  }
+  
+  .barLabel {
+    font-size: 9px;
+  }
+  
+  .barCount {
+    font-size: 10px;
+  }
+  
+  .analyticsMetric {
+    padding: 10px;
+  }
+  
+  .metricLabel {
+    font-size: 12px;
+  }
+  
+  .metricValue {
+    font-size: 13px;
+  }
+}
+
+/* Small Mobile (< 480px) */
+@media (max-width: 479px) {
+  .container {
+    gap: 10px;
+    padding: 0 4px;
+  }
+  
+  .header {
+    padding: 10px 12px;
+  }
+  
+  .header h2 {
+    font-size: 16px;
+  }
+  
+  .subtitle {
+    font-size: 11px;
+  }
+  
+  .headerMetrics {
+    font-size: 11px;
+  }
+  
+  .publishButton {
+    padding: 10px;
+    font-size: 13px;
+  }
+  
+  .progressBarContainer {
+    padding: 10px 12px;
+  }
+  
+  .progressBarLabel {
+    font-size: 11px;
+  }
+  
+  .viewModeToggle {
+    padding: 8px;
+    gap: 4px;
+  }
+  
+  .viewModeButton {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  
+  .sidebar,
+  .analyticsPane {
+    padding: 12px;
+    max-height: none;
+    overflow-y: visible;
+  }
+  
+  .summaryButton {
+    padding: 10px;
+  }
+  
+  .summaryPrimary {
+    font-size: 13px;
+  }
+  
+  .summaryMeta {
+    font-size: 11px;
+  }
+  
+  .summaryProgress {
+    font-size: 10px;
+  }
+  
+  .detailInner {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  
+  .detailHeader h3 {
+    font-size: 15px;
+  }
+  
+  .detailMeta {
+    font-size: 11px;
+  }
+  
+  .saveButton {
+    padding: 10px;
+    font-size: 13px;
+  }
+  
+  .studentSubmissionCard {
+    padding: 10px;
+  }
+  
+  .cardHeader {
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+  }
+  
+  .checkboxLabel {
+    font-size: 13px;
+  }
+  
+  .cardStatus {
+    font-size: 11px;
+    padding: 3px 6px;
+  }
+  
+  .sqlBlock {
+    font-size: 11px;
+    padding: 8px;
+  }
+  
+  .cardGradeControls label {
+    font-size: 11px;
+  }
+  
+  .cardGradeControls input,
+  .cardGradeControls textarea {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  
+  .cardMeta {
+    font-size: 10px;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .autoFeedback {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  
+  .bulkGradingPanel {
+    padding: 10px;
+  }
+  
+  .bulkGradingPanel h4 {
+    font-size: 13px;
+  }
+  
+  .questionCard {
+    padding: 10px;
+  }
+  
+  .questionCard h4 {
+    font-size: 13px;
+  }
+  
+  .questionInstructions {
+    font-size: 12px;
+  }
+  
+  .gradeControls label {
+    font-size: 12px;
+  }
+  
+  .gradeControls input,
+  .gradeControls textarea {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  
+  .distributionBars {
+    height: 80px;
+    gap: 3px;
+  }
+  
+  .barLabel {
+    font-size: 8px;
+  }
+  
+  .barCount {
+    font-size: 9px;
+  }
+  
+  .analyticsMetric {
+    padding: 8px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .metricLabel {
+    font-size: 11px;
+  }
+  
+  .metricValue {
+    font-size: 12px;
+  }
+  
+  .scoreDistribution h4,
+  .averageAttempts h4 {
+    font-size: 12px;
   }
 }

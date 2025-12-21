@@ -165,7 +165,14 @@ export class StudentProfilesService {
       const now = new Date()
       
       // Get user data to include name and email
-      const user = await db.collection(COLLECTIONS.USERS).findOne({ _id: new ObjectId(userId) })
+      // Convert userId to ObjectId if it's a valid ObjectId string, otherwise try to find by email
+      let user
+      if (ObjectId.isValid(userId)) {
+        user = await db.collection(COLLECTIONS.USERS).findOne({ _id: new ObjectId(userId) })
+      } else {
+        // If userId is not a valid ObjectId, try finding by email
+        user = await db.collection(COLLECTIONS.USERS).findOne({ email: userId })
+      }
       
       const profile: StudentProfile = {
         userId,
@@ -251,7 +258,7 @@ export class StudentProfilesService {
                 reason,
                 updatedBy
               }
-            }
+            } as any
           }
         )
 

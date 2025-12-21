@@ -1,3 +1,7 @@
+/**
+ * @jest-environment node
+ */
+
 import { NextRequest } from 'next/server';
 import { POST as expandDataset } from '@/app/api/datasets/[id]/expand/route';
 import { GET as getGenerationStatus } from '@/app/api/datasets/[id]/generation-status/route';
