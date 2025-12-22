@@ -25,12 +25,22 @@ export class SubmissionsService {
    * Get submission for a specific student and homework set
    */
   async getSubmissionForStudent(homeworkSetId: string, studentId: string): Promise<Submission | null> {
+    // Handle both ObjectId and string formats for homeworkSetId
+    // Since homeworkSetId is stored as string in the database, we need to convert ObjectId to string for comparison
+    const isValidObjectId = ObjectId.isValid(homeworkSetId);
+    const query: any = isValidObjectId
+      ? {
+          $or: [
+            { homeworkSetId: new ObjectId(homeworkSetId).toString() },
+            { homeworkSetId: homeworkSetId }
+          ],
+          studentId
+        }
+      : { homeworkSetId, studentId };
+
     const submission = await this.db
       .collection<SubmissionModel>(COLLECTIONS.SUBMISSIONS)
-      .findOne({ 
-        homeworkSetId,
-        studentId 
-      });
+      .findOne(query);
 
     if (!submission) return null;
 
@@ -81,15 +91,36 @@ export class SubmissionsService {
    * Get submission summaries for a homework set
    */
   async getSubmissionSummaries(homeworkSetId: string): Promise<SubmissionSummary[]> {
+    // Handle both ObjectId and string formats for homeworkSetId
+    // Since homeworkSetId is stored as string in the database, we need to convert ObjectId to string for comparison
+    const isValidObjectId = ObjectId.isValid(homeworkSetId);
+    const query: any = isValidObjectId
+      ? { 
+          $or: [
+            { homeworkSetId: new ObjectId(homeworkSetId).toString() },
+            { homeworkSetId: homeworkSetId }
+          ]
+        }
+      : { homeworkSetId };
+
     const submissions = await this.db
       .collection<SubmissionModel>(COLLECTIONS.SUBMISSIONS)
-      .find({ homeworkSetId })
+      .find(query)
       .toArray();
 
     // Get question count for progress calculation
+    const questionQuery: any = isValidObjectId
+      ? {
+          $or: [
+            { homeworkSetId: new ObjectId(homeworkSetId).toString() },
+            { homeworkSetId: homeworkSetId }
+          ]
+        }
+      : { homeworkSetId };
+    
     const questionCount = await this.db
       .collection(COLLECTIONS.QUESTIONS)
-      .countDocuments({ homeworkSetId });
+      .countDocuments(questionQuery);
 
     return submissions.map(submission => {
       const answered = Object.values(submission.answers).filter(
@@ -235,10 +266,23 @@ export class SubmissionsService {
   async submitSubmission(homeworkSetId: string, studentId: string): Promise<Submission | null> {
     const now = new Date().toISOString();
     
+    // Handle both ObjectId and string formats for homeworkSetId
+    // Since homeworkSetId is stored as string in the database, we need to convert ObjectId to string for comparison
+    const isValidObjectId = ObjectId.isValid(homeworkSetId);
+    const query: any = isValidObjectId
+      ? {
+          $or: [
+            { homeworkSetId: new ObjectId(homeworkSetId).toString() },
+            { homeworkSetId: homeworkSetId }
+          ],
+          studentId
+        }
+      : { homeworkSetId, studentId };
+    
     const result = await this.db
       .collection<SubmissionModel>(COLLECTIONS.SUBMISSIONS)
       .findOneAndUpdate(
-        { homeworkSetId, studentId },
+        query,
         { 
           $set: {
             status: "submitted",

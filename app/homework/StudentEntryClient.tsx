@@ -29,6 +29,73 @@ export function StudentEntryClient() {
   
   const ADMIN_PASSWORD = "r123";
 
+  // Transform background story for תרגיל 3
+  const transformBackgroundStory = (story: string | undefined, title: string): string => {
+    if (!story) return "";
+    
+    // Only transform if it's תרגיל 3
+    if (title === "תרגיל 3" || title === "תרגיל בית 3") {
+      // First, remove unwanted sections from the entire story (before processing)
+      let cleanedStory = story;
+      
+      // Remove: "הנחייה חשובה" section - remove from entire story first
+      cleanedStory = cleanedStory.replace(/הנחייה חשובה:[\s\S]*?וכד'\.?\s*/g, "").trim();
+      cleanedStory = cleanedStory.replace(/הנחייה חשובה:[^\n]*(?:[^\n]*וכד'[^\n]*)?/g, "").trim();
+      
+      // Remove: "דוגמא: אם ת.ז.:321654987 (ABCDEFGHI), אז ABC= 321, DEF= 654, GHI= 987."
+      cleanedStory = cleanedStory.replace(/דוגמא: אם ת\.ז\.:321654987 \(ABCDEFGHI\), אז ABC= 321, DEF= 654, GHI= 987\.\s*/g, "").trim();
+      
+      // Remove: "יש להיצמד להגדרות סוגי הנתונים בבואכם להגדיר את סכמת הטבלה לפי הפירוט המופיע בכל טבלה וטבלה."
+      cleanedStory = cleanedStory.replace(/יש להיצמד להגדרות סוגי הנתונים בבואכם להגדיר את סכמת הטבלה לפי הפירוט המופיע בכל טבלה וטבלה\.\s*/g, "").trim();
+      
+      // Remove: "למרות שניתן לפתור את התרגיל רק ע"י הצגת הסכמות וללא רשומות בטבלאות עצמן כפי שלמדנו בתרגיל 2, נבנו בתרגיל זה לכל טבלה מספר רשומות לדוגמא בכדי לסייע בהבנת הסכמות. עם זאת במקרה ותשובה של אחת מהשאילתות יוצאת ריקה - יש להוסיף נתונים לטבלאות כך שע"י הפעלת כל אחת מהשאילתות בתרגיל תתקבל תשובה שאינה טבלה ריקה, ז"א עליכם למלא תוכן רלוונטי בטבלאות כך שבכל תוצאת שאילתא תחזור לפחות שורה אחת - שאילתות שיחזירו סכמות ריקות לא תקבלנה את מלאו הנקודות!"
+      cleanedStory = cleanedStory.replace(/למרות שניתן לפתור את התרגיל רק ע"י הצגת הסכמות וללא רשומות בטבלאות עצמן כפי שלמדנו בתרגיל 2, נבנו בתרגיל זה לכל טבלה מספר רשומות לדוגמא בכדי לסייע בהבנת הסכמות\. עם זאת במקרה ותשובה של אחת מהשאילתות יוצאת ריקה - יש להוסיף נתונים לטבלאות כך שע"י הפעלת כל אחת מהשאילתות בתרגיל תתקבל תשובה שאינה טבלה ריקה, ז"א עליכם למלא תוכן רלוונטי בטבלאות כך שבכל תוצאת שאילתא תחזור לפחות שורה אחת - שאילתות שיחזירו סכמות ריקות לא תקבלנה את מלאו הנקודות!\s*/g, "").trim();
+      
+      // Remove any remaining lines that contain "הנחייה חשובה"
+      const allLines = cleanedStory.split('\n');
+      cleanedStory = allLines.filter(line => !line.includes('הנחייה חשובה')).join('\n').trim();
+      
+      // Remove existing credits note from the entire story (before processing)
+      cleanedStory = cleanedStory.replace(/עמודת credits מייצגת[^\n]*/g, "").trim();
+      cleanedStory = cleanedStory.replace(/עמודת credits מייצגת את כמות נקודות הזכות שהסטודנט יקבל בסיום הקורס\.?\s*/g, "").trim();
+      
+      // Now process the cleaned story
+      // Find where the tables start
+      const tablesStart = cleanedStory.indexOf("1) מידע על הסטודנטים:");
+      if (tablesStart === -1) return cleanedStory;
+      
+      // Find where the tables end (after Enrollments table definition)
+      const enrollmentsEnd = cleanedStory.indexOf("Enrollments (StudentID, CourseID, EnrollmentDate, Grade)");
+      if (enrollmentsEnd === -1) return cleanedStory;
+      
+      // Find the newline after the Enrollments line
+      let tablesEndIndex = cleanedStory.indexOf("\n", enrollmentsEnd + 60);
+      if (tablesEndIndex === -1) tablesEndIndex = cleanedStory.length;
+      
+      // Extract the tables section
+      const tablesText = cleanedStory.substring(tablesStart, tablesEndIndex).trim();
+      
+      // Get everything after the tables
+      let afterTables = cleanedStory.substring(tablesEndIndex).trim();
+      
+      // Clean up multiple consecutive newlines
+      afterTables = afterTables.replace(/\n{3,}/g, "\n\n").trim();
+      
+      // Build the new background story
+      const newFirstParagraph = `בתרגיל זה, נתון מסד נתונים הקשור לניהול מערכת סטודנטים וקורסים במכללה. הנכם מגלמים תפקיד של מנהל/מנהלת מערכת קורסים במכללה האחראי/ת על ניהול קורסים, סטודנטים, מרצים ונרשמים לקורסים. מסד הנתונים כולל 4 טבלאות.`;
+      const creditsNote = `עמודת credits מייצגת את כמות נקודות הזכות שהסטודנט יקבל בסיום הקורס`;
+      
+      // Combine: new first paragraph + tables + credits note + rest
+      if (afterTables) {
+        return `${newFirstParagraph}\n\n${tablesText}\n\n${creditsNote}\n\n${afterTables}`;
+      } else {
+        return `${newFirstParagraph}\n\n${tablesText}\n\n${creditsNote}`;
+      }
+    }
+    
+    return story;
+  };
+
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -170,7 +237,7 @@ export function StudentEntryClient() {
                 {homework.dueAt && (
                   <div className={styles.metaItem}>
                     <span>📅</span>
-                    <span>תאריך הגשה: {new Date(homework.dueAt).toLocaleDateString("he-IL")}</span>
+                    <span>תאריך הגשה: 13.01.2026 ב-23:59</span>
                   </div>
                 )}
               </div>
@@ -182,7 +249,7 @@ export function StudentEntryClient() {
                   <span>📖</span>
                   סיפור הרקע
                 </h3>
-                <div className={styles.instructionsText}>{homework.backgroundStory}</div>
+                <div className={styles.instructionsText}>{transformBackgroundStory(homework.backgroundStory, homework.title)}</div>
               </div>
             )}
 
@@ -196,13 +263,25 @@ export function StudentEntryClient() {
                   כל שאלה דורשת כתיבת שאילתת SQL
                 </div>
                 <div className={styles.instructionItem}>
-                  תוכלו להריץ כל שאילתה ולראות את התוצאות
-                </div>
-                <div className={styles.instructionItem}>
                   השאילתות נשמרות אוטומטית במהלך העבודה
                 </div>
                 <div className={styles.instructionItem}>
-                  לאחר סיום הפתרון, לחצו על "הגש שיעור בית"
+                  לאחר סיום הפתרון, לחצו על &quot;הגש שיעור בית&quot;
+                </div>
+                <div className={styles.instructionItem}>
+                  למעוניינים להשתמש בכלי AI, ניתן להשתמש במייקל אשר זמין לשימושמכם במהלך התרגיל. במידהתמשתם בכלי חיצוני (לא מייקל), יש לצרף העתק מלא של השיחה עם מודל הבינה מלאכותית.
+                </div>
+                <div className={styles.instructionItem}>
+                  אין להגיש תרגילים בכתב יד, אלא רק דרך ממשק זה.
+                </div>
+                <div className={styles.instructionItem}>
+                  תרגיל זה מבוסס על החומר שנלמד בהרצאות ובתרגולים מתחילת הסמסטר.
+                </div>
+                <div className={styles.instructionItem}>
+                  ההגשה תתבצע ביחידים בלבד
+                </div>
+                <div className={styles.instructionItem}>
+                  במועד ההגשה, ישלח לכם מייל אישור שההגשה התקבלה.
                 </div>
                 <div className={styles.instructionItem}>
                   בהצלחה! 🎯

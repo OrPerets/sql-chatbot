@@ -146,187 +146,59 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
     setSelectedStudentIds(new Set());
   }, [viewMode]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-
-      // Ctrl/Cmd + S to save
-      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-        e.preventDefault();
-        gradeMutation.mutate();
-        return;
-      }
-
-      // Arrow keys for navigation
-      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-        e.preventDefault();
-        if (viewMode === "student") {
-          const currentIndex = filteredSummaries.findIndex(s => s.id === activeSubmissionId);
-          if (currentIndex !== -1) {
-            const nextIndex = e.key === "ArrowRight" 
-              ? Math.min(currentIndex + 1, filteredSummaries.length - 1)
-              : Math.max(currentIndex - 1, 0);
-            setActiveSubmissionId(filteredSummaries[nextIndex]?.id || null);
-          }
-        } else {
-          const questions = questionsQuery.data ?? [];
-          const currentIndex = questions.findIndex(q => q.id === activeQuestionId);
-          if (currentIndex !== -1) {
-            const nextIndex = e.key === "ArrowRight"
-              ? Math.min(currentIndex + 1, questions.length - 1)
-              : Math.max(currentIndex - 1, 0);
-            setActiveQuestionId(questions[nextIndex]?.id || null);
-          }
-        }
-        return;
-      }
-
-      // ? to show keyboard shortcuts
-      if (e.key === "?") {
-        setShowKeyboardShortcuts(prev => !prev);
-        return;
-      }
-
-      // Escape to close shortcuts modal
-      if (e.key === "Escape") {
-        setShowKeyboardShortcuts(false);
-        return;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [viewMode, activeSubmissionId, activeQuestionId, questionsQuery.data]);
-
-  // Auto-save effect
-  useEffect(() => {
-    const currentDraft = JSON.stringify(viewMode === "student" ? gradeDraft : questionGradeDraft);
-    
-    if (currentDraft !== lastSavedDraftRef.current && lastSavedDraftRef.current !== "") {
-      setAutoSaveStatus("unsaved");
-      
-      // Clear any existing timeout
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
-      }
-      
-      // Set new auto-save timeout (30 seconds)
-      autoSaveTimeoutRef.current = setTimeout(() => {
-        setAutoSaveStatus("saving");
-        gradeMutation.mutate();
-      }, 30000);
-    }
-    
-    return () => {
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
-      }
-    };
-  }, [gradeDraft, questionGradeDraft, viewMode]);
-
   const questionsById = useMemo(() => {
     const map = new Map<string, Question>();
     (questionsQuery.data ?? []).forEach((question) => map.set(question.id, question));
     return map;
   }, [questionsQuery.data]);
 
-  // Compute question statistics for per-question view
-  const questionStats = useMemo(() => {
-    const allSubmissions = allSubmissionsQuery.data ?? [];
-    const stats = new Map<string, {
-      answeredCount: number;
-      averageScore: number;
-      gradedCount: number;
-      totalPoints: number;
-    }>();
+  // Memoize summaries to avoid dependency issues
+  const summaries = useMemo(() => summariesQuery.data ?? [], [summariesQuery.data]);
 
-    questionsQuery.data?.forEach((question) => {
-      let answeredCount = 0;
-      let totalScore = 0;
-      let gradedCount = 0;
-      const totalPoints = question.points ?? 0;
-
-      allSubmissions.forEach((submission) => {
-        const answer = submission.answers[question.id] as SqlAnswer | undefined;
-        if (answer?.sql) {
-          answeredCount++;
-          const score = answer.feedback?.score ?? 0;
-          totalScore += score;
-          if (submission.status === "graded" || answer.feedback?.score !== undefined) {
-            gradedCount++;
-          }
-        }
-      });
-
-      stats.set(question.id, {
-        answeredCount,
-        averageScore: answeredCount > 0 ? totalScore / answeredCount : 0,
-        gradedCount,
-        totalPoints,
-      });
-    });
-
-    return stats;
-  }, [questionsQuery.data, allSubmissionsQuery.data]);
-
-  // Compute overall grading progress
-  const gradingProgress = useMemo(() => {
-    const summaries = summariesQuery.data ?? [];
-    if (summaries.length === 0) return { total: 0, graded: 0, percentage: 0 };
+  // Filter and sort summaries
+  const filteredSummaries = useMemo(() => {
+    let filtered = [...summaries];
     
-    const totalQuestions = (questionsQuery.data ?? []).length * summaries.length;
-    const gradedQuestions = summaries.reduce((count, summary) => {
-      return count + (summary.status === "graded" ? (questionsQuery.data ?? []).length : 0);
-    }, 0);
-    
-    return {
-      total: totalQuestions,
-      graded: gradedQuestions,
-      percentage: totalQuestions > 0 ? (gradedQuestions / totalQuestions) * 100 : 0,
-    };
-  }, [summariesQuery.data, questionsQuery.data]);
-
-  useEffect(() => {
-    if (viewMode === "student") {
-    const submission = submissionQuery.data;
-    if (!submission) return;
-    const draft: GradeDraft = {};
-    Object.entries(submission.answers).forEach(([questionId, answer]) => {
-      const question = questionsById.get(questionId);
-        const sqlAnswer = answer as SqlAnswer;
-      const defaultScore = Math.min(question?.points ?? 0, sqlAnswer.feedback?.score ?? 0);
-      draft[questionId] = {
-        score: defaultScore,
-        instructorNotes: sqlAnswer.feedback?.instructorNotes ?? "",
-      };
-    });
-    setGradeDraft(draft);
-    } else if (viewMode === "question" && activeQuestionId) {
-      const allSubmissions = allSubmissionsQuery.data ?? [];
-      const question = questionsById.get(activeQuestionId);
-      const draft: Record<string, GradeDraftEntry> = {};
-      
-      allSubmissions.forEach((submission) => {
-        const answer = submission.answers[activeQuestionId] as SqlAnswer | undefined;
-        if (answer) {
-          const defaultScore = Math.min(question?.points ?? 0, answer.feedback?.score ?? 0);
-          draft[submission.id] = {
-            score: defaultScore,
-            instructorNotes: answer.feedback?.instructorNotes ?? "",
-          };
-        }
+    // Apply status filter
+    if (filterStatus !== "all") {
+      filtered = filtered.filter(summary => {
+        if (filterStatus === "graded") return summary.status === "graded";
+        if (filterStatus === "ungraded") return summary.status !== "graded" && summary.status !== "submitted";
+        if (filterStatus === "partial") return summary.status === "submitted" || (summary.progress > 0 && summary.progress < 1);
+        return true;
       });
-      
-      setQuestionGradeDraft((prev) => ({
-        ...prev,
-        [activeQuestionId]: draft,
-      }));
     }
-  }, [viewMode, submissionQuery.data, allSubmissionsQuery.data, activeQuestionId, questionsById]);
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(summary => 
+        summary.studentId.toLowerCase().includes(query)
+      );
+    }
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case "name":
+          comparison = a.studentId.localeCompare(b.studentId);
+          break;
+        case "score":
+          comparison = (a.overallScore ?? 0) - (b.overallScore ?? 0);
+          break;
+        case "status":
+          comparison = a.status.localeCompare(b.status);
+          break;
+        case "date":
+          comparison = new Date(a.submittedAt ?? 0).getTime() - new Date(b.submittedAt ?? 0).getTime();
+          break;
+      }
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+    
+    return filtered;
+  }, [summaries, filterStatus, searchQuery, sortField, sortDirection]);
 
   const gradeMutation = useMutation({
     mutationFn: async () => {
@@ -438,6 +310,182 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
     },
   });
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Ctrl/Cmd + S to save
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        gradeMutation.mutate();
+        return;
+      }
+
+      // Arrow keys for navigation
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        if (viewMode === "student") {
+          const currentIndex = filteredSummaries.findIndex(s => s.id === activeSubmissionId);
+          if (currentIndex !== -1) {
+            const nextIndex = e.key === "ArrowRight" 
+              ? Math.min(currentIndex + 1, filteredSummaries.length - 1)
+              : Math.max(currentIndex - 1, 0);
+            setActiveSubmissionId(filteredSummaries[nextIndex]?.id || null);
+          }
+        } else {
+          const questions = questionsQuery.data ?? [];
+          const currentIndex = questions.findIndex(q => q.id === activeQuestionId);
+          if (currentIndex !== -1) {
+            const nextIndex = e.key === "ArrowRight"
+              ? Math.min(currentIndex + 1, questions.length - 1)
+              : Math.max(currentIndex - 1, 0);
+            setActiveQuestionId(questions[nextIndex]?.id || null);
+          }
+        }
+        return;
+      }
+
+      // ? to show keyboard shortcuts
+      if (e.key === "?") {
+        setShowKeyboardShortcuts(prev => !prev);
+        return;
+      }
+
+      // Escape to close shortcuts modal
+      if (e.key === "Escape") {
+        setShowKeyboardShortcuts(false);
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [viewMode, activeSubmissionId, activeQuestionId, questionsQuery.data, gradeMutation, filteredSummaries]);
+
+  // Compute question statistics for per-question view
+  const questionStats = useMemo(() => {
+    const allSubmissions = allSubmissionsQuery.data ?? [];
+    const stats = new Map<string, {
+      answeredCount: number;
+      averageScore: number;
+      gradedCount: number;
+      totalPoints: number;
+    }>();
+
+    questionsQuery.data?.forEach((question) => {
+      let answeredCount = 0;
+      let totalScore = 0;
+      let gradedCount = 0;
+      const totalPoints = question.points ?? 0;
+
+      allSubmissions.forEach((submission) => {
+        const answer = submission.answers[question.id] as SqlAnswer | undefined;
+        if (answer?.sql) {
+          answeredCount++;
+          const score = answer.feedback?.score ?? 0;
+          totalScore += score;
+          if (submission.status === "graded" || answer.feedback?.score !== undefined) {
+            gradedCount++;
+          }
+        }
+      });
+
+      stats.set(question.id, {
+        answeredCount,
+        averageScore: answeredCount > 0 ? totalScore / answeredCount : 0,
+        gradedCount,
+        totalPoints,
+      });
+    });
+
+    return stats;
+  }, [questionsQuery.data, allSubmissionsQuery.data]);
+
+  // Compute overall grading progress
+  const gradingProgress = useMemo(() => {
+    const summaries = summariesQuery.data ?? [];
+    if (summaries.length === 0) return { total: 0, graded: 0, percentage: 0 };
+    
+    const totalQuestions = (questionsQuery.data ?? []).length * summaries.length;
+    const gradedQuestions = summaries.reduce((count, summary) => {
+      return count + (summary.status === "graded" ? (questionsQuery.data ?? []).length : 0);
+    }, 0);
+    
+    return {
+      total: totalQuestions,
+      graded: gradedQuestions,
+      percentage: totalQuestions > 0 ? (gradedQuestions / totalQuestions) * 100 : 0,
+    };
+  }, [summariesQuery.data, questionsQuery.data]);
+
+  useEffect(() => {
+    if (viewMode === "student") {
+    const submission = submissionQuery.data;
+    if (!submission) return;
+    const draft: GradeDraft = {};
+    Object.entries(submission.answers).forEach(([questionId, answer]) => {
+      const question = questionsById.get(questionId);
+        const sqlAnswer = answer as SqlAnswer;
+      // Start with 0 (empty) - only use existing instructor notes if they exist
+      draft[questionId] = {
+        score: 0,
+        instructorNotes: sqlAnswer.feedback?.instructorNotes ?? "",
+      };
+    });
+    setGradeDraft(draft);
+    } else if (viewMode === "question" && activeQuestionId) {
+      const allSubmissions = allSubmissionsQuery.data ?? [];
+      const question = questionsById.get(activeQuestionId);
+      const draft: Record<string, GradeDraftEntry> = {};
+      
+      allSubmissions.forEach((submission) => {
+        const answer = submission.answers[activeQuestionId] as SqlAnswer | undefined;
+        if (answer) {
+          // Start with 0 (empty) - only use existing instructor notes if they exist
+          draft[submission.id] = {
+            score: 0,
+            instructorNotes: answer.feedback?.instructorNotes ?? "",
+          };
+        }
+      });
+      
+      setQuestionGradeDraft((prev) => ({
+        ...prev,
+        [activeQuestionId]: draft,
+      }));
+    }
+  }, [viewMode, submissionQuery.data, allSubmissionsQuery.data, activeQuestionId, questionsById]);
+
+  // Auto-save effect - moved after gradeMutation definition
+  useEffect(() => {
+    const currentDraft = JSON.stringify(viewMode === "student" ? gradeDraft : questionGradeDraft);
+    
+    if (currentDraft !== lastSavedDraftRef.current && lastSavedDraftRef.current !== "") {
+      setAutoSaveStatus("unsaved");
+      
+      // Clear any existing timeout
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+      
+      // Set new auto-save timeout (30 seconds)
+      autoSaveTimeoutRef.current = setTimeout(() => {
+        setAutoSaveStatus("saving");
+        gradeMutation.mutate();
+      }, 30000);
+    }
+    
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [gradeDraft, questionGradeDraft, viewMode, gradeMutation]);
+
   const publishMutation = useMutation({
     mutationFn: () => publishHomeworkGrades(setId),
     onSuccess: (result) => {
@@ -526,55 +574,9 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
     });
   }, [activeQuestionId, allSubmissionsQuery.data]);
 
-  const summaries = summariesQuery.data ?? [];
   const submission = submissionQuery.data;
   const progress = progressQuery.data as QuestionProgress[] | undefined;
   const analytics = analyticsQuery.data ?? [];
-
-  // Filter and sort summaries
-  const filteredSummaries = useMemo(() => {
-    let filtered = [...summaries];
-    
-    // Apply status filter
-    if (filterStatus !== "all") {
-      filtered = filtered.filter(summary => {
-        if (filterStatus === "graded") return summary.status === "graded";
-        if (filterStatus === "ungraded") return summary.status !== "graded" && summary.status !== "submitted";
-        if (filterStatus === "partial") return summary.status === "submitted" || (summary.progress > 0 && summary.progress < 1);
-        return true;
-      });
-    }
-    
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(summary => 
-        summary.studentId.toLowerCase().includes(query)
-      );
-    }
-    
-    // Apply sorting
-    filtered.sort((a, b) => {
-      let comparison = 0;
-      switch (sortField) {
-        case "name":
-          comparison = a.studentId.localeCompare(b.studentId);
-          break;
-        case "score":
-          comparison = (a.overallScore ?? 0) - (b.overallScore ?? 0);
-          break;
-        case "status":
-          comparison = a.status.localeCompare(b.status);
-          break;
-        case "date":
-          comparison = new Date(a.submittedAt ?? 0).getTime() - new Date(b.submittedAt ?? 0).getTime();
-          break;
-      }
-      return sortDirection === "asc" ? comparison : -comparison;
-    });
-    
-    return filtered;
-  }, [summaries, filterStatus, searchQuery, sortField, sortDirection]);
 
   // Find next ungraded submission
   const nextUngradedId = useMemo(() => {
@@ -838,9 +840,15 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
 
         <section className={styles.detailPane}>
           {viewMode === "student" ? (
-            !submission ? (
-            <div className={styles.placeholder}>{t("builder.grade.submission.select")}</div>
-          ) : (
+            submissionQuery.isLoading ? (
+              <div className={styles.placeholder}>{t("builder.grade.loading")}</div>
+            ) : submissionQuery.isError ? (
+              <div className={styles.placeholder}>
+                {t("builder.grade.error")}: {submissionQuery.error instanceof Error ? submissionQuery.error.message : "Unknown error"}
+              </div>
+            ) : !submission ? (
+              <div className={styles.placeholder}>{t("builder.grade.submission.select")}</div>
+            ) : (
             <div className={styles.detailInner}>
               <header className={styles.detailHeader}>
                 <div>
