@@ -67,13 +67,13 @@ export async function POST(request: Request, { params }: RouteParams) {
         if (studentEmail && studentEmail.includes("@")) {
           await sendEmail({
             to: studentEmail,
-            subject: "תרגיל בית 3 הוגש בהצלחה",
-            text: "תרגיל בית 3 הוגש בהצלחה",
+            subject: "תרגיל בית 3 הוגש בהצלחה בקורס בסיסי נתונים",
+            text: "תרגיל בית 3 הוגש בהצלחה בקורס בסיסי נתונים",
             html: `
               <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #10b981;">תרגיל בית 3 הוגש בהצלחה</h2>
+                <h2 style="color: #10b981;">תרגיל בית 3 הוגש בהצלחה בקורס בסיסי נתונים</h2>
                 <p>שלום,</p>
-                <p>תרגיל בית 3 הוגש בהצלחה במערכת.</p>
+                <p>תרגיל בית 3 הוגש בהצלחה בקורס בסיסי נתונים.</p>
                 <p>תודה על ההגשה!</p>
                 <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
                 <p style="font-size: 12px; color: #666;">Michael SQL Assistant Team</p>
