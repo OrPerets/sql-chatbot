@@ -18,26 +18,31 @@ export function BuilderShell({ children, activePath }: BuilderShellProps) {
   const pathname = usePathname();
   const { t, direction } = useHomeworkLocale();
   const currentPath = activePath ?? pathname;
+  
+  // Hide sidebar on grade pages
+  const isGradePage = currentPath?.includes('/grade');
 
   return (
-    <div className={styles.container} dir={direction}>
-      <aside className={styles.sidebar}>
-        <div className={styles.logo}>{t("builder.logo")}</div>
-        <nav className={styles.nav}>
-          {navLinks.map((link) => {
-            const isActive = currentPath === link.href || currentPath.startsWith(`${link.href}/`);
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={isActive ? `${styles.navLink} ${styles.active}` : styles.navLink}
-              >
-                {t(link.labelKey)}
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
+    <div className={styles.container} dir={direction} data-hide-sidebar={isGradePage}>
+      {!isGradePage && (
+        <aside className={styles.sidebar}>
+          <div className={styles.logo}>{t("builder.logo")}</div>
+          <nav className={styles.nav}>
+            {navLinks.map((link) => {
+              const isActive = currentPath === link.href || currentPath.startsWith(`${link.href}/`);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={isActive ? `${styles.navLink} ${styles.active}` : styles.navLink}
+                >
+                  {t(link.labelKey)}
+                </Link>
+              );
+            })}
+          </nav>
+        </aside>
+      )}
       <section className={styles.content}>{children}</section>
     </div>
   );

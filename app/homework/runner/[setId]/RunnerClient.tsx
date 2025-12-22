@@ -37,11 +37,80 @@ interface PendingSave {
 
 const AUTOSAVE_DELAY = 800;
 
+// Transform background story for תרגיל 3
+const transformBackgroundStory = (story: string | undefined, title: string): string => {
+  if (!story) return "";
+  
+  // Only transform if it's תרגיל 3
+  if (title === "תרגיל 3" || title === "תרגיל בית 3") {
+    // First, remove unwanted sections from the entire story (before processing)
+    let cleanedStory = story;
+    
+    // Remove: "הנחייה חשובה" section - remove from entire story first
+    cleanedStory = cleanedStory.replace(/הנחייה חשובה:[\s\S]*?וכד'\.?\s*/g, "").trim();
+    cleanedStory = cleanedStory.replace(/הנחייה חשובה:[^\n]*(?:[^\n]*וכד'[^\n]*)?/g, "").trim();
+    
+    // Remove: "דוגמא: אם ת.ז.:321654987 (ABCDEFGHI), אז ABC= 321, DEF= 654, GHI= 987."
+    cleanedStory = cleanedStory.replace(/דוגמא: אם ת\.ז\.:321654987 \(ABCDEFGHI\), אז ABC= 321, DEF= 654, GHI= 987\.\s*/g, "").trim();
+    
+    // Remove: "יש להיצמד להגדרות סוגי הנתונים בבואכם להגדיר את סכמת הטבלה לפי הפירוט המופיע בכל טבלה וטבלה."
+    cleanedStory = cleanedStory.replace(/יש להיצמד להגדרות סוגי הנתונים בבואכם להגדיר את סכמת הטבלה לפי הפירוט המופיע בכל טבלה וטבלה\.\s*/g, "").trim();
+    
+    // Remove: "למרות שניתן לפתור את התרגיל רק ע"י הצגת הסכמות וללא רשומות בטבלאות עצמן כפי שלמדנו בתרגיל 2, נבנו בתרגיל זה לכל טבלה מספר רשומות לדוגמא בכדי לסייע בהבנת הסכמות. עם זאת במקרה ותשובה של אחת מהשאילתות יוצאת ריקה - יש להוסיף נתונים לטבלאות כך שע"י הפעלת כל אחת מהשאילתות בתרגיל תתקבל תשובה שאינה טבלה ריקה, ז"א עליכם למלא תוכן רלוונטי בטבלאות כך שבכל תוצאת שאילתא תחזור לפחות שורה אחת - שאילתות שיחזירו סכמות ריקות לא תקבלנה את מלאו הנקודות!"
+    cleanedStory = cleanedStory.replace(/למרות שניתן לפתור את התרגיל רק ע"י הצגת הסכמות וללא רשומות בטבלאות עצמן כפי שלמדנו בתרגיל 2, נבנו בתרגיל זה לכל טבלה מספר רשומות לדוגמא בכדי לסייע בהבנת הסכמות\. עם זאת במקרה ותשובה של אחת מהשאילתות יוצאת ריקה - יש להוסיף נתונים לטבלאות כך שע"י הפעלת כל אחת מהשאילתות בתרגיל תתקבל תשובה שאינה טבלה ריקה, ז"א עליכם למלא תוכן רלוונטי בטבלאות כך שבכל תוצאת שאילתא תחזור לפחות שורה אחת - שאילתות שיחזירו סכמות ריקות לא תקבלנה את מלאו הנקודות!\s*/g, "").trim();
+    
+    // Remove any remaining lines that contain "הנחייה חשובה"
+    const allLines = cleanedStory.split('\n');
+    cleanedStory = allLines.filter(line => !line.includes('הנחייה חשובה')).join('\n').trim();
+    
+    // Remove existing credits note from the entire story (before processing)
+    cleanedStory = cleanedStory.replace(/עמודת credits מייצגת[^\n]*/g, "").trim();
+    cleanedStory = cleanedStory.replace(/עמודת credits מייצגת את כמות נקודות הזכות שהסטודנט יקבל בסיום הקורס\.?\s*/g, "").trim();
+    
+    // Now process the cleaned story
+    // Find where the tables start
+    const tablesStart = cleanedStory.indexOf("1) מידע על הסטודנטים:");
+    if (tablesStart === -1) return cleanedStory;
+    
+    // Find where the tables end (after Enrollments table definition)
+    const enrollmentsEnd = cleanedStory.indexOf("Enrollments (StudentID, CourseID, EnrollmentDate, Grade)");
+    if (enrollmentsEnd === -1) return cleanedStory;
+    
+    // Find the newline after the Enrollments line
+    let tablesEndIndex = cleanedStory.indexOf("\n", enrollmentsEnd + 60);
+    if (tablesEndIndex === -1) tablesEndIndex = cleanedStory.length;
+    
+    // Extract the tables section
+    const tablesText = cleanedStory.substring(tablesStart, tablesEndIndex).trim();
+    
+    // Get everything after the tables
+    let afterTables = cleanedStory.substring(tablesEndIndex).trim();
+    
+    // Clean up multiple consecutive newlines
+    afterTables = afterTables.replace(/\n{3,}/g, "\n\n").trim();
+    
+    // Build the new background story
+    const newFirstParagraph = `בתרגיל זה, נתון מסד נתונים הקשור לניהול מערכת סטודנטים וקורסים במכללה. הנכם מגלמים תפקיד של מנהל/מנהלת מערכת קורסים במכללה האחראי/ת על ניהול קורסים, סטודנטים, מרצים ונרשמים לקורסים. מסד הנתונים כולל 4 טבלאות.`;
+    const creditsNote = `עמודת credits מייצגת את כמות נקודות הזכות שהסטודנט יקבל בסיום הקורס`;
+    
+    // Combine: new first paragraph + tables + credits note + rest
+    if (afterTables) {
+      return `${newFirstParagraph}\n\n${tablesText}\n\n${creditsNote}\n\n${afterTables}`;
+    } else {
+      return `${newFirstParagraph}\n\n${tablesText}\n\n${creditsNote}`;
+    }
+  }
+  
+  return story;
+};
+
 export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const queryClient = useQueryClient();
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const [editorValues, setEditorValues] = useState<Record<string, string>>({});
   const [autosaveState, setAutosaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const pendingRef = useRef<Record<string, PendingSave>>({});
   const { t, direction, formatDateTime, formatNumber } = useHomeworkLocale();
   const backArrow = direction === "rtl" ? "→" : "←";
@@ -192,8 +261,28 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     onSuccess: (submission) => {
       queryClient.setQueryData<Submission | undefined>(["submission", setId, studentId], submission);
       queryClient.invalidateQueries({ queryKey: ["submission", setId, studentId] });
+      // Close confirmation dialog
+      setShowConfirmDialog(false);
+      // Show success message
+      setShowSuccessMessage(true);
+      // Hide success message after 5 seconds
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+      }, 5000);
     },
   });
+
+  const handleSubmitClick = useCallback(() => {
+    setShowConfirmDialog(true);
+  }, []);
+
+  const handleConfirmSubmit = useCallback(() => {
+    submitMutation.mutate();
+  }, [submitMutation]);
+
+  const handleCancelSubmit = useCallback(() => {
+    setShowConfirmDialog(false);
+  }, []);
 
   const scheduleAutosave = useCallback(
     (questionId: string, value: string) => {
@@ -319,16 +408,83 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
 
   return (
     <div className={styles.runner} dir={direction}>
+      {/* Success Message Overlay */}
+      {showSuccessMessage && (
+        <div className={styles.successOverlay}>
+          <div className={styles.successMessage}>
+            <div className={styles.successIcon}>✅</div>
+            <h2 className={styles.successTitle}>הוגש</h2>
+            <p className={styles.successText}>תרגיל הבית הוגש בהצלחה!</p>
+            <p className={styles.successSubtext}>קיבלת אימייל אישור על ההגשה</p>
+            <button
+              className={styles.successCloseButton}
+              onClick={() => setShowSuccessMessage(false)}
+            >
+              סגור
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Dialog Overlay */}
+      {showConfirmDialog && (
+        <div className={styles.confirmOverlay}>
+          <div className={styles.confirmDialog}>
+            <h3 className={styles.confirmTitle}>אישור הגשה</h3>
+            <p className={styles.confirmText}>
+              האם אתה בטוח שברצונך להגיש? לאחר מכן לא יהיה ניתן לחזור ולערוך את התרגיל
+            </p>
+            <div className={styles.confirmActions}>
+              <button
+                className={styles.confirmButton}
+                onClick={handleConfirmSubmit}
+                disabled={submitMutation.isPending}
+              >
+                {submitMutation.isPending ? "מגיש..." : "כן, הגש"}
+              </button>
+              <button
+                className={styles.cancelButton}
+                onClick={handleCancelSubmit}
+                disabled={submitMutation.isPending}
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Right Sidebar: Background Story */}
       <aside className={styles.sidebar}>
         <div className={styles.assignmentMeta}>
-          {homework.backgroundStory && <InstructionsSection instructions={homework.backgroundStory} />}
+          {homework.backgroundStory && (
+            <InstructionsSection 
+              instructions={transformBackgroundStory(homework.backgroundStory, homework.title)} 
+            />
+          )}
         </div>
       </aside>
 
       {/* Middle Section: Question + SQL Editor */}
       <section className={styles.workspace}>
         <header className={styles.workspaceHeader}>
+          {/* Submit Button - Top Right */}
+          <div className={styles.headerActions}>
+            <button
+              type="button"
+              className={styles.submitButtonHeader}
+              onClick={handleSubmitClick}
+              disabled={submitMutation.isPending || submission?.status === "submitted" || submission?.status === "graded"}
+            >
+              <span>{submitMutation.isPending ? "⏳" : submission?.status === "submitted" ? "✅" : "📤"}</span>
+              {submitMutation.isPending
+                ? t("runner.actions.submitting")
+                : submission?.status === "submitted"
+                  ? t("runner.actions.submitted")
+                  : t("runner.actions.submit")}
+            </button>
+          </div>
+
           {/* Question Stepper - full width with proper padding */}
           <div className={styles.questionStepperWrapper}>
             <div className={styles.questionStepper}>
@@ -405,21 +561,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               >
                 <span className={styles.runIcon}>{executeMutation.isPending ? "⏳" : "▶"}</span>
                 {executeMutation.isPending ? t("runner.actions.running") : t("runner.actions.run")}
-              </button>
-              
-              {/* Submit button moved here */}
-              <button
-                type="button"
-                className={styles.submitButtonMain}
-                onClick={() => submitMutation.mutate()}
-                disabled={submitMutation.isPending || submission?.status === "submitted" || submission?.status === "graded"}
-              >
-                <span>{submitMutation.isPending ? "⏳" : submission?.status === "submitted" ? "✅" : "📤"}</span>
-                {submitMutation.isPending
-                  ? t("runner.actions.submitting")
-                  : submission?.status === "submitted"
-                    ? t("runner.actions.submitted")
-                    : t("runner.actions.submit")}
               </button>
             </div>
           </div>
