@@ -27,7 +27,8 @@ export async function POST(request, { params: { threadId } }) {
     // Always fetch weekly context to ensure SQL concept restrictions are applied
     let weeklyContext = '';
     try {
-      const weeklyResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/mcp-michael/current-week`);
+      const weeklyUrl = new URL('/api/mcp-michael/current-week', request.url).toString();
+      const weeklyResponse = await fetch(weeklyUrl);
       if (weeklyResponse.ok) {
         const weeklyData = await weeklyResponse.json();
         const weekNum = weeklyData.weekNumber ?? weeklyData.currentWeek; // support both shapes during rollout
