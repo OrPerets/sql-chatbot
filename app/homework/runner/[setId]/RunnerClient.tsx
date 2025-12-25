@@ -15,6 +15,7 @@ import type { Question, SqlExecutionRequest, Submission } from "@/app/homework/t
 import styles from "./runner.module.css";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 import { InstructionsSection } from "./InstructionsSection";
+import { SubmittedPage } from "./SubmittedPage";
 import Chat from "@/app/components/chat";
 
 import Editor from "@monaco-editor/react";
@@ -259,16 +260,14 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const submitMutation = useMutation({
     mutationFn: () => submitHomework(setId, { studentId }),
     onSuccess: (submission) => {
+      // Update the query cache immediately so the component re-renders with new status
       queryClient.setQueryData<Submission | undefined>(["submission", setId, studentId], submission);
       queryClient.invalidateQueries({ queryKey: ["submission", setId, studentId] });
       // Close confirmation dialog
       setShowConfirmDialog(false);
-      // Show success message
-      setShowSuccessMessage(true);
-      // Hide success message after 5 seconds
-      setTimeout(() => {
-        setShowSuccessMessage(false);
-      }, 5000);
+      // The page will automatically show SubmittedPage due to the check below
+      // Force a refetch to ensure the UI updates
+      submissionQuery.refetch();
     },
   });
 
@@ -403,28 +402,22 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     );
   }
 
+  // If submission is already submitted or graded, show submitted page
+  if (submission && (submission.status === "submitted" || submission.status === "graded")) {
+    return (
+      <SubmittedPage 
+        homeworkTitle={homework?.title}
+        submittedAt={submission.submittedAt}
+        studentId={studentId}
+      />
+    );
+  }
+
   const statusLabel = submission?.status ? t(`runner.status.${submission.status}`) : t("runner.status.in_progress");
   const autosaveLabel = t(`runner.progress.autosave.${autosaveState}`);
 
   return (
     <div className={styles.runner} dir={direction}>
-      {/* Success Message Overlay */}
-      {showSuccessMessage && (
-        <div className={styles.successOverlay}>
-          <div className={styles.successMessage}>
-            <div className={styles.successIcon}>✅</div>
-            <h2 className={styles.successTitle}>הוגש</h2>
-            <p className={styles.successText}>תרגיל הבית הוגש בהצלחה!</p>
-            <p className={styles.successSubtext}>קיבלת אימייל אישור על ההגשה</p>
-            <button
-              className={styles.successCloseButton}
-              onClick={() => setShowSuccessMessage(false)}
-            >
-              סגור
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Confirmation Dialog Overlay */}
       {showConfirmDialog && (
@@ -468,23 +461,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       {/* Middle Section: Question + SQL Editor */}
       <section className={styles.workspace}>
         <header className={styles.workspaceHeader}>
-          {/* Submit Button - Top Right */}
-          <div className={styles.headerActions}>
-            <button
-              type="button"
-              className={styles.submitButtonHeader}
-              onClick={handleSubmitClick}
-              disabled={submitMutation.isPending || submission?.status === "submitted" || submission?.status === "graded"}
-            >
-              <span>{submitMutation.isPending ? "⏳" : submission?.status === "submitted" ? "✅" : "📤"}</span>
-              {submitMutation.isPending
-                ? t("runner.actions.submitting")
-                : submission?.status === "submitted"
-                  ? t("runner.actions.submitted")
-                  : t("runner.actions.submit")}
-            </button>
-          </div>
-
           {/* Question Stepper - full width with proper padding */}
           <div className={styles.questionStepperWrapper}>
             <div className={styles.questionStepper}>
@@ -615,6 +591,21 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           <Chat chatId={null} hideSidebar={true} hideAvatar={true} minimalMode={true} />
         </div>
       </aside>
+
+      {/* Submit Button - Fixed Bottom Right */}
+      <button
+        type="button"
+        className={styles.submitButtonFixed}
+        onClick={handleSubmitClick}
+        disabled={submitMutation.isPending || submission?.status === "submitted" || submission?.status === "graded"}
+      >
+        <span>{submitMutation.isPending ? "⏳" : submission?.status === "submitted" ? "✅" : "📤"}</span>
+        {submitMutation.isPending
+          ? t("runner.actions.submitting")
+          : submission?.status === "submitted"
+            ? t("runner.actions.submitted")
+            : t("runner.actions.submit")}
+      </button>
     </div>
   );
 }

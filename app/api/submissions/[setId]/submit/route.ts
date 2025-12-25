@@ -21,10 +21,10 @@ export async function POST(request: Request, { params }: RouteParams) {
       return NextResponse.json({ message: "Submission not found" }, { status: 404 });
     }
 
-    // Check if this is HW3 and send email
+    // Send confirmation email for all homework submissions
     try {
       const homeworkSet = await getHomeworkSetById(params.setId);
-      if (homeworkSet && (homeworkSet.title === "תרגיל 3" || homeworkSet.title === "תרגיל בית 3")) {
+      if (homeworkSet) {
         // Get student email - studentId might be email or ObjectId
         let studentEmail: string | null = null;
         
@@ -65,15 +65,17 @@ export async function POST(request: Request, { params }: RouteParams) {
 
         // Send email if we have a valid email
         if (studentEmail && studentEmail.includes("@")) {
+          const homeworkTitle = homeworkSet.title || "שיעורי בית";
           await sendEmail({
             to: studentEmail,
-            subject: "תרגיל בית 3 הוגש בהצלחה בקורס בסיסי נתונים",
-            text: "תרגיל בית 3 הוגש בהצלחה בקורס בסיסי נתונים",
+            subject: `${homeworkTitle} הוגש בהצלחה - Michael SQL Assistant`,
+            text: `${homeworkTitle} הוגש בהצלחה בקורס בסיסי נתונים.\n\nתודה על ההגשה!`,
             html: `
               <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #10b981;">תרגיל בית 3 הוגש בהצלחה בקורס בסיסי נתונים</h2>
+                <h2 style="color: #10b981;">${homeworkTitle} הוגש בהצלחה</h2>
                 <p>שלום,</p>
-                <p>תרגיל בית 3 הוגש בהצלחה בקורס בסיסי נתונים.</p>
+                <p>${homeworkTitle} הוגש בהצלחה בקורס בסיסי נתונים.</p>
+                <p>ההגשה ננעלה ואינה ניתנת לעריכה נוספת.</p>
                 <p>תודה על ההגשה!</p>
                 <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
                 <p style="font-size: 12px; color: #666;">Michael SQL Assistant Team</p>

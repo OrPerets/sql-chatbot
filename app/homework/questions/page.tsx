@@ -269,7 +269,7 @@ export default function QuestionsPage() {
   };
 
   const handleSeedExercise3 = async () => {
-    if (!confirm('האם אתה בטוח שברצונך להוסיף את 10 השאלות של תרגיל 3?')) {
+    if (!confirm('האם אתה בטוח שברצונך להוסיף את 13 השאלות של תרגיל 3?')) {
       return;
     }
 

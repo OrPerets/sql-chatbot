@@ -28,7 +28,7 @@ function calculateProgress(set: HomeworkSummary): number {
 // Action configuration
 const cardActions = [
   { key: "edit", icon: Edit3, isPrimary: true },
-  { key: "preview", icon: Eye, isPrimary: false },
+  { key: "solution", icon: Eye, isPrimary: false },
   { key: "publish", icon: Send, isPrimary: false },
   { key: "grade", icon: GraduationCap, isPrimary: false },
 ];
@@ -145,7 +145,7 @@ export default function BuilderDashboardPage() {
               <div className={styles.metaItem}>
                 <dt>{t("builder.dashboard.card.questions")}</dt>
                 <dd>
-                  {formatNumber(set.draftQuestionCount)}/10
+                  {formatNumber(set.draftQuestionCount)}/{formatNumber(set.draftQuestionCount)}
                   {progress < 100 && (
                     <small> ({formatNumber(100 - progress)}% נותר)</small>
                   )}

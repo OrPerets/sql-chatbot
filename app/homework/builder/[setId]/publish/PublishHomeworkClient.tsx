@@ -99,7 +99,10 @@ export function PublishHomeworkClient({ setId }: PublishHomeworkClientProps) {
   }
 
   const isPublished = homework.published;
-  const canPublish = questions.length >= 10; // Must have 10 questions to publish
+  // Allow publishing if at least 10 questions, or if it's תרגיל 3 with 13 questions
+  const isExercise3 = homework.title === "תרגיל 3" || homework.title === "תרגיל בית 3";
+  const minQuestions = isExercise3 ? 13 : 10;
+  const canPublish = questions.length >= minQuestions;
 
   return (
     <div className={styles.container} dir={direction}>
@@ -174,12 +177,12 @@ export function PublishHomeworkClient({ setId }: PublishHomeworkClientProps) {
           <div className={styles.questionsInfo}>
             <div className={styles.questionsCount}>
               <span className={styles.countNumber}>{questions.length}</span>
-              <span className={styles.countLabel}>מתוך 10 שאלות</span>
+              <span className={styles.countLabel}>מתוך {minQuestions} שאלות</span>
             </div>
             {!canPublish && (
               <div className={styles.warning}>
                 <AlertCircle size={16} />
-                <span>יש להוסיף {10 - questions.length} שאלות נוספות לפני הפרסום</span>
+                <span>יש להוסיף {minQuestions - questions.length} שאלות נוספות לפני הפרסום</span>
               </div>
             )}
           </div>
@@ -214,7 +217,7 @@ export function PublishHomeworkClient({ setId }: PublishHomeworkClientProps) {
               className={`${styles.publishButton} ${isPublished ? styles.unpublishButton : ""}`}
               onClick={handlePublish}
               disabled={publishMutation.isPending || !canPublish}
-              title={!canPublish ? "יש להוסיף 10 שאלות לפני הפרסום" : undefined}
+              title={!canPublish ? `יש להוסיף ${minQuestions} שאלות לפני הפרסום` : undefined}
             >
               {publishMutation.isPending ? (
                 "מעבד..."
