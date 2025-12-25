@@ -146,7 +146,7 @@ Enrollments (StudentID, CourseID, EnrollmentDate, Grade)
       });
     }
     
-    // Step 6: Create all 10 questions
+    // Step 6: Create all 13 questions
     const questions = [
       {
         prompt: "הציגו את כל ההרשמות לקורסים שהסטודנטים נרשמו אליהם בסמסטר האחרון (3 חודשים מתאריך הגשת התרגיל הנוכחי).",
@@ -276,6 +276,49 @@ Enrollments (StudentID, CourseID, EnrollmentDate, Grade)
         maxAttempts: 3,
         evaluationMode: "auto" as const,
       },
+      {
+        prompt: "הציגו את רשימת הסטודנטים שגרים באותה עיר כמו המרצה של הקורס שבו הם נרשמו.",
+        instructions: "עליכם להציג את תעודת הזהות של הסטודנט, שם הסטודנט, עיר המגורים, שם הקורס, ושם המרצה. מיינו את הרשימה לפי שם הסטודנט בסדר אלפביתי. (סכמה: תעודת זהות, שם סטודנט, עיר מגורים, שם קורס, שם מרצה).",
+        starterSql: "",
+        expectedResultSchema: [
+          { column: "תעודת זהות", type: "string" },
+          { column: "שם סטודנט", type: "string" },
+          { column: "עיר מגורים", type: "string" },
+          { column: "שם קורס", type: "string" },
+          { column: "שם מרצה", type: "string" }
+        ],
+        points: 10,
+        maxAttempts: 3,
+        evaluationMode: "auto" as const,
+      },
+      {
+        prompt: "הנהלת המכללה מעוניינת לקטלג את הסטודנטים לפי טווחי ציונים. הציגו את כל הסטודנטים עם קטגוריזציה של הציונים שלהם: 'מצוין' (90-100), 'טוב מאוד' (80-89), 'טוב' (70-79), 'מספיק' (60-69), 'לא מספיק' (מתחת ל-60).",
+        instructions: "עליכם להציג את תעודת הזהות של הסטודנט, שם הסטודנט, ממוצע הציונים, וקטגוריית הציון. מיינו את הרשימה לפי ממוצע הציונים מהגבוה לנמוך. (סכמה: תעודת זהות, שם סטודנט, ממוצע ציונים, קטגוריית ציון).",
+        starterSql: "",
+        expectedResultSchema: [
+          { column: "תעודת זהות", type: "string" },
+          { column: "שם סטודנט", type: "string" },
+          { column: "ממוצע ציונים", type: "number" },
+          { column: "קטגוריית ציון", type: "string" }
+        ],
+        points: 10,
+        maxAttempts: 3,
+        evaluationMode: "auto" as const,
+      },
+      {
+        prompt: "הציגו את שלושת הקורסים עם הממוצע הגבוה ביותר של ציונים. אם יש קשרים, הציגו את כל הקורסים עם אותו ממוצע.",
+        instructions: "עליכם להציג את קוד הקורס, שם הקורס, ממוצע הציונים, ומספר הסטודנטים שנרשמו לקורס. מיינו את הרשימה לפי ממוצע הציונים מהגבוה לנמוך. (סכמה: קוד קורס, שם קורס, ממוצע ציונים, מספר סטודנטים).",
+        starterSql: "",
+        expectedResultSchema: [
+          { column: "קוד קורס", type: "string" },
+          { column: "שם קורס", type: "string" },
+          { column: "ממוצע ציונים", type: "number" },
+          { column: "מספר סטודנטים", type: "number" }
+        ],
+        points: 10,
+        maxAttempts: 3,
+        evaluationMode: "auto" as const,
+      },
     ];
 
     const questionIds: string[] = [];
@@ -309,7 +352,7 @@ Enrollments (StudentID, CourseID, EnrollmentDate, Grade)
       datasetId: exercise3Dataset.id,
       questionsCreated: questionIds.length,
       deletedHomeworkSets: allHomeworkSets.items.length - 1,
-      message: "תרגיל 3 הוגדר בהצלחה עם כל השאלות והמסד נתונים",
+      message: "תרגיל 3 הוגדר בהצלחה עם 13 שאלות והמסד נתונים",
     });
   } catch (error) {
     console.error("Error setting up Exercise 3:", error);

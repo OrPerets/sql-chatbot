@@ -735,48 +735,52 @@
   border-radius: 4px;
 }
 
-/* Header Actions - Submit button in top right */
+/* Header Actions - Submit button in top right (removed, now using fixed button) */
 .headerActions {
-  position: absolute;
-  top: 12px;
-  right: 16px;
-  z-index: 10;
-  display: flex;
-  align-items: center;
+  display: none;
 }
 
 .submitButtonHeader {
+  display: none;
+}
+
+/* Fixed Submit Button - Bottom Right */
+.submitButtonFixed {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 100;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
-  font-size: 14px;
+  padding: 14px 24px;
+  font-size: 15px;
   font-weight: 600;
   color: #ffffff;
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
 }
 
-.submitButtonHeader:hover:not(:disabled) {
+.submitButtonFixed:hover:not(:disabled) {
   background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
 }
 
-.submitButtonHeader:disabled {
+.submitButtonFixed:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
-  box-shadow: none;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
 }
 
-.submitButtonHeader span {
-  font-size: 15px;
+.submitButtonFixed span {
+  font-size: 16px;
 }
 
 /* Main Submit Button - positioned with run button */
@@ -2247,9 +2251,15 @@
     font-size: 13px;
   }
   
-  .submitButtonHeader {
-    padding: 6px 12px;
-    font-size: 12px;
+  .submitButtonFixed {
+    bottom: 16px;
+    right: 16px;
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+  
+  .submitButtonFixed span {
+    font-size: 14px;
   }
   
   .questionStepperWrapper {
@@ -2650,9 +2660,15 @@
     font-size: 12px;
   }
   
-  .submitButtonHeader {
-    padding: 6px 10px;
-    font-size: 11px;
+  .submitButtonFixed {
+    bottom: 12px;
+    right: 12px;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  
+  .submitButtonFixed span {
+    font-size: 13px;
   }
   
   .workspaceTopBar {
@@ -2663,11 +2679,6 @@
   
   .questionStepper {
     order: 1;
-  }
-  
-  .submitButtonHeader {
-    order: 2;
-    align-self: flex-end;
   }
   
   .feedbackPanel {

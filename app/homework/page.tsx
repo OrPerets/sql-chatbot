@@ -6,7 +6,7 @@ const quickLinks = [
   {
     href: "/homework/builder",
     label: "ממשק הבנייה",
-    description: "יצירה וניהול של מטלות בנות 10 שאלות SQL",
+    description: "יצירה וניהול של מטלות SQL (עד 25 שאלות)",
     icon: <Settings size={24} />,
     color: "primary",
   },
