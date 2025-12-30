@@ -105,6 +105,43 @@ const transformBackgroundStory = (story: string | undefined, title: string): str
   return story;
 };
 
+// Database sample data for each table (matches תרגיל 3 schema)
+const DATABASE_SAMPLE_DATA: Record<string, { columns: string[]; rows: Record<string, string | number>[] }> = {
+  Students: {
+    columns: ["StudentID", "FirstName", "LastName", "BirthDate", "City", "Email"],
+    rows: [
+      { StudentID: 1, FirstName: "יעל", LastName: "כהן", BirthDate: "1999-03-15", City: "תל אביב", Email: "yael@example.com" },
+      { StudentID: 2, FirstName: "דוד", LastName: "לוי", BirthDate: "2000-07-22", City: "חיפה", Email: "david@example.com" },
+      { StudentID: 3, FirstName: "שרה", LastName: "מזרחי", BirthDate: "1998-11-08", City: "ירושלים", Email: "sara@example.com" },
+    ],
+  },
+  Courses: {
+    columns: ["CourseID", "CourseName", "Credits", "Department"],
+    rows: [
+      { CourseID: 101, CourseName: "מבוא למערכות מידע", Credits: 3, Department: "מערכות מידע" },
+      { CourseID: 102, CourseName: "מסדי נתונים", Credits: 4, Department: "מדעי המחשב" },
+      { CourseID: 103, CourseName: "תכנות מתקדם", Credits: 3, Department: "מדעי המחשב" },
+    ],
+  },
+  Lecturers: {
+    columns: ["LecturerID", "FirstName", "LastName", "City", "HireDate", "CourseID", "Seniority"],
+    rows: [
+      { LecturerID: 1, FirstName: "משה", LastName: "אברהם", City: "תל אביב", HireDate: "2015-09-01", CourseID: 101, Seniority: 9 },
+      { LecturerID: 2, FirstName: "רות", LastName: "בנימין", City: "חיפה", HireDate: "2018-03-15", CourseID: 102, Seniority: 6 },
+      { LecturerID: 3, FirstName: "יוסף", LastName: "כהן", City: "ירושלים", HireDate: "2020-10-01", CourseID: 103, Seniority: 4 },
+    ],
+  },
+  Enrollments: {
+    columns: ["StudentID", "CourseID", "EnrollmentDate", "Grade"],
+    rows: [
+      { StudentID: 1, CourseID: 101, EnrollmentDate: "2024-09-01", Grade: 85 },
+      { StudentID: 1, CourseID: 102, EnrollmentDate: "2024-09-01", Grade: 92 },
+      { StudentID: 2, CourseID: 101, EnrollmentDate: "2024-09-01", Grade: 78 },
+      { StudentID: 3, CourseID: 103, EnrollmentDate: "2024-09-01", Grade: 88 },
+    ],
+  },
+};
+
 export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const queryClient = useQueryClient();
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
@@ -112,9 +149,15 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const [autosaveState, setAutosaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showDatabaseViewer, setShowDatabaseViewer] = useState(false);
+  const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
   const pendingRef = useRef<Record<string, PendingSave>>({});
   const { t, direction, formatDateTime, formatNumber } = useHomeworkLocale();
   const backArrow = direction === "rtl" ? "→" : "←";
+
+  const toggleTableExpanded = useCallback((tableName: string) => {
+    setExpandedTables((prev) => ({ ...prev, [tableName]: !prev[tableName] }));
+  }, []);
 
   const clearPendingSaves = useCallback(() => {
     Object.values(pendingRef.current).forEach((pending) => {
@@ -455,6 +498,64 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               instructions={transformBackgroundStory(homework.backgroundStory, homework.title)} 
             />
           )}
+          
+          {/* Database Viewer Button */}
+          <div className={styles.databaseViewerSection}>
+            <button
+              type="button"
+              className={styles.databaseViewerButton}
+              onClick={() => setShowDatabaseViewer(!showDatabaseViewer)}
+            >
+              <span>🗃️</span>
+              {showDatabaseViewer ? "הסתר נתוני דוגמא" : "הצג נתוני דוגמא מהטבלאות"}
+            </button>
+            
+            {showDatabaseViewer && (
+              <div className={styles.databaseViewer}>
+                <p className={styles.databaseViewerNote}>
+                  להלן נתונים לדוגמא מכל טבלה בבסיס הנתונים:
+                </p>
+                {Object.entries(DATABASE_SAMPLE_DATA).map(([tableName, tableData]) => (
+                  <div key={tableName} className={styles.tableSection}>
+                    <button
+                      type="button"
+                      className={styles.tableHeader}
+                      onClick={() => toggleTableExpanded(tableName)}
+                    >
+                      <span className={styles.tableToggle}>
+                        {expandedTables[tableName] ? "▼" : "▶"}
+                      </span>
+                      <span className={styles.tableName}>{tableName}</span>
+                      <span className={styles.tableRowCount}>({tableData.rows.length} שורות)</span>
+                    </button>
+                    
+                    {expandedTables[tableName] && (
+                      <div className={styles.tableSampleData}>
+                        <table className={styles.sampleDataTable}>
+                          <thead>
+                            <tr>
+                              {tableData.columns.map((col) => (
+                                <th key={col}>{col}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {tableData.rows.map((row, idx) => (
+                              <tr key={idx}>
+                                {tableData.columns.map((col) => (
+                                  <td key={col}>{String(row[col] ?? "")}</td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </aside>
 
@@ -490,6 +591,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           
           <div className={styles.questionContent}>
             <h3>{activeQuestion?.prompt ?? t("runner.question.placeholder")}</h3>
+          </div>
+          <div className={styles.unknownAnswerNote}>
+            💡 עבור שאלות שאינכם יודעים לענות, עליכם לרשום &quot;X&quot;
           </div>
         </header>
 
@@ -529,6 +633,36 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               </div>
             </div>
             <div className={styles.editorActions}>
+              {/* Navigation Buttons */}
+              <div className={styles.navigationButtons}>
+                <button
+                  type="button"
+                  className={styles.navButtonPrev}
+                  onClick={() => {
+                    const currentIndex = questions.findIndex(q => q.id === activeQuestionId);
+                    if (currentIndex > 0) {
+                      setActiveQuestionId(questions[currentIndex - 1].id);
+                    }
+                  }}
+                  disabled={questions.findIndex(q => q.id === activeQuestionId) <= 0}
+                >
+                  ← שאלה קודמת
+                </button>
+                <button
+                  type="button"
+                  className={styles.navButtonNext}
+                  onClick={() => {
+                    const currentIndex = questions.findIndex(q => q.id === activeQuestionId);
+                    if (currentIndex < questions.length - 1) {
+                      setActiveQuestionId(questions[currentIndex + 1].id);
+                    }
+                  }}
+                  disabled={questions.findIndex(q => q.id === activeQuestionId) >= questions.length - 1}
+                >
+                  שאלה הבאה →
+                </button>
+              </div>
+              
               <button
                 type="button"
                 className={styles.runButton}

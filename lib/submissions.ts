@@ -867,11 +867,62 @@ export class SubmissionsService {
         console.log('✅ Created sample Employees table using alasql');
       }
       
+      // Normalize SQL query to handle case-insensitivity for column/table names
+      const normalizeSQL = (sql: string): string => {
+        // Define the correct case for all table and column names
+        const caseMap: Record<string, string> = {
+          // Table names
+          'students': 'Students',
+          'courses': 'Courses',
+          'lecturers': 'Lecturers',
+          'enrollments': 'Enrollments',
+          'employees': 'Employees',
+          // Column names - Students
+          'studentid': 'StudentID',
+          'firstname': 'FirstName',
+          'lastname': 'LastName',
+          'birthdate': 'BirthDate',
+          'city': 'City',
+          'email': 'Email',
+          // Column names - Courses
+          'courseid': 'CourseID',
+          'coursename': 'CourseName',
+          'credits': 'Credits',
+          'department': 'Department',
+          // Column names - Lecturers
+          'lecturerid': 'LecturerID',
+          'hiredate': 'HireDate',
+          'seniority': 'Seniority',
+          // Column names - Enrollments
+          'enrollmentdate': 'EnrollmentDate',
+          'grade': 'Grade',
+          // Column names - Employees (fallback table)
+          'id': 'id',
+          'name': 'name',
+          'salary': 'salary',
+          'hire_date': 'hire_date',
+        };
+        
+        // Replace all occurrences (word boundaries to avoid partial matches)
+        let normalizedSql = sql;
+        for (const [lower, correct] of Object.entries(caseMap)) {
+          // Use regex with word boundary and case-insensitive flag
+          const regex = new RegExp(`\\b${lower}\\b`, 'gi');
+          normalizedSql = normalizedSql.replace(regex, correct);
+        }
+        
+        return normalizedSql;
+      };
+      
+      const normalizedSql = normalizeSQL(payload.sql);
+      console.log('🔵 Original SQL:', payload.sql);
+      console.log('🔵 Normalized SQL:', normalizedSql);
+      
       // Execute the SQL query using alasql
       let result: any[];
       let columns: string[] = [];
       try {
-        result = alasql(payload.sql);
+        result = alasql(normalizedSql);
         console.log('✅ SQL executed successfully, result type:', typeof result, 'length:', Array.isArray(result) ? result.length : 'N/A');
         
         // If result is an array of objects, extract columns from first row
