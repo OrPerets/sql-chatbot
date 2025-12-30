@@ -269,7 +269,7 @@ export function StudentEntryClient() {
                   לאחר סיום הפתרון, לחצו על &quot;הגש שיעור בית&quot;
                 </div>
                 <div className={styles.instructionItem}>
-                  למעוניינים להשתמש בכלי AI, ניתן להשתמש במייקל אשר זמין לשימושמכם במהלך התרגיל. במידהתמשתם בכלי חיצוני (לא מייקל), יש לצרף העתק מלא של השיחה עם מודל הבינה מלאכותית.
+                  למעוניינים להשתמש בכלי AI, ניתן להשתמש במייקל אשר זמין לשימושכם במהלך התרגיל. במידה והשתמשתם בכלי חיצוני (לא מייקל), יש לצרף העתק מלא של השיחה עם מודל הבינה מלאכותית.
                 </div>
                 <div className={styles.instructionItem}>
                   אין להגיש תרגילים בכתב יד, אלא רק דרך ממשק זה.
@@ -282,6 +282,9 @@ export function StudentEntryClient() {
                 </div>
                 <div className={styles.instructionItem}>
                   במועד ההגשה, ישלח לכם מייל אישור שההגשה התקבלה.
+                </div>
+                <div className={styles.instructionItem}>
+                  בסיס הנתונים נבנה ע&quot;י מייקל וזמין עבורכם (אינכם נדרשים לבנות את פקודות CREATE ופקודות INSERT עבור 4 הטבלאות בבסיס הנתונים של התרגיל).
                 </div>
                 <div className={styles.instructionItem}>
                   בהצלחה! 🎯
