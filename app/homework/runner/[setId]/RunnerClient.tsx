@@ -150,6 +150,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showDatabaseViewer, setShowDatabaseViewer] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
   const pendingRef = useRef<Record<string, PendingSave>>({});
   const { t, direction, formatDateTime, formatNumber } = useHomeworkLocale();
@@ -459,6 +460,32 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const statusLabel = submission?.status ? t(`runner.status.${submission.status}`) : t("runner.status.in_progress");
   const autosaveLabel = t(`runner.progress.autosave.${autosaveState}`);
 
+  const handleDownloadDatabasePdf = useCallback(async () => {
+    try {
+      setIsDownloadingPdf(true);
+      const response = await fetch(`/api/homework/${setId}/database-pdf?studentId=${studentId}`);
+
+      if (!response.ok) {
+        console.error("Failed to download database PDF", await response.text());
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `database-${setId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error downloading database PDF", error);
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  }, [setId, studentId]);
+
   return (
     <div className={styles.runner} dir={direction}>
 
@@ -494,13 +521,23 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       <aside className={styles.sidebar}>
         <div className={styles.assignmentMeta}>
           {homework.backgroundStory && (
-            <InstructionsSection 
-              instructions={transformBackgroundStory(homework.backgroundStory, homework.title)} 
+            <InstructionsSection
+              instructions={transformBackgroundStory(homework.backgroundStory, homework.title)}
             />
           )}
-          
+
           {/* Database Viewer Button */}
           <div className={styles.databaseViewerSection}>
+            <button
+              type="button"
+              className={styles.databasePdfButton}
+              onClick={handleDownloadDatabasePdf}
+              disabled={isDownloadingPdf}
+            >
+              <span>📄</span>
+              {isDownloadingPdf ? "יוצר PDF..." : "הורד PDF של מסד הנתונים"}
+            </button>
+
             <button
               type="button"
               className={styles.databaseViewerButton}
@@ -571,14 +608,14 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 const answer = answers[qId];
                 const isCompleted = Boolean(answer?.feedback?.score);
                 const questionNum = index + 1;
-                
+
                 return (
                   <div key={qId} className={styles.stepperItem}>
-                    <div 
+                    <div
                       className={`${styles.stepperCircle} ${isActive ? styles.stepperCircleActive : ''} ${isCompleted ? styles.stepperCircleCompleted : ''}`}
                       onClick={() => setActiveQuestionId(qId)}
                     >
-                      {isCompleted ? '✓' : questionNum}
+                      {isCompleted ? '⚡' : questionNum}
                     </div>
                     {index < questions.length - 1 && (
                       <div className={`${styles.stepperLine} ${isCompleted ? styles.stepperLineCompleted : ''}`} />
@@ -588,9 +625,12 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               })}
             </div>
           </div>
-          
+
           <div className={styles.questionContent}>
             <h3>{activeQuestion?.prompt ?? t("runner.question.placeholder")}</h3>
+            {activeQuestion?.instructions && (
+              <p className={styles.instructions}>{activeQuestion.instructions}</p>
+            )}
           </div>
           <div className={styles.unknownAnswerNote}>
             💡 עבור שאלות שאינכם יודעים לענות, עליכם לרשום &quot;X&quot;
