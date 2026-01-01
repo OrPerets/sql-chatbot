@@ -14,6 +14,7 @@ import { listAnalyticsEvents } from "@/app/homework/services/analyticsService";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 import type { Question, QuestionProgress, Submission, SqlAnswer } from "@/app/homework/types";
 import styles from "./grade.module.css";
+import { exportHomeworkGradesToExcel } from "@/lib/excel-export";
 
 interface GradeHomeworkClientProps {
   setId: string;
@@ -73,6 +74,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
   const [questionGradeDraft, setQuestionGradeDraft] = useState<QuestionGradeDraft>({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
+  const [isExporting, setIsExporting] = useState(false);
   
   // Filtering & Sorting State
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
@@ -495,6 +497,42 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
     },
   });
 
+  const handleExportGrades = useCallback(async () => {
+    if (isExporting) return;
+
+    try {
+      setIsExporting(true);
+      const questions = questionsQuery.data ?? [];
+      const summaries = summariesQuery.data ?? [];
+
+      if (questions.length === 0 || summaries.length === 0) {
+        setStatusMessage("אין נתונים זמינים לייצוא");
+        return;
+      }
+
+      const submissions = await Promise.all(
+        summaries.map((summary) => getSubmissionById(summary.id).catch(() => null))
+      );
+
+      const validSubmissions = submissions.filter((submission): submission is Submission => submission !== null);
+      const datePart = new Date().toISOString().split("T")[0];
+
+      exportHomeworkGradesToExcel({
+        homeworkTitle: homeworkQuery.data?.title ?? setId,
+        questions,
+        submissions: validSubmissions,
+        fileName: `תרגיל-3-הגשות-${datePart}.xlsx`,
+      });
+
+      setStatusMessage("קובץ הציונים נוצר בהצלחה");
+    } catch (error) {
+      console.error("Failed to export grades", error);
+      setStatusMessage("אירעה שגיאה בעת ייצוא הציונים");
+    } finally {
+      setIsExporting(false);
+    }
+  }, [homeworkQuery.data?.title, isExporting, questionsQuery.data, setId, summariesQuery.data]);
+
   // Bulk grading helpers
   const handleBulkScoreChange = useCallback((newScore: number) => {
     if (!activeQuestionId) return;
@@ -668,6 +706,14 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
           <span>{formatNumber(summaries.length)} {t("builder.grade.submissions")}</span>
           <span>{formatNumber(gradedCount)} {t("builder.grade.graded")}</span>
           {typeof averageScore === "number" && <span>{t("builder.grade.avgScore")}: {formatNumber(averageScore)}</span>}
+          <button
+            type="button"
+            className={styles.exportButton}
+            onClick={handleExportGrades}
+            disabled={isExporting || summaries.length === 0}
+          >
+            {isExporting ? "מייצא..." : "ייצא ציונים ל-Excel"}
+          </button>
           <button
             type="button"
             className={styles.publishButton}
