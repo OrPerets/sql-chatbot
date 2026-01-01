@@ -29,6 +29,7 @@ export async function POST(request, { params: { threadId } }) {
     let weeklyContext = '';
     let currentWeekNumber: number | null = null;
     try {
+<<<<<<< HEAD
       // Use the same function that get_course_week_context uses to ensure consistency
       const { getCurrentWeekContextNormalized } = await import('@/lib/content');
       const weekContext = await getCurrentWeekContextNormalized(null);
@@ -56,6 +57,16 @@ You MUST call get_course_week_context() to get the complete list of allowed/forb
 The weekNumber from that function is the SOURCE OF TRUTH. Use it, not any other number.]`;
       } else {
         console.warn('[messages-route] Could not determine current week - weekNumber is null');
+=======
+      const weeklyUrl = new URL('/api/mcp-michael/current-week', request.url).toString();
+      const weeklyResponse = await fetch(weeklyUrl);
+      if (weeklyResponse.ok) {
+        const weeklyData = await weeklyResponse.json();
+        const weekNum = weeklyData.weekNumber ?? weeklyData.currentWeek; // support both shapes during rollout
+        if (weeklyData.content && weeklyData.content.trim()) {
+          weeklyContext = `\n\n[Current Week Context - Week ${weekNum}: ${weeklyData.content}. IMPORTANT: Only use SQL concepts taught up to week ${weekNum}. Do NOT use JOINs before week 7, or sub-queries before week 9.]`;
+        }
+>>>>>>> origin/main
       }
     } catch (weeklyError) {
       console.error('[messages-route] Could not fetch weekly context:', weeklyError);
