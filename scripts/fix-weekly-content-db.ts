@@ -1,3 +1,9 @@
+/**
+ * Fix weekly content in database - clean Hebrew text
+ * 
+ * This script fixes corrupted/mixed Hebrew-gibberish content in the weekly_content collection
+ */
+
 import { connectToDatabase, COLLECTIONS } from '../lib/database';
 
 interface WeeklyContentDoc {
@@ -8,13 +14,13 @@ interface WeeklyContentDoc {
   updatedAt: string;
 }
 
-// Semester data from the provided calendar
+// Semester data
 const SEMESTER_START_DATE = '2025-11-05'; // 5.11.2025
 
-const WEEKLY_CONTENT: Array<{week: number, date: string, content: string}> = [
+// Clean weekly content based on documentation
+const CLEAN_WEEKLY_CONTENT: Array<{week: number, content: string}> = [
   {
     week: 1,
-    date: '5.11.2025',
     content: `הגדרות בסיסיות / DDL / יצירת טבלאות
 
 נושאים עיקריים:
@@ -26,7 +32,6 @@ const WEEKLY_CONTENT: Array<{week: number, date: string, content: string}> = [
   },
   {
     week: 2,
-    date: '12.11.2025',
     content: `אילוצים / SELECT / MYSQL
 
 נושאים עיקריים:
@@ -38,7 +43,6 @@ const WEEKLY_CONTENT: Array<{week: number, date: string, content: string}> = [
   },
   {
     week: 3,
-    date: '19.11.2025',
     content: `FROM / WHERE / BETWEEN / LIKE
 
 נושאים עיקריים:
@@ -50,7 +54,6 @@ const WEEKLY_CONTENT: Array<{week: number, date: string, content: string}> = [
   },
   {
     week: 4,
-    date: '26.11.2025',
     content: `צירוף יחסיים / GROUP BY
 
 נושאים עיקריים:
@@ -61,7 +64,6 @@ const WEEKLY_CONTENT: Array<{week: number, date: string, content: string}> = [
   },
   {
     week: 5,
-    date: '3.12.2025',
     content: `משתנים ופונקציות ב-SQL
 
 נושאים עיקריים:
@@ -71,7 +73,6 @@ const WEEKLY_CONTENT: Array<{week: number, date: string, content: string}> = [
   },
   {
     week: 6,
-    date: '10.12.2025',
     content: `COUNT / DISTINCT / GROUP BY
 
 נושאים עיקריים:
@@ -82,7 +83,6 @@ const WEEKLY_CONTENT: Array<{week: number, date: string, content: string}> = [
   },
   {
     week: 7,
-    date: '17.12.2025',
     content: `JOIN / ON / USING
 
 נושאים עיקריים:
@@ -93,7 +93,6 @@ const WEEKLY_CONTENT: Array<{week: number, date: string, content: string}> = [
   },
   {
     week: 8,
-    date: '24.12.2025',
     content: `NULL / DML: INSERT, UPDATE, DELETE
 
 נושאים עיקריים:
@@ -105,7 +104,6 @@ const WEEKLY_CONTENT: Array<{week: number, date: string, content: string}> = [
   },
   {
     week: 9,
-    date: '31.12.2025',
     content: `תתי שאילות / תרגול Holmes Place
 
 נושאים עיקריים:
@@ -115,7 +113,6 @@ const WEEKLY_CONTENT: Array<{week: number, date: string, content: string}> = [
   },
   {
     week: 10,
-    date: '7.1.2026',
     content: `מפתח ראשי / מפתח זר / DDL
 
 נושאים עיקריים:
@@ -125,7 +122,6 @@ const WEEKLY_CONTENT: Array<{week: number, date: string, content: string}> = [
   },
   {
     week: 11,
-    date: '14.1.2026',
     content: `ALTER / אינדקס / תרגול
 
 נושאים עיקריים:
@@ -136,7 +132,6 @@ const WEEKLY_CONTENT: Array<{week: number, date: string, content: string}> = [
   },
   {
     week: 12,
-    date: '21.1.2026',
     content: `DROP / VIEWS / טבלאות זמניות
 
 נושאים עיקריים:
@@ -147,7 +142,6 @@ const WEEKLY_CONTENT: Array<{week: number, date: string, content: string}> = [
   },
   {
     week: 13,
-    date: '28.1.2026',
     content: `טריגרים / טבלאות וירטואליות
 
 נושאים עיקריים:
@@ -157,7 +151,7 @@ const WEEKLY_CONTENT: Array<{week: number, date: string, content: string}> = [
   }
 ];
 
-async function populateSemesterCalendar() {
+async function fixWeeklyContent() {
   try {
     console.log('🔌 Connecting to database...');
     const { db } = await connectToDatabase();
@@ -178,22 +172,25 @@ async function populateSemesterCalendar() {
     // 2. Calculate date ranges for each week
     const startDate = new Date(SEMESTER_START_DATE);
     
-    // 3. Insert weekly content
-    console.log('📚 Inserting weekly content...');
+    // 3. Fix weekly content
+    console.log('📚 Fixing weekly content...');
     let successCount = 0;
     
-    for (const week of WEEKLY_CONTENT) {
+    for (const week of CLEAN_WEEKLY_CONTENT) {
       const weekStart = new Date(startDate.getTime() + (week.week - 1) * 7 * 24 * 60 * 60 * 1000);
       const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
       const dateRange = `${weekStart.toLocaleDateString('he-IL')} - ${weekEnd.toLocaleDateString('he-IL')}`;
       
       const weekDoc: WeeklyContentDoc = {
         week: week.week,
-        content: week.content,
+        content: week.content.trim(),
         dateRange: dateRange,
-        updatedBy: 'admin-migration',
+        updatedBy: 'admin-fix-script',
         updatedAt: new Date().toISOString()
       };
+      
+      // Get existing content to compare
+      const existing = await db.collection<WeeklyContentDoc>(COLLECTIONS.WEEKLY_CONTENT).findOne({ week: week.week });
       
       await db.collection<WeeklyContentDoc>(COLLECTIONS.WEEKLY_CONTENT).replaceOne(
         { week: week.week },
@@ -202,42 +199,52 @@ async function populateSemesterCalendar() {
       );
       
       successCount++;
-      console.log(`✅ Week ${week.week} (${week.date}): Content inserted`);
+      const changed = existing && existing.content !== week.content.trim();
+      console.log(`✅ Week ${week.week}: ${changed ? 'UPDATED' : 'VERIFIED'} - ${dateRange}`);
     }
     
-    console.log(`\n🎉 Successfully populated ${successCount} weeks of content!`);
-    console.log(`📊 Semester: ${SEMESTER_START_DATE} - ${WEEKLY_CONTENT.length} weeks`);
+    console.log(`\n🎉 Successfully fixed ${successCount} weeks of content!`);
     
     // 4. Verify the data
     console.log('\n🔍 Verifying data...');
-    const semesterConfig = await db.collection(COLLECTIONS.SEMESTER_CONFIG).findOne({ type: 'semester_start' });
     const weeklyContent = await db.collection(COLLECTIONS.WEEKLY_CONTENT).find({}).sort({ week: 1 }).toArray();
     
-    console.log(`\n📅 Semester Start Date: ${semesterConfig?.startDate}`);
     console.log(`📚 Total Weeks in Database: ${weeklyContent.length}`);
     
-    // Show first and last week as examples
+    // Show sample weeks
     if (weeklyContent.length > 0) {
       console.log('\n📖 Sample - Week 1:');
       console.log(`   Date Range: ${weeklyContent[0].dateRange}`);
-      console.log(`   Content Preview: ${weeklyContent[0].content.substring(0, 100)}...`);
+      console.log(`   Content Preview: ${weeklyContent[0].content.substring(0, 80)}...`);
       
-      const lastWeek = weeklyContent[weeklyContent.length - 1];
-      console.log(`\n📖 Sample - Week ${lastWeek.week}:`);
-      console.log(`   Date Range: ${lastWeek.dateRange}`);
-      console.log(`   Content Preview: ${lastWeek.content.substring(0, 100)}...`);
+      if (weeklyContent.length >= 7) {
+        console.log(`\n📖 Sample - Week 7 (JOIN):`);
+        const week7 = weeklyContent.find(w => w.week === 7);
+        if (week7) {
+          console.log(`   Date Range: ${week7.dateRange}`);
+          console.log(`   Content Preview: ${week7.content.substring(0, 80)}...`);
+        }
+      }
+      
+      if (weeklyContent.length >= 9) {
+        console.log(`\n📖 Sample - Week 9 (Sub-queries):`);
+        const week9 = weeklyContent.find(w => w.week === 9);
+        if (week9) {
+          console.log(`   Date Range: ${week9.dateRange}`);
+          console.log(`   Content Preview: ${week9.content.substring(0, 80)}...`);
+        }
+      }
     }
     
-    console.log('\n✅ Migration completed successfully!');
-    console.log('💡 You can now view this in the admin panel at /admin/mcp-michael');
+    console.log('\n✅ Database fix completed successfully!');
+    console.log('💡 You can now view the clean content in the admin panel at /admin/mcp-michael');
     
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error populating semester calendar:', error);
+    console.error('❌ Error fixing weekly content:', error);
     process.exit(1);
   }
 }
 
-// Run the migration
-populateSemesterCalendar();
-
+// Run the fix
+fixWeeklyContent();

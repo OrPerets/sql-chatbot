@@ -1,317 +1,385 @@
-# Fix: AI Assistant Using Advanced SQL Concepts Before They're Taught
+# MCP Mechanism Fix - Week Context Awareness Issue
 
-## Problem Summary
-The MCP Michael AI assistant is responding to student questions with SQL concepts (JOINs, sub-queries) that haven't been studied yet according to the semester calendar. For example, if students are in week 3, the assistant shouldn't use JOINs (taught in week 7) or sub-queries (taught in week 9).
+## ✅ LATEST FIX (Current Session)
+**Issue:** Assistant was providing ALTER TABLE examples in week 9, even though ALTER is taught in week 11.
+
+**Fix Applied:**
+1. Strengthened assistant instructions with explicit prohibition rules
+2. Added Hebrew response templates for forbidden concepts
+3. Enhanced function description to emphasize checking forbiddenConcepts
+4. Added specific examples: "If asked about ALTER in week 9, say it's learned in week 11 and suggest CREATE TABLE instead"
+
+**Status:** Instructions updated. Assistant needs to be updated via `/api/assistants/update` endpoint.
+
+---
+
+## Problem Description
+
+**Current Issue:** In week 9, the chatbot incorrectly states that students haven't reached JOIN operations, even though JOIN is taught in week 7. The chatbot should be aware that in week 9, students have learned concepts from weeks 1-9 (cumulative), including JOIN.
+
+**Expected Behavior:** 
+- Week 9 should include all concepts from weeks 1-9
+- JOIN (taught in week 7) should be available in week 9
+- The assistant should call `get_course_week_context()` before answering SQL questions
+- The assistant should respect `sqlRestrictions.allowedConcepts` and `sqlRestrictions.forbiddenConcepts`
+
+**Actual Behavior:**
+- The assistant is saying JOIN hasn't been reached in week 9
+- This suggests either:
+  1. The function `get_course_week_context()` is not being called
+  2. The function is called but the week number is incorrect
+  3. The function is called but the assistant is not respecting the restrictions properly
+  4. The week calculation logic is wrong
+
+---
 
 ## Root Cause Analysis
 
-### Current Implementation Issues
+### 1. Function Call Reliability
+**Location:** `app/api/assistants/update/route.ts`, `app/api/assistants/route.ts`
 
-1. **Assistant Instructions Don't Restrict SQL Concepts**
-   - Location: `app/api/assistants/update/route.ts` and `app/api/assistants/route.ts`
-   - Problem: Instructions only tell the assistant to call `get_course_week_context` for questions about "what we learn this week", NOT for general SQL questions
-   - The assistant has no guidance to restrict SQL concepts based on curriculum week
+**Issue:** The assistant instructions say "MUST call get_course_week_context()" but there's no technical enforcement. The OpenAI Assistants API doesn't support "required" functions - it relies on the LLM to follow instructions.
 
-2. **Weekly Context Not Automatically Used**
-   - Location: `app/api/assistants/threads/[threadId]/messages/route.ts`
-   - Current: Weekly context is only injected if `MCP_FORCE_PROMPT_CONTEXT=1` environment variable is set
-   - Problem: Even when injected, the assistant instructions don't tell it to USE this context to restrict SQL concepts
+**Current Instructions:**
+```
+CRITICAL: Before answering ANY SQL-related question, you MUST:
+1. Call get_course_week_context() to determine the current academic week
+2. Check the sqlRestrictions field in the response to see which concepts are allowed/forbidden
+```
 
-3. **No SQL Concept-to-Week Mapping**
-   - There's no explicit mapping of SQL concepts to curriculum weeks
-   - The assistant can't know which concepts are allowed for which week
+**Problem:** The assistant might skip this step, especially for:
+- General SQL questions that don't explicitly mention "week" or "course"
+- Questions where the assistant thinks it knows the answer
+- Questions that seem unrelated to weekly context
 
-### Curriculum Week Mapping (from `docs/semester-calendar-setup.md`)
+### 2. Week Calculation Logic
+**Location:** `lib/content.ts` - `getCurrentWeekContextNormalized()`
 
-| Week | Topics | SQL Concepts Allowed |
-|------|--------|---------------------|
-| 1 | הגדרות בסיסיות / DDL / יצירת טבלאות | CREATE TABLE, DDL basics |
-| 2 | אילוצים / SELECT / MYSQL | SELECT, constraints |
-| 3 | FROM / WHERE / BETWEEN / LIKE | FROM, WHERE, BETWEEN, LIKE |
-| 4 | צירוף יחסיים / GROUP BY | GROUP BY (basic) |
-| 5 | משתנים ופונקציות ב-SQL | SQL functions, variables |
-| 6 | COUNT / DISTINCT / GROUP BY | COUNT, DISTINCT, GROUP BY (advanced) |
-| 7 | JOIN / ON / USING | **JOIN, ON, USING** |
-| 8 | NULL / DML: INSERT, UPDATE, DELETE | NULL, INSERT, UPDATE, DELETE |
-| 9 | תתי שאילות / תרגול Holmes Place | **Sub-queries** |
-| 10 | מפתח ראשי / מפתח זר / DDL | Primary keys, Foreign keys |
-| 11 | ALTER / אינדקס / תרגול | ALTER, indexes |
-| 12 | DROP / VIEWS / טבלאות זמניות | DROP, VIEWS, temporary tables |
-| 13 | טריגרים / טבלאות וירטואליות | Triggers, virtual tables |
-
-## Solution Steps
-
-### Step 1: Create SQL Concept Restriction Mapping
-
-**File:** `lib/sql-curriculum.ts` (NEW FILE)
-
-Create a utility that maps SQL concepts to the week they're introduced:
-
+**Current Logic:**
 ```typescript
-export const SQL_CURRICULUM_MAP: Record<number, {
-  week: number;
-  concepts: string[];
-  forbiddenConcepts: string[];
-}> = {
-  1: {
-    week: 1,
-    concepts: ['CREATE TABLE', 'DDL', 'CREATE', 'TABLE'],
-    forbiddenConcepts: ['SELECT', 'JOIN', 'WHERE', 'GROUP BY', 'subquery', 'sub-query']
-  },
-  2: {
-    week: 2,
-    concepts: ['SELECT', 'constraints', 'CONSTRAINT'],
-    forbiddenConcepts: ['JOIN', 'GROUP BY', 'subquery', 'sub-query', 'WHERE', 'BETWEEN', 'LIKE']
-  },
-  3: {
-    week: 3,
-    concepts: ['FROM', 'WHERE', 'BETWEEN', 'LIKE'],
-    forbiddenConcepts: ['JOIN', 'GROUP BY', 'COUNT', 'DISTINCT', 'subquery', 'sub-query']
-  },
-  4: {
-    week: 4,
-    concepts: ['GROUP BY', 'aggregation'],
-    forbiddenConcepts: ['JOIN', 'COUNT', 'DISTINCT', 'subquery', 'sub-query']
-  },
-  5: {
-    week: 5,
-    concepts: ['functions', 'variables', 'SQL functions'],
-    forbiddenConcepts: ['JOIN', 'subquery', 'sub-query']
-  },
-  6: {
-    week: 6,
-    concepts: ['COUNT', 'DISTINCT', 'GROUP BY advanced'],
-    forbiddenConcepts: ['JOIN', 'subquery', 'sub-query']
-  },
-  7: {
-    week: 7,
-    concepts: ['JOIN', 'ON', 'USING', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN'],
-    forbiddenConcepts: ['subquery', 'sub-query']
-  },
-  8: {
-    week: 8,
-    concepts: ['NULL', 'INSERT', 'UPDATE', 'DELETE', 'DML'],
-    forbiddenConcepts: ['subquery', 'sub-query']
-  },
-  9: {
-    week: 9,
-    concepts: ['subquery', 'sub-query', 'nested query'],
-    forbiddenConcepts: []
-  },
-  // ... continue for weeks 10-13
-};
+const now = new Date()
+const startDate = new Date(startDateStr)
+const diffMs = now.getTime() - startDate.getTime()
+const rawWeek = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1
+const week = this.clampWeek(rawWeek)
+```
 
-export function getAllowedConceptsForWeek(week: number): string[] {
-  const allowed: string[] = [];
-  for (let w = 1; w <= week; w++) {
-    if (SQL_CURRICULUM_MAP[w]) {
-      allowed.push(...SQL_CURRICULUM_MAP[w].concepts);
-    }
-  }
-  return allowed;
-}
+**🚨 CRITICAL ISSUE FOUND:**
+There's an **inconsistency** in week calculation methods:
+- **Backend (`lib/content.ts`)**: Uses `Math.floor()` + 1
+- **Frontend (`app/components/McpMichaelPage.tsx`)**: Uses `Math.ceil()`
 
-export function getForbiddenConceptsForWeek(week: number): string[] {
-  const forbidden: string[] = [];
-  for (let w = 1; w <= week; w++) {
-    if (SQL_CURRICULUM_MAP[w]) {
-      forbidden.push(...SQL_CURRICULUM_MAP[w].forbiddenConcepts);
-    }
+This means the frontend and backend might calculate different week numbers for the same date!
+
+**Potential Issues:**
+- Uses `Math.floor()` which might cause off-by-one errors
+- **INCONSISTENCY**: Frontend uses `Math.ceil()`, backend uses `Math.floor()` + 1
+- Timezone issues if `startDate` and `now` are in different timezones
+- Week calculation might be off if semester start date is incorrect
+
+**Verification Needed:**
+- Check if semester start date in database is correct
+- Verify current week calculation matches actual calendar week
+- Test edge cases (start of week, end of week, timezone boundaries)
+
+### 3. SQL Curriculum Mapping
+**Location:** `lib/sql-curriculum.ts`
+
+**Current Implementation:**
+- `getAllowedConceptsForWeek(week)` - Returns cumulative concepts from weeks 1 to `week`
+- `getForbiddenConceptsForWeek(week)` - Returns concepts from weeks `week+1` to 13
+
+**Verification:**
+- Week 7 includes JOIN in `allowedConcepts`
+- Week 9 should include JOIN (from week 7) in `allowedConcepts`
+- Week 9 should NOT have JOIN in `forbiddenConcepts`
+
+**Test Cases:**
+```typescript
+// Week 7
+getAllowedConceptsForWeek(7) // Should include 'JOIN', 'ON', 'USING'
+getForbiddenConceptsForWeek(7) // Should NOT include 'JOIN'
+
+// Week 9
+getAllowedConceptsForWeek(9) // Should include 'JOIN' (from week 7) + 'subquery' (from week 9)
+getForbiddenConceptsForWeek(9) // Should NOT include 'JOIN' or 'subquery'
+```
+
+### 4. Function Response Format
+**Location:** `app/api/assistants/functions/course-context/route.ts`
+
+**Current Response:**
+```json
+{
+  "weekNumber": 9,
+  "content": "...",
+  "dateRange": "...",
+  "sqlRestrictions": {
+    "allowedConcepts": ["JOIN", "ON", "USING", "subquery", ...],
+    "forbiddenConcepts": [...],
+    "weekNumber": 9
   }
-  // Remove duplicates and concepts that are now allowed
-  const allowed = getAllowedConceptsForWeek(week);
-  return [...new Set(forbidden)].filter(c => !allowed.includes(c));
 }
 ```
 
-### Step 2: Update Assistant Instructions
+**Issue:** The assistant might not be parsing or using the `sqlRestrictions` field correctly. The instructions mention it, but the assistant might:
+- Ignore the restrictions
+- Misinterpret the cumulative nature (week 9 = weeks 1-9)
+- Not check the restrictions before providing SQL examples
 
-**File:** `app/api/assistants/update/route.ts`
+### 5. Fallback Context Injection
+**Location:** `app/api/assistants/threads/[threadId]/messages/route.ts`
 
-**Changes needed:**
-
-1. **Add instruction to ALWAYS check week context before answering SQL questions:**
-   ```typescript
-   instructions: `You are Michael, a helpful SQL teaching assistant for academic courses. 
-   
-   CRITICAL: Before answering ANY SQL-related question, you MUST:
-   1. Call get_course_week_context() to determine the current academic week
-   2. Restrict your SQL examples and explanations to ONLY concepts taught up to that week
-   3. If a student asks about concepts not yet taught, politely explain that those topics will be covered in future weeks
-   
-   Week-based SQL concept restrictions:
-   - Weeks 1-2: Only DDL (CREATE TABLE) and basic SELECT
-   - Weeks 3-4: Add WHERE, FROM, BETWEEN, LIKE, basic GROUP BY
-   - Weeks 5-6: Add SQL functions, COUNT, DISTINCT, advanced GROUP BY
-   - Week 7+: JOIN operations allowed
-   - Week 9+: Sub-queries allowed
-   
-   NEVER use JOINs before week 7, and NEVER use sub-queries before week 9.
-   If a student's question requires concepts not yet taught, suggest alternative approaches using only concepts from their current week or earlier.
-   
-   [Rest of existing instructions...]
-   `
-   ```
-
-2. **Enhance the function description:**
-   ```typescript
-   {
-     type: "function",
-     function: {
-       name: "get_course_week_context",
-       description: "MANDATORY: Fetch the current academic week context. You MUST call this before answering any SQL question to ensure you only use concepts that have been taught. Returns week number, content, and date range.",
-       parameters: {
-         // ... existing parameters
-       }
-     }
-   }
-   ```
-
-### Step 3: Enhance Course Context Function Response
-
-**File:** `app/api/assistants/functions/course-context/route.ts`
-
-**Changes needed:**
-
-1. Import the SQL curriculum mapping:
-   ```typescript
-   import { getAllowedConceptsForWeek, getForbiddenConceptsForWeek } from '@/lib/sql-curriculum'
-   ```
-
-2. Enhance the response to include SQL concept restrictions:
-   ```typescript
-   async function handleGetCourseWeekContext(params: GetCourseWeekContextParams) {
-     const week = typeof params?.week === 'number' ? params.week : undefined
-
-     try {
-       const payload = week
-         ? await getWeekContextByNumberNormalized(week)
-         : await getCurrentWeekContextNormalized(null)
-
-       const weekNumber = payload.weekNumber
-       const allowedConcepts = weekNumber ? getAllowedConceptsForWeek(weekNumber) : []
-       const forbiddenConcepts = weekNumber ? getForbiddenConceptsForWeek(weekNumber) : []
-
-       const out = JSON.stringify({
-         weekNumber: payload.weekNumber,
-         content: payload.content,
-         dateRange: payload.dateRange,
-         updatedAt: payload.updatedAt || null,
-         updatedBy: payload.updatedBy || null,
-         sqlRestrictions: {
-           allowedConcepts: allowedConcepts,
-           forbiddenConcepts: forbiddenConcepts,
-           weekNumber: weekNumber
-         },
-         fetchedAt: new Date().toISOString(),
-       })
-       return new Response(out, { headers: { 'Content-Type': 'text/plain' } })
-     } catch (error: any) {
-       // ... error handling
-     }
-   }
-   ```
-
-### Step 4: Update Assistant Instructions to Use SQL Restrictions
-
-**File:** `app/api/assistants/update/route.ts`
-
-**Add to instructions:**
+**Current Implementation:**
 ```typescript
-When get_course_week_context returns sqlRestrictions:
-- ONLY use SQL concepts listed in allowedConcepts
-- NEVER use concepts listed in forbiddenConcepts
-- If a student asks about a forbidden concept, explain: "This concept (e.g., JOINs) will be covered in week X. For now, let's solve this using [allowed concepts]."
-- Always check the weekNumber from the context before providing SQL examples
+const weeklyResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/mcp-michael/current-week`);
+if (weeklyResponse.ok) {
+  const weeklyData = await weeklyResponse.json();
+  const weekNum = weeklyData.weekNumber ?? weeklyData.currentWeek;
+  if (weeklyData.content && weeklyData.content.trim()) {
+    weeklyContext = `\n\n[Current Week Context - Week ${weekNum}: ${weeklyData.content}. IMPORTANT: Only use SQL concepts taught up to week ${weekNum}. Do NOT use JOINs before week 7, or sub-queries before week 9.]`;
+  }
+}
 ```
 
-### Step 5: Make Weekly Context Injection Mandatory
+**Issues:**
+- This is a fallback that adds context as a string to the user message
+- It doesn't include the `sqlRestrictions` object
+- The hardcoded message says "Do NOT use JOINs before week 7" but doesn't say "JOINs ARE allowed in week 9"
+- This might conflict with or override the function call results
 
+---
+
+## Investigation Steps
+
+### Step 1: Verify Week Calculation
+1. Check the semester start date in the database
+2. Calculate what week it should be today
+3. Compare with what `getCurrentWeekContextNormalized()` returns
+4. Test the calculation with different dates
+
+**Commands:**
+```bash
+# Check current week calculation
+# Run a test script or check logs
+```
+
+### Step 2: Test SQL Curriculum Functions
+1. Test `getAllowedConceptsForWeek(9)` - should include JOIN
+2. Test `getForbiddenConceptsForWeek(9)` - should NOT include JOIN
+3. Verify the cumulative logic works correctly
+
+**Test Script:**
+```typescript
+import { getAllowedConceptsForWeek, getForbiddenConceptsForWeek } from '@/lib/sql-curriculum'
+
+console.log('Week 7 allowed:', getAllowedConceptsForWeek(7))
+console.log('Week 7 forbidden:', getForbiddenConceptsForWeek(7))
+console.log('Week 9 allowed:', getAllowedConceptsForWeek(9))
+console.log('Week 9 forbidden:', getForbiddenConceptsForWeek(9))
+```
+
+### Step 3: Check Function Call Logs
+1. Review server logs for `[course-context] request` entries
+2. Check if the function is being called for SQL questions
+3. Verify the responses being returned
+
+**Log Locations:**
+- `app/api/assistants/functions/course-context/route.ts` - line 14
+- Check for errors in function execution
+
+### Step 4: Test Assistant Behavior
+1. Ask the assistant a SQL question that requires JOIN
+2. Check if it calls `get_course_week_context()` first
+3. Verify the response respects week 9 restrictions (JOIN should be allowed)
+
+---
+
+## Fix Strategy
+
+### Fix 1: Strengthen Assistant Instructions
+**File:** `app/api/assistants/update/route.ts`
+
+**Changes:**
+1. Make the instructions more explicit about cumulative weeks
+2. Add examples showing week 9 includes weeks 1-9
+3. Emphasize checking `sqlRestrictions.allowedConcepts` before ANY SQL example
+4. Add explicit instruction: "If weekNumber is 9, you have access to ALL concepts from weeks 1-9, including JOIN (week 7) and sub-queries (week 9)"
+
+**New Instructions Section:**
+```
+CRITICAL WEEK CONTEXT RULES:
+- The curriculum is CUMULATIVE: Week N includes ALL concepts from weeks 1 through N
+- Example: Week 9 means students have learned weeks 1, 2, 3, 4, 5, 6, 7, 8, and 9
+- Week 9 includes JOIN (from week 7) AND sub-queries (from week 9)
+- ALWAYS call get_course_week_context() FIRST before answering SQL questions
+- ALWAYS check sqlRestrictions.allowedConcepts - if JOIN is in allowedConcepts, you CAN use it
+- If a concept is in allowedConcepts, it means students have learned it
+- If a concept is in forbiddenConcepts, students have NOT learned it yet
+```
+
+### Fix 2: Improve Function Description
+**File:** `app/api/assistants/update/route.ts`
+
+**Current:**
+```typescript
+description: "MANDATORY: Fetch the current academic week context. You MUST call this before answering any SQL question to ensure you only use concepts that have been taught. Returns week number, content, date range, and SQL concept restrictions (allowedConcepts and forbiddenConcepts)."
+```
+
+**Improved:**
+```typescript
+description: "MANDATORY: Fetch the current academic week context. You MUST call this function BEFORE answering ANY SQL-related question, even if it seems simple. The response includes sqlRestrictions.allowedConcepts (concepts students have learned) and sqlRestrictions.forbiddenConcepts (concepts not yet taught). The curriculum is cumulative: week 9 includes all concepts from weeks 1-9. Returns: { weekNumber, content, dateRange, sqlRestrictions: { allowedConcepts: string[], forbiddenConcepts: string[], weekNumber } }"
+```
+
+### Fix 3: Fix Week Calculation Inconsistency
+**Files:** `lib/content.ts`, `app/components/McpMichaelPage.tsx`
+
+**🚨 CRITICAL FIX NEEDED:**
+The week calculation is inconsistent between frontend and backend. This must be fixed.
+
+**Current State:**
+- Backend (`lib/content.ts`): `Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1`
+- Frontend (`McpMichaelPage.tsx`): `Math.ceil((now.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000))`
+
+**Decision Needed:**
+1. Choose one method (floor+1 or ceil) and use it consistently
+2. Consider: Week 1 should start on day 1 of semester
+3. Test with actual dates to verify correctness
+
+**Recommended Fix:**
+- Standardize on `Math.ceil()` approach (simpler, week starts on day 1)
+- Update both files to use the same calculation
+- Add timezone handling if needed
+- Add unit tests for week calculation
+
+### Fix 4: Enhance Fallback Context
 **File:** `app/api/assistants/threads/[threadId]/messages/route.ts`
 
-**Changes needed:**
+**Current Issue:** The fallback doesn't include `sqlRestrictions` and has hardcoded rules.
 
-1. Remove the `MCP_FORCE_PROMPT_CONTEXT` conditional - make it always fetch:
-   ```typescript
-   // Always fetch weekly context (remove the if condition)
-   let weeklyContext = '';
-   try {
-     const weeklyResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/mcp-michael/current-week`);
-     if (weeklyResponse.ok) {
-       const weeklyData = await weeklyResponse.json();
-       const weekNum = weeklyData.weekNumber;
-       if (weeklyData.content && weeklyData.content.trim()) {
-         weeklyContext = `\n\n[Current Week Context - Week ${weekNum}: ${weeklyData.content}. IMPORTANT: Only use SQL concepts taught up to week ${weekNum}. Do NOT use JOINs before week 7, or sub-queries before week 9.]`;
-       }
-     }
-   } catch (weeklyError) {
-     console.log('Could not fetch weekly context:', weeklyError);
-     // Continue without weekly context if fetch fails
-   }
-   ```
+**Fix Options:**
+1. Remove the fallback and rely solely on function calls (preferred)
+2. Enhance the fallback to include `sqlRestrictions` from the API response
+3. Make the fallback message dynamic based on actual week
 
-### Step 6: Add Validation in SQL Execution Function
+**Recommended:** Option 1 - Remove or minimize the fallback, as it might confuse the assistant. The function call is the proper mechanism.
 
-**File:** `app/api/assistants/functions/sql/route.ts`
+### Fix 5: Add Logging and Monitoring
+**Files:** Multiple
 
-**Optional enhancement:** Add validation to reject queries with forbidden concepts based on current week. However, this might be too restrictive - better to let the assistant handle it through instructions.
+**Add:**
+1. Log when `get_course_week_context` is called
+2. Log the week number and restrictions returned
+3. Log if assistant uses forbidden concepts (post-processing check)
+4. Add metrics to track function call frequency
 
-### Step 7: Testing Checklist
+### Fix 6: Add Validation/Enforcement (if possible)
+**Consider:**
+- Post-processing check: After assistant responds, validate SQL examples against `sqlRestrictions`
+- Pre-processing: Inject week context more forcefully in system message (if OpenAI supports)
+- Client-side: Check function calls and warn if not called for SQL questions
 
-1. **Test Week 1-2 (No JOINs, no sub-queries):**
-   - Ask: "How do I combine data from two tables?"
-   - Expected: Assistant should NOT suggest JOINs, should explain it will be covered in week 7
+---
 
-2. **Test Week 3-6 (No JOINs, no sub-queries):**
-   - Ask: "How do I find employees in a specific department?"
-   - Expected: Assistant should use WHERE clauses, not JOINs
+## Testing Plan
 
-3. **Test Week 7+ (JOINs allowed):**
-   - Ask: "How do I combine data from two tables?"
-   - Expected: Assistant should suggest JOINs
+### Test 1: Week Calculation
+```bash
+# Test current week calculation
+# Should return week 9 if we're in week 9
+```
 
-4. **Test Week 1-8 (No sub-queries):**
-   - Ask: "How do I find the maximum salary in each department?"
-   - Expected: Assistant should NOT use sub-queries, should use GROUP BY or explain it will be covered in week 9
+### Test 2: SQL Curriculum Functions
+```typescript
+// Test getAllowedConceptsForWeek(9)
+expect(getAllowedConceptsForWeek(9)).toContain('JOIN')
+expect(getAllowedConceptsForWeek(9)).toContain('subquery')
+expect(getForbiddenConceptsForWeek(9)).not.toContain('JOIN')
+expect(getForbiddenConceptsForWeek(9)).not.toContain('subquery')
+```
 
-5. **Test Week 9+ (Sub-queries allowed):**
-   - Ask: "How do I find employees with above-average salary?"
-   - Expected: Assistant should suggest sub-queries
+### Test 3: Function Call
+1. Ask assistant: "How do I join two tables?"
+2. Verify function `get_course_week_context()` is called
+3. Verify response includes JOIN examples (if week >= 7)
+4. Verify response does NOT say "we haven't reached JOIN yet"
 
-### Step 8: Update Documentation
+### Test 4: End-to-End
+1. Set current week to 9 in database/test
+2. Ask assistant SQL question requiring JOIN
+3. Verify assistant:
+   - Calls `get_course_week_context()`
+   - Receives week 9 with JOIN in `allowedConcepts`
+   - Provides JOIN examples without saying it's not taught yet
 
-**File:** `docs/semester-calendar-setup.md`
+---
 
-Add a section explaining:
-- How SQL concept restrictions work
-- The curriculum mapping
-- How the assistant enforces week-based restrictions
+## Files to Modify
 
-## Implementation Priority
+1. **`app/api/assistants/update/route.ts`**
+   - Improve assistant instructions
+   - Enhance function description
+   - Add explicit cumulative week explanation
 
-1. **HIGH:** Step 1 (Create SQL curriculum mapping) - Foundation for everything
-2. **HIGH:** Step 2 (Update assistant instructions) - Core fix
-3. **HIGH:** Step 3 (Enhance course context response) - Provides restriction data
-4. **MEDIUM:** Step 4 (Update instructions to use restrictions) - Makes restrictions explicit
-5. **MEDIUM:** Step 5 (Make context injection mandatory) - Ensures context is always available
-6. **LOW:** Step 6 (SQL execution validation) - Optional safety net
-7. **MEDIUM:** Step 7 (Testing) - Verify the fix works
-8. **LOW:** Step 8 (Documentation) - For future reference
+2. **`lib/content.ts`** (if week calculation is wrong)
+   - Fix week calculation logic
+   - Add timezone handling
 
-## Environment Variables
+3. **`app/api/assistants/threads/[threadId]/messages/route.ts`**
+   - Remove or improve fallback context injection
+   - Consider removing hardcoded restrictions
 
-Check if `MCP_FORCE_PROMPT_CONTEXT` is set in production. If not, Step 5 will make it always active.
+4. **`lib/sql-curriculum.ts`** (if curriculum mapping is wrong)
+   - Verify and fix concept mappings
+   - Add tests
 
-## Rollout Plan
+5. **`app/api/assistants/functions/course-context/route.ts`**
+   - Add better logging
+   - Verify response format
 
-1. Create the SQL curriculum mapping file
-2. Test locally with different week contexts
-3. Update assistant instructions via `/api/assistants/update` endpoint
-4. Monitor assistant responses to ensure restrictions are working
-5. Adjust curriculum mapping if needed based on actual curriculum
+---
 
-## Notes
+## Success Criteria
 
-- The assistant might still occasionally use advanced concepts if not explicitly restricted. Consider adding a post-processing step to detect and flag responses with forbidden concepts.
-- The curriculum mapping should be maintained as the course evolves.
-- Consider adding admin UI to view/edit the SQL curriculum mapping alongside weekly content.
+1. ✅ Week 9 correctly includes JOIN in `allowedConcepts`
+2. ✅ Assistant calls `get_course_week_context()` for SQL questions
+3. ✅ Assistant respects `sqlRestrictions.allowedConcepts`
+4. ✅ Assistant does NOT say "we haven't reached JOIN" in week 9
+5. ✅ Week calculation is accurate
+6. ✅ All tests pass
+
+---
+
+## Additional Notes
+
+- The MCP (Model Context Protocol) mechanism here refers to the function calling system that provides context to the assistant
+- The issue is that the assistant is not reliably using this context
+- Consider adding a test suite specifically for week-based SQL restrictions
+- Monitor function call frequency to ensure it's being used
+- Consider adding a dashboard to view function call statistics
+
+---
+
+## Next Steps for Agent
+
+1. **Investigate:**
+   - Check current week calculation
+   - Test SQL curriculum functions
+   - Review logs for function calls
+   - Test assistant behavior manually
+
+2. **Fix:**
+   - Update assistant instructions
+   - Fix any calculation/logic errors found
+   - Improve function descriptions
+   - Remove/improve fallback context
+
+3. **Test:**
+   - Run all test cases
+   - Manual testing with real questions
+   - Verify week 9 includes JOIN
+
+4. **Verify:**
+   - Confirm assistant uses JOIN in week 9
+   - Confirm function is called consistently
+   - Check logs for proper behavior

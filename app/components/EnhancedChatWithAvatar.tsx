@@ -185,6 +185,14 @@ const EnhancedChatWithAvatar: React.FC<EnhancedChatWithAvatarProps> = ({
               params = {};
             }
 
+            // CRITICAL LOGGING - Track function calls
+            if (name === 'get_course_week_context') {
+              console.log('🔵 [CLIENT] Assistant is calling get_course_week_context()');
+              console.log('🔵 [CLIENT] Parameters:', params);
+            } else {
+              console.log(`🟡 [CLIENT] Assistant calling function: ${name}`);
+            }
+
             const isCourseContext = name === 'get_course_week_context' || name === 'list_course_week_summaries';
             const isSQL = name === 'execute_sql_query' || name === 'get_database_schema' || name === 'analyze_query_performance';
 
@@ -205,9 +213,25 @@ const EnhancedChatWithAvatar: React.FC<EnhancedChatWithAvatarProps> = ({
             });
             // The backend returns JSON; the Assistants API expects a string output
             const text = await res.text();
+            
+            // Log response for course context
+            if (name === 'get_course_week_context') {
+              try {
+                const parsed = JSON.parse(text);
+                console.log('🟢 [CLIENT] get_course_week_context response:', {
+                  weekNumber: parsed.weekNumber,
+                  hasRestrictions: !!parsed.sqlRestrictions,
+                  allowedCount: parsed.sqlRestrictions?.allowedConcepts?.length,
+                  forbiddenCount: parsed.sqlRestrictions?.forbiddenConcepts?.length,
+                });
+              } catch (e) {
+                console.log('🟢 [CLIENT] Response (raw):', text.substring(0, 200));
+              }
+            }
+            
             return text;
           } catch (err: any) {
-            console.error('functionCallHandler error:', err);
+            console.error('❌ [CLIENT] functionCallHandler error:', err);
             return JSON.stringify({ error: err?.message || 'Function call failed' });
           }
         }}
