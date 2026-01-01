@@ -11,7 +11,7 @@ type GetCourseWeekContextParams = {
 export async function POST(req: NextRequest) {
   try {
     const { functionName, parameters } = await req.json()
-    console.log('[course-context] request', {
+    console.log('🔵 [SERVER] [course-context] request', {
       functionName,
       hasParams: !!parameters,
       requestedWeek: parameters?.week,
@@ -44,6 +44,31 @@ async function handleGetCourseWeekContext(params: GetCourseWeekContextParams) {
     const weekNumber = payload.weekNumber
     const allowedConcepts = weekNumber ? getAllowedConceptsForWeek(weekNumber) : []
     const forbiddenConcepts = weekNumber ? getForbiddenConceptsForWeek(weekNumber) : []
+
+    // Enhanced logging for debugging
+    const hasALTER = forbiddenConcepts.some(c => c.toLowerCase().includes('alter'));
+    const hasJOIN = allowedConcepts.some(c => c.toLowerCase().includes('join'));
+    const hasSubquery = allowedConcepts.some(c => c.toLowerCase().includes('subquery'));
+    
+    console.log('🟢 [SERVER] [course-context] response', {
+      weekNumber,
+      allowedConceptsCount: allowedConcepts.length,
+      forbiddenConceptsCount: forbiddenConcepts.length,
+      hasJOIN,
+      hasSubquery,
+      hasALTER,
+      forbiddenConceptsSample: forbiddenConcepts.slice(0, 5),
+      ts: new Date().toISOString(),
+    })
+    
+    // Add explicit warning in response if week seems wrong
+    if (weekNumber && weekNumber < 9) {
+      console.warn(`⚠️  [SERVER] [course-context] WARNING: Week ${weekNumber} detected. If today is after Dec 31, 2025, this might be wrong!`);
+    }
+    
+    if (weekNumber === 9) {
+      console.log('✅ [SERVER] [course-context] Week 9 confirmed - JOIN allowed, ALTER forbidden');
+    }
 
     // The Assistants API expects a STRING output for tool calls
     const out = JSON.stringify({

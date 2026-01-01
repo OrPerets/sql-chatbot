@@ -58,7 +58,10 @@ const McpMichaelPage: React.FC = () => {
     
     const start = new Date(startDate);
     const now = new Date();
-    const weekNumber = Math.ceil((now.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000));
+    // Calculate week: Week 1 = days 0-6, Week 2 = days 7-13, etc.
+    // Formula: Math.floor(days / 7) + 1 ensures day 0-6 = week 1, day 7-13 = week 2
+    const diffMs = now.getTime() - start.getTime();
+    const weekNumber = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1;
     
     return Math.max(1, Math.min(14, weekNumber));
   };
