@@ -111,6 +111,12 @@ export interface Submission {
   createdAt?: string;
   updatedAt?: string;
   studentTableData?: Record<string, any[]>; // Key: table name, Value: array of row data
+  aiCommitment?: {
+    signed: boolean;
+    fileName?: string;
+    attachmentBase64?: string;
+    timestamp: string;
+  };
 }
 
 export interface SubmissionSummary {

@@ -20,10 +20,14 @@ export async function saveSubmissionDraft(
   });
 }
 
-export async function submitHomework(setId: string, payload: { studentId: string }) {
+export async function submitHomework(
+  setId: string,
+  payload: { studentId: string } | FormData,
+) {
+  const isFormData = typeof FormData !== "undefined" && payload instanceof FormData;
   return http<Submission>(`${BASE_PATH}/${setId}/submit`, {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: isFormData ? payload : JSON.stringify(payload),
   });
 }
 

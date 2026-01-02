@@ -5,6 +5,8 @@ import { getUsersService } from "@/lib/users";
 import { sendEmail } from "@/app/utils/email-service";
 import { connectToDatabase, COLLECTIONS } from "@/lib/database";
 import { ObjectId } from "mongodb";
+import { generateSubmissionPdf } from "@/lib/submission-pdf";
+import type { Submission } from "@/app/homework/types";
 
 interface RouteParams {
   params: { setId: string };
@@ -12,11 +14,54 @@ interface RouteParams {
 
 export async function POST(request: Request, { params }: RouteParams) {
   try {
-    const { studentId } = (await request.json()) as { studentId?: string };
-    const finalStudentId = studentId ?? "student-demo";
-    
+    const contentType = request.headers.get("content-type") || "";
+    let finalStudentId = "student-demo";
+    let aiCommitment: Submission["aiCommitment"] | undefined;
+    let aiAttachment: { filename: string; content: Buffer; contentType?: string } | undefined;
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      const studentField = formData.get("studentId");
+      const confirmedField = formData.get("aiConfirmed");
+      const aiFile = formData.get("aiFile");
+
+      finalStudentId = typeof studentField === "string" && studentField.length > 0 ? studentField : "student-demo";
+      const timestamp = new Date().toISOString();
+      const signed = confirmedField === "true";
+
+      if (aiFile instanceof File) {
+        const buffer = Buffer.from(await aiFile.arrayBuffer());
+        aiAttachment = {
+          filename: aiFile.name || "ai-conversation.txt",
+          content: buffer,
+          contentType: aiFile.type || undefined,
+        };
+
+        aiCommitment = {
+          signed: true,
+          fileName: aiFile.name,
+          attachmentBase64: buffer.toString("base64"),
+          timestamp,
+        };
+      } else if (signed) {
+        aiCommitment = {
+          signed: true,
+          timestamp,
+        };
+      }
+    } else {
+      const { studentId, aiConfirmed } = (await request.json()) as { studentId?: string; aiConfirmed?: boolean };
+      finalStudentId = studentId ?? "student-demo";
+      if (aiConfirmed) {
+        aiCommitment = {
+          signed: true,
+          timestamp: new Date().toISOString(),
+        };
+      }
+    }
+
     // Submit the homework
-    const submission = await submitSubmission(params.setId, finalStudentId);
+    const submission = await submitSubmission(params.setId, finalStudentId, aiCommitment);
     if (!submission) {
       return NextResponse.json({ message: "Submission not found" }, { status: 404 });
     }
@@ -66,21 +111,28 @@ export async function POST(request: Request, { params }: RouteParams) {
         // Send email if we have a valid email
         if (studentEmail && studentEmail.includes("@")) {
           const homeworkTitle = homeworkSet.title || "שיעורי בית";
+          const submissionPdf = generateSubmissionPdf(submission, homeworkSet, undefined);
+
+          const attachments = [
+            {
+              filename: `submission-${submission.id}.pdf`,
+              content: submissionPdf,
+              contentType: "application/pdf",
+            },
+          ];
+
+          if (aiAttachment) {
+            attachments.push(aiAttachment);
+          }
+
           await sendEmail({
             to: studentEmail,
             subject: `${homeworkTitle} הוגש בהצלחה - Michael SQL Assistant`,
             text: `${homeworkTitle} הוגש בהצלחה בקורס בסיסי נתונים.\n\nתודה על ההגשה!`,
             html: `
-              <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #10b981;">${homeworkTitle} הוגש בהצלחה</h2>
-                <p>שלום,</p>
-                <p>${homeworkTitle} הוגש בהצלחה בקורס בסיסי נתונים.</p>
-                <p>ההגשה ננעלה ואינה ניתנת לעריכה נוספת.</p>
-                <p>תודה על ההגשה!</p>
-                <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
-                <p style="font-size: 12px; color: #666;">Michael SQL Assistant Team</p>
-              </div>
-            `
+              <div dir=\"rtl\" style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;\">\n                <h2 style=\"color: #10b981;\">${homeworkTitle} הוגש בהצלחה</h2>\n                <p>שלום,</p>\n                <p>${homeworkTitle} הוגש בהצלחה בקורס בסיסי נתונים.</p>\n                <p>ההגשה ננעלה ואינה ניתנת לעריכה נוספת.</p>\n                <p>תודה על ההגשה!</p>\n                <hr style=\"margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;\">\n                <p style=\"font-size: 12px; color: #666;\">Michael SQL Assistant Team</p>\n              </div>
+            `,
+            attachments,
           });
           console.log(`✅ Sent submission confirmation email to ${studentEmail}`);
         }

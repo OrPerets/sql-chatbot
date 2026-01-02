@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -149,6 +150,10 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const [autosaveState, setAutosaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showCommitmentDialog, setShowCommitmentDialog] = useState(false);
+  const [aiCommitmentChecked, setAiCommitmentChecked] = useState(false);
+  const [aiEvidenceFile, setAiEvidenceFile] = useState<File | null>(null);
+  const [commitmentError, setCommitmentError] = useState<string | null>(null);
   const [showDatabaseViewer, setShowDatabaseViewer] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
@@ -302,13 +307,16 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   });
 
   const submitMutation = useMutation({
-    mutationFn: () => submitHomework(setId, { studentId }),
+    mutationFn: (payload?: FormData) => submitHomework(setId, payload ?? { studentId }),
     onSuccess: (submission) => {
       // Update the query cache immediately so the component re-renders with new status
       queryClient.setQueryData<Submission | undefined>(["submission", setId, studentId], submission);
       queryClient.invalidateQueries({ queryKey: ["submission", setId, studentId] });
       // Close confirmation dialog
       setShowConfirmDialog(false);
+      setShowCommitmentDialog(false);
+      setAiCommitmentChecked(false);
+      setAiEvidenceFile(null);
       // The page will automatically show SubmittedPage due to the check below
       // Force a refetch to ensure the UI updates
       submissionQuery.refetch();
@@ -320,11 +328,38 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   }, []);
 
   const handleConfirmSubmit = useCallback(() => {
-    submitMutation.mutate();
-  }, [submitMutation]);
+    setShowConfirmDialog(false);
+    setShowCommitmentDialog(true);
+  }, []);
 
   const handleCancelSubmit = useCallback(() => {
     setShowConfirmDialog(false);
+  }, []);
+
+  const handleCommitmentConfirm = useCallback(() => {
+    if (!aiCommitmentChecked && !aiEvidenceFile) {
+      setCommitmentError("יש לסמן הצהרה או לצרף קובץ שיחה");
+      return;
+    }
+
+    setCommitmentError(null);
+    const formData = new FormData();
+    formData.append("studentId", studentId);
+    formData.append("aiConfirmed", aiCommitmentChecked ? "true" : "false");
+    if (aiEvidenceFile) {
+      formData.append("aiFile", aiEvidenceFile);
+    }
+
+    submitMutation.mutate(formData);
+  }, [aiCommitmentChecked, aiEvidenceFile, studentId, submitMutation]);
+
+  const handleCommitmentCancel = useCallback(() => {
+    setShowCommitmentDialog(false);
+  }, []);
+
+  const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    setAiEvidenceFile(file ?? null);
   }, []);
 
   const scheduleAutosave = useCallback(
@@ -345,6 +380,12 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   );
 
   useEffect(() => clearPendingSaves, [clearPendingSaves]);
+
+  useEffect(() => {
+    if (showCommitmentDialog) {
+      setCommitmentError(null);
+    }
+  }, [showCommitmentDialog]);
 
   // Debug log for editor values (reduced verbosity)
   useEffect(() => {
@@ -542,6 +583,63 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               <button
                 className={styles.cancelButton}
                 onClick={handleCancelSubmit}
+                disabled={submitMutation.isPending}
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCommitmentDialog && (
+        <div className={styles.confirmOverlay}>
+          <div className={styles.confirmDialog}>
+            <h3 className={styles.confirmTitle}>הצהרת שימוש ב-AI</h3>
+            <p className={styles.confirmText}>
+              אני הסטודנט/ית מתחייב/ת שאם השתמשתי בכלי AI אחר אני מצרף/ת את השיחה להלן או
+              מסמן/ת שלא נעשה שימוש בכלי AI חיצוניים.
+            </p>
+
+            <label className={styles.commitmentCheckbox}>
+              <input
+                type="checkbox"
+                checked={aiCommitmentChecked}
+                onChange={(event) => setAiCommitmentChecked(event.target.checked)}
+                disabled={submitMutation.isPending}
+              />
+              <span>אישרתי שלא השתמשתי בכלי AI</span>
+            </label>
+
+            <div className={styles.commitmentFileRow}>
+              <label className={styles.fileLabel} htmlFor="ai-file-upload">
+                צרף קובץ שיחה (אופציונלי)
+              </label>
+              <input
+                id="ai-file-upload"
+                type="file"
+                accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg"
+                onChange={handleFileChange}
+                disabled={submitMutation.isPending}
+              />
+              {aiEvidenceFile && (
+                <p className={styles.fileName}>קובץ נבחר: {aiEvidenceFile.name}</p>
+              )}
+            </div>
+
+            {commitmentError && <p className={styles.commitmentError}>{commitmentError}</p>}
+
+            <div className={styles.confirmActions}>
+              <button
+                className={styles.confirmButton}
+                onClick={handleCommitmentConfirm}
+                disabled={submitMutation.isPending}
+              >
+                {submitMutation.isPending ? "מגיש..." : "אישור והגשה"}
+              </button>
+              <button
+                className={styles.cancelButton}
+                onClick={handleCommitmentCancel}
                 disabled={submitMutation.isPending}
               >
                 ביטול

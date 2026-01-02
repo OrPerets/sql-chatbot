@@ -1573,6 +1573,41 @@
   justify-content: center;
 }
 
+.commitmentCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 18px 0;
+  font-weight: 600;
+  color: #111827;
+  justify-content: flex-start;
+}
+
+.commitmentFileRow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.fileLabel {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.fileName {
+  margin: 0;
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.commitmentError {
+  color: #dc2626;
+  margin: 4px 0 12px 0;
+  font-weight: 600;
+}
+
 .confirmButton {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: #ffffff;

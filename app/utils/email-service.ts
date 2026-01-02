@@ -19,9 +19,10 @@ interface EmailContent {
   subject: string;
   text: string;
   html?: string;
+  attachments?: Array<{ filename: string; content: Buffer | string; contentType?: string }>;
 }
 
-export async function sendEmail({ to, subject, text, html }: EmailContent) {
+export async function sendEmail({ to, subject, text, html, attachments }: EmailContent) {
   try {
     // Log email configuration (without sensitive data)
     console.log('Email configuration:', {
@@ -42,6 +43,7 @@ export async function sendEmail({ to, subject, text, html }: EmailContent) {
       subject,
       text,
       html: html || text,
+      attachments,
     });
     console.log('Email sent successfully:', info.messageId);
     return true;
