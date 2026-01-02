@@ -55,6 +55,7 @@ export class SubmissionsService {
       submittedAt: submission.submittedAt,
       gradedAt: submission.gradedAt,
       studentTableData: submission.studentTableData,
+      aiCommitment: submission.aiCommitment,
     };
   }
 
@@ -84,6 +85,7 @@ export class SubmissionsService {
       submittedAt: submission.submittedAt,
       gradedAt: submission.gradedAt,
       studentTableData: submission.studentTableData,
+      aiCommitment: submission.aiCommitment,
     };
   }
 
@@ -177,6 +179,7 @@ export class SubmissionsService {
         status: result.status,
         submittedAt: result.submittedAt,
         gradedAt: result.gradedAt,
+        aiCommitment: result.aiCommitment,
       };
     } else {
       // Create new submission
@@ -203,6 +206,7 @@ export class SubmissionsService {
         answers: payload.answers || {},
         overallScore: 0,
         status: "in_progress",
+        aiCommitment: undefined,
       };
     }
   }
@@ -263,7 +267,11 @@ export class SubmissionsService {
   /**
    * Submit a submission (mark as submitted)
    */
-  async submitSubmission(homeworkSetId: string, studentId: string): Promise<Submission | null> {
+  async submitSubmission(
+    homeworkSetId: string,
+    studentId: string,
+    aiCommitment?: Submission["aiCommitment"],
+  ): Promise<Submission | null> {
     const now = new Date().toISOString();
     
     // Handle both ObjectId and string formats for homeworkSetId
@@ -283,11 +291,12 @@ export class SubmissionsService {
       .collection<SubmissionModel>(COLLECTIONS.SUBMISSIONS)
       .findOneAndUpdate(
         query,
-        { 
+        {
           $set: {
             status: "submitted",
             submittedAt: now,
             updatedAt: now,
+            aiCommitment,
           },
           $inc: {
             attemptNumber: 1
@@ -308,6 +317,7 @@ export class SubmissionsService {
       status: result.status,
       submittedAt: result.submittedAt,
       gradedAt: result.gradedAt,
+      aiCommitment: result.aiCommitment,
     };
   }
 
@@ -378,6 +388,7 @@ export class SubmissionsService {
       status: result.status,
       submittedAt: result.submittedAt,
       gradedAt: result.gradedAt,
+      aiCommitment: result.aiCommitment,
     };
   }
 
@@ -1089,9 +1100,13 @@ export async function saveSubmissionDraft(homeworkSetId: string, payload: SaveSu
   return service.saveSubmissionDraft(homeworkSetId, payload);
 }
 
-export async function submitSubmission(homeworkSetId: string, studentId: string): Promise<Submission | null> {
+export async function submitSubmission(
+  homeworkSetId: string,
+  studentId: string,
+  aiCommitment?: Submission["aiCommitment"],
+): Promise<Submission | null> {
   const service = await getSubmissionsService();
-  return service.submitSubmission(homeworkSetId, studentId);
+  return service.submitSubmission(homeworkSetId, studentId, aiCommitment);
 }
 
 export async function gradeSubmission(submissionId: string, updates: Partial<Submission>): Promise<Submission | null> {

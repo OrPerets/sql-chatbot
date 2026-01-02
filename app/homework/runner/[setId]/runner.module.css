@@ -1598,6 +1598,51 @@
   transform: none;
 }
 
+.commitmentField {
+  text-align: right;
+  margin-bottom: 16px;
+}
+
+.fileLabel {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #1f2937;
+}
+
+.fileInput {
+  width: 100%;
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  padding: 10px;
+  background: #f9fafb;
+  color: #111827;
+}
+
+.fileName {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #374151;
+  text-align: right;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.commitmentError {
+  color: #ef4444;
+  margin: 0 0 12px 0;
+  text-align: center;
+  font-weight: 600;
+}
+
 .cancelButton {
   background: #f3f4f6;
   color: #4b5563;
