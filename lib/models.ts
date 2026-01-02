@@ -1,9 +1,9 @@
 import { ObjectId } from 'mongodb';
-import type { 
-  Dataset, 
-  HomeworkSet, 
-  Question, 
-  Submission, 
+import type {
+  Dataset,
+  HomeworkSet,
+  Question,
+  Submission,
   AnalyticsEvent,
   AuditLogEntry,
   QuestionTemplate,
@@ -60,6 +60,30 @@ export interface InstantiatedQuestionModel extends Omit<InstantiatedQuestion, 'i
 export interface AnalysisResultModel extends Omit<AnalysisResult, 'id'> {
   _id?: ObjectId;
   id: string;
+}
+
+export interface QuestionAnalyticsModel {
+  _id?: ObjectId;
+  id?: string;
+  submissionId: string;
+  questionId: string;
+  studentId: string;
+  homeworkSetId: string;
+  metrics: {
+    timeSpent: number;
+    typingSpeed: number;
+    attempts: number;
+    timeToFirstExecution?: number | null;
+    timeBetweenExecutions: number[];
+    queryExecutionTimes: number[];
+    charactersTyped: number;
+    editsCount: number;
+    copyPasteCount: number;
+    startedAt: string;
+    lastActivityAt: string;
+  };
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /**
@@ -125,6 +149,12 @@ export const DATABASE_INDEXES = {
     { status: 1 }, // For status filtering
     { createdAt: -1 }, // For creation date sorting
     { submissionId: 1, status: 1 }, // Compound for active analyses
+  ],
+  QUESTION_ANALYTICS: [
+    { submissionId: 1 }, // For submission-based analytics lookups
+    { questionId: 1 }, // For question-level analysis
+    { studentId: 1 }, // For student drilldowns
+    { homeworkSetId: 1 }, // For homework set aggregations
   ],
 } as const;
 

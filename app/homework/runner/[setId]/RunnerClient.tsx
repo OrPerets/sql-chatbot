@@ -37,6 +37,21 @@ interface PendingSave {
   timer: number;
 }
 
+interface QuestionAnalyticsState {
+  startedAt: number;
+  lastActivity: number;
+  firstTypeAt?: number;
+  firstExecutionAt?: number;
+  lastExecutionAt?: number;
+  attempts: number;
+  timeBetweenExecutions: number[];
+  executionTimes: number[];
+  charactersTyped: number;
+  editsCount: number;
+  copyPasteCount: number;
+  lastValue: string;
+}
+
 const AUTOSAVE_DELAY = 800;
 
 // Transform background story for תרגיל 3
@@ -158,6 +173,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
   const pendingRef = useRef<Record<string, PendingSave>>({});
+  const analyticsRef = useRef<Record<string, QuestionAnalyticsState>>({});
+  const activeQuestionRef = useRef<string | null>(null);
   const { t, direction, formatDateTime, formatNumber } = useHomeworkLocale();
   const backArrow = direction === "rtl" ? "→" : "←";
 
@@ -216,6 +233,135 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     }
   }, [questionsQuery.data, activeQuestionId]);
 
+  const ensureAnalyticsState = useCallback(
+    (questionId: string) => {
+      if (!analyticsRef.current[questionId]) {
+        analyticsRef.current[questionId] = {
+          startedAt: Date.now(),
+          lastActivity: Date.now(),
+          attempts: 0,
+          timeBetweenExecutions: [],
+          executionTimes: [],
+          charactersTyped: 0,
+          editsCount: 0,
+          copyPasteCount: 0,
+          lastValue: editorValues[questionId] ?? "",
+        };
+      }
+      return analyticsRef.current[questionId];
+    },
+    [editorValues]
+  );
+
+  const recordTyping = useCallback(
+    (questionId: string, nextValue: string) => {
+      const state = ensureAnalyticsState(questionId);
+      const previousValue = state.lastValue ?? "";
+      const delta = Math.max(0, nextValue.length - previousValue.length);
+
+      state.charactersTyped += delta;
+      state.editsCount += 1;
+      state.lastValue = nextValue;
+      state.lastActivity = Date.now();
+      if (!state.firstTypeAt) {
+        state.firstTypeAt = Date.now();
+      }
+    },
+    [ensureAnalyticsState]
+  );
+
+  const recordExecutionStart = useCallback(
+    (questionId: string) => {
+      const state = ensureAnalyticsState(questionId);
+      const now = Date.now();
+
+      if (state.lastExecutionAt) {
+        state.timeBetweenExecutions.push(now - state.lastExecutionAt);
+      }
+
+      if (!state.firstExecutionAt) {
+        state.firstExecutionAt = now;
+      }
+
+      state.lastExecutionAt = now;
+      state.attempts += 1;
+      state.lastActivity = now;
+    },
+    [ensureAnalyticsState]
+  );
+
+  const recordExecutionResult = useCallback(
+    (questionId: string, executionMs: number | undefined) => {
+      const state = ensureAnalyticsState(questionId);
+      state.executionTimes.push(executionMs ?? 0);
+      state.lastActivity = Date.now();
+    },
+    [ensureAnalyticsState]
+  );
+
+  const finalizeAnalytics = useCallback(
+    async (questionId: string) => {
+      const state = analyticsRef.current[questionId];
+      if (!state) return;
+
+      const submission = submissionQuery.data;
+      if (!submission) return;
+
+      const now = Date.now();
+      const timeSpent = (state.lastActivity || now) - state.startedAt;
+      const typingSpeed = timeSpent > 0 ? Math.round((state.charactersTyped / timeSpent) * 60000) : 0;
+
+      const payload = {
+        submissionId: submission.id ?? `${setId}-${studentId}`,
+        questionId,
+        studentId,
+        homeworkSetId: setId,
+        metrics: {
+          timeSpent,
+          typingSpeed,
+          attempts: state.attempts,
+          timeToFirstExecution: state.firstExecutionAt ? state.firstExecutionAt - state.startedAt : null,
+          timeBetweenExecutions: state.timeBetweenExecutions,
+          queryExecutionTimes: state.executionTimes,
+          charactersTyped: state.charactersTyped,
+          editsCount: state.editsCount,
+          copyPasteCount: state.copyPasteCount,
+          startedAt: new Date(state.startedAt).toISOString(),
+          lastActivityAt: new Date(state.lastActivity || now).toISOString(),
+        },
+      };
+
+      try {
+        await fetch("/api/analytics/question", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch (error) {
+        console.error("Failed to submit question analytics", error);
+      }
+    },
+    [setId, studentId, submissionQuery.data]
+  );
+
+  useEffect(() => {
+    if (activeQuestionId) {
+      ensureAnalyticsState(activeQuestionId);
+    }
+
+    if (activeQuestionRef.current && activeQuestionRef.current !== activeQuestionId) {
+      finalizeAnalytics(activeQuestionRef.current);
+    }
+
+    activeQuestionRef.current = activeQuestionId;
+
+    return () => {
+      if (activeQuestionRef.current) {
+        finalizeAnalytics(activeQuestionRef.current);
+      }
+    };
+  }, [activeQuestionId, ensureAnalyticsState, finalizeAnalytics]);
+
 
   const autosaveMutation = useMutation({
     mutationFn: (payload: { questionId: string; sql: string }) =>
@@ -248,7 +394,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     onSuccess: async (result, variables) => {
       console.log("✅ SQL execution successful", result);
       console.log("📊 Result has", result.rows.length, "rows and", result.columns.length, "columns");
-      
+      recordExecutionResult(variables.questionId, result.executionMs);
+
       // Update the query cache first for immediate UI update
       queryClient.setQueryData<Submission | undefined>(["submission", setId, studentId], (prev) => {
         console.log("🔄 Updating query cache, prev submission:", prev);
@@ -400,15 +547,16 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     (questionId: string, value?: string) => {
       const nextValue = value ?? "";
       console.log("🔵 handleSqlChange called:", { questionId, nextValueLength: nextValue.length });
+      recordTyping(questionId, nextValue);
       setEditorValues((prev) => ({ ...prev, [questionId]: nextValue }));
       scheduleAutosave(questionId, nextValue);
     },
-    [scheduleAutosave],
+    [recordTyping, scheduleAutosave],
   );
 
   const handleExecute = useCallback(() => {
-    console.log("🔴 handleExecute called", { 
-      activeQuestionId, 
+    console.log("🔴 handleExecute called", {
+      activeQuestionId,
       hasSubmission: !!submissionQuery.data,
       sql: editorValues[activeQuestionId]
     });
@@ -423,7 +571,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     }
     const sql = editorValues[activeQuestionId] ?? "";
     console.log("🟢 Executing SQL:", sql);
-    
+
+    recordExecutionStart(activeQuestionId);
+
     executeMutation.mutate({
       setId,
       submissionId: submissionQuery.data.id,
@@ -432,7 +582,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       studentId,
       attemptNumber: submissionQuery.data.attemptNumber,
     });
-  }, [activeQuestionId, editorValues, executeMutation, setId, studentId, submissionQuery.data]);
+  }, [activeQuestionId, editorValues, executeMutation, recordExecutionStart, setId, studentId, submissionQuery.data]);
 
   const submission = submissionQuery.data;
   const homework = homeworkQuery.data;
