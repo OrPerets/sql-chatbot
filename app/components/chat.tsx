@@ -50,6 +50,30 @@ type ChatSession = {
   lastMessageTimestamp: number;
 };
 
+type HomeworkChatContext = {
+  homeworkTitle: string;
+  backgroundStory?: string;
+  tables: Array<{
+    name: string;
+    columns: string[];
+    sampleRows?: Record<string, unknown>[];
+  }>;
+  questions: Array<{
+    id: string;
+    prompt: string;
+    instructions?: string;
+    index: number;
+    points?: number;
+  }>;
+  currentQuestion?: {
+    id: string;
+    prompt: string;
+    instructions?: string;
+    index: number;
+  } | null;
+  studentTableData?: Record<string, any[]>;
+};
+
 const UserMessage = ({ text }: { text: string }) => {
   return <div className={styles.userMessage}>{text}</div>;
 };
@@ -302,6 +326,7 @@ type ChatProps = {
   hideSidebar?: boolean;
   hideAvatar?: boolean;
   minimalMode?: boolean;
+  homeworkContext?: HomeworkChatContext | null;
 };
 
 const Chat = ({
@@ -311,7 +336,8 @@ const Chat = ({
   onAssistantResponse,
   hideSidebar = false,
   hideAvatar = false,
-  minimalMode = false
+  minimalMode = false,
+  homeworkContext = null,
 }: ChatProps) => {
   const [userInput, setUserInput] = useState("");
   const [messages, setMessages] = useState([]);
@@ -437,10 +463,60 @@ const Chat = ({
   const [exerciseAttempts, setExerciseAttempts] = useState(0);
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [exerciseAnswer, setExerciseAnswer] = useState("");
-  
+
   // Practice-related state
   const [showPracticeModal, setShowPracticeModal] = useState(false);
   const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
+
+  const formattedHomeworkContext = useMemo(() => {
+    if (!homeworkContext) return null;
+
+    const tableSection = homeworkContext.tables
+      .map((table) => {
+        const sampleRows = (table.sampleRows ?? [])
+          .slice(0, 2)
+          .map((row) => JSON.stringify(row))
+          .join("\n");
+
+        return `${table.name} (עמודות: ${table.columns.join(", ")})${sampleRows ? `\nדוגמאות נתונים:\n${sampleRows}` : ""}`;
+      })
+      .join("\n\n");
+
+    const questionSection = homeworkContext.questions
+      .map((question) => {
+        const base = `${question.index}. ${question.prompt}`;
+        const details = [question.instructions, question.points ? `ניקוד: ${question.points}` : null]
+          .filter(Boolean)
+          .join(" | ");
+        return details ? `${base}\n${details}` : base;
+      })
+      .join("\n\n");
+
+    const studentSection = homeworkContext.studentTableData
+      ? Object.entries(homeworkContext.studentTableData)
+          .map(([tableName, rows]) => {
+            const examples = Array.isArray(rows)
+              ? rows.slice(0, 2).map((row) => JSON.stringify(row)).join("\n")
+              : "";
+            return `${tableName}: ${examples || "(אין נתונים לדוגמא)"}`;
+          })
+          .join("\n\n")
+      : "";
+
+    const parts = [
+      `הקשר תרגיל: ${homeworkContext.homeworkTitle}`,
+      homeworkContext.backgroundStory ? `רקע: ${homeworkContext.backgroundStory}` : null,
+      tableSection ? `מבנה מסד הנתונים:\n${tableSection}` : null,
+      questionSection ? `שאלות התרגיל:\n${questionSection}` : null,
+      homeworkContext.currentQuestion
+        ? `שאלה נוכחית: ${homeworkContext.currentQuestion.index}. ${homeworkContext.currentQuestion.prompt}` +
+          (homeworkContext.currentQuestion.instructions ? `\n${homeworkContext.currentQuestion.instructions}` : "")
+        : null,
+      studentSection ? `נתוני סטודנט ייחודיים:\n${studentSection}` : null,
+    ].filter(Boolean);
+
+    return parts.join("\n\n");
+  }, [homeworkContext]);
 
   // Memoized avatar state calculation to prevent multiple renders
   const avatarState = useMemo(() => {
@@ -838,6 +914,10 @@ const updateUserBalance = async (value) => {
     
     // Message text is used as-is (SQL queries are now added directly by SqlQueryBuilder)
     let messageWithTags = text;
+
+    if (formattedHomeworkContext) {
+      messageWithTags = `${formattedHomeworkContext}\n\nשאלת הסטודנט: ${text}\nהסתמך על ההקשר לעיל וענה בעברית, עם דגשים על SQL כאשר רלוונטי.`;
+    }
 
     // Process image if one is selected
     let imageData = null;

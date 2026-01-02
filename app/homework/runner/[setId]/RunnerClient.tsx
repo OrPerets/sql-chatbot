@@ -417,6 +417,40 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     ? Math.max(0, activeQuestion.maxAttempts - (activeAnswer?.executionCount ?? 0))
     : undefined;
 
+  const chatHomeworkContext = useMemo(() => {
+    if (!homework) return null;
+
+    const currentQuestionIndex = activeQuestion
+      ? Math.max(0, questions.findIndex((question) => question.id === activeQuestion.id))
+      : -1;
+
+    return {
+      homeworkTitle: homework.title,
+      backgroundStory: homework.backgroundStory,
+      tables: Object.entries(DATABASE_SAMPLE_DATA).map(([name, data]) => ({
+        name,
+        columns: data.columns,
+        sampleRows: data.rows,
+      })),
+      questions: questions.map((question, index) => ({
+        id: question.id,
+        prompt: question.prompt,
+        instructions: question.instructions,
+        index: index + 1,
+        points: question.points,
+      })),
+      currentQuestion: activeQuestion
+        ? {
+            id: activeQuestion.id,
+            prompt: activeQuestion.prompt,
+            instructions: activeQuestion.instructions,
+            index: currentQuestionIndex >= 0 ? currentQuestionIndex + 1 : 1,
+          }
+        : null,
+      studentTableData: submission?.studentTableData,
+    };
+  }, [activeQuestion, homework, questions, submission?.studentTableData]);
+
   // Debug: Log activeAnswer whenever it changes
   useEffect(() => {
     if (activeQuestionId) {
@@ -762,7 +796,13 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           <h3 className={styles.chatTitle}>שאל את Michael</h3>
         </div>
         <div className={styles.chatContent}>
-          <Chat chatId={null} hideSidebar={true} hideAvatar={true} minimalMode={true} />
+          <Chat
+            chatId={null}
+            hideSidebar={true}
+            hideAvatar={true}
+            minimalMode={true}
+            homeworkContext={chatHomeworkContext}
+          />
         </div>
       </aside>
 
