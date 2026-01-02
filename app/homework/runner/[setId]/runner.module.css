@@ -25,7 +25,6 @@
   box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
   max-height: calc(100vh - 32px);
   height: calc(100vh - 32px);
-  overflow: hidden;
   position: sticky;
   top: 16px;
   min-width: 0;
@@ -33,22 +32,22 @@
   min-height: 0;
 }
 
-/* Enhanced scrollbar styling */
-.sidebar::-webkit-scrollbar {
-  width: 6px;
+/* Enhanced scrollbar styling for assignmentMeta (left sidebar content) */
+.assignmentMeta::-webkit-scrollbar {
+  width: 8px;
 }
 
-.sidebar::-webkit-scrollbar-track {
+.assignmentMeta::-webkit-scrollbar-track {
   background: #f1f5f9;
   border-radius: 8px;
 }
 
-.sidebar::-webkit-scrollbar-thumb {
+.assignmentMeta::-webkit-scrollbar-thumb {
   background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
   border-radius: 8px;
 }
 
-.sidebar::-webkit-scrollbar-thumb:hover {
+.assignmentMeta::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
 }
 
@@ -104,11 +103,16 @@
   padding: 0;
   border: none;
   position: relative;
-  overflow: hidden;
-  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  height: 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
 }
 
 /* Student Info Card */
@@ -289,11 +293,8 @@
   border-radius: 0;
   border: none;
   box-shadow: none;
-  flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
 }
 
 .instructionsHeader {
@@ -340,34 +341,11 @@
   font-size: 14px;
   line-height: 1.75;
   color: #374151;
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
   padding: 20px 18px;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-top: none;
   border-radius: 0 0 12px 12px;
-  min-height: 0;
-}
-
-/* Scrollbar styling for instructions content */
-.instructionsContent::-webkit-scrollbar {
-  width: 6px;
-}
-
-.instructionsContent::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 8px;
-}
-
-.instructionsContent::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  border-radius: 8px;
-}
-
-.instructionsContent::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
 }
 
 .instructionsList {
@@ -1679,7 +1657,6 @@
   max-height: calc(100vh - 32px);
   min-height: 400px;
   height: calc(100vh - 32px);
-  overflow: hidden;
   position: sticky;
   top: 16px;
   min-width: 0;
@@ -1725,12 +1702,11 @@
 }
 
 .chatContent {
-  flex: 1;
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   min-height: 0;
-  height: 100%;
+  height: 0;
   width: 100%;
 }
 
@@ -1739,6 +1715,7 @@
   width: 100% !important;
   margin: 0 !important;
   padding: 0 !important;
+  min-height: 0 !important;
 }
 
 /* Override Chat component styles for homework runner sidebar */
@@ -1754,6 +1731,7 @@
   min-height: 0 !important;
   display: flex !important;
   flex-direction: column !important;
+  overflow: hidden !important;
 }
 
 .chatContent :global(.container),
@@ -1766,17 +1744,18 @@
   margin: 0 !important;
   max-width: 100% !important;
   min-height: 0 !important;
+  overflow: hidden !important;
+  flex: 1 1 0 !important;
 }
 
 .chatContent :global(.chatContainer) {
-  flex: 1 !important;
-  height: 100% !important;
+  flex: 1 1 0 !important;
+  height: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
   display: flex !important;
   flex-direction: column !important;
   background: #ffffff !important;
-  overflow: hidden !important;
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
@@ -1792,7 +1771,7 @@
 }
 
 .chatContent :global(.messages) {
-  flex: 1 !important;
+  flex: 1 1 0 !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
   padding: 8px !important;
@@ -1800,12 +1779,35 @@
   max-width: 100% !important;
   box-sizing: border-box !important;
   margin: 0 !important;
-  min-height: 100px !important;
+  min-height: 0 !important;
+  height: 0 !important;
   background: #ffffff !important;
   border-radius: 0 !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 8px !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #cbd5e1 #f1f5f9 !important;
+}
+
+/* Custom scrollbar styling for messages in chat sidebar */
+.chatContent :global(.messages)::-webkit-scrollbar {
+  width: 8px !important;
+}
+
+.chatContent :global(.messages)::-webkit-scrollbar-track {
+  background: #f1f5f9 !important;
+  border-radius: 4px !important;
+}
+
+.chatContent :global(.messages)::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%) !important;
+  border-radius: 4px !important;
+}
+
+.chatContent :global(.messages)::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%) !important;
 }
 
 /* Empty state message for chat */

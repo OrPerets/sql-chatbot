@@ -916,7 +916,7 @@ const updateUserBalance = async (value) => {
     let messageWithTags = text;
 
     if (formattedHomeworkContext) {
-      messageWithTags = `${formattedHomeworkContext}\n\nשאלת הסטודנט: ${text}\nהסתמך על ההקשר לעיל וענה בעברית, עם דגשים על SQL כאשר רלוונטי.`;
+      messageWithTags = `${formattedHomeworkContext}\n\nשאלת הסטודנט: ${text}\n\nהנחיות חשובות:\n- אל תספק תשובה ישירה או קוד SQL מוכן\n- תן רמזים והנחיות שיעזרו לסטודנט למצוא את הפתרון בעצמו\n- שאל שאלות מנחות במקום לתת תשובות\n- עודד חשיבה עצמאית ולמידה\n- הסתמך על ההקשר לעיל וענה בעברית, עם דגשים על SQL כאשר רלוונטי.`;
     }
 
     // Process image if one is selected

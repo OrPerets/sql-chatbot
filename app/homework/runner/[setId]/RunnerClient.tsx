@@ -500,6 +500,32 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     }
   }, [activeQuestionId, activeAnswer]);
 
+  const handleDownloadDatabasePdf = useCallback(async () => {
+    try {
+      setIsDownloadingPdf(true);
+      const response = await fetch(`/api/homework/${setId}/database-pdf?studentId=${studentId}`);
+
+      if (!response.ok) {
+        console.error("Failed to download database PDF", await response.text());
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `database-${setId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error downloading database PDF", error);
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  }, [setId, studentId]);
+
   if (homeworkQuery.isLoading || questionsQuery.isLoading || submissionQuery.isLoading) {
     return (
       <div className={styles.loading} dir={direction}>
@@ -533,32 +559,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
 
   const statusLabel = submission?.status ? t(`runner.status.${submission.status}`) : t("runner.status.in_progress");
   const autosaveLabel = t(`runner.progress.autosave.${autosaveState}`);
-
-  const handleDownloadDatabasePdf = useCallback(async () => {
-    try {
-      setIsDownloadingPdf(true);
-      const response = await fetch(`/api/homework/${setId}/database-pdf?studentId=${studentId}`);
-
-      if (!response.ok) {
-        console.error("Failed to download database PDF", await response.text());
-        return;
-      }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `database-${setId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error downloading database PDF", error);
-    } finally {
-      setIsDownloadingPdf(false);
-    }
-  }, [setId, studentId]);
 
   return (
     <div className={styles.runner} dir={direction}>
@@ -597,7 +597,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           <div className={styles.confirmDialog}>
             <h3 className={styles.confirmTitle}>הצהרת שימוש בכלי AI</h3>
             <p className={styles.confirmText}>
-              אני הסטודנט מתחייב/ת שאם השתמשתי בכלי AI אחר אני מצרף את השיחה להלן או מסמן שלא נעשה שימוש.
+              אני מתחייב/ת שאם השתמשתי בכלי AI אחר אני מצרף את השיחה להלן או מסמן שלא נעשה שימוש.
             </p>
 
             <div className={styles.commitmentField}>
