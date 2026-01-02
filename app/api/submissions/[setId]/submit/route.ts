@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { submitSubmission, getSubmissionForStudent } from "@/lib/submissions";
 import { getHomeworkSetById } from "@/lib/homework";
-import { getUsersService } from "@/lib/users";
+import { findUserByIdOrEmail } from "@/lib/users";
 import { sendEmail } from "@/app/utils/email-service";
-import { connectToDatabase, COLLECTIONS } from "@/lib/database";
-import { ObjectId } from "mongodb";
 import { getQuestionsByHomeworkSet } from "@/lib/questions";
 import { generateSubmissionPdf } from "@/lib/submission-pdf";
 
@@ -67,33 +65,13 @@ export async function POST(request: Request, { params }: RouteParams) {
         if (finalStudentIdValue.includes("@")) {
           studentEmail = finalStudentIdValue;
         } else {
-          // Try to look up user by ID (ObjectId) or email
-          const { db } = await connectToDatabase();
-
-          // First, try to find by ObjectId if it's a valid ObjectId
-          if (ObjectId.isValid(finalStudentIdValue)) {
-            user = await db.collection(COLLECTIONS.USERS).findOne({
-              $or: [
-                { _id: new ObjectId(finalStudentIdValue) },
-                { id: finalStudentIdValue }
-              ]
-            });
-          }
-          
-          // If not found by ObjectId, try by email
-          if (!user) {
-            user = await db.collection(COLLECTIONS.USERS).findOne({ email: finalStudentIdValue });
-          }
-
-          // If still not found, try by id field
-          if (!user) {
-            user = await db.collection(COLLECTIONS.USERS).findOne({ id: finalStudentIdValue });
-          }
+          // Try to look up user by ID (ObjectId) or email using service
+          user = await findUserByIdOrEmail(finalStudentIdValue);
           
           if (user && user.email) {
             studentEmail = user.email;
           } else {
-            console.log(`⚠️ Could not find user email for studentId: ${finalStudentId}, skipping email`);
+            console.log(`⚠️ Could not find user email for studentId: ${finalStudentIdValue}, skipping email`);
           }
         }
 

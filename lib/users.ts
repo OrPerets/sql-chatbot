@@ -121,6 +121,41 @@ export class UsersService {
     })
   }
 
+  /**
+   * Find user by ID (ObjectId or string) or email
+   * Useful for looking up users when studentId might be either format
+   */
+  async findUserByIdOrEmail(identifier: string): Promise<UserModel | null> {
+    return executeWithRetry(async (db) => {
+      const { ObjectId } = await import('mongodb')
+      
+      // If identifier looks like an email, try email first
+      if (identifier.includes('@')) {
+        const user = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({ email: identifier })
+        if (user) return user
+      }
+      
+      // Try by ObjectId if it's a valid ObjectId
+      if (ObjectId.isValid(identifier)) {
+        const user = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({
+          $or: [
+            { _id: new ObjectId(identifier) },
+            { id: identifier }
+          ]
+        } as any)
+        if (user) return user
+      }
+      
+      // Try by email (in case identifier doesn't contain @ but is an email)
+      const user = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({ email: identifier })
+      if (user) return user
+      
+      // Try by id field
+      const userById = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({ id: identifier })
+      return userById || null
+    })
+  }
+
   async getCoinsBalance(email: string): Promise<any[]> {
     return executeWithRetry(async (db) => {
       const docs = await db.collection(COLLECTIONS.COINS).find({ user: email }).toArray()
@@ -295,6 +330,11 @@ export async function updateUser(email: string, userData: { firstName?: string; 
 export async function getUserByEmail(email: string) {
   const service = await getUsersService()
   return service.getUserByEmail(email)
+}
+
+export async function findUserByIdOrEmail(identifier: string) {
+  const service = await getUsersService()
+  return service.findUserByIdOrEmail(identifier)
 }
 
 
