@@ -4,15 +4,32 @@ import { MongoClient, Db, ServerApiVersion } from 'mongodb';
 const MONGODB_URI = process.env.MONGODB_URI || `mongodb+srv://${process.env.DB_USERNAME || 'sql-admin'}:${process.env.DB_PASSWORD || 'SMff5PqhhoVbX6z7'}@sqlmentor.ydqmecv.mongodb.net/?retryWrites=true&w=majority&appName=SQLMentor`;
 const DB_NAME = process.env.DB_NAME || 'experiment';
 
-// Global variables for connection caching (Vercel serverless optimization)
-let cachedClient: MongoClient | null = null;
-let cachedDb: Db | null = null;
-let connectionAttempts = 0;
+// Use globalThis for Vercel serverless - persists across function invocations
+// This is critical for serverless environments where module-level variables don't persist
+declare global {
+  var _mongoClient: MongoClient | undefined;
+  var _mongoDb: Db | undefined;
+  var _mongoConnectionAttempts: number | undefined;
+  var _mongoClientInstanceCount: number | undefined;
+  var _mongoTotalConnectionsCreated: number | undefined;
+}
+
 const maxConnectionAttempts = 3;
 
-// Connection statistics tracking
-let clientInstanceCount = 0;
-let totalConnectionsCreated = 0;
+// Connection statistics tracking (using globalThis for serverless)
+const getClientInstanceCount = () => {
+  if (typeof globalThis._mongoClientInstanceCount === 'undefined') {
+    globalThis._mongoClientInstanceCount = 0;
+  }
+  return globalThis._mongoClientInstanceCount;
+};
+
+const getTotalConnectionsCreated = () => {
+  if (typeof globalThis._mongoTotalConnectionsCreated === 'undefined') {
+    globalThis._mongoTotalConnectionsCreated = 0;
+  }
+  return globalThis._mongoTotalConnectionsCreated;
+};
 
 const POOL_CONFIG = {
   minPoolSize: 0, // Don't keep idle connections
@@ -59,7 +76,7 @@ async function logConnectionStats(client: MongoClient): Promise<void> {
         );
       } else {
         console.log(
-          `📊 MongoDB connection pool: max=${stats.maxPoolSize}, instances=${clientInstanceCount}, total_created=${totalConnectionsCreated}`
+          `📊 MongoDB connection pool: max=${stats.maxPoolSize}, instances=${getClientInstanceCount()}, total_created=${getTotalConnectionsCreated()}`
         );
       }
     }
@@ -73,36 +90,45 @@ async function logConnectionStats(client: MongoClient): Promise<void> {
  * Uses singleton pattern with connection caching for optimal performance
  */
 export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db }> {
-  // If we have a cached connection and it's still connected, reuse it
-  if (cachedClient && cachedDb) {
+  // Use globalThis for Vercel serverless - this persists across function invocations
+  // Check if we have a cached connection and it's still connected, reuse it
+  if (globalThis._mongoClient && globalThis._mongoDb) {
     try {
       // Test the connection with a simple ping (with timeout)
       await Promise.race([
-        cachedDb.admin().ping(),
+        globalThis._mongoDb.admin().ping(),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Ping timeout')), 5000)
         )
       ]);
-      console.log('♻️ Reusing existing MongoDB connection');
-      await logConnectionStats(cachedClient);
-      return { client: cachedClient, db: cachedDb };
+      console.log('♻️ Reusing existing MongoDB connection (from globalThis)');
+      await logConnectionStats(globalThis._mongoClient);
+      return { client: globalThis._mongoClient, db: globalThis._mongoDb };
     } catch (error) {
       console.log('🔄 Cached connection failed, creating new connection...', error);
       // Clear cached connection if ping fails
-      cachedClient = null;
-      cachedDb = null;
+      globalThis._mongoClient = undefined;
+      globalThis._mongoDb = undefined;
     }
   }
 
-  while (connectionAttempts < maxConnectionAttempts) {
+  // Initialize connection attempts counter
+  if (typeof globalThis._mongoConnectionAttempts === 'undefined') {
+    globalThis._mongoConnectionAttempts = 0;
+  }
+
+  while (globalThis._mongoConnectionAttempts < maxConnectionAttempts) {
     try {
-      console.log(`🔌 Creating new MongoDB connection (attempt ${connectionAttempts + 1})...`);
+      globalThis._mongoConnectionAttempts++;
+      console.log(`🔌 Creating new MongoDB connection (attempt ${globalThis._mongoConnectionAttempts}/${maxConnectionAttempts})...`);
       
-      // Warn if creating multiple client instances
-      if (clientInstanceCount > 0) {
+      // Warn if creating multiple client instances (this should be rare with globalThis)
+      const instanceCount = getClientInstanceCount();
+      if (instanceCount > 0) {
         console.warn(
-          `⚠️ Creating new MongoClient instance (${clientInstanceCount + 1} total). This may indicate connection leaks!`
+          `⚠️ Creating new MongoClient instance (${instanceCount + 1} total). This may indicate connection leaks!`
         );
+        console.warn('💡 In Vercel serverless, this usually means the execution context was reset.');
       }
       
       // Create new client with optimized settings for M0 cluster
@@ -129,24 +155,24 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
       await db.command({ ping: 1 });
       
       // Track statistics
-      clientInstanceCount++;
-      totalConnectionsCreated++;
+      globalThis._mongoClientInstanceCount = (globalThis._mongoClientInstanceCount || 0) + 1;
+      globalThis._mongoTotalConnectionsCreated = (globalThis._mongoTotalConnectionsCreated || 0) + 1;
       
       console.log(
-        `✅ Successfully connected to MongoDB! (pool: min=${POOL_CONFIG.minPoolSize}, max=${POOL_CONFIG.maxPoolSize}, instances=${clientInstanceCount})`
+        `✅ Successfully connected to MongoDB! (pool: min=${POOL_CONFIG.minPoolSize}, max=${POOL_CONFIG.maxPoolSize}, instances=${getClientInstanceCount()})`
       );
       
-      // Cache the connection
-      cachedClient = client;
-      cachedDb = db;
-      connectionAttempts = 0; // Reset on successful connection
+      // Cache the connection in globalThis (persists across serverless invocations)
+      globalThis._mongoClient = client;
+      globalThis._mongoDb = db;
+      globalThis._mongoConnectionAttempts = 0; // Reset on successful connection
       
       await logConnectionStats(client);
       
-      return { client: cachedClient, db: cachedDb };
+      return { client: globalThis._mongoClient, db: globalThis._mongoDb };
       
     } catch (error: any) {
-      connectionAttempts++;
+      // connectionAttempts already incremented above
       
       // Check if this is an SSL/TLS error
       const isSSLError = error?.code === 'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR' ||
@@ -156,15 +182,15 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
       
       if (isSSLError) {
         console.error(
-          `❌ MongoDB SSL/TLS connection error (attempt ${connectionAttempts}/${maxConnectionAttempts}):`,
+          `❌ MongoDB SSL/TLS connection error (attempt ${globalThis._mongoConnectionAttempts}/${maxConnectionAttempts}):`,
           error?.cause?.message || error?.message || 'Unknown SSL error'
         );
         console.log('💡 This may be a transient network issue. Retrying with longer delay...');
       } else {
-        console.error(`❌ MongoDB connection attempt ${connectionAttempts} failed:`, error);
+        console.error(`❌ MongoDB connection attempt ${globalThis._mongoConnectionAttempts} failed:`, error);
       }
       
-      if (connectionAttempts >= maxConnectionAttempts) {
+      if (globalThis._mongoConnectionAttempts >= maxConnectionAttempts) {
         console.error(`❌ Failed to connect after ${maxConnectionAttempts} attempts`);
         if (isSSLError) {
           console.error('💡 SSL/TLS errors often indicate:');
@@ -173,13 +199,15 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
           console.error('   3. IP address not whitelisted in MongoDB Atlas');
           console.error('   4. Transient MongoDB Atlas service issues');
         }
+        // Reset attempts counter for next try
+        globalThis._mongoConnectionAttempts = 0;
         throw error;
       }
       
       // Wait before retrying (exponential backoff, longer delay for SSL errors)
       const delay = isSSLError 
-        ? 3000 * connectionAttempts // 3s, 6s, 9s for SSL errors
-        : 1000 * connectionAttempts; // 1s, 2s, 3s for other errors
+        ? 3000 * globalThis._mongoConnectionAttempts // 3s, 6s, 9s for SSL errors
+        : 1000 * globalThis._mongoConnectionAttempts; // 1s, 2s, 3s for other errors
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
@@ -207,8 +235,8 @@ export async function executeWithRetry<T>(
         error.message?.includes('connection') ||
         error.message?.includes('timeout')
       )) {
-        cachedClient = null;
-        cachedDb = null;
+        globalThis._mongoClient = undefined;
+        globalThis._mongoDb = undefined;
         await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
         continue;
       }
