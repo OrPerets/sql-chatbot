@@ -111,11 +111,19 @@ export interface Submission {
   createdAt?: string;
   updatedAt?: string;
   studentTableData?: Record<string, any[]>; // Key: table name, Value: array of row data
+  aiCommitment?: {
+    signed: boolean;
+    declaredNoAi?: boolean;
+    fileAttached?: string;
+    timestamp: string;
+  };
 }
 
 export interface SubmissionSummary {
   id: string;
   studentId: string;
+  studentIdNumber?: string; // Israeli ID number (ת.ז)
+  studentName?: string; // Student's full name
   status: Submission["status"];
   overallScore: number;
   submittedAt?: string;

@@ -40,6 +40,7 @@ const nextConfig = {
   // Reduce bundle size
   experimental: {
     optimizePackageImports: ['lucide-react'],
+    serverComponentsExternalPackages: ['pdfkit'],
   },
   // Image optimization
   images: {
@@ -74,8 +75,14 @@ const nextConfig = {
     
     // Handle sql.js and alasql for server-side execution
     if (isServer) {
-      config.externals = config.externals || [];
-      // Don't bundle sql.js for server - it will be loaded at runtime
+      // Externalize pdfkit so it can access its font files from node_modules at runtime
+      if (!config.externals) {
+        config.externals = [];
+      }
+      if (Array.isArray(config.externals)) {
+        config.externals.push('pdfkit');
+      }
+      
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,

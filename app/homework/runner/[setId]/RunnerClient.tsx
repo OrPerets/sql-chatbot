@@ -9,6 +9,7 @@ import {
   getSubmission,
   saveSubmissionDraft,
   submitHomework,
+  SubmitHomeworkPayload,
 } from "@/app/homework/services/submissionService";
 import { executeSql } from "@/app/homework/services/sqlService";
 import type { Question, SqlExecutionRequest, Submission } from "@/app/homework/types";
@@ -34,6 +35,21 @@ interface RunnerClientProps {
 interface PendingSave {
   questionId: string;
   timer: number;
+}
+
+interface QuestionAnalyticsState {
+  startedAt: number;
+  lastActivity: number;
+  firstTypeAt?: number;
+  firstExecutionAt?: number;
+  lastExecutionAt?: number;
+  attempts: number;
+  timeBetweenExecutions: number[];
+  executionTimes: number[];
+  charactersTyped: number;
+  editsCount: number;
+  copyPasteCount: number;
+  lastValue: string;
 }
 
 const AUTOSAVE_DELAY = 800;
@@ -149,9 +165,16 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const [autosaveState, setAutosaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showCommitmentDialog, setShowCommitmentDialog] = useState(false);
+  const [aiConversationFile, setAiConversationFile] = useState<File | null>(null);
+  const [aiDeclarationChecked, setAiDeclarationChecked] = useState(false);
+  const [commitmentError, setCommitmentError] = useState<string | null>(null);
   const [showDatabaseViewer, setShowDatabaseViewer] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
   const pendingRef = useRef<Record<string, PendingSave>>({});
+  const analyticsRef = useRef<Record<string, QuestionAnalyticsState>>({});
+  const activeQuestionRef = useRef<string | null>(null);
   const { t, direction, formatDateTime, formatNumber } = useHomeworkLocale();
   const backArrow = direction === "rtl" ? "→" : "←";
 
@@ -210,6 +233,135 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     }
   }, [questionsQuery.data, activeQuestionId]);
 
+  const ensureAnalyticsState = useCallback(
+    (questionId: string) => {
+      if (!analyticsRef.current[questionId]) {
+        analyticsRef.current[questionId] = {
+          startedAt: Date.now(),
+          lastActivity: Date.now(),
+          attempts: 0,
+          timeBetweenExecutions: [],
+          executionTimes: [],
+          charactersTyped: 0,
+          editsCount: 0,
+          copyPasteCount: 0,
+          lastValue: editorValues[questionId] ?? "",
+        };
+      }
+      return analyticsRef.current[questionId];
+    },
+    [editorValues]
+  );
+
+  const recordTyping = useCallback(
+    (questionId: string, nextValue: string) => {
+      const state = ensureAnalyticsState(questionId);
+      const previousValue = state.lastValue ?? "";
+      const delta = Math.max(0, nextValue.length - previousValue.length);
+
+      state.charactersTyped += delta;
+      state.editsCount += 1;
+      state.lastValue = nextValue;
+      state.lastActivity = Date.now();
+      if (!state.firstTypeAt) {
+        state.firstTypeAt = Date.now();
+      }
+    },
+    [ensureAnalyticsState]
+  );
+
+  const recordExecutionStart = useCallback(
+    (questionId: string) => {
+      const state = ensureAnalyticsState(questionId);
+      const now = Date.now();
+
+      if (state.lastExecutionAt) {
+        state.timeBetweenExecutions.push(now - state.lastExecutionAt);
+      }
+
+      if (!state.firstExecutionAt) {
+        state.firstExecutionAt = now;
+      }
+
+      state.lastExecutionAt = now;
+      state.attempts += 1;
+      state.lastActivity = now;
+    },
+    [ensureAnalyticsState]
+  );
+
+  const recordExecutionResult = useCallback(
+    (questionId: string, executionMs: number | undefined) => {
+      const state = ensureAnalyticsState(questionId);
+      state.executionTimes.push(executionMs ?? 0);
+      state.lastActivity = Date.now();
+    },
+    [ensureAnalyticsState]
+  );
+
+  const finalizeAnalytics = useCallback(
+    async (questionId: string) => {
+      const state = analyticsRef.current[questionId];
+      if (!state) return;
+
+      const submission = submissionQuery.data;
+      if (!submission) return;
+
+      const now = Date.now();
+      const timeSpent = (state.lastActivity || now) - state.startedAt;
+      const typingSpeed = timeSpent > 0 ? Math.round((state.charactersTyped / timeSpent) * 60000) : 0;
+
+      const payload = {
+        submissionId: submission.id ?? `${setId}-${studentId}`,
+        questionId,
+        studentId,
+        homeworkSetId: setId,
+        metrics: {
+          timeSpent,
+          typingSpeed,
+          attempts: state.attempts,
+          timeToFirstExecution: state.firstExecutionAt ? state.firstExecutionAt - state.startedAt : null,
+          timeBetweenExecutions: state.timeBetweenExecutions,
+          queryExecutionTimes: state.executionTimes,
+          charactersTyped: state.charactersTyped,
+          editsCount: state.editsCount,
+          copyPasteCount: state.copyPasteCount,
+          startedAt: new Date(state.startedAt).toISOString(),
+          lastActivityAt: new Date(state.lastActivity || now).toISOString(),
+        },
+      };
+
+      try {
+        await fetch("/api/analytics/question", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch (error) {
+        console.error("Failed to submit question analytics", error);
+      }
+    },
+    [setId, studentId, submissionQuery.data]
+  );
+
+  useEffect(() => {
+    if (activeQuestionId) {
+      ensureAnalyticsState(activeQuestionId);
+    }
+
+    if (activeQuestionRef.current && activeQuestionRef.current !== activeQuestionId) {
+      finalizeAnalytics(activeQuestionRef.current);
+    }
+
+    activeQuestionRef.current = activeQuestionId;
+
+    return () => {
+      if (activeQuestionRef.current) {
+        finalizeAnalytics(activeQuestionRef.current);
+      }
+    };
+  }, [activeQuestionId, ensureAnalyticsState, finalizeAnalytics]);
+
 
   const autosaveMutation = useMutation({
     mutationFn: (payload: { questionId: string; sql: string }) =>
@@ -242,7 +394,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     onSuccess: async (result, variables) => {
       console.log("✅ SQL execution successful", result);
       console.log("📊 Result has", result.rows.length, "rows and", result.columns.length, "columns");
-      
+      recordExecutionResult(variables.questionId, result.executionMs);
+
       // Update the query cache first for immediate UI update
       queryClient.setQueryData<Submission | undefined>(["submission", setId, studentId], (prev) => {
         console.log("🔄 Updating query cache, prev submission:", prev);
@@ -301,13 +454,16 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   });
 
   const submitMutation = useMutation({
-    mutationFn: () => submitHomework(setId, { studentId }),
+    mutationFn: (payload: SubmitHomeworkPayload) => submitHomework(setId, payload),
     onSuccess: (submission) => {
       // Update the query cache immediately so the component re-renders with new status
       queryClient.setQueryData<Submission | undefined>(["submission", setId, studentId], submission);
       queryClient.invalidateQueries({ queryKey: ["submission", setId, studentId] });
       // Close confirmation dialog
       setShowConfirmDialog(false);
+      setShowCommitmentDialog(false);
+      setAiConversationFile(null);
+      setAiDeclarationChecked(false);
       // The page will automatically show SubmittedPage due to the check below
       // Force a refetch to ensure the UI updates
       submissionQuery.refetch();
@@ -315,15 +471,47 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   });
 
   const handleSubmitClick = useCallback(() => {
+    setCommitmentError(null);
+    setAiConversationFile(null);
+    setAiDeclarationChecked(false);
+    setShowCommitmentDialog(false);
     setShowConfirmDialog(true);
   }, []);
 
   const handleConfirmSubmit = useCallback(() => {
-    submitMutation.mutate();
-  }, [submitMutation]);
+    setShowConfirmDialog(false);
+    setShowCommitmentDialog(true);
+  }, []);
 
   const handleCancelSubmit = useCallback(() => {
     setShowConfirmDialog(false);
+  }, []);
+
+  const handleCommitmentSubmit = useCallback(() => {
+    if (!aiConversationFile && !aiDeclarationChecked) {
+      setCommitmentError("אנא צרף שיחה או אשר שלא השתמשת בכלי AI");
+      return;
+    }
+
+    setCommitmentError(null);
+    const aiCommitment: SubmitHomeworkPayload["aiCommitment"] = {
+      signed: true,
+      declaredNoAi: aiDeclarationChecked,
+      fileAttached: aiConversationFile?.name,
+      timestamp: new Date().toISOString(),
+    };
+
+    submitMutation.mutate({
+      studentId,
+      aiCommitment,
+      aiConversationFile,
+    });
+  }, [aiConversationFile, aiDeclarationChecked, studentId, submitMutation]);
+
+  const handleCancelCommitment = useCallback(() => {
+    setShowCommitmentDialog(false);
+    setAiConversationFile(null);
+    setAiDeclarationChecked(false);
   }, []);
 
   const scheduleAutosave = useCallback(
@@ -359,15 +547,16 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     (questionId: string, value?: string) => {
       const nextValue = value ?? "";
       console.log("🔵 handleSqlChange called:", { questionId, nextValueLength: nextValue.length });
+      recordTyping(questionId, nextValue);
       setEditorValues((prev) => ({ ...prev, [questionId]: nextValue }));
       scheduleAutosave(questionId, nextValue);
     },
-    [scheduleAutosave],
+    [recordTyping, scheduleAutosave],
   );
 
   const handleExecute = useCallback(() => {
-    console.log("🔴 handleExecute called", { 
-      activeQuestionId, 
+    console.log("🔴 handleExecute called", {
+      activeQuestionId,
       hasSubmission: !!submissionQuery.data,
       sql: editorValues[activeQuestionId]
     });
@@ -382,7 +571,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     }
     const sql = editorValues[activeQuestionId] ?? "";
     console.log("🟢 Executing SQL:", sql);
-    
+
+    recordExecutionStart(activeQuestionId);
+
     executeMutation.mutate({
       setId,
       submissionId: submissionQuery.data.id,
@@ -391,7 +582,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       studentId,
       attemptNumber: submissionQuery.data.attemptNumber,
     });
-  }, [activeQuestionId, editorValues, executeMutation, setId, studentId, submissionQuery.data]);
+  }, [activeQuestionId, editorValues, executeMutation, recordExecutionStart, setId, studentId, submissionQuery.data]);
 
   const submission = submissionQuery.data;
   const homework = homeworkQuery.data;
@@ -416,6 +607,40 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     ? Math.max(0, activeQuestion.maxAttempts - (activeAnswer?.executionCount ?? 0))
     : undefined;
 
+  const chatHomeworkContext = useMemo(() => {
+    if (!homework) return null;
+
+    const currentQuestionIndex = activeQuestion
+      ? Math.max(0, questions.findIndex((question) => question.id === activeQuestion.id))
+      : -1;
+
+    return {
+      homeworkTitle: homework.title,
+      backgroundStory: homework.backgroundStory,
+      tables: Object.entries(DATABASE_SAMPLE_DATA).map(([name, data]) => ({
+        name,
+        columns: data.columns,
+        sampleRows: data.rows,
+      })),
+      questions: questions.map((question, index) => ({
+        id: question.id,
+        prompt: question.prompt,
+        instructions: question.instructions,
+        index: index + 1,
+        points: question.points,
+      })),
+      currentQuestion: activeQuestion
+        ? {
+            id: activeQuestion.id,
+            prompt: activeQuestion.prompt,
+            instructions: activeQuestion.instructions,
+            index: currentQuestionIndex >= 0 ? currentQuestionIndex + 1 : 1,
+          }
+        : null,
+      studentTableData: submission?.studentTableData,
+    };
+  }, [activeQuestion, homework, questions, submission?.studentTableData]);
+
   // Debug: Log activeAnswer whenever it changes
   useEffect(() => {
     if (activeQuestionId) {
@@ -424,6 +649,32 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       console.log("   ResultPreview:", activeAnswer?.resultPreview);
     }
   }, [activeQuestionId, activeAnswer]);
+
+  const handleDownloadDatabasePdf = useCallback(async () => {
+    try {
+      setIsDownloadingPdf(true);
+      const response = await fetch(`/api/homework/${setId}/database-pdf?studentId=${studentId}`);
+
+      if (!response.ok) {
+        console.error("Failed to download database PDF", await response.text());
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `database-${setId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error downloading database PDF", error);
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  }, [setId, studentId]);
 
   if (homeworkQuery.isLoading || questionsQuery.isLoading || submissionQuery.isLoading) {
     return (
@@ -490,17 +741,85 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         </div>
       )}
 
+      {/* AI Commitment Dialog */}
+      {showCommitmentDialog && (
+        <div className={styles.confirmOverlay}>
+          <div className={styles.confirmDialog}>
+            <h3 className={styles.confirmTitle}>הצהרת שימוש בכלי AI</h3>
+            <p className={styles.confirmText}>
+              אני מתחייב/ת שאם השתמשתי בכלי AI אחר אני מצרף את השיחה להלן או מסמן שלא נעשה שימוש.
+            </p>
+
+            <div className={styles.commitmentField}>
+              <label className={styles.fileLabel} htmlFor="ai-conversation">
+                צרף שיחה או קובץ (אופציונלי)
+              </label>
+              <input
+                id="ai-conversation"
+                name="ai-conversation"
+                type="file"
+                className={styles.fileInput}
+                onChange={(event) => setAiConversationFile(event.target.files?.[0] ?? null)}
+                disabled={submitMutation.isPending}
+              />
+              {aiConversationFile && (
+                <p className={styles.fileName}>📎 {aiConversationFile.name}</p>
+              )}
+            </div>
+
+            <label className={styles.checkboxRow}>
+              <input
+                type="checkbox"
+                checked={aiDeclarationChecked}
+                onChange={(event) => setAiDeclarationChecked(event.target.checked)}
+                disabled={submitMutation.isPending}
+              />
+              <span>אישרתי שלא השתמשתי בכלי AI</span>
+            </label>
+
+            {commitmentError && <p className={styles.commitmentError}>{commitmentError}</p>}
+
+            <div className={styles.confirmActions}>
+              <button
+                className={styles.confirmButton}
+                onClick={handleCommitmentSubmit}
+                disabled={submitMutation.isPending}
+              >
+                {submitMutation.isPending ? "מגיש..." : "אישור והגשה"}
+              </button>
+              <button
+                className={styles.cancelButton}
+                onClick={handleCancelCommitment}
+                disabled={submitMutation.isPending}
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Right Sidebar: Background Story */}
       <aside className={styles.sidebar}>
         <div className={styles.assignmentMeta}>
           {homework.backgroundStory && (
-            <InstructionsSection 
-              instructions={transformBackgroundStory(homework.backgroundStory, homework.title)} 
+            <InstructionsSection
+              instructions={transformBackgroundStory(homework.backgroundStory, homework.title)}
             />
           )}
-          
+
           {/* Database Viewer Button */}
           <div className={styles.databaseViewerSection}>
+            <button
+              type="button"
+              className={styles.databasePdfButton}
+              onClick={handleDownloadDatabasePdf}
+              disabled={isDownloadingPdf}
+            >
+              <span>📄</span>
+              {isDownloadingPdf ? "יוצר PDF..." : "הורד PDF של מסד הנתונים"}
+            </button>
+
             <button
               type="button"
               className={styles.databaseViewerButton}
@@ -571,14 +890,14 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 const answer = answers[qId];
                 const isCompleted = Boolean(answer?.feedback?.score);
                 const questionNum = index + 1;
-                
+
                 return (
                   <div key={qId} className={styles.stepperItem}>
-                    <div 
+                    <div
                       className={`${styles.stepperCircle} ${isActive ? styles.stepperCircleActive : ''} ${isCompleted ? styles.stepperCircleCompleted : ''}`}
                       onClick={() => setActiveQuestionId(qId)}
                     >
-                      {isCompleted ? '✓' : questionNum}
+                      {isCompleted ? '⚡' : questionNum}
                     </div>
                     {index < questions.length - 1 && (
                       <div className={`${styles.stepperLine} ${isCompleted ? styles.stepperLineCompleted : ''}`} />
@@ -588,9 +907,12 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               })}
             </div>
           </div>
-          
+
           <div className={styles.questionContent}>
             <h3>{activeQuestion?.prompt ?? t("runner.question.placeholder")}</h3>
+            {activeQuestion?.instructions && (
+              <p className={styles.instructions}>{activeQuestion.instructions}</p>
+            )}
           </div>
           <div className={styles.unknownAnswerNote}>
             💡 עבור שאלות שאינכם יודעים לענות, עליכם לרשום &quot;X&quot;
@@ -721,8 +1043,25 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           <span className={styles.chatIcon}>💬</span>
           <h3 className={styles.chatTitle}>שאל את Michael</h3>
         </div>
-        <div className={styles.chatContent}>
-          <Chat chatId={null} hideSidebar={true} hideAvatar={true} minimalMode={true} />
+        <div 
+          className={styles.chatContent}
+          style={{
+            flex: '1 1 0',
+            minHeight: 0,
+            height: 0,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <Chat
+            chatId={null}
+            hideSidebar={true}
+            hideAvatar={true}
+            minimalMode={true}
+            embeddedMode={true}
+            homeworkContext={chatHomeworkContext}
+          />
         </div>
       </aside>
 

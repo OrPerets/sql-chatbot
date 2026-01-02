@@ -26,6 +26,7 @@ export function StudentEntryClient() {
   const [studentName, setStudentName] = useState("");
   const [error, setError] = useState("");
   const [homework, setHomework] = useState<HomeworkSet | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
   
   const ADMIN_PASSWORD = "r123";
 
@@ -188,9 +189,17 @@ export function StudentEntryClient() {
     }
   };
 
-  const handleStart = () => {
-    if (homework && studentId) {
-      router.push(`/homework/runner/${homework.id}?studentId=${studentId}`);
+  const handleStart = async () => {
+    if (homework && studentId && !isStarting) {
+      setIsStarting(true);
+      try {
+        // Small delay to show loading state
+        await new Promise(resolve => setTimeout(resolve, 100));
+        router.push(`/homework/runner/${homework.id}?studentId=${studentId}`);
+      } catch (err) {
+        console.error("Error navigating to runner:", err);
+        setIsStarting(false);
+      }
     }
   };
 
@@ -293,12 +302,21 @@ export function StudentEntryClient() {
             </div>
 
             <div className={styles.buttonGroup}>
-              <button className={styles.buttonSecondary} onClick={handleBack}>
+              <button className={styles.buttonSecondary} onClick={handleBack} disabled={isStarting}>
                 חזרה
               </button>
-              <button className={styles.buttonPrimary} onClick={handleStart}>
-                התחל את שיעור הבית
-                <ArrowRight size={20} />
+              <button className={styles.buttonPrimary} onClick={handleStart} disabled={isStarting}>
+                {isStarting ? (
+                  <>
+                    <div className={styles.buttonSpinner} />
+                    טוען...
+                  </>
+                ) : (
+                  <>
+                    התחל את שיעור הבית
+                    <ArrowRight size={20} />
+                  </>
+                )}
               </button>
             </div>
           </div>

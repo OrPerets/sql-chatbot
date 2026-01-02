@@ -1,385 +1,592 @@
-# MCP Mechanism Fix - Week Context Awareness Issue
+# Homework 3 Development Tasks
 
-## ✅ LATEST FIX (Current Session)
-**Issue:** Assistant was providing ALTER TABLE examples in week 9, even though ALTER is taught in week 11.
-
-**Fix Applied:**
-1. Strengthened assistant instructions with explicit prohibition rules
-2. Added Hebrew response templates for forbidden concepts
-3. Enhanced function description to emphasize checking forbiddenConcepts
-4. Added specific examples: "If asked about ALTER in week 9, say it's learned in week 11 and suggest CREATE TABLE instead"
-
-**Status:** Instructions updated. Assistant needs to be updated via `/api/assistants/update` endpoint.
+## Overview
+This document contains detailed task instructions for Homework 3 student interface and grading interface improvements, organized into logical sprints with todo lists for each sprint.
 
 ---
 
-## Problem Description
+## Sprint 1: Student Interface - Core UI Improvements
 
-**Current Issue:** In week 9, the chatbot incorrectly states that students haven't reached JOIN operations, even though JOIN is taught in week 7. The chatbot should be aware that in week 9, students have learned concepts from weeks 1-9 (cumulative), including JOIN.
+### Goal
+Improve basic UI elements and functionality in the student homework runner interface.
 
-**Expected Behavior:** 
-- Week 9 should include all concepts from weeks 1-9
-- JOIN (taught in week 7) should be available in week 9
-- The assistant should call `get_course_week_context()` before answering SQL questions
-- The assistant should respect `sqlRestrictions.allowedConcepts` and `sqlRestrictions.forbiddenConcepts`
+### Todo List
 
-**Actual Behavior:**
-- The assistant is saying JOIN hasn't been reached in week 9
-- This suggests either:
-  1. The function `get_course_week_context()` is not being called
-  2. The function is called but the week number is incorrect
-  3. The function is called but the assistant is not respecting the restrictions properly
-  4. The week calculation logic is wrong
+#### Task 1.1: Add PDF Download Option for Database Schema
+**Location**: `app/homework/runner/[setId]/RunnerClient.tsx`
 
----
+**Description**: 
+Add a button in the right sidebar menu to download a PDF containing:
+- All database tables (Students, Courses, Lecturers, Enrollments)
+- Table structures (columns, data types, constraints)
+- Sample data or at minimum the schema definition
 
-## Root Cause Analysis
+**Implementation Steps**:
+1. Add a new button in the sidebar (near the database viewer button) labeled "הורד PDF של מסד הנתונים"
+2. Create a new API endpoint `/api/homework/[setId]/database-pdf` that:
+   - Fetches the student's assigned table data from `submission.studentTableData`
+   - If no student data exists, use the general schema structure
+   - Generates a PDF using a library like `pdfkit` or `jsPDF`
+   - Returns the PDF as a blob
+3. The PDF should include:
+   - Title: "מסד נתונים - תרגיל 3"
+   - For each table (Students, Courses, Lecturers, Enrollments):
+     - Table name
+     - Column definitions (name, type)
+     - Sample data (if available) or indication of data presence
+4. Button should trigger download of the generated PDF
 
-### 1. Function Call Reliability
-**Location:** `app/api/assistants/update/route.ts`, `app/api/assistants/route.ts`
-
-**Issue:** The assistant instructions say "MUST call get_course_week_context()" but there's no technical enforcement. The OpenAI Assistants API doesn't support "required" functions - it relies on the LLM to follow instructions.
-
-**Current Instructions:**
-```
-CRITICAL: Before answering ANY SQL-related question, you MUST:
-1. Call get_course_week_context() to determine the current academic week
-2. Check the sqlRestrictions field in the response to see which concepts are allowed/forbidden
-```
-
-**Problem:** The assistant might skip this step, especially for:
-- General SQL questions that don't explicitly mention "week" or "course"
-- Questions where the assistant thinks it knows the answer
-- Questions that seem unrelated to weekly context
-
-### 2. Week Calculation Logic
-**Location:** `lib/content.ts` - `getCurrentWeekContextNormalized()`
-
-**Current Logic:**
-```typescript
-const now = new Date()
-const startDate = new Date(startDateStr)
-const diffMs = now.getTime() - startDate.getTime()
-const rawWeek = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1
-const week = this.clampWeek(rawWeek)
-```
-
-**🚨 CRITICAL ISSUE FOUND:**
-There's an **inconsistency** in week calculation methods:
-- **Backend (`lib/content.ts`)**: Uses `Math.floor()` + 1
-- **Frontend (`app/components/McpMichaelPage.tsx`)**: Uses `Math.ceil()`
-
-This means the frontend and backend might calculate different week numbers for the same date!
-
-**Potential Issues:**
-- Uses `Math.floor()` which might cause off-by-one errors
-- **INCONSISTENCY**: Frontend uses `Math.ceil()`, backend uses `Math.floor()` + 1
-- Timezone issues if `startDate` and `now` are in different timezones
-- Week calculation might be off if semester start date is incorrect
-
-**Verification Needed:**
-- Check if semester start date in database is correct
-- Verify current week calculation matches actual calendar week
-- Test edge cases (start of week, end of week, timezone boundaries)
-
-### 3. SQL Curriculum Mapping
-**Location:** `lib/sql-curriculum.ts`
-
-**Current Implementation:**
-- `getAllowedConceptsForWeek(week)` - Returns cumulative concepts from weeks 1 to `week`
-- `getForbiddenConceptsForWeek(week)` - Returns concepts from weeks `week+1` to 13
-
-**Verification:**
-- Week 7 includes JOIN in `allowedConcepts`
-- Week 9 should include JOIN (from week 7) in `allowedConcepts`
-- Week 9 should NOT have JOIN in `forbiddenConcepts`
-
-**Test Cases:**
-```typescript
-// Week 7
-getAllowedConceptsForWeek(7) // Should include 'JOIN', 'ON', 'USING'
-getForbiddenConceptsForWeek(7) // Should NOT include 'JOIN'
-
-// Week 9
-getAllowedConceptsForWeek(9) // Should include 'JOIN' (from week 7) + 'subquery' (from week 9)
-getForbiddenConceptsForWeek(9) // Should NOT include 'JOIN' or 'subquery'
-```
-
-### 4. Function Response Format
-**Location:** `app/api/assistants/functions/course-context/route.ts`
-
-**Current Response:**
-```json
-{
-  "weekNumber": 9,
-  "content": "...",
-  "dateRange": "...",
-  "sqlRestrictions": {
-    "allowedConcepts": ["JOIN", "ON", "USING", "subquery", ...],
-    "forbiddenConcepts": [...],
-    "weekNumber": 9
-  }
-}
-```
-
-**Issue:** The assistant might not be parsing or using the `sqlRestrictions` field correctly. The instructions mention it, but the assistant might:
-- Ignore the restrictions
-- Misinterpret the cumulative nature (week 9 = weeks 1-9)
-- Not check the restrictions before providing SQL examples
-
-### 5. Fallback Context Injection
-**Location:** `app/api/assistants/threads/[threadId]/messages/route.ts`
-
-**Current Implementation:**
-```typescript
-const weeklyResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/mcp-michael/current-week`);
-if (weeklyResponse.ok) {
-  const weeklyData = await weeklyResponse.json();
-  const weekNum = weeklyData.weekNumber ?? weeklyData.currentWeek;
-  if (weeklyData.content && weeklyData.content.trim()) {
-    weeklyContext = `\n\n[Current Week Context - Week ${weekNum}: ${weeklyData.content}. IMPORTANT: Only use SQL concepts taught up to week ${weekNum}. Do NOT use JOINs before week 7, or sub-queries before week 9.]`;
-  }
-}
-```
-
-**Issues:**
-- This is a fallback that adds context as a string to the user message
-- It doesn't include the `sqlRestrictions` object
-- The hardcoded message says "Do NOT use JOINs before week 7" but doesn't say "JOINs ARE allowed in week 9"
-- This might conflict with or override the function call results
+**Files to Modify**:
+- `app/homework/runner/[setId]/RunnerClient.tsx` - Add download button
+- Create: `app/api/homework/[setId]/database-pdf/route.ts` - PDF generation endpoint
+- May need to install: `pdfkit` or similar PDF library
 
 ---
 
-## Investigation Steps
+#### Task 1.2: Fix Question Text Display
+**Location**: `app/homework/runner/[setId]/RunnerClient.tsx`
 
-### Step 1: Verify Week Calculation
-1. Check the semester start date in the database
-2. Calculate what week it should be today
-3. Compare with what `getCurrentWeekContextNormalized()` returns
-4. Test the calculation with different dates
+**Description**: 
+Some questions show only the schema (expectedResultSchema) but hide the actual question text. Ensure all question text is fully visible and readable.
 
-**Commands:**
-```bash
-# Check current week calculation
-# Run a test script or check logs
-```
+**Implementation Steps**:
+1. Investigate where questions are displayed (likely in the workspace header section around line 592-594)
+2. Check the Question interface in `app/homework/types.ts` - ensure `prompt` and `instructions` fields are displayed
+3. Verify that `activeQuestion?.prompt` and `activeQuestion?.instructions` are both rendered
+4. If schema is being shown instead of question text, fix the display logic to show:
+   - `question.prompt` - The main question text
+   - `question.instructions` - Additional instructions
+   - Only show schema if explicitly needed (maybe in a collapsible section)
+5. Test with questions 1-10 to ensure all are readable
 
-### Step 2: Test SQL Curriculum Functions
-1. Test `getAllowedConceptsForWeek(9)` - should include JOIN
-2. Test `getForbiddenConceptsForWeek(9)` - should NOT include JOIN
-3. Verify the cumulative logic works correctly
-
-**Test Script:**
-```typescript
-import { getAllowedConceptsForWeek, getForbiddenConceptsForWeek } from '@/lib/sql-curriculum'
-
-console.log('Week 7 allowed:', getAllowedConceptsForWeek(7))
-console.log('Week 7 forbidden:', getForbiddenConceptsForWeek(7))
-console.log('Week 9 allowed:', getAllowedConceptsForWeek(9))
-console.log('Week 9 forbidden:', getForbiddenConceptsForWeek(9))
-```
-
-### Step 3: Check Function Call Logs
-1. Review server logs for `[course-context] request` entries
-2. Check if the function is being called for SQL questions
-3. Verify the responses being returned
-
-**Log Locations:**
-- `app/api/assistants/functions/course-context/route.ts` - line 14
-- Check for errors in function execution
-
-### Step 4: Test Assistant Behavior
-1. Ask the assistant a SQL question that requires JOIN
-2. Check if it calls `get_course_week_context()` first
-3. Verify the response respects week 9 restrictions (JOIN should be allowed)
+**Files to Modify**:
+- `app/homework/runner/[setId]/RunnerClient.tsx` - Question display section (around line 592-597)
 
 ---
 
-## Fix Strategy
+#### Task 1.3: Replace Green Checkmark with Blue Lightning Bolt
+**Location**: `app/homework/runner/[setId]/RunnerClient.tsx` and related CSS
 
-### Fix 1: Strengthen Assistant Instructions
-**File:** `app/api/assistants/update/route.ts`
+**Description**: 
+After running a query successfully, replace the green checkmark (✓) with a blue lightning bolt icon (⚡), similar to MySQL's execution indicator.
 
-**Changes:**
-1. Make the instructions more explicit about cumulative weeks
-2. Add examples showing week 9 includes weeks 1-9
-3. Emphasize checking `sqlRestrictions.allowedConcepts` before ANY SQL example
-4. Add explicit instruction: "If weekNumber is 9, you have access to ALL concepts from weeks 1-9, including JOIN (week 7) and sub-queries (week 9)"
+**Implementation Steps**:
+1. Find where the success indicator is shown after query execution
+2. Look for:
+   - Success icon rendering (might be in stepperCircle with '✓' character around line 581)
+   - CSS classes related to success (`.successIcon`, `.stepperCircleCompleted`)
+   - Any green checkmark emoji or icon
+3. Replace with:
+   - Blue lightning bolt emoji: ⚡
+   - Or use an icon library icon (if available) styled in blue
+4. Update CSS to:
+   - Use blue color (#3b82f6 or similar) instead of green
+   - Style the lightning bolt appropriately
+5. Ensure it appears:
+   - In the question stepper when a question is completed
+   - In any success messages after query execution
+   - Anywhere else a success checkmark currently appears
 
-**New Instructions Section:**
-```
-CRITICAL WEEK CONTEXT RULES:
-- The curriculum is CUMULATIVE: Week N includes ALL concepts from weeks 1 through N
-- Example: Week 9 means students have learned weeks 1, 2, 3, 4, 5, 6, 7, 8, and 9
-- Week 9 includes JOIN (from week 7) AND sub-queries (from week 9)
-- ALWAYS call get_course_week_context() FIRST before answering SQL questions
-- ALWAYS check sqlRestrictions.allowedConcepts - if JOIN is in allowedConcepts, you CAN use it
-- If a concept is in allowedConcepts, it means students have learned it
-- If a concept is in forbiddenConcepts, students have NOT learned it yet
-```
-
-### Fix 2: Improve Function Description
-**File:** `app/api/assistants/update/route.ts`
-
-**Current:**
-```typescript
-description: "MANDATORY: Fetch the current academic week context. You MUST call this before answering any SQL question to ensure you only use concepts that have been taught. Returns week number, content, date range, and SQL concept restrictions (allowedConcepts and forbiddenConcepts)."
-```
-
-**Improved:**
-```typescript
-description: "MANDATORY: Fetch the current academic week context. You MUST call this function BEFORE answering ANY SQL-related question, even if it seems simple. The response includes sqlRestrictions.allowedConcepts (concepts students have learned) and sqlRestrictions.forbiddenConcepts (concepts not yet taught). The curriculum is cumulative: week 9 includes all concepts from weeks 1-9. Returns: { weekNumber, content, dateRange, sqlRestrictions: { allowedConcepts: string[], forbiddenConcepts: string[], weekNumber } }"
-```
-
-### Fix 3: Fix Week Calculation Inconsistency
-**Files:** `lib/content.ts`, `app/components/McpMichaelPage.tsx`
-
-**🚨 CRITICAL FIX NEEDED:**
-The week calculation is inconsistent between frontend and backend. This must be fixed.
-
-**Current State:**
-- Backend (`lib/content.ts`): `Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1`
-- Frontend (`McpMichaelPage.tsx`): `Math.ceil((now.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000))`
-
-**Decision Needed:**
-1. Choose one method (floor+1 or ceil) and use it consistently
-2. Consider: Week 1 should start on day 1 of semester
-3. Test with actual dates to verify correctness
-
-**Recommended Fix:**
-- Standardize on `Math.ceil()` approach (simpler, week starts on day 1)
-- Update both files to use the same calculation
-- Add timezone handling if needed
-- Add unit tests for week calculation
-
-### Fix 4: Enhance Fallback Context
-**File:** `app/api/assistants/threads/[threadId]/messages/route.ts`
-
-**Current Issue:** The fallback doesn't include `sqlRestrictions` and has hardcoded rules.
-
-**Fix Options:**
-1. Remove the fallback and rely solely on function calls (preferred)
-2. Enhance the fallback to include `sqlRestrictions` from the API response
-3. Make the fallback message dynamic based on actual week
-
-**Recommended:** Option 1 - Remove or minimize the fallback, as it might confuse the assistant. The function call is the proper mechanism.
-
-### Fix 5: Add Logging and Monitoring
-**Files:** Multiple
-
-**Add:**
-1. Log when `get_course_week_context` is called
-2. Log the week number and restrictions returned
-3. Log if assistant uses forbidden concepts (post-processing check)
-4. Add metrics to track function call frequency
-
-### Fix 6: Add Validation/Enforcement (if possible)
-**Consider:**
-- Post-processing check: After assistant responds, validate SQL examples against `sqlRestrictions`
-- Pre-processing: Inject week context more forcefully in system message (if OpenAI supports)
-- Client-side: Check function calls and warn if not called for SQL questions
+**Files to Modify**:
+- `app/homework/runner/[setId]/RunnerClient.tsx` - Success indicator rendering
+- `app/homework/runner/[setId]/runner.module.css` - Success icon styling
 
 ---
 
-## Testing Plan
+## Sprint 2: Student Interface - Michael Chat Integration
 
-### Test 1: Week Calculation
-```bash
-# Test current week calculation
-# Should return week 9 if we're in week 9
-```
+### Goal
+Enhance the Michael chat assistant with homework context awareness.
 
-### Test 2: SQL Curriculum Functions
-```typescript
-// Test getAllowedConceptsForWeek(9)
-expect(getAllowedConceptsForWeek(9)).toContain('JOIN')
-expect(getAllowedConceptsForWeek(9)).toContain('subquery')
-expect(getForbiddenConceptsForWeek(9)).not.toContain('JOIN')
-expect(getForbiddenConceptsForWeek(9)).not.toContain('subquery')
-```
+### Todo List
 
-### Test 3: Function Call
-1. Ask assistant: "How do I join two tables?"
-2. Verify function `get_course_week_context()` is called
-3. Verify response includes JOIN examples (if week >= 7)
-4. Verify response does NOT say "we haven't reached JOIN yet"
+#### Task 2.1: Inject Homework Context into Michael Chat
+**Location**: `app/homework/runner/[setId]/RunnerClient.tsx`, `app/components/chat.tsx`
 
-### Test 4: End-to-End
-1. Set current week to 9 in database/test
-2. Ask assistant SQL question requiring JOIN
-3. Verify assistant:
-   - Calls `get_course_week_context()`
-   - Receives week 9 with JOIN in `allowedConcepts`
-   - Provides JOIN examples without saying it's not taught yet
+**Description**: 
+When students use Michael chat in the homework runner, inject the homework context including:
+- Database structure (all 4 tables with their schemas)
+- All questions (1-10) with their prompts
+- Current question context
+- Student's assigned data (if needed)
 
----
+**Implementation Steps**:
+1. Modify the Chat component call in RunnerClient (around line 725) to pass context:
+   - Add a `homeworkContext` prop or use existing context mechanism
+   - Pass: homework object, questions array, studentTableData, current question
+2. In `app/components/chat.tsx`:
+   - Accept homework context props
+   - Inject context into the assistant's system message or initial context
+   - Format the context as:
+     ```
+     Database Schema:
+     - Students (StudentID, FirstName, LastName, BirthDate, City, Email)
+     - Courses (CourseID, CourseName, Credits, Department)
+     - Lecturers (LecturerID, FirstName, LastName, City, HireDate, CourseID, Seniority)
+     - Enrollments (StudentID, CourseID, EnrollmentDate, Grade)
+     
+     Questions:
+     1. [Question 1 prompt]
+     2. [Question 2 prompt]
+     ...
+     10. [Question 10 prompt]
+     
+     Current Question: [Current question prompt]
+     ```
+3. Update the assistant instructions to:
+   - Reference the homework context when answering questions
+   - Understand questions like "מה לעשות בשאלה מספר 12"
+   - Provide relevant guidance based on the question context
+4. Test that Michael can answer questions about specific question numbers
 
-## Files to Modify
-
-1. **`app/api/assistants/update/route.ts`**
-   - Improve assistant instructions
-   - Enhance function description
-   - Add explicit cumulative week explanation
-
-2. **`lib/content.ts`** (if week calculation is wrong)
-   - Fix week calculation logic
-   - Add timezone handling
-
-3. **`app/api/assistants/threads/[threadId]/messages/route.ts`**
-   - Remove or improve fallback context injection
-   - Consider removing hardcoded restrictions
-
-4. **`lib/sql-curriculum.ts`** (if curriculum mapping is wrong)
-   - Verify and fix concept mappings
-   - Add tests
-
-5. **`app/api/assistants/functions/course-context/route.ts`**
-   - Add better logging
-   - Verify response format
+**Files to Modify**:
+- `app/homework/runner/[setId]/RunnerClient.tsx` - Pass context to Chat component
+- `app/components/chat.tsx` - Accept and use homework context
+- Possibly: `app/api/assistants/threads/[threadId]/messages/route.ts` - If context needs to be injected at API level
 
 ---
 
-## Success Criteria
+## Sprint 3: Student Interface - Submission Flow & Verification
 
-1. ✅ Week 9 correctly includes JOIN in `allowedConcepts`
-2. ✅ Assistant calls `get_course_week_context()` for SQL questions
-3. ✅ Assistant respects `sqlRestrictions.allowedConcepts`
-4. ✅ Assistant does NOT say "we haven't reached JOIN" in week 9
-5. ✅ Week calculation is accurate
-6. ✅ All tests pass
+### Goal
+Improve submission process and verify question content.
+
+### Todo List
+
+#### Task 3.1: Verify Questions 1-10 Match Exercise
+**Location**: Database/Admin interface
+
+**Description**: 
+Verify that questions 1-10 in the homework set match the provided exercise document.
+
+**Implementation Steps**:
+1. Access the homework builder/admin interface for תרגיל 3
+2. Review each question (1-10) and compare with the exercise document
+3. Ensure:
+   - Question prompts match
+   - Instructions are correct
+   - Expected schemas are appropriate
+   - Point values are correct
+4. If discrepancies found:
+   - Update questions via admin interface
+   - Document any changes needed
+5. Create a checklist/verification document if needed
+
+**Files to Review**:
+- Admin interface: `/homework/builder/[setId]` or similar
+- Question management interface
+- Database: `homework_sets` collection
 
 ---
 
-## Additional Notes
+#### Task 3.2: Add AI Commitment Window and PDF Attachment
+**Location**: `app/homework/runner/[setId]/RunnerClient.tsx`, `app/api/submissions/[setId]/submit/route.ts`
 
-- The MCP (Model Context Protocol) mechanism here refers to the function calling system that provides context to the assistant
-- The issue is that the assistant is not reliably using this context
-- Consider adding a test suite specifically for week-based SQL restrictions
-- Monitor function call frequency to ensure it's being used
-- Consider adding a dashboard to view function call statistics
+**Description**: 
+After student clicks "הגש" and then "כן, הגש", show an additional dialog requiring:
+- Student commitment statement about AI tool usage
+- Option to upload conversation/file or check a checkbox
+- Generate PDF of submission and attach to submission email
+
+**Implementation Steps**:
+1. **Add Commitment Dialog State**:
+   - Add `showCommitmentDialog` state (after `showConfirmDialog`)
+   - Modify submit flow: Confirm → Commitment → Submit
+
+2. **Create Commitment Dialog Component**:
+   - Text: "אני הסטודנט [student name] מתחייב/ת שאם השתמשתי בכלי AI אחר אני מצרף את השיחה להלן (לצרף קובץ) או לסמן וי."
+   - File upload input (optional)
+   - Checkbox: "אישרתי שלא השתמשתי בכלי AI" or similar
+   - Buttons: "אישור והגשה" / "ביטול"
+
+3. **Update Submit Flow**:
+   - First dialog: "האם אתה בטוח שברצונך להגיש?"
+   - On confirm → Show commitment dialog
+   - On commitment confirm → Proceed with submission
+
+4. **PDF Generation for Submission**:
+   - Create endpoint: `/api/submissions/[submissionId]/pdf`
+   - Generate PDF containing:
+     - Student info (name, ID)
+     - Homework title
+     - All questions with student's SQL answers
+     - Timestamps
+   - Use library like `pdfkit` or `jsPDF`
+
+5. **Email Attachment**:
+   - In `app/api/submissions/[setId]/submit/route.ts`
+   - After submission, generate PDF
+   - Attach PDF to submission confirmation email
+   - Include uploaded AI conversation file (if provided) as attachment
+
+6. **Store Commitment**:
+   - Add field to Submission model: `aiCommitment?: { signed: boolean, fileAttached?: string, timestamp: string }`
+   - Store commitment status in database
+
+**Files to Modify**:
+- `app/homework/runner/[setId]/RunnerClient.tsx` - Add commitment dialog
+- `app/api/submissions/[setId]/submit/route.ts` - Email with PDF attachment
+- Create: `app/api/submissions/[submissionId]/pdf/route.ts` - PDF generation
+- `lib/models.ts` / `app/homework/types.ts` - Add aiCommitment field to Submission interface
 
 ---
 
-## Next Steps for Agent
+## Sprint 4: Student Interface - Analytics & Performance
 
-1. **Investigate:**
-   - Check current week calculation
-   - Test SQL curriculum functions
-   - Review logs for function calls
-   - Test assistant behavior manually
+### Goal
+Add performance tracking and optimize database connections.
 
-2. **Fix:**
-   - Update assistant instructions
-   - Fix any calculation/logic errors found
-   - Improve function descriptions
-   - Remove/improve fallback context
+### Todo List
 
-3. **Test:**
-   - Run all test cases
-   - Manual testing with real questions
-   - Verify week 9 includes JOIN
+#### Task 4.1: Student Performance Analytics per Question
+**Location**: `app/homework/runner/[setId]/RunnerClient.tsx`, Analytics service, Database
 
-4. **Verify:**
-   - Confirm assistant uses JOIN in week 9
-   - Confirm function is called consistently
-   - Check logs for proper behavior
+**Description**: 
+Track and store detailed analytics for each question including:
+- Typing speed (characters per minute)
+- Time spent on question
+- Number of attempts
+- Time to first execution
+- Time between executions
+- Query execution time
+- And other relevant metrics
+
+**Implementation Steps**:
+1. **Create Analytics Schema**:
+   - Design database collection/document structure:
+     ```typescript
+     interface QuestionAnalytics {
+       submissionId: string;
+       questionId: string;
+       studentId: string;
+       homeworkSetId: string;
+       metrics: {
+         timeSpent: number; // milliseconds
+         typingSpeed: number; // characters per minute
+         attempts: number;
+         timeToFirstExecution: number; // milliseconds from question open to first run
+         timeBetweenExecutions: number[]; // array of milliseconds between each execution
+         queryExecutionTimes: number[]; // execution time for each query
+         charactersTyped: number;
+         editsCount: number;
+         copyPasteCount: number; // if detectable
+         startedAt: string; // ISO timestamp
+         lastActivityAt: string;
+       }
+     }
+     ```
+
+2. **Track Events in RunnerClient**:
+   - Question open: Record timestamp
+   - Editor changes: Track typing (throttled)
+   - Query execution: Record execution time
+   - Question navigation: Calculate time spent
+   - Use `useEffect` hooks to track:
+     - Time when question becomes active
+     - Time when student starts typing
+     - Time between events
+
+3. **Create Analytics Service**:
+   - `lib/question-analytics.ts`:
+     - `trackQuestionOpen(submissionId, questionId)`
+     - `trackTyping(submissionId, questionId, characters)`
+     - `trackExecution(submissionId, questionId, executionTime)`
+     - `trackQuestionClose(submissionId, questionId)`
+     - `saveAnalytics(analytics)` - Save to database
+
+4. **API Endpoint**:
+   - `POST /api/analytics/question` - Store analytics events
+   - Or batch save: `POST /api/analytics/questions/batch`
+
+5. **Database Storage**:
+   - Store in `question_analytics` collection
+   - Or embed in submission document under `questionAnalytics` field
+
+6. **Calculate Metrics**:
+   - Typing speed: (total characters / time spent) * 60 * 1000
+   - Time spent: lastActivityAt - startedAt
+   - Aggregate on question close or submission
+
+**Files to Create/Modify**:
+- Create: `lib/question-analytics.ts` - Analytics tracking service
+- Create: `app/api/analytics/question/route.ts` - Analytics API endpoint
+- Modify: `app/homework/runner/[setId]/RunnerClient.tsx` - Add tracking hooks
+- Modify: `lib/models.ts` - Add analytics schema
+- Database: Add collection or field for analytics
+
+---
+
+#### Task 4.2: Database Connection Optimization
+**Location**: `lib/database.ts`, SQL execution routes, Connection pooling
+
+**Description**: 
+Optimize database connection management to prevent "You're nearing the maximum connections threshold" warnings when students execute queries.
+
+**Implementation Steps**:
+1. **Investigate Current Connection Usage**:
+   - Check how connections are created in `lib/database.ts`
+   - Identify where connections might not be closed
+   - Check SQL execution routes for connection leaks
+
+2. **Implement Connection Pooling**:
+   - Ensure MongoDB connection uses proper pooling
+   - Set appropriate pool size (e.g., maxPoolSize: 10-20)
+   - Reuse connections where possible
+
+3. **Close Connections Properly**:
+   - Audit all database operations
+   - Ensure connections are closed after use
+   - Use try-finally blocks to guarantee cleanup
+   - Check SQL execution code (alasql) for connection management
+
+4. **Optimize Query Execution**:
+   - Review `lib/submissions.ts` - `executeSqlForSubmission` method
+   - Ensure alasql instances are properly managed
+   - Consider connection pooling for alasql if applicable
+   - Batch operations where possible
+
+5. **Add Connection Monitoring**:
+   - Log connection pool usage
+   - Add warnings when pool is near capacity
+   - Monitor connection leaks
+
+6. **Consider Alternatives**:
+   - Use connection string with proper pooling parameters
+   - Implement connection reuse patterns
+   - Consider read replicas if needed
+   - Cache frequently accessed data
+
+**Files to Modify**:
+- `lib/database.ts` - Connection pool configuration
+- `lib/submissions.ts` - SQL execution optimization
+- `app/api/sql/execute/route.ts` - Connection management
+- Any other files that create database connections
+
+---
+
+## Sprint 5: Grading Interface Improvements
+
+### Goal
+Enhance the grading interface with better student identification, export capabilities, and comment management.
+
+### Todo List
+
+#### Task 5.1: Change Database ID to Student ID Number (ת.ז)
+**Location**: Grading interface, Student identification
+
+**Description**: 
+In the grading interface, change the student identifier from database ID to student ID number (ת.ז - Israeli ID number).
+
+**Implementation Steps**:
+1. **Identify Current ID Usage**:
+   - Check grading interface: `app/homework/builder/[setId]/grade/GradeHomeworkClient.tsx`
+   - Find where studentId is displayed
+   - Check if studentId is email, ObjectId, or other format
+
+2. **Get Student ID Number**:
+   - Check User/Student model for ID number field
+   - May need to add `idNumber` or `studentIdNumber` field if not exists
+   - Query user by current studentId to get ID number
+
+3. **Update Display**:
+   - Modify grading interface to show ת.ז instead of studentId
+   - Update student list display
+   - Update submission view headers
+   - Ensure search/filter works with ID number
+
+4. **Update Data Fetching**:
+   - Modify queries to include student ID number
+   - May need to join with users collection
+   - Update API endpoints if needed
+
+5. **Handle Missing ID Numbers**:
+   - Show fallback (email or current ID) if ID number not available
+   - Add migration/update script if needed
+
+**Files to Modify**:
+- `app/homework/builder/[setId]/grade/GradeHomeworkClient.tsx` - Display ID number
+- Possibly: `app/api/submissions/[setId]/summaries/route.ts` - Include ID number in response
+- `lib/models.ts` - Add idNumber field if needed
+- User/Student data model - Ensure ID number is stored
+
+---
+
+#### Task 5.2: Excel Export for Grading Results
+**Location**: `app/homework/builder/[setId]/grade/GradeHomeworkClient.tsx`
+
+**Description**: 
+Add functionality to export grading results to Excel with:
+- Each student in a row
+- Columns: Student ID (ת.ז), Name, Score per question (Q1, Q2, ..., Q10), Total Score, Comments per question
+
+**Implementation Steps**:
+1. **Install Excel Library**:
+   - Install: `xlsx` or `exceljs` package
+   - `npm install xlsx` or `npm install exceljs`
+
+2. **Add Export Button**:
+   - Add "ייצא לאקסל" button in grading interface
+   - Place near other action buttons (Save grading, Publish grades)
+
+3. **Create Export Function**:
+   - Fetch all submissions for the homework set
+   - For each submission:
+     - Get student ID number (ת.ז)
+     - Get student name
+     - Extract scores for each question from `answers` object
+     - Extract comments/instructor notes for each question
+     - Calculate total score
+
+4. **Generate Excel File**:
+   - Create worksheet with headers:
+     - ת.ז, שם, שאלה 1 (ניקוד), שאלה 1 (הערה), שאלה 2 (ניקוד), שאלה 2 (הערה), ..., סה"כ
+   - Add data rows
+   - Format appropriately (RTL for Hebrew, column widths)
+
+5. **Download File**:
+   - Trigger download in browser
+   - Filename: `תרגיל-3-הגשות-${date}.xlsx`
+
+6. **Handle Edge Cases**:
+   - Missing scores (show 0 or empty)
+   - Missing comments (empty cell)
+   - Students with no submission
+   - Multiple attempts (use latest or best)
+
+**Files to Modify**:
+- `app/homework/builder/[setId]/grade/GradeHomeworkClient.tsx` - Add export button and function
+- Possibly create: `lib/excel-export.ts` - Reusable Excel export utility
+- `package.json` - Add xlsx/exceljs dependency
+
+---
+
+#### Task 5.3: Comment Bank System
+**Location**: `app/homework/builder/[setId]/grade/GradeHomeworkClient.tsx`, Database
+
+**Description**: 
+Create a comment bank system where graders can:
+- Save frequently used comments for each question
+- Reuse comments with associated scores
+- Build a library of comments to maximize grading efficiency
+
+**Implementation Steps**:
+1. **Design Comment Bank Schema**:
+   ```typescript
+   interface CommentBankEntry {
+     questionId: string;
+     comment: string;
+     score: number; // Associated score (e.g., 8/10)
+     category?: string; // Optional: "syntax error", "logic error", "correct", etc.
+     usageCount: number;
+     createdAt: string;
+     updatedAt: string;
+   }
+   ```
+
+2. **Create Comment Bank Storage**:
+   - Create collection: `comment_bank` or add to homework set document
+   - Store entries keyed by `homeworkSetId` and `questionId`
+
+3. **Add UI Components**:
+   - In grading interface, near comment input for each question:
+     - "שמור הערה" button (save current comment+score to bank)
+     - "הערות נפוצות" dropdown/button (show saved comments)
+     - List of saved comments with scores
+     - Click to apply comment+score
+
+4. **Implement Save Comment**:
+   - When grader clicks "שמור הערה":
+     - Extract current comment text and score
+     - Save to comment bank
+     - Show confirmation
+
+5. **Implement Use Comment**:
+   - Show saved comments in a dropdown/modal
+   - Display: comment text + score
+   - On click: Fill comment field and score field
+   - Increment usageCount
+
+6. **Comment Bank Management**:
+   - View all saved comments
+   - Edit/delete comments
+   - Search/filter comments
+   - Show usage statistics
+
+7. **API Endpoints**:
+   - `POST /api/comment-bank` - Save comment
+   - `GET /api/comment-bank?homeworkSetId=X&questionId=Y` - Get comments
+   - `PUT /api/comment-bank/:id` - Update comment
+   - `DELETE /api/comment-bank/:id` - Delete comment
+
+**Files to Create/Modify**:
+- Create: `app/api/comment-bank/route.ts` - Comment bank API
+- Create: `lib/comment-bank.ts` - Comment bank service
+- Modify: `app/homework/builder/[setId]/grade/GradeHomeworkClient.tsx` - Add comment bank UI
+- Modify: `lib/models.ts` - Add CommentBankEntry interface
+- Database: Create comment_bank collection or add to schema
+
+---
+
+## Sprint 6: UI Fixes - Chat Sidebar Scrollability
+
+### Goal
+Fix the chat sidebar (Michael) scrollability issue in the homework runner interface.
+
+### Todo List
+
+#### Task 6.1: Fix Chat Sidebar Scrollability
+**Location**: `app/homework/runner/[setId]/runner.module.css`, `app/homework/runner/[setId]/RunnerClient.tsx`
+
+**Description**: 
+The left sidebar containing the Michael chat interface is not scrollable, while the right sidebar (Instructions) and middle column (SQL editor) scroll correctly.
+
+**Implementation Steps**:
+1. **Investigate CSS Flexbox Chain**:
+   - Review the flexbox hierarchy: `.chatSidebar` → `.chatContent` → Chat component → `.messages`
+   - Ensure each level in the chain properly constrains height
+   - Verify `min-height: 0` and `flex: 1 1 0` are applied correctly
+
+2. **Fix Flexbox Constraints**:
+   - Ensure `.chatContent` has proper `overflow: hidden` to constrain children
+   - Update nested Chat component styles (`.main`, `.container`, `.chatContainer`, `.messages`)
+   - Apply flexbox trick: `flex: 1 1 0`, `min-height: 0`, `height: 0` at each level
+   - Ensure `.messages` has `overflow-y: auto` to enable scrolling
+
+3. **Test Scrollability**:
+   - Add multiple messages to trigger scroll
+   - Verify scrollbar appears when content overflows
+   - Ensure smooth scrolling behavior
+   - Test on different screen sizes
+
+**Files to Modify**:
+- `app/homework/runner/[setId]/runner.module.css` - Fix flexbox chain for chat sidebar
+- May need to override Chat component styles with `:global()` selectors
+
+---
+
+## Summary
+
+### Sprint Breakdown:
+- **Sprint 1**: Core UI improvements (3 tasks)
+- **Sprint 2**: Michael chat integration (1 task)
+- **Sprint 3**: Submission flow & verification (2 tasks)
+- **Sprint 4**: Analytics & performance (2 tasks)
+- **Sprint 5**: Grading interface (3 tasks)
+- **Sprint 6**: UI Fixes - Chat sidebar scrollability (1 task)
+
+### Total Tasks: 12
+
+### Priority Order:
+1. Sprint 1 - Core functionality first
+2. Sprint 3 - Submission flow (critical for students)
+3. Sprint 2 - Chat integration (enhances UX)
+4. Sprint 5 - Grading improvements (for instructors)
+5. Sprint 4 - Analytics & optimization (performance improvements)
+6. Sprint 6 - UI fixes (chat sidebar scrollability)
+
+### Notes:
+- Some tasks may require database schema changes - ensure migrations are created
+- Test thoroughly after each sprint
+- Consider backward compatibility for existing data
+- Document API changes
+- Update TypeScript types as needed

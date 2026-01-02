@@ -50,6 +50,30 @@ type ChatSession = {
   lastMessageTimestamp: number;
 };
 
+type HomeworkChatContext = {
+  homeworkTitle: string;
+  backgroundStory?: string;
+  tables: Array<{
+    name: string;
+    columns: string[];
+    sampleRows?: Record<string, unknown>[];
+  }>;
+  questions: Array<{
+    id: string;
+    prompt: string;
+    instructions?: string;
+    index: number;
+    points?: number;
+  }>;
+  currentQuestion?: {
+    id: string;
+    prompt: string;
+    instructions?: string;
+    index: number;
+  } | null;
+  studentTableData?: Record<string, any[]>;
+};
+
 const UserMessage = ({ text }: { text: string }) => {
   return <div className={styles.userMessage}>{text}</div>;
 };
@@ -302,6 +326,8 @@ type ChatProps = {
   hideSidebar?: boolean;
   hideAvatar?: boolean;
   minimalMode?: boolean;
+  homeworkContext?: HomeworkChatContext | null;
+  embeddedMode?: boolean;
 };
 
 const Chat = ({
@@ -311,7 +337,9 @@ const Chat = ({
   onAssistantResponse,
   hideSidebar = false,
   hideAvatar = false,
-  minimalMode = false
+  minimalMode = false,
+  homeworkContext = null,
+  embeddedMode = false,
 }: ChatProps) => {
   const [userInput, setUserInput] = useState("");
   const [messages, setMessages] = useState([]);
@@ -437,10 +465,60 @@ const Chat = ({
   const [exerciseAttempts, setExerciseAttempts] = useState(0);
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [exerciseAnswer, setExerciseAnswer] = useState("");
-  
+
   // Practice-related state
   const [showPracticeModal, setShowPracticeModal] = useState(false);
   const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
+
+  const formattedHomeworkContext = useMemo(() => {
+    if (!homeworkContext) return null;
+
+    const tableSection = homeworkContext.tables
+      .map((table) => {
+        const sampleRows = (table.sampleRows ?? [])
+          .slice(0, 2)
+          .map((row) => JSON.stringify(row))
+          .join("\n");
+
+        return `${table.name} (עמודות: ${table.columns.join(", ")})${sampleRows ? `\nדוגמאות נתונים:\n${sampleRows}` : ""}`;
+      })
+      .join("\n\n");
+
+    const questionSection = homeworkContext.questions
+      .map((question) => {
+        const base = `${question.index}. ${question.prompt}`;
+        const details = [question.instructions, question.points ? `ניקוד: ${question.points}` : null]
+          .filter(Boolean)
+          .join(" | ");
+        return details ? `${base}\n${details}` : base;
+      })
+      .join("\n\n");
+
+    const studentSection = homeworkContext.studentTableData
+      ? Object.entries(homeworkContext.studentTableData)
+          .map(([tableName, rows]) => {
+            const examples = Array.isArray(rows)
+              ? rows.slice(0, 2).map((row) => JSON.stringify(row)).join("\n")
+              : "";
+            return `${tableName}: ${examples || "(אין נתונים לדוגמא)"}`;
+          })
+          .join("\n\n")
+      : "";
+
+    const parts = [
+      `הקשר תרגיל: ${homeworkContext.homeworkTitle}`,
+      homeworkContext.backgroundStory ? `רקע: ${homeworkContext.backgroundStory}` : null,
+      tableSection ? `מבנה מסד הנתונים:\n${tableSection}` : null,
+      questionSection ? `שאלות התרגיל:\n${questionSection}` : null,
+      homeworkContext.currentQuestion
+        ? `שאלה נוכחית: ${homeworkContext.currentQuestion.index}. ${homeworkContext.currentQuestion.prompt}` +
+          (homeworkContext.currentQuestion.instructions ? `\n${homeworkContext.currentQuestion.instructions}` : "")
+        : null,
+      studentSection ? `נתוני סטודנט ייחודיים:\n${studentSection}` : null,
+    ].filter(Boolean);
+
+    return parts.join("\n\n");
+  }, [homeworkContext]);
 
   // Memoized avatar state calculation to prevent multiple renders
   const avatarState = useMemo(() => {
@@ -838,6 +916,10 @@ const updateUserBalance = async (value) => {
     
     // Message text is used as-is (SQL queries are now added directly by SqlQueryBuilder)
     let messageWithTags = text;
+
+    if (formattedHomeworkContext) {
+      messageWithTags = `${formattedHomeworkContext}\n\nשאלת הסטודנט: ${text}\n\nהנחיות חשובות:\n- אל תספק תשובה ישירה או קוד SQL מוכן\n- תן רמזים והנחיות שיעזרו לסטודנט למצוא את הפתרון בעצמו\n- שאל שאלות מנחות במקום לתת תשובות\n- עודד חשיבה עצמאית ולמידה\n- הסתמך על ההקשר לעיל וענה בעברית, עם דגשים על SQL כאשר רלוונטי.`;
+    }
 
     // Process image if one is selected
     let imageData = null;
@@ -1341,8 +1423,59 @@ const loadChatMessages = (chatId: string) => {
     }
   }
 
+// Embedded mode styles for homework runner sidebar
+const embeddedStyles = embeddedMode ? {
+  main: { 
+    width: '100%', 
+    height: '100%', 
+    flex: '1 1 0', 
+    minHeight: 0, 
+    margin: 0, 
+    padding: 0,
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column' as const,
+  },
+  container: { 
+    width: '100%', 
+    flex: '1 1 0', 
+    minHeight: 0, 
+    height: 0,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    overflow: 'hidden',
+  },
+  chatContainer: { 
+    flex: '1 1 0', 
+    minHeight: 0, 
+    height: 0,
+    margin: 0,
+    padding: 0,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    overflow: 'hidden',
+    borderRadius: 0,
+  },
+  messages: { 
+    direction: 'rtl' as const,
+    flex: '1 1 0', 
+    minHeight: 0, 
+    height: 0,
+    overflowY: 'auto' as const,
+    overflowX: 'hidden' as const,
+  },
+} : {
+  main: {},
+  container: {},
+  chatContainer: {},
+  messages: { direction: 'rtl' as const },
+};
+
 return (
-  <div className={`${styles.main} ${!sidebarVisible || hideSidebar || minimalMode ? styles.mainFullWidth : ''}`}>
+  <div 
+    className={`${styles.main} ${!sidebarVisible || hideSidebar || minimalMode ? styles.mainFullWidth : ''}`}
+    style={embeddedStyles.main}
+  >
     {sidebarVisible && !hideSidebar && !minimalMode && (
       <Sidebar 
         chatSessions={chatSessions} 
@@ -1353,7 +1486,10 @@ return (
         onToggleSidebar={toggleSidebar}
       />
     )}
-         <div className={`${styles.container} ${!sidebarVisible || hideSidebar || minimalMode ? styles.containerFullWidth : ''}`}>
+         <div 
+           className={`${styles.container} ${!sidebarVisible || hideSidebar || minimalMode ? styles.containerFullWidth : ''}`}
+           style={embeddedStyles.container}
+         >
       {!sidebarVisible && !hideSidebar && !minimalMode && (
         <button
           className={styles.openSidebarButton}
@@ -1364,8 +1500,8 @@ return (
           ☰
         </button>
       )}
-      <div className={styles.chatContainer}>
-        <div className={styles.messages} style={{direction:"rtl"}}>
+      <div className={styles.chatContainer} style={embeddedStyles.chatContainer}>
+        <div className={styles.messages} style={embeddedStyles.messages}>
           {loadingMessages ? (
             <div className={styles.loadingIndicator}></div>
           ) : (
