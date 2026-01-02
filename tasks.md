@@ -215,7 +215,7 @@ After student clicks "הגש" and then "כן, הגש", show an additional dialog
 
 5. **Email Attachment**:
    - In `app/api/submissions/[setId]/submit/route.ts`
-   - After submission, generate PDF
+   - After submission, generate PDF of all 13 questions + students responses.
    - Attach PDF to submission confirmation email
    - Include uploaded AI conversation file (if provided) as attachment
 
