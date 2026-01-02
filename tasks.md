@@ -527,6 +527,43 @@ Create a comment bank system where graders can:
 
 ---
 
+## Sprint 6: UI Fixes - Chat Sidebar Scrollability
+
+### Goal
+Fix the chat sidebar (Michael) scrollability issue in the homework runner interface.
+
+### Todo List
+
+#### Task 6.1: Fix Chat Sidebar Scrollability
+**Location**: `app/homework/runner/[setId]/runner.module.css`, `app/homework/runner/[setId]/RunnerClient.tsx`
+
+**Description**: 
+The left sidebar containing the Michael chat interface is not scrollable, while the right sidebar (Instructions) and middle column (SQL editor) scroll correctly.
+
+**Implementation Steps**:
+1. **Investigate CSS Flexbox Chain**:
+   - Review the flexbox hierarchy: `.chatSidebar` → `.chatContent` → Chat component → `.messages`
+   - Ensure each level in the chain properly constrains height
+   - Verify `min-height: 0` and `flex: 1 1 0` are applied correctly
+
+2. **Fix Flexbox Constraints**:
+   - Ensure `.chatContent` has proper `overflow: hidden` to constrain children
+   - Update nested Chat component styles (`.main`, `.container`, `.chatContainer`, `.messages`)
+   - Apply flexbox trick: `flex: 1 1 0`, `min-height: 0`, `height: 0` at each level
+   - Ensure `.messages` has `overflow-y: auto` to enable scrolling
+
+3. **Test Scrollability**:
+   - Add multiple messages to trigger scroll
+   - Verify scrollbar appears when content overflows
+   - Ensure smooth scrolling behavior
+   - Test on different screen sizes
+
+**Files to Modify**:
+- `app/homework/runner/[setId]/runner.module.css` - Fix flexbox chain for chat sidebar
+- May need to override Chat component styles with `:global()` selectors
+
+---
+
 ## Summary
 
 ### Sprint Breakdown:
@@ -535,8 +572,9 @@ Create a comment bank system where graders can:
 - **Sprint 3**: Submission flow & verification (2 tasks)
 - **Sprint 4**: Analytics & performance (2 tasks)
 - **Sprint 5**: Grading interface (3 tasks)
+- **Sprint 6**: UI Fixes - Chat sidebar scrollability (1 task)
 
-### Total Tasks: 11
+### Total Tasks: 12
 
 ### Priority Order:
 1. Sprint 1 - Core functionality first
@@ -544,6 +582,7 @@ Create a comment bank system where graders can:
 3. Sprint 2 - Chat integration (enhances UX)
 4. Sprint 5 - Grading improvements (for instructors)
 5. Sprint 4 - Analytics & optimization (performance improvements)
+6. Sprint 6 - UI fixes (chat sidebar scrollability)
 
 ### Notes:
 - Some tasks may require database schema changes - ensure migrations are created

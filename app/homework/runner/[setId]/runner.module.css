@@ -1661,6 +1661,7 @@
   top: 16px;
   min-width: 0;
   width: 100%;
+  overflow: hidden;
 }
 
 .chatHeader {
@@ -1708,27 +1709,45 @@
   min-height: 0;
   height: 0;
   width: 100%;
+  overflow: hidden;
+  position: relative;
+  /* Critical: This ensures the flex container properly shrinks */
+  max-height: 100%;
 }
 
 .chatContent > * {
-  height: 100% !important;
-  width: 100% !important;
+  flex: 1 1 0;
+  min-height: 0;
+  height: 0;
+  width: 100%;
   margin: 0 !important;
   padding: 0 !important;
-  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
 }
 
 /* Override Chat component styles for homework runner sidebar */
+/* Using multiple selectors for higher specificity */
 .chatContent :global(.main),
-.chatContent :global(.mainFullWidth) {
+.chatContent :global(.mainFullWidth),
+.chatContent :global(.main.mainFullWidth),
+.chatContent > :global(.main),
+.chatContent > :global(.mainFullWidth),
+.chatContent > div:first-child {
   width: 100% !important;
-  height: 100% !important;
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  height: 0 !important;
+  max-height: 100% !important;
   margin: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
   padding: 0 !important;
   background: transparent !important;
   position: relative !important;
   max-width: 100% !important;
-  min-height: 0 !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
@@ -1737,19 +1756,21 @@
 .chatContent :global(.container),
 .chatContent :global(.containerFullWidth) {
   width: 100% !important;
-  height: 100% !important;
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  height: 0 !important;
+  max-height: 100% !important;
   display: flex !important;
   flex-direction: column !important;
   padding: 0 !important;
   margin: 0 !important;
   max-width: 100% !important;
-  min-height: 0 !important;
   overflow: hidden !important;
-  flex: 1 1 0 !important;
 }
 
 .chatContent :global(.chatContainer) {
   flex: 1 1 0 !important;
+  min-height: 0 !important;
   height: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
@@ -1762,7 +1783,17 @@
   border-radius: 0 0 16px 16px !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
+  overflow: hidden !important;
+}
+
+/* Force all wrapper divs inside chatContainer to be flex containers */
+.chatContent :global(.chatContainer) > div {
+  flex: 1 1 0 !important;
   min-height: 0 !important;
+  height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
 }
 
 /* Additional overrides for nested container with margin */
@@ -1770,9 +1801,26 @@
   margin: 0 !important;
 }
 
+/* NUCLEAR OPTION: Force ALL divs in the chat chain to respect flexbox */
+.chatContent div:not([class*="messages"]):not([class*="inputForm"]):not([class*="Message"]):not([class*="typing"]) {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Make sure messages specifically gets scroll */
+.chatContent :global([class*="messages"]) {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* Messages container - THE scrollable element */
 .chatContent :global(.messages) {
   flex: 1 1 0 !important;
-  overflow-y: auto !important;
+  overflow-y: scroll !important;
   overflow-x: hidden !important;
   padding: 8px !important;
   width: 100% !important;
@@ -1780,15 +1828,15 @@
   box-sizing: border-box !important;
   margin: 0 !important;
   min-height: 0 !important;
+  /* CRITICAL: height: 0 forces flexbox to control the height, enabling scroll */
   height: 0 !important;
   background: #ffffff !important;
   border-radius: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
   -webkit-overflow-scrolling: touch !important;
   scrollbar-width: thin !important;
   scrollbar-color: #cbd5e1 #f1f5f9 !important;
+  /* Force scrollbar to always show for debugging */
+  display: block !important;
 }
 
 /* Custom scrollbar styling for messages in chat sidebar */
@@ -1829,13 +1877,18 @@
   max-width: 100% !important;
   box-sizing: border-box !important;
   flex-shrink: 0 !important;
+  flex-grow: 0 !important;
   display: flex !important;
   gap: 6px !important;
   align-items: flex-end !important;
+  /* Ensure input form doesn't grow and pushes messages up */
+  min-height: fit-content !important;
+  max-height: fit-content !important;
+  height: auto !important;
 }
 
 .chatContent :global(.inputContainer) {
-  flex: 1 !important;
+  flex: 1 1 auto !important;
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
@@ -1843,7 +1896,10 @@
   padding: 0 !important;
   display: flex !important;
   position: relative !important;
-  min-height: 0 !important;
+  min-height: 40px !important;
+  /* Allow input container to shrink but not grow infinitely */
+  height: auto !important;
+  max-height: none !important;
 }
 
 /* Make chat messages compact and clear in homework runner */
@@ -2054,13 +2110,7 @@
   min-height: 0 !important;
 }
 
-/* Ensure the chat content fills available space */
-.chatContent > div {
-  height: 100% !important;
-  width: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-}
+/* Ensure the chat content fills available space - removed conflicting styles */
 
 /* Hide any extra UI elements */
 .chatContent :global(.header),
@@ -2262,7 +2312,9 @@
     order: 3;
     max-height: 450px;
     min-height: 350px;
+    height: 450px;
     padding: 0;
+    overflow: hidden;
   }
   
   .questionStepperWrapper {
@@ -2348,6 +2400,8 @@
     order: 3;
     max-height: 380px;
     min-height: 300px;
+    height: 380px;
+    overflow: hidden;
   }
   
   .assignmentMeta {
@@ -2652,7 +2706,9 @@
     order: 3;
     max-height: 320px;
     min-height: 280px;
+    height: 320px;
     padding: 0;
+    overflow: hidden;
   }
   
   .questionStepperWrapper {
@@ -2674,6 +2730,9 @@
   
   .chatContent :global(.messages) {
     padding: 10px 8px !important;
+    /* Ensure messages scroll on small mobile */
+    overflow-y: auto !important;
+    flex: 1 1 auto !important;
   }
   
   .chatContent :global(.inputForm) {

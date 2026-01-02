@@ -7,6 +7,9 @@ export interface UserModel {
   id?: string
   email: string
   name?: string
+  firstName?: string
+  lastName?: string
+  studentIdNumber?: string // Israeli ID number (ת.ז)
   password?: string
   role?: string
   [key: string]: any

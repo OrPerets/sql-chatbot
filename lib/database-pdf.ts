@@ -1,4 +1,6 @@
 import PDFDocument from "pdfkit";
+import path from "path";
+import fs from "fs";
 import type { HomeworkSet } from "@/app/homework/types";
 
 type TableSchema = {
@@ -54,23 +56,31 @@ export async function generateDatabasePdf(tableData: Record<string, any[]>): Pro
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
+    // Register Hebrew font
+    const fontPath = path.join(process.cwd(), "fonts", "NotoSansHebrew-Regular.ttf");
+    if (fs.existsSync(fontPath)) {
+      doc.registerFont("NotoSansHebrew", fontPath);
+    }
+    const hebrewFont = fs.existsSync(fontPath) ? "NotoSansHebrew" : "Helvetica";
+
     // Title
-    doc.fontSize(20).text("מסד נתונים - תרגיל 3", { align: "right" });
+    doc.font(hebrewFont).fontSize(20).text("מסד נתונים - תרגיל 3", { align: "right" });
     doc.moveDown();
 
     // Process each table
     Object.entries(TABLE_SCHEMAS).forEach(([tableName, schema]) => {
       // Table name
-      doc.fontSize(16).text(tableName, { align: "right" });
+      doc.font(hebrewFont).fontSize(16).text(tableName, { align: "right" });
       doc.moveDown(0.5);
 
       // Column definitions
-      doc.fontSize(12).text("עמודות:", { align: "right" });
+      doc.font(hebrewFont).fontSize(12).text("עמודות:", { align: "right" });
       doc.moveDown(0.3);
       
       schema.columns.forEach((column) => {
         const notes = column.notes ? ` - ${column.notes}` : "";
         doc
+          .font(hebrewFont)
           .fontSize(11)
           .text(`• ${column.name} (${column.type})${notes}`, { align: "right" });
       });
@@ -78,12 +88,13 @@ export async function generateDatabasePdf(tableData: Record<string, any[]>): Pro
       doc.moveDown(0.5);
 
       // Sample data
-      doc.fontSize(12).text("נתוני דוגמא:", { align: "right" });
+      doc.font(hebrewFont).fontSize(12).text("נתוני דוגמא:", { align: "right" });
       doc.moveDown(0.3);
 
       const rows = tableData[tableName] ?? [];
       if (!rows.length) {
         doc
+          .font(hebrewFont)
           .fontSize(11)
           .fillColor("#666666")
           .text("אין נתוני דוגמא זמינים לטבלה זו.", { align: "right" });
@@ -94,19 +105,20 @@ export async function generateDatabasePdf(tableData: Record<string, any[]>): Pro
           const cells = Object.entries(row)
             .map(([key, value]) => `${key}=${value}`)
             .join(", ");
+          // Use Hebrew font since the label "דוגמא" is in Hebrew and data may contain Hebrew values
           doc
+            .font(hebrewFont)
             .fontSize(10)
-            .font("Courier")
             .text(`דוגמא ${index + 1}: ${cells}`, {
               align: "right",
               lineGap: 2,
             });
         });
-        doc.font("Helvetica");
 
         if (rows.length > 5) {
           doc.moveDown(0.2);
           doc
+            .font(hebrewFont)
             .fontSize(10)
             .fillColor("#666666")
             .text(`(+ ${rows.length - 5} שורות נוספות...)`, { align: "right" });

@@ -16,6 +16,18 @@ import type { Question, QuestionProgress, Submission, SqlAnswer } from "@/app/ho
 import styles from "./grade.module.css";
 import { exportHomeworkGradesToExcel } from "@/lib/excel-export";
 
+// Comment Bank types
+interface CommentBankEntry {
+  id: string;
+  homeworkSetId: string;
+  questionId: string;
+  comment: string;
+  score: number;
+  maxScore: number;
+  category?: string;
+  usageCount: number;
+}
+
 interface GradeHomeworkClientProps {
   setId: string;
 }
@@ -34,6 +46,93 @@ type SortField = "name" | "score" | "status" | "date";
 type SortDirection = "asc" | "desc";
 
 // Status Badge Component
+// Comment Bank Dropdown Component
+function CommentBankDropdown({
+  questionId,
+  comments,
+  onApply,
+  onSave,
+  onDelete,
+  isOpen,
+  onToggle,
+  direction,
+}: {
+  questionId: string;
+  comments: CommentBankEntry[];
+  onApply: (comment: CommentBankEntry) => void;
+  onSave: () => void;
+  onDelete: (commentId: string) => void;
+  isOpen: boolean;
+  onToggle: () => void;
+  direction: "rtl" | "ltr";
+}) {
+  const questionComments = comments.filter((c) => c.questionId === questionId);
+
+  return (
+    <div className={styles.commentBankContainer}>
+      <div className={styles.commentBankButtons}>
+        <button
+          type="button"
+          className={styles.commentBankToggle}
+          onClick={onToggle}
+          title="הערות נפוצות"
+        >
+          📝 {questionComments.length > 0 ? `(${questionComments.length})` : ""}
+        </button>
+        <button
+          type="button"
+          className={styles.saveCommentButton}
+          onClick={onSave}
+          title="שמור הערה לבנק"
+        >
+          💾
+        </button>
+      </div>
+      {isOpen && (
+        <div className={styles.commentBankDropdown} dir={direction}>
+          <div className={styles.commentBankHeader}>
+            <strong>הערות נפוצות</strong>
+            <button type="button" onClick={onToggle} className={styles.closeButton}>✕</button>
+          </div>
+          {questionComments.length === 0 ? (
+            <p className={styles.noComments}>אין הערות שמורות לשאלה זו</p>
+          ) : (
+            <ul className={styles.commentBankList}>
+              {questionComments.map((comment) => (
+                <li key={comment.id} className={styles.commentBankItem}>
+                  <div className={styles.commentContent}>
+                    <span className={styles.commentScore}>{comment.score}/{comment.maxScore}</span>
+                    <span className={styles.commentText}>{comment.comment}</span>
+                    {comment.usageCount > 0 && (
+                      <span className={styles.commentUsage}>({comment.usageCount} שימושים)</span>
+                    )}
+                  </div>
+                  <div className={styles.commentActions}>
+                    <button
+                      type="button"
+                      className={styles.applyCommentButton}
+                      onClick={() => onApply(comment)}
+                    >
+                      החל
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.deleteCommentButton}
+                      onClick={() => onDelete(comment.id)}
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatusBadge({ status, t }: { status: string; t: (key: string) => string }) {
   const getStatusClass = () => {
     switch (status) {
@@ -88,6 +187,10 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedDraftRef = useRef<string>("");
 
+  // Comment Bank state
+  const [showCommentBank, setShowCommentBank] = useState<string | null>(null); // questionId when showing
+  const [savingComment, setSavingComment] = useState<string | null>(null); // questionId when saving
+
   const homeworkQuery = useQuery({
     queryKey: ["homework", setId],
     queryFn: () => getHomeworkSet(setId),
@@ -133,6 +236,83 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
     enabled: viewMode === "question" && summariesQuery.isSuccess,
   });
 
+  // Comment Bank query
+  const commentBankQuery = useQuery({
+    queryKey: ["comment-bank", setId],
+    queryFn: async () => {
+      const response = await fetch(`/api/comment-bank?homeworkSetId=${setId}`);
+      if (!response.ok) throw new Error("Failed to fetch comment bank");
+      return response.json() as Promise<CommentBankEntry[]>;
+    },
+  });
+
+  // Group comments by questionId
+  const commentsByQuestion = useMemo(() => {
+    const map = new Map<string, CommentBankEntry[]>();
+    (commentBankQuery.data ?? []).forEach((comment) => {
+      const existing = map.get(comment.questionId) ?? [];
+      existing.push(comment);
+      map.set(comment.questionId, existing);
+    });
+    return map;
+  }, [commentBankQuery.data]);
+
+  // Save comment to bank mutation
+  const saveCommentMutation = useMutation({
+    mutationFn: async (params: { questionId: string; comment: string; score: number; maxScore: number }) => {
+      const response = await fetch("/api/comment-bank", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          homeworkSetId: setId,
+          questionId: params.questionId,
+          comment: params.comment,
+          score: params.score,
+          maxScore: params.maxScore,
+          createdBy: "instructor", // TODO: Get from auth context
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to save comment");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["comment-bank", setId] });
+      setSavingComment(null);
+      setStatusMessage("ההערה נשמרה בבנק ההערות");
+    },
+  });
+
+  // Use comment (increment usage count) mutation
+  const useCommentMutation = useMutation({
+    mutationFn: async (commentId: string) => {
+      const response = await fetch("/api/comment-bank", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "use", commentId }),
+      });
+      if (!response.ok) throw new Error("Failed to update usage count");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["comment-bank", setId] });
+    },
+  });
+
+  // Delete comment from bank mutation
+  const deleteCommentMutation = useMutation({
+    mutationFn: async (commentId: string) => {
+      const response = await fetch(`/api/comment-bank?commentId=${commentId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete comment");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["comment-bank", setId] });
+      setStatusMessage("ההערה נמחקה מבנק ההערות");
+    },
+  });
+
   useEffect(() => {
     if (viewMode === "student" && activeSubmissionId) return;
     if (viewMode === "student" && summariesQuery.data?.length && !activeSubmissionId) {
@@ -171,11 +351,13 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
       });
     }
     
-    // Apply search filter
+    // Apply search filter - search by studentId, studentName, and studentIdNumber
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(summary => 
-        summary.studentId.toLowerCase().includes(query)
+        summary.studentId.toLowerCase().includes(query) ||
+        (summary.studentName && summary.studentName.toLowerCase().includes(query)) ||
+        (summary.studentIdNumber && summary.studentIdNumber.includes(query))
       );
     }
     
@@ -521,6 +703,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
         homeworkTitle: homeworkQuery.data?.title ?? setId,
         questions,
         submissions: validSubmissions,
+        summaries, // Include summaries with student names and ID numbers
         fileName: `תרגיל-3-הגשות-${datePart}.xlsx`,
       });
 
@@ -611,6 +794,62 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
       return new Set(submissionsForQuestion.map((s) => s.id));
     });
   }, [activeQuestionId, allSubmissionsQuery.data]);
+
+  // Apply a saved comment from the comment bank
+  const applyCommentFromBank = useCallback((questionId: string, comment: CommentBankEntry, submissionId?: string) => {
+    if (viewMode === "student") {
+      setGradeDraft((prev) => ({
+        ...prev,
+        [questionId]: {
+          ...prev[questionId],
+          score: comment.score,
+          instructorNotes: comment.comment,
+        },
+      }));
+    } else if (viewMode === "question" && submissionId) {
+      setQuestionGradeDraft((prev) => ({
+        ...prev,
+        [questionId]: {
+          ...prev[questionId],
+          [submissionId]: {
+            ...prev[questionId]?.[submissionId],
+            score: comment.score,
+            instructorNotes: comment.comment,
+          },
+        },
+      }));
+    }
+    useCommentMutation.mutate(comment.id);
+    setShowCommentBank(null);
+  }, [viewMode, useCommentMutation]);
+
+  // Save current comment to the comment bank
+  const saveCurrentCommentToBank = useCallback((questionId: string, submissionId?: string) => {
+    const question = questionsById.get(questionId);
+    const maxScore = question?.points ?? 10;
+    
+    let comment: string;
+    let score: number;
+    
+    if (viewMode === "student") {
+      const draft = gradeDraft[questionId];
+      comment = draft?.instructorNotes ?? "";
+      score = draft?.score ?? 0;
+    } else if (submissionId) {
+      const draft = questionGradeDraft[questionId]?.[submissionId];
+      comment = draft?.instructorNotes ?? "";
+      score = draft?.score ?? 0;
+    } else {
+      return;
+    }
+    
+    if (!comment.trim()) {
+      setStatusMessage("אין הערה לשמירה");
+      return;
+    }
+    
+    saveCommentMutation.mutate({ questionId, comment, score, maxScore });
+  }, [viewMode, gradeDraft, questionGradeDraft, questionsById, saveCommentMutation]);
 
   const submission = submissionQuery.data;
   const progress = progressQuery.data as QuestionProgress[] | undefined;
@@ -835,7 +1074,12 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                   className={summary.id === activeSubmissionId ? `${styles.summaryButton} ${styles.active}` : styles.summaryButton}
                   onClick={() => setActiveSubmissionId(summary.id)}
                 >
-                  <span className={styles.summaryPrimary}>{summary.studentId}</span>
+                  <span className={styles.summaryPrimary}>
+                    {summary.studentName || summary.studentId}
+                  </span>
+                  {summary.studentIdNumber && (
+                    <span className={styles.studentIdNumber}>ת.ז: {summary.studentIdNumber}</span>
+                  )}
                   <StatusBadge status={summary.status} t={t} />
                   <span className={styles.summaryMeta}>
                     {SCORE_FORMATTER.format(summary.overallScore)} pts
@@ -898,7 +1142,12 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
             <div className={styles.detailInner}>
               <header className={styles.detailHeader}>
                 <div>
-                  <h3>{t("builder.grade.submission.by", { studentId: submission.studentId })}</h3>
+                  <h3>{t("builder.grade.submission.by", { studentId: summaries.find(s => s.id === activeSubmissionId)?.studentName || submission.studentId })}</h3>
+                  {summaries.find(s => s.id === activeSubmissionId)?.studentIdNumber && (
+                    <p className={styles.studentIdBadge}>
+                      ת.ז: {summaries.find(s => s.id === activeSubmissionId)?.studentIdNumber}
+                    </p>
+                  )}
                   <p className={styles.detailMeta}>
                     {t("builder.grade.submission.attempt", { number: submission.attemptNumber })} · {t("builder.grade.submission.status", { status: submission.status })}
                   </p>
@@ -984,22 +1233,34 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                             }
                           />
                         </label>
-                        <label className={styles.notesField}>
-                          {t("builder.grade.notes.label")}
-                          <textarea
-                            placeholder={t("builder.grade.notes.placeholder")}
-                            value={draft?.instructorNotes ?? ""}
-                            onChange={(event) =>
-                              setGradeDraft((prev) => ({
-                                ...prev,
-                                [questionId]: {
-                                  ...prev[questionId],
-                                  instructorNotes: event.target.value,
-                                },
-                              }))
-                            }
+                        <div className={styles.notesFieldWithBank}>
+                          <label className={styles.notesField}>
+                            {t("builder.grade.notes.label")}
+                            <textarea
+                              placeholder={t("builder.grade.notes.placeholder")}
+                              value={draft?.instructorNotes ?? ""}
+                              onChange={(event) =>
+                                setGradeDraft((prev) => ({
+                                  ...prev,
+                                  [questionId]: {
+                                    ...prev[questionId],
+                                    instructorNotes: event.target.value,
+                                  },
+                                }))
+                              }
+                            />
+                          </label>
+                          <CommentBankDropdown
+                            questionId={questionId}
+                            comments={commentBankQuery.data ?? []}
+                            onApply={(comment) => applyCommentFromBank(questionId, comment)}
+                            onSave={() => saveCurrentCommentToBank(questionId)}
+                            onDelete={(commentId) => deleteCommentMutation.mutate(commentId)}
+                            isOpen={showCommentBank === questionId}
+                            onToggle={() => setShowCommentBank(showCommentBank === questionId ? null : questionId)}
+                            direction={direction}
                           />
-                        </label>
+                        </div>
                       </div>
                     </article>
                   );
@@ -1134,7 +1395,14 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                     checked={isSelected}
                                     onChange={() => toggleStudentSelection(submission.id)}
                                   />
-                                  <strong>{submission.studentId}</strong>
+                                  <div className={styles.studentInfo}>
+                                    <strong>{summaries.find(s => s.id === submission.id)?.studentName || submission.studentId}</strong>
+                                    {summaries.find(s => s.id === submission.id)?.studentIdNumber && (
+                                      <span className={styles.studentIdNumberSmall}>
+                                        ת.ז: {summaries.find(s => s.id === submission.id)?.studentIdNumber}
+                                      </span>
+                                    )}
+                                  </div>
                                 </label>
                                 <span className={styles.cardStatus}>{submission.status}</span>
                               </div>
@@ -1196,25 +1464,39 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                     />
                                     <span className={styles.pointsLabel}>/ {question?.points ?? 0}</span>
                                   </label>
-                                  <label className={styles.notesField}>
-                                    {t("builder.grade.notes.label")}
-                                    <textarea
-                                      placeholder={t("builder.grade.notes.placeholder")}
-                                      value={draft?.instructorNotes ?? ""}
-                                      onChange={(event) =>
-                                        setQuestionGradeDraft((prev) => ({
-                                          ...prev,
-                                          [activeQuestionId]: {
-                                            ...prev[activeQuestionId],
-                                            [submission.id]: {
-                                              ...prev[activeQuestionId]?.[submission.id],
-                                              instructorNotes: event.target.value,
+                                  <div className={styles.notesFieldWithBank}>
+                                    <label className={styles.notesField}>
+                                      {t("builder.grade.notes.label")}
+                                      <textarea
+                                        placeholder={t("builder.grade.notes.placeholder")}
+                                        value={draft?.instructorNotes ?? ""}
+                                        onChange={(event) =>
+                                          setQuestionGradeDraft((prev) => ({
+                                            ...prev,
+                                            [activeQuestionId]: {
+                                              ...prev[activeQuestionId],
+                                              [submission.id]: {
+                                                ...prev[activeQuestionId]?.[submission.id],
+                                                instructorNotes: event.target.value,
+                                              },
                                             },
-                                          },
-                                        }))
-                                      }
+                                          }))
+                                        }
+                                      />
+                                    </label>
+                                    <CommentBankDropdown
+                                      questionId={activeQuestionId}
+                                      comments={commentBankQuery.data ?? []}
+                                      onApply={(comment) => applyCommentFromBank(activeQuestionId, comment, submission.id)}
+                                      onSave={() => saveCurrentCommentToBank(activeQuestionId, submission.id)}
+                                      onDelete={(commentId) => deleteCommentMutation.mutate(commentId)}
+                                      isOpen={showCommentBank === `${activeQuestionId}-${submission.id}`}
+                                      onToggle={() => setShowCommentBank(
+                                        showCommentBank === `${activeQuestionId}-${submission.id}` ? null : `${activeQuestionId}-${submission.id}`
+                                      )}
+                                      direction={direction}
                                     />
-                                  </label>
+                                  </div>
                                 </div>
 
                                 <div className={styles.cardMeta}>

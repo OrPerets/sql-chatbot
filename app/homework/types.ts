@@ -122,6 +122,8 @@ export interface Submission {
 export interface SubmissionSummary {
   id: string;
   studentId: string;
+  studentIdNumber?: string; // Israeli ID number (ת.ז)
+  studentName?: string; // Student's full name
   status: Submission["status"];
   overallScore: number;
   submittedAt?: string;

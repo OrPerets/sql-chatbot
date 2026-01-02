@@ -124,14 +124,40 @@ export class SubmissionsService {
       .collection(COLLECTIONS.QUESTIONS)
       .countDocuments(questionQuery);
 
+    // Fetch user data for all students to get their names and ID numbers
+    const studentIds = submissions.map(s => s.studentId);
+    const users = await this.db
+      .collection(COLLECTIONS.USERS)
+      .find({ 
+        $or: [
+          { email: { $in: studentIds } },
+          { id: { $in: studentIds } }
+        ]
+      })
+      .toArray();
+
+    // Create a map of studentId -> user data
+    const userMap = new Map<string, { name?: string; studentIdNumber?: string }>();
+    users.forEach((user: any) => {
+      const key = user.email || user.id;
+      userMap.set(key, {
+        name: user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : undefined),
+        studentIdNumber: user.studentIdNumber,
+      });
+    });
+
     return submissions.map(submission => {
       const answered = Object.values(submission.answers).filter(
         answer => Boolean(answer?.sql?.trim()) || Boolean(answer?.feedback?.score)
       ).length;
 
+      const userData = userMap.get(submission.studentId);
+
       return {
         id: submission._id?.toString() || submission.id,
         studentId: submission.studentId,
+        studentIdNumber: userData?.studentIdNumber,
+        studentName: userData?.name,
         status: submission.status,
         overallScore: submission.overallScore,
         submittedAt: submission.submittedAt,

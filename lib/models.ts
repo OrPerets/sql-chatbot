@@ -86,6 +86,21 @@ export interface QuestionAnalyticsModel {
   updatedAt?: string;
 }
 
+export interface CommentBankEntryModel {
+  _id?: ObjectId;
+  id: string;
+  homeworkSetId: string;
+  questionId: string;
+  comment: string;
+  score: number; // Associated score (e.g., 8 out of 10)
+  maxScore: number; // Max possible score for context
+  category?: string; // Optional: "syntax error", "logic error", "correct", etc.
+  usageCount: number;
+  createdBy: string; // Instructor who created the comment
+  createdAt: string;
+  updatedAt: string;
+}
+
 /**
  * Database indexes for optimal query performance
  */

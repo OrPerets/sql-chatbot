@@ -327,6 +327,7 @@ type ChatProps = {
   hideAvatar?: boolean;
   minimalMode?: boolean;
   homeworkContext?: HomeworkChatContext | null;
+  embeddedMode?: boolean;
 };
 
 const Chat = ({
@@ -338,6 +339,7 @@ const Chat = ({
   hideAvatar = false,
   minimalMode = false,
   homeworkContext = null,
+  embeddedMode = false,
 }: ChatProps) => {
   const [userInput, setUserInput] = useState("");
   const [messages, setMessages] = useState([]);
@@ -1421,8 +1423,59 @@ const loadChatMessages = (chatId: string) => {
     }
   }
 
+// Embedded mode styles for homework runner sidebar
+const embeddedStyles = embeddedMode ? {
+  main: { 
+    width: '100%', 
+    height: '100%', 
+    flex: '1 1 0', 
+    minHeight: 0, 
+    margin: 0, 
+    padding: 0,
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column' as const,
+  },
+  container: { 
+    width: '100%', 
+    flex: '1 1 0', 
+    minHeight: 0, 
+    height: 0,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    overflow: 'hidden',
+  },
+  chatContainer: { 
+    flex: '1 1 0', 
+    minHeight: 0, 
+    height: 0,
+    margin: 0,
+    padding: 0,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    overflow: 'hidden',
+    borderRadius: 0,
+  },
+  messages: { 
+    direction: 'rtl' as const,
+    flex: '1 1 0', 
+    minHeight: 0, 
+    height: 0,
+    overflowY: 'auto' as const,
+    overflowX: 'hidden' as const,
+  },
+} : {
+  main: {},
+  container: {},
+  chatContainer: {},
+  messages: { direction: 'rtl' as const },
+};
+
 return (
-  <div className={`${styles.main} ${!sidebarVisible || hideSidebar || minimalMode ? styles.mainFullWidth : ''}`}>
+  <div 
+    className={`${styles.main} ${!sidebarVisible || hideSidebar || minimalMode ? styles.mainFullWidth : ''}`}
+    style={embeddedStyles.main}
+  >
     {sidebarVisible && !hideSidebar && !minimalMode && (
       <Sidebar 
         chatSessions={chatSessions} 
@@ -1433,7 +1486,10 @@ return (
         onToggleSidebar={toggleSidebar}
       />
     )}
-         <div className={`${styles.container} ${!sidebarVisible || hideSidebar || minimalMode ? styles.containerFullWidth : ''}`}>
+         <div 
+           className={`${styles.container} ${!sidebarVisible || hideSidebar || minimalMode ? styles.containerFullWidth : ''}`}
+           style={embeddedStyles.container}
+         >
       {!sidebarVisible && !hideSidebar && !minimalMode && (
         <button
           className={styles.openSidebarButton}
@@ -1444,8 +1500,8 @@ return (
           ☰
         </button>
       )}
-      <div className={styles.chatContainer}>
-        <div className={styles.messages} style={{direction:"rtl"}}>
+      <div className={styles.chatContainer} style={embeddedStyles.chatContainer}>
+        <div className={styles.messages} style={embeddedStyles.messages}>
           {loadingMessages ? (
             <div className={styles.loadingIndicator}></div>
           ) : (

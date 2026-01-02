@@ -1,10 +1,16 @@
 import * as XLSX from "xlsx";
-import type { Question, Submission } from "@/app/homework/types";
+import type { Question, Submission, SubmissionSummary } from "@/app/homework/types";
+
+interface StudentData {
+  studentIdNumber?: string; // ת.ז
+  studentName?: string;
+}
 
 interface ExportHomeworkParams {
   homeworkTitle: string;
   questions: Question[];
   submissions: Submission[];
+  summaries?: SubmissionSummary[]; // Optional summaries with enriched student data
   fileName: string;
 }
 
@@ -18,8 +24,9 @@ export function buildHomeworkGradesWorkbook({
   homeworkTitle,
   questions,
   submissions,
+  summaries,
 }: Omit<ExportHomeworkParams, "fileName">) {
-  const headers: (string | number)[] = ["ת.ז", "שם"];
+  const headers: (string | number)[] = ["ת.ז", "שם", "אימייל"];
 
   questions.forEach((question, index) => {
     headers.push(`שאלה ${index + 1} (ניקוד)`);
@@ -28,11 +35,24 @@ export function buildHomeworkGradesWorkbook({
 
   headers.push('סה"כ');
 
-  const rows = submissions.map((submission) => {
-    const studentId = submission.studentId ?? "";
-    const studentName = (submission as any).studentName ?? "";
+  // Create a map of studentId to enriched data from summaries
+  const studentDataMap = new Map<string, StudentData>();
+  if (summaries) {
+    summaries.forEach(summary => {
+      studentDataMap.set(summary.id, {
+        studentIdNumber: summary.studentIdNumber,
+        studentName: summary.studentName,
+      });
+    });
+  }
 
-    const row: (string | number)[] = [studentId, studentName];
+  const rows = submissions.map((submission) => {
+    const studentData = studentDataMap.get(submission.id);
+    const studentIdNumber = studentData?.studentIdNumber ?? "";
+    const studentName = studentData?.studentName ?? (submission as any).studentName ?? "";
+    const email = submission.studentId ?? "";
+
+    const row: (string | number)[] = [studentIdNumber, studentName, email];
 
     questions.forEach((question) => {
       const answer = submission.answers?.[question.id];
@@ -50,7 +70,14 @@ export function buildHomeworkGradesWorkbook({
   });
 
   const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  worksheet["!cols"] = headers.map(() => ({ wch: 16 }));
+  
+  // Set column widths - wider for name and email columns
+  const colWidths = [12, 20, 25]; // ת.ז, שם, אימייל
+  questions.forEach(() => {
+    colWidths.push(12, 25); // ניקוד, הערה
+  });
+  colWidths.push(10); // סה"כ
+  worksheet["!cols"] = colWidths.map(wch => ({ wch }));
 
   const workbook = XLSX.utils.book_new();
   workbook.Workbook = { Views: [{ RTL: true }] } as any;

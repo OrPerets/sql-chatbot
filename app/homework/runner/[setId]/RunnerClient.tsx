@@ -1043,12 +1043,23 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           <span className={styles.chatIcon}>💬</span>
           <h3 className={styles.chatTitle}>שאל את Michael</h3>
         </div>
-        <div className={styles.chatContent}>
+        <div 
+          className={styles.chatContent}
+          style={{
+            flex: '1 1 0',
+            minHeight: 0,
+            height: 0,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           <Chat
             chatId={null}
             hideSidebar={true}
             hideAvatar={true}
             minimalMode={true}
+            embeddedMode={true}
             homeworkContext={chatHomeworkContext}
           />
         </div>
