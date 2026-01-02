@@ -10,6 +10,11 @@ let cachedDb: Db | null = null;
 let connectionAttempts = 0;
 const maxConnectionAttempts = 3;
 
+const POOL_CONFIG = {
+  minPoolSize: 1,
+  maxPoolSize: Number(process.env.DB_MAX_POOL_SIZE ?? 10),
+};
+
 /**
  * MongoDB Connection Manager for Vercel Serverless Environment
  * Uses singleton pattern with connection caching for optimal performance
@@ -41,17 +46,19 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
           strict: true,
           deprecationErrors: true,
         },
-        maxPoolSize: 1, // Use single connection to avoid pool issues
+        maxPoolSize: POOL_CONFIG.maxPoolSize, // Allow multiple concurrent connections
+        minPoolSize: POOL_CONFIG.minPoolSize,
         serverSelectionTimeoutMS: 15000, // Increased timeout
         heartbeatFrequencyMS: 60000, // Less frequent heartbeats
-        minPoolSize: 0, // Allow pool to shrink to 0
       });
 
       await client.connect();
       const db = client.db(DB_NAME);
       await db.command({ ping: 1 });
       
-      console.log("✅ Successfully connected to MongoDB!");
+      console.log(
+        `✅ Successfully connected to MongoDB! (pool: min=${POOL_CONFIG.minPoolSize}, max=${POOL_CONFIG.maxPoolSize})`
+      );
       
       // Cache the connection
       cachedClient = client;
@@ -123,6 +130,7 @@ export const COLLECTIONS = {
   QUESTION_TEMPLATES: 'question_templates',
   INSTANTIATED_QUESTIONS: 'instantiated_questions',
   ANALYSIS_RESULTS: 'analysis_results',
+  QUESTION_ANALYTICS: 'question_analytics',
   // Consolidated mentor-server collections
   USERS: 'users',
   CHAT_SESSIONS: 'chatSessions',
