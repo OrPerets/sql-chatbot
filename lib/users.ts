@@ -142,7 +142,7 @@ export class UsersService {
             { _id: new ObjectId(identifier) },
             { id: identifier }
           ]
-        })
+        } as any)
         if (user) return user
       }
       
