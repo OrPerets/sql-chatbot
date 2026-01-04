@@ -1926,11 +1926,40 @@
 
 .chatContent :global(.assistantMessage) {
   background: #f1f5f9 !important;
-  color: #1e293b !important;
+  color: #000000 !important;
   align-self: flex-start !important;
   margin-left: 4px !important;
   margin-right: auto !important;
   border: none !important;
+}
+
+/* Make all text in chat darker (black) for better readability in homework runner */
+.chatContent :global(.messageParagraph),
+.chatContent :global(.messageHeader1),
+.chatContent :global(.messageHeader2),
+.chatContent :global(.messageHeader3),
+.chatContent :global(.messageListItem),
+.chatContent :global(.messageStrong),
+.chatContent :global(.messageEmphasis) {
+  color: #000000 !important;
+}
+
+.chatContent :global(.messageBlockquote) {
+  color: #000000 !important;
+}
+
+/* Ensure all text elements inside messages are dark */
+.chatContent :global(.assistantMessage) p,
+.chatContent :global(.assistantMessage) div,
+.chatContent :global(.assistantMessage) span,
+.chatContent :global(.assistantMessage) li,
+.chatContent :global(.assistantMessage) h1,
+.chatContent :global(.assistantMessage) h2,
+.chatContent :global(.assistantMessage) h3,
+.chatContent :global(.assistantMessage) h4,
+.chatContent :global(.assistantMessage) h5,
+.chatContent :global(.assistantMessage) h6 {
+  color: #000000 !important;
 }
 
 .chatContent :global(.input),

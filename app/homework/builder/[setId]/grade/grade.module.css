@@ -85,6 +85,86 @@
   box-shadow: none;
 }
 
+/* AI Grading Button */
+.aiGradeButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 16px rgba(139, 92, 246, 0.25);
+  transition: all 0.2s ease;
+}
+
+.aiGradeButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(139, 92, 246, 0.3);
+}
+
+.aiGradeButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.aiSpinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* AI Suggested Badge */
+.aiSuggestedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, #f3e8ff 0%, #e0e7ff 100%);
+  color: #7c3aed;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-inline-start: 8px;
+  white-space: nowrap;
+}
+
+.aiSuggestedBadge::before {
+  content: "✨";
+  font-size: 9px;
+}
+
+/* AI Suggested Field Highlight */
+.aiSuggestedField {
+  position: relative;
+}
+
+.aiSuggestedField::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  bottom: -2px;
+  left: -2px;
+  border: 2px solid rgba(139, 92, 246, 0.3);
+  border-radius: 10px;
+  pointer-events: none;
+}
+
 .banner {
   background: rgba(14, 98, 191, 0.1);
   border: 1px solid rgba(14, 98, 191, 0.2);
