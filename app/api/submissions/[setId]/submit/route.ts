@@ -112,7 +112,7 @@ export async function POST(request: Request, { params }: RouteParams) {
                 <h2 style="color: #10b981;">${homeworkTitle} הוגש בהצלחה</h2>
                 <p>שלום${user?.name ? ` ${user.name}` : ''},</p>
                 <p>${homeworkTitle} הוגש בהצלחה בקורס בסיסי נתונים.</p>
-                <p>ההגשה ננעלה ואינה ניתנת לעריכה נוספת.</p>
+                <p>ההגשה ננעלה ועפ״י תקנון שנקר, ואינה ניתנת לעריכה נוספת.</p>
                 <p>הקובץ המצורף כולל את כל התשובות שנשלחו.</p>
                 <p>תודה על ההגשה!</p>
                 <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">

@@ -35,6 +35,35 @@ interface GradeHomeworkClientProps {
 interface GradeDraftEntry {
   score: number;
   instructorNotes?: string;
+  aiSuggested?: boolean;  // Track if this was AI-suggested
+}
+
+// AI Grading types
+interface AIGradingResult {
+  questionId: string;
+  score: number;
+  comment: string;
+  confidence: number;
+  breakdown: {
+    queryCorrectness: number;
+    outputCorrectness: number;
+  };
+}
+
+interface BulkGradingResult {
+  submissionId: string;
+  studentId: string;
+  results: AIGradingResult[];
+  totalScore: number;
+  gradedAt: string;
+}
+
+interface AIEvaluateResponse {
+  success: boolean;
+  results: BulkGradingResult[];
+  totalSubmissions: number;
+  totalQuestionsGraded: number;
+  errors?: string[];
 }
 
 type GradeDraft = Record<string, GradeDraftEntry>;
@@ -190,6 +219,10 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
   // Comment Bank state
   const [showCommentBank, setShowCommentBank] = useState<string | null>(null); // questionId when showing
   const [savingComment, setSavingComment] = useState<string | null>(null); // questionId when saving
+
+  // AI Grading state
+  const [isAIGrading, setIsAIGrading] = useState(false);
+  const [aiGradingProgress, setAIGradingProgress] = useState<{ current: number; total: number } | null>(null);
 
   const homeworkQuery = useQuery({
     queryKey: ["homework", setId],
@@ -679,6 +712,77 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
     },
   });
 
+  // AI Grading mutation
+  const aiGradingMutation = useMutation({
+    mutationFn: async () => {
+      setIsAIGrading(true);
+      setAIGradingProgress({ current: 0, total: 0 });
+      
+      const response = await fetch("/api/grading/ai-evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ homeworkSetId: setId }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to evaluate submissions");
+      }
+      
+      return response.json() as Promise<AIEvaluateResponse>;
+    },
+    onSuccess: (data) => {
+      if (!data.success || data.results.length === 0) {
+        setStatusMessage("אין הגשות לבדיקה או שכולן כבר נבדקו");
+        return;
+      }
+
+      // Apply AI results to grade drafts
+      const allSubmissions = allSubmissionsQuery.data ?? [];
+      const newQuestionGradeDraft: QuestionGradeDraft = { ...questionGradeDraft };
+      const newGradeDraft: GradeDraft = { ...gradeDraft };
+
+      for (const result of data.results) {
+        for (const aiResult of result.results) {
+          // Update question-based draft
+          if (!newQuestionGradeDraft[aiResult.questionId]) {
+            newQuestionGradeDraft[aiResult.questionId] = {};
+          }
+          newQuestionGradeDraft[aiResult.questionId][result.submissionId] = {
+            score: aiResult.score,
+            instructorNotes: aiResult.comment,
+            aiSuggested: true,
+          };
+
+          // If this is the active submission, also update the student draft
+          if (result.submissionId === activeSubmissionId) {
+            newGradeDraft[aiResult.questionId] = {
+              score: aiResult.score,
+              instructorNotes: aiResult.comment,
+              aiSuggested: true,
+            };
+          }
+        }
+      }
+
+      setQuestionGradeDraft(newQuestionGradeDraft);
+      setGradeDraft(newGradeDraft);
+
+      // Refresh submission data
+      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "summaries"] });
+      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "all"] });
+
+      setStatusMessage(`✨ הערכת AI הושלמה: ${data.totalSubmissions} הגשות, ${data.totalQuestionsGraded} תשובות`);
+    },
+    onError: (error: Error) => {
+      setStatusMessage(`שגיאה בהערכת AI: ${error.message}`);
+    },
+    onSettled: () => {
+      setIsAIGrading(false);
+      setAIGradingProgress(null);
+    },
+  });
+
   const handleExportGrades = useCallback(async () => {
     if (isExporting) return;
 
@@ -945,6 +1049,22 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
           <span>{formatNumber(summaries.length)} {t("builder.grade.submissions")}</span>
           <span>{formatNumber(gradedCount)} {t("builder.grade.graded")}</span>
           {typeof averageScore === "number" && <span>{t("builder.grade.avgScore")}: {formatNumber(averageScore)}</span>}
+          <button
+            type="button"
+            className={styles.aiGradeButton}
+            onClick={() => aiGradingMutation.mutate()}
+            disabled={isAIGrading || summaries.length === 0}
+            title="בדיקה אוטומטית באמצעות AI"
+          >
+            {isAIGrading ? (
+              <>
+                <span className={styles.aiSpinner} />
+                מעריך...
+              </>
+            ) : (
+              <>✨ בדיקת AI</>
+            )}
+          </button>
           <button
             type="button"
             className={styles.exportButton}
@@ -1214,8 +1334,9 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                       ) : null}
 
                       <div className={styles.gradeControls}>
-                        <label>
+                        <label className={draft?.aiSuggested ? styles.aiSuggestedField : ""}>
                           {t("builder.grade.score.label")}
+                          {draft?.aiSuggested && <span className={styles.aiSuggestedBadge}>AI</span>}
                           <input
                             type="number"
                             min={0}
@@ -1228,14 +1349,16 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                 [questionId]: {
                                   ...prev[questionId],
                                   score: Number(event.target.value),
+                                  aiSuggested: false, // Clear AI flag when manually edited
                                 },
                               }))
                             }
                           />
                         </label>
                         <div className={styles.notesFieldWithBank}>
-                          <label className={styles.notesField}>
+                          <label className={`${styles.notesField} ${draft?.aiSuggested ? styles.aiSuggestedField : ""}`}>
                             {t("builder.grade.notes.label")}
+                            {draft?.aiSuggested && <span className={styles.aiSuggestedBadge}>AI</span>}
                             <textarea
                               placeholder={t("builder.grade.notes.placeholder")}
                               value={draft?.instructorNotes ?? ""}
@@ -1244,6 +1367,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                   ...prev,
                                   [questionId]: {
                                     ...prev[questionId],
+                                    aiSuggested: false, // Clear AI flag when manually edited
                                     instructorNotes: event.target.value,
                                   },
                                 }))
@@ -1441,8 +1565,9 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                 )}
 
                                 <div className={styles.cardGradeControls}>
-                                  <label>
+                                  <label className={draft?.aiSuggested ? styles.aiSuggestedField : ""}>
                                     {t("builder.grade.score.label")}
+                                    {draft?.aiSuggested && <span className={styles.aiSuggestedBadge}>AI</span>}
                                     <input
                                       type="number"
                                       min={0}
@@ -1457,6 +1582,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                             [submission.id]: {
                                               ...prev[activeQuestionId]?.[submission.id],
                                               score: Number(event.target.value),
+                                              aiSuggested: false, // Clear AI flag when manually edited
                                             },
                                           },
                                         }))
@@ -1465,8 +1591,9 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                     <span className={styles.pointsLabel}>/ {question?.points ?? 0}</span>
                                   </label>
                                   <div className={styles.notesFieldWithBank}>
-                                    <label className={styles.notesField}>
+                                    <label className={`${styles.notesField} ${draft?.aiSuggested ? styles.aiSuggestedField : ""}`}>
                                       {t("builder.grade.notes.label")}
+                                      {draft?.aiSuggested && <span className={styles.aiSuggestedBadge}>AI</span>}
                                       <textarea
                                         placeholder={t("builder.grade.notes.placeholder")}
                                         value={draft?.instructorNotes ?? ""}
@@ -1478,6 +1605,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                               [submission.id]: {
                                                 ...prev[activeQuestionId]?.[submission.id],
                                                 instructorNotes: event.target.value,
+                                                aiSuggested: false, // Clear AI flag when manually edited
                                               },
                                             },
                                           }))
