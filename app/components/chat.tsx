@@ -992,18 +992,54 @@ const updateUserBalance = async (value) => {
     }
     
     // saveToDatabase(text, "user");
-    const response = await fetch(
-      `/api/assistants/threads/${threadId}/messages`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          content: messageWithTags, // Send message with tags to AI
-          imageData: imageData, // Send image data if available
-        }),
+    try {
+      const response = await fetch(
+        `/api/assistants/threads/${threadId}/messages`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            content: messageWithTags, // Send message with tags to AI
+            imageData: imageData, // Send image data if available
+          }),
+        }
+      );
+      
+      // Check if response is ok and has a body
+      if (!response.ok) {
+        console.error('❌ Failed to send message:', response.status, response.statusText);
+        appendMessage("assistant", "מצטער, הייתה שגיאה בעיבוד ההודעה. נסה שוב.");
+        setInputDisabled(false);
+        setIsThinking(false);
+        setImageProcessing(false);
+        return;
       }
-    );
-    const stream = AssistantStream.fromReadableStream(response.body);
-    handleReadableStream(stream);
+      
+      if (!response.body) {
+        console.error('❌ Response body is null');
+        appendMessage("assistant", "מצטער, הייתה שגיאה בתקשורת. נסה לרענן את הדף.");
+        setInputDisabled(false);
+        setIsThinking(false);
+        setImageProcessing(false);
+        return;
+      }
+      
+      const stream = AssistantStream.fromReadableStream(response.body);
+      handleReadableStream(stream);
+      
+      // Handle stream errors
+      stream.on("error", (error) => {
+        console.error('❌ Stream error:', error);
+        // Don't show error message if we already have content
+        setInputDisabled(false);
+        setIsThinking(false);
+        setIsDone(true);
+      });
+    } catch (error) {
+      console.error('❌ Error in sendMessage:', error);
+      appendMessage("assistant", "מצטער, הייתה שגיאה בתקשורת. נסה לרענן את הדף (Ctrl+Shift+R).");
+      setInputDisabled(false);
+      setIsThinking(false);
+    }
 
     // Reset image after sending
     setSelectedImage(null);

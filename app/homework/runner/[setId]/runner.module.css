@@ -1975,6 +1975,26 @@
   color: #000000 !important;
 }
 
+/* CRITICAL: Override dark mode text colors that may cause light/invisible text */
+@media (prefers-color-scheme: dark) {
+  .chatContent,
+  .chatContent :global(.messageParagraph),
+  .chatContent :global(.messageListItem),
+  .chatContent :global(.messageHeader1),
+  .chatContent :global(.messageHeader2),
+  .chatContent :global(.messageHeader3),
+  .chatContent :global(.messageStrong),
+  .chatContent :global(.messageEmphasis),
+  .chatContent :global(.assistantMessage),
+  .chatContent :global(.assistantMessage) *,
+  .chatContent :global(.assistantMessage) p,
+  .chatContent :global(.assistantMessage) div,
+  .chatContent :global(.assistantMessage) span,
+  .chatContent :global(.assistantMessage) li {
+    color: #000000 !important;
+  }
+}
+
 .chatContent :global(.input),
 .chatContent :global(.textarea) {
   font-size: 12px !important;
