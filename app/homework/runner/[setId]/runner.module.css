@@ -1962,6 +1962,19 @@
   color: #000000 !important;
 }
 
+/* Force all text inside assistant messages to be black - most specific override */
+.chatContent :global(.assistantMessage) * {
+  color: #000000 !important;
+}
+
+/* Override any markdown-specific classes that might have gray colors */
+.chatContent :global(.assistantMessage) .messageParagraph,
+.chatContent :global(.assistantMessage) .messageListItem,
+.chatContent :global(.assistantMessage) .messageEmphasis,
+.chatContent :global(.assistantMessage) .messageStrong {
+  color: #000000 !important;
+}
+
 .chatContent :global(.input),
 .chatContent :global(.textarea) {
   font-size: 12px !important;

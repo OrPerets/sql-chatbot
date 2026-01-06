@@ -26,7 +26,7 @@ export function BuilderShell({ children, activePath }: BuilderShellProps) {
     <div className={styles.container} dir={direction} data-hide-sidebar={isGradePage}>
       {!isGradePage && (
         <aside className={styles.sidebar}>
-          <div className={styles.logo}>{t("builder.logo")}</div>
+          <div className={styles.logo}>{("builder.logo")}</div>
           <nav className={styles.nav}>
             {navLinks.map((link) => {
               const isActive = currentPath === link.href || currentPath.startsWith(`${link.href}/`);
