@@ -297,7 +297,7 @@ export async function generateSolution(input: AISolutionInput): Promise<AISoluti
 - Sub-queries (nested SELECT statements)
 - Comparison: =, <>, <, >, <=, >=
 - Basic string functions: CONCAT, UPPER, LOWER, SUBSTRING, LENGTH
-- Basic date functions: YEAR, MONTH, DAY, DATEADD, DATEDIFF
+- Basic date functions: YEAR, MONTH, DAY, DATEADD, DATEDIFF (NO WEEK function - calculate weeks as days*7)
 - UNION, UNION ALL
 - UPDATE, SET (for update questions)
 - TOP / LIMIT (only if NOT explicitly forbidden in the question)
@@ -313,6 +313,7 @@ export async function generateSolution(input: AISolutionInput): Promise<AISoluti
 - ❌ COALESCE, NULLIF, IIF (use sub-queries instead)
 - ❌ STRING_AGG, GROUP_CONCAT
 - ❌ ANY, ALL operators
+- ❌ WEEK() function - use DATEDIFF with days and multiply by 7 instead (e.g., DATEDIFF(DAY, date, GETDATE()) <= 77 for 11 weeks)
 
 ## כללים חשובים:
 1. הפתרון חייב להיות SQL תקין ופועל
@@ -404,8 +405,9 @@ ${expectedSchema.map(col => `- ${col.column} (${col.type})`).join('\n')}
 4. ודא שהעמודות והתוצאות תואמות לסכמה הצפויה
 5. קרא בעיון את ההנחיות - אם כתוב "אין להשתמש ב-LIMIT/TOP" אל תשתמש בהם!
 6. השתמש ב-JOINs ו-sub-queries בלבד
-7. ❌ אסור: WITH (CTE), CASE-WHEN, RETURNING, Window Functions (OVER, PARTITION BY, RANK)
+7. ❌ אסור: WITH (CTE), CASE-WHEN, RETURNING, Window Functions, WEEK()
 8. ✅ מותר: SELECT, JOIN, WHERE, GROUP BY, HAVING, ORDER BY, Aggregates, Sub-queries
+9. לחישוב שבועות: השתמש ב-DATEDIFF עם ימים (לדוגמה: 11 שבועות = 77 ימים)
 
 החזר תשובה בפורמט JSON הבא בלבד:
 {
