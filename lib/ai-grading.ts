@@ -254,3 +254,147 @@ export async function evaluateBulk(
 
   return results
 }
+
+/**
+ * AI Solution Generation Interfaces
+ */
+export interface AISolutionInput {
+  questionId: string
+  questionPrompt: string
+  questionInstructions: string
+  expectedSchema: Array<{ column: string; type: string }>
+}
+
+export interface AISolutionResult {
+  questionId: string
+  sql: string
+  explanation?: string
+}
+
+/**
+ * Generate SQL solution for a single question using AI
+ */
+export async function generateSolution(input: AISolutionInput): Promise<AISolutionResult> {
+  const prompt = buildSolutionPrompt(input)
+  
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `אתה מומחה SQL בקורס בסיסי נתונים. 
+התפקיד שלך הוא ליצור פתרונות SQL נכונים ומדויקים לשאלות.
+
+כללים חשובים:
+1. הפתרון חייב להיות SQL תקין ופועל
+2. הפתרון צריך לענות בדיוק על הדרישות בשאלה
+3. השתמש במיטב הפרקטיקות של SQL
+4. ודא שהתוצאות תואמות לסכמה הצפויה
+5. החזר רק את הקוד SQL, ללא הסברים נוספים
+6. **אל תשתמש ב-WITH clauses (CTE - Common Table Expressions)** - במקום זאת השתמש ב-JOINs או sub-queries
+7. **אל תשתמש ב-CASE-WHEN statements** - במקום זאת השתמש ב-JOINs, sub-queries, או פונקציות SQL אחרות
+8. העדף פתרונות עם JOINs ו-sub-queries על פני WITH clauses ו-CASE-WHEN
+
+פורמט התשובה חייב להיות JSON תקין בלבד, ללא טקסט נוסף.`
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.2,
+      max_tokens: 1000,
+      response_format: { type: 'json_object' }
+    })
+
+    const content = response.choices[0]?.message?.content
+    if (!content) {
+      throw new Error('No response from OpenAI')
+    }
+
+    const parsed = JSON.parse(content)
+    
+    return {
+      questionId: input.questionId,
+      sql: parsed.sql || '',
+      explanation: parsed.explanation
+    }
+  } catch (error) {
+    console.error('AI solution generation error:', error)
+    return {
+      questionId: input.questionId,
+      sql: '',
+      explanation: 'שגיאה ביצירת פתרון - נדרש פתרון ידני'
+    }
+  }
+}
+
+/**
+ * Build the solution generation prompt for OpenAI
+ */
+function buildSolutionPrompt(input: AISolutionInput): string {
+  const {
+    questionPrompt,
+    questionInstructions,
+    expectedSchema
+  } = input
+
+  let prompt = `צור פתרון SQL לשאלה הבאה:
+
+## השאלה
+${questionPrompt}
+
+## הנחיות
+${questionInstructions || '(אין הנחיות נוספות)'}
+`
+
+  if (expectedSchema && expectedSchema.length > 0) {
+    prompt += `
+## סכמת תוצאה צפויה
+${expectedSchema.map(col => `- ${col.column} (${col.type})`).join('\n')}
+`
+  }
+
+  prompt += `
+## הנחיות ליצירת הפתרון
+1. צור שאילתת SQL תקינה ופועלת
+2. ודא שהשאילתה עונה בדיוק על הדרישות בשאלה
+3. השתמש במיטב הפרקטיקות של SQL
+4. ודא שהעמודות והתוצאות תואמות לסכמה הצפויה (אם צוינה)
+5. השתמש בשמות טבלאות ועמודות נכונים
+6. **אל תשתמש ב-WITH clauses (CTE)** - במקום זאת השתמש ב-JOINs או sub-queries
+7. **אל תשתמש ב-CASE-WHEN statements** - במקום זאת השתמש ב-JOINs, sub-queries, או פונקציות SQL אחרות
+8. העדף פתרונות עם JOINs ו-sub-queries על פני WITH clauses ו-CASE-WHEN
+
+החזר תשובה בפורמט JSON הבא בלבד:
+{
+  "sql": "<השאילתה SQL המלאה>",
+  "explanation": "<הסבר קצר בעברית על הפתרון (אופציונלי)>"
+}`
+
+  return prompt
+}
+
+/**
+ * Generate solutions for multiple questions
+ */
+export async function generateSolutionsBulk(
+  questions: AISolutionInput[],
+  onProgress?: (completed: number, total: number) => void
+): Promise<AISolutionResult[]> {
+  const results: AISolutionResult[] = []
+  const total = questions.length
+
+  for (let i = 0; i < questions.length; i++) {
+    const question = questions[i]
+    const result = await generateSolution(question)
+    results.push(result)
+    
+    if (onProgress) {
+      onProgress(i + 1, total)
+    }
+  }
+
+  return results
+}
