@@ -263,6 +263,7 @@ export interface AISolutionInput {
   questionPrompt: string
   questionInstructions: string
   expectedSchema: Array<{ column: string; type: string }>
+  databaseSchema?: string  // The database schema/tables available for this homework
 }
 
 export interface AISolutionResult {
@@ -283,18 +284,44 @@ export async function generateSolution(input: AISolutionInput): Promise<AISoluti
       messages: [
         {
           role: 'system',
-          content: `אתה מומחה SQL בקורס בסיסי נתונים. 
-התפקיד שלך הוא ליצור פתרונות SQL נכונים ומדויקים לשאלות.
+          content: `אתה מומחה SQL בקורס מבוא לבסיסי נתונים. 
+התפקיד שלך הוא ליצור פתרונות SQL נכונים ומדויקים לשאלות, תוך שימוש אך ורק בפקודות SQL בסיסיות שנלמדו בקורס.
 
-כללים חשובים:
+## פקודות SQL מותרות בלבד:
+- SELECT, FROM, WHERE, JOIN (INNER, LEFT, RIGHT), ON
+- GROUP BY, HAVING, ORDER BY (ASC, DESC)
+- Aggregate functions: COUNT, SUM, AVG, MIN, MAX
+- DISTINCT, AS (aliases)
+- AND, OR, NOT, IN, BETWEEN, LIKE
+- IS NULL, IS NOT NULL
+- Sub-queries (nested SELECT statements)
+- Comparison: =, <>, <, >, <=, >=
+- Basic string functions: CONCAT, UPPER, LOWER, SUBSTRING, LENGTH
+- Basic date functions: YEAR, MONTH, DAY, DATEADD, DATEDIFF
+- UNION, UNION ALL
+- UPDATE, SET (for update questions)
+- TOP / LIMIT (only if NOT explicitly forbidden in the question)
+
+## פקודות SQL אסורות - לא להשתמש בהן בשום מקרה:
+- ❌ WITH clauses (CTE - Common Table Expressions)
+- ❌ CASE-WHEN statements
+- ❌ RETURNING clause
+- ❌ OVER, PARTITION BY (Window Functions)
+- ❌ RANK, ROW_NUMBER, DENSE_RANK
+- ❌ PIVOT, UNPIVOT
+- ❌ MERGE statements
+- ❌ COALESCE, NULLIF, IIF (use sub-queries instead)
+- ❌ STRING_AGG, GROUP_CONCAT
+- ❌ ANY, ALL operators
+
+## כללים חשובים:
 1. הפתרון חייב להיות SQL תקין ופועל
 2. הפתרון צריך לענות בדיוק על הדרישות בשאלה
-3. השתמש במיטב הפרקטיקות של SQL
+3. השתמש אך ורק בטבלאות שצוינו בסכמת מסד הנתונים
 4. ודא שהתוצאות תואמות לסכמה הצפויה
-5. החזר רק את הקוד SQL, ללא הסברים נוספים
-6. **אל תשתמש ב-WITH clauses (CTE - Common Table Expressions)** - במקום זאת השתמש ב-JOINs או sub-queries
-7. **אל תשתמש ב-CASE-WHEN statements** - במקום זאת השתמש ב-JOINs, sub-queries, או פונקציות SQL אחרות
-8. העדף פתרונות עם JOINs ו-sub-queries על פני WITH clauses ו-CASE-WHEN
+5. קרא בעיון את ההנחיות - אם כתוב "אין להשתמש ב-LIMIT/TOP" אל תשתמש בהם!
+6. העדף פתרונות עם JOINs ו-sub-queries על פני פתרונות מורכבים
+7. השתמש בשמות טבלאות ועמודות בדיוק כפי שמופיעים בסכמה
 
 פורמט התשובה חייב להיות JSON תקין בלבד, ללא טקסט נוסף.`
         },
@@ -337,10 +364,23 @@ function buildSolutionPrompt(input: AISolutionInput): string {
   const {
     questionPrompt,
     questionInstructions,
-    expectedSchema
+    expectedSchema,
+    databaseSchema
   } = input
 
-  let prompt = `צור פתרון SQL לשאלה הבאה:
+  let prompt = `צור פתרון SQL לשאלה הבאה:`
+
+  // Add database schema if provided
+  if (databaseSchema) {
+    prompt += `
+
+## סכמת מסד הנתונים (הטבלאות הזמינות)
+${databaseSchema}
+
+⚠️ חשוב: השתמש אך ורק בטבלאות ועמודות המופיעות למעלה!`
+  }
+
+  prompt += `
 
 ## השאלה
 ${questionPrompt}
@@ -351,7 +391,7 @@ ${questionInstructions || '(אין הנחיות נוספות)'}
 
   if (expectedSchema && expectedSchema.length > 0) {
     prompt += `
-## סכמת תוצאה צפויה
+## סכמת תוצאה צפויה (העמודות שצריכות להופיע בפלט)
 ${expectedSchema.map(col => `- ${col.column} (${col.type})`).join('\n')}
 `
   }
@@ -360,12 +400,12 @@ ${expectedSchema.map(col => `- ${col.column} (${col.type})`).join('\n')}
 ## הנחיות ליצירת הפתרון
 1. צור שאילתת SQL תקינה ופועלת
 2. ודא שהשאילתה עונה בדיוק על הדרישות בשאלה
-3. השתמש במיטב הפרקטיקות של SQL
-4. ודא שהעמודות והתוצאות תואמות לסכמה הצפויה (אם צוינה)
-5. השתמש בשמות טבלאות ועמודות נכונים
-6. **אל תשתמש ב-WITH clauses (CTE)** - במקום זאת השתמש ב-JOINs או sub-queries
-7. **אל תשתמש ב-CASE-WHEN statements** - במקום זאת השתמש ב-JOINs, sub-queries, או פונקציות SQL אחרות
-8. העדף פתרונות עם JOINs ו-sub-queries על פני WITH clauses ו-CASE-WHEN
+3. השתמש אך ורק בטבלאות ועמודות מהסכמה שסופקה למעלה
+4. ודא שהעמודות והתוצאות תואמות לסכמה הצפויה
+5. קרא בעיון את ההנחיות - אם כתוב "אין להשתמש ב-LIMIT/TOP" אל תשתמש בהם!
+6. השתמש ב-JOINs ו-sub-queries בלבד
+7. ❌ אסור: WITH (CTE), CASE-WHEN, RETURNING, Window Functions (OVER, PARTITION BY, RANK)
+8. ✅ מותר: SELECT, JOIN, WHERE, GROUP BY, HAVING, ORDER BY, Aggregates, Sub-queries
 
 החזר תשובה בפורמט JSON הבא בלבד:
 {
