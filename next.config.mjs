@@ -28,11 +28,29 @@ const nextConfig = {
           },
         ],
       },
+      // Static 3D/audio assets - long-term cache
       {
         source: '/:all*(gltf|glb|ktx2|basis|wasm|mp3|opus)',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
           { key: 'Access-Control-Allow-Origin', value: '*' }
+        ],
+      },
+      // Next.js static chunks with hash - immutable cache
+      {
+        source: '/_next/static/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
+        ],
+      },
+      // HTML pages - always revalidate to get fresh bundles
+      {
+        source: '/:path*',
+        has: [
+          { type: 'header', key: 'accept', value: '(.*text/html.*)' }
+        ],
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, must-revalidate' }
         ],
       },
     ];
