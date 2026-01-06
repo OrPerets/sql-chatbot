@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getQuestionsByHomeworkSet } from "@/lib/questions";
 import { generateSolutionsBulk, type AISolutionInput } from "@/lib/ai-grading";
 import { updateQuestion } from "@/lib/questions";
+import { getHomeworkSetById } from "@/lib/homework";
 import type { Question } from "@/app/homework/types";
 
 interface RouteParams {
@@ -39,6 +40,15 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Get homework set details (including background story with database schema)
+    const homeworkSet = await getHomeworkSetById(setId);
+    if (!homeworkSet) {
+      return NextResponse.json(
+        { error: "Homework set not found" },
+        { status: 404 }
+      );
+    }
+
     // Get all questions for this homework set
     const questions = await getQuestionsByHomeworkSet(setId);
     if (questions.length === 0) {
@@ -71,12 +81,16 @@ export async function POST(request: Request, { params }: RouteParams) {
       });
     }
 
+    // Extract database schema from backgroundStory (contains table definitions)
+    const databaseSchema = homeworkSet.backgroundStory || "";
+
     // Prepare inputs for AI generation
     const solutionInputs: AISolutionInput[] = questionsToProcess.map((q) => ({
       questionId: q.id,
       questionPrompt: q.prompt,
       questionInstructions: q.instructions || "",
       expectedSchema: q.expectedResultSchema || [],
+      databaseSchema, // Pass the database schema to each question
     }));
 
     // Generate solutions using AI
