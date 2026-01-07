@@ -121,6 +121,57 @@ const transformBackgroundStory = (story: string | undefined, title: string): str
   return story;
 };
 
+// Helper function to check if SQL error is about non-existing table/column
+const parseSchemaError = (errorMessage: string | undefined): { type: 'table' | 'column' | null; name: string | null } => {
+  if (!errorMessage) return { type: null, name: null };
+  
+  const lowerError = errorMessage.toLowerCase();
+  
+  // Common patterns for table not found errors
+  const tablePatterns = [
+    /table\s+['"`]?(\w+)['"`]?\s+(?:does not exist|not found|doesn't exist)/i,
+    /no such table:?\s*['"`]?(\w+)['"`]?/i,
+    /unknown table\s*['"`]?(\w+)['"`]?/i,
+    /relation\s+['"`]?(\w+)['"`]?\s+does not exist/i,
+    /table\s+['"`]?(\w+)['"`]?\s+is not defined/i,
+    /from\s+['"`]?(\w+)['"`]?.*(?:does not exist|not found)/i,
+  ];
+  
+  for (const pattern of tablePatterns) {
+    const match = errorMessage.match(pattern);
+    if (match && match[1]) {
+      return { type: 'table', name: match[1] };
+    }
+  }
+  
+  // Common patterns for column not found errors
+  const columnPatterns = [
+    /column\s+['"`]?(\w+)['"`]?\s+(?:does not exist|not found|doesn't exist)/i,
+    /unknown column\s*['"`]?(\w+)['"`]?/i,
+    /no such column:?\s*['"`]?(\w+)['"`]?/i,
+    /column\s+['"`]?(\w+)['"`]?\s+is not defined/i,
+    /field\s+['"`]?(\w+)['"`]?\s+(?:does not exist|not found)/i,
+  ];
+  
+  for (const pattern of columnPatterns) {
+    const match = errorMessage.match(pattern);
+    if (match && match[1]) {
+      return { type: 'column', name: match[1] };
+    }
+  }
+  
+  // Also check for generic "not found" that might indicate schema issues
+  if (lowerError.includes('not found') || lowerError.includes('does not exist') || lowerError.includes('undefined')) {
+    // Try to extract any identifier
+    const genericMatch = errorMessage.match(/['"`](\w+)['"`]/);
+    if (genericMatch && genericMatch[1]) {
+      return { type: 'table', name: genericMatch[1] }; // Assume table if we can't tell
+    }
+  }
+  
+  return { type: null, name: null };
+};
+
 // Database sample data for each table (matches תרגיל 3 schema)
 const DATABASE_SAMPLE_DATA: Record<string, { columns: string[]; rows: Record<string, string | number>[] }> = {
   Students: {
@@ -1000,6 +1051,52 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           <div className={styles.feedbackPanel}>
             <h4>{t("runner.results.heading")}</h4>
             {executeMutation.isError && <p className={styles.errorText}>{t("runner.results.error")}</p>}
+            
+            {/* Schema Error Notification - Show when there's a table/column not found error */}
+            {activeAnswer?.feedback?.autoNotes && activeAnswer.feedback.score === 0 && (() => {
+              const schemaError = parseSchemaError(activeAnswer.feedback.autoNotes);
+              const isSchemaError = schemaError.type !== null || 
+                activeAnswer.feedback.autoNotes.toLowerCase().includes('sql error') ||
+                activeAnswer.feedback.autoNotes.toLowerCase().includes('not found') ||
+                activeAnswer.feedback.autoNotes.toLowerCase().includes('does not exist') ||
+                activeAnswer.feedback.autoNotes.toLowerCase().includes('undefined');
+              
+              if (isSchemaError) {
+                return (
+                  <div className={styles.schemaErrorNotification}>
+                    <div className={styles.schemaErrorHeader}>
+                      <span className={styles.schemaErrorIcon}>⚠️</span>
+                      <span className={styles.schemaErrorTitle}>שגיאה בשאילתה</span>
+                    </div>
+                    <p className={styles.schemaErrorMessage}>
+                      {activeAnswer.feedback.autoNotes}
+                    </p>
+                    {schemaError.name && (
+                      <p className={styles.schemaErrorHint}>
+                        {schemaError.type === 'table' 
+                          ? `הטבלה "${schemaError.name}" לא קיימת במסד הנתונים.`
+                          : `העמודה "${schemaError.name}" לא קיימת.`}
+                      </p>
+                    )}
+                    <div className={styles.schemaHelpSection}>
+                      <p className={styles.schemaHelpTitle}>📋 הטבלאות והעמודות הזמינות:</p>
+                      <div className={styles.schemaTablesList}>
+                        {Object.entries(DATABASE_SAMPLE_DATA).map(([tableName, tableData]) => (
+                          <div key={tableName} className={styles.schemaTableItem}>
+                            <span className={styles.schemaTableName}>{tableName}</span>
+                            <span className={styles.schemaColumns}>
+                              ({tableData.columns.join(', ')})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+            
             {activeAnswer?.resultPreview ? (
               <div className={styles.resultTableWrapper}>
                 <table className={styles.resultTable}>
