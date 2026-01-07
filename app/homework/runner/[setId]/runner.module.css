@@ -1428,6 +1428,100 @@
   flex-shrink: 0;
 }
 
+/* Schema Error Notification Styles */
+.schemaErrorNotification {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid #f59e0b;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  direction: rtl;
+}
+
+.schemaErrorHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.schemaErrorIcon {
+  font-size: 20px;
+}
+
+.schemaErrorTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.schemaErrorMessage {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  color: #dc2626;
+  direction: ltr;
+  text-align: left;
+  word-break: break-word;
+}
+
+.schemaErrorHint {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.schemaHelpSection {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid #fbbf24;
+}
+
+.schemaHelpTitle {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #78350f;
+}
+
+.schemaTablesList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schemaTableItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: #fffbeb;
+  border-radius: 8px;
+  border-right: 3px solid #f59e0b;
+}
+
+.schemaTableName {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+}
+
+.schemaColumns {
+  font-size: 12px;
+  color: #64748b;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  direction: ltr;
+  text-align: left;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
 /* Success Overlay Styles */
 .successOverlay {
   position: fixed;
@@ -2725,6 +2819,35 @@
     padding: 14px 16px;
     font-size: 14px;
     flex-direction: column;
+  }
+  
+  .schemaErrorNotification {
+    padding: 14px;
+  }
+  
+  .schemaErrorTitle {
+    font-size: 15px;
+  }
+  
+  .schemaErrorMessage {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+  
+  .schemaErrorHint {
+    font-size: 13px;
+  }
+  
+  .schemaHelpTitle {
+    font-size: 13px;
+  }
+  
+  .schemaTableName {
+    font-size: 13px;
+  }
+  
+  .schemaColumns {
+    font-size: 11px;
     text-align: center;
   }
   
@@ -3156,6 +3279,43 @@
   
   .errorText::before {
     font-size: 18px;
+  }
+  
+  .schemaErrorNotification {
+    padding: 12px;
+  }
+  
+  .schemaErrorTitle {
+    font-size: 14px;
+  }
+  
+  .schemaErrorMessage {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+  
+  .schemaErrorHint {
+    font-size: 12px;
+  }
+  
+  .schemaHelpSection {
+    padding: 10px;
+  }
+  
+  .schemaHelpTitle {
+    font-size: 12px;
+  }
+  
+  .schemaTableItem {
+    padding: 6px 8px;
+  }
+  
+  .schemaTableName {
+    font-size: 12px;
+  }
+  
+  .schemaColumns {
+    font-size: 10px;
   }
   
   .backLink {
