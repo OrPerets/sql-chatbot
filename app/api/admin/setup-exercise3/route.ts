@@ -150,11 +150,11 @@ Enrollments (StudentID, CourseID, EnrollmentDate, Grade)
     const questions = [
       {
         prompt: "הציגו את כל ההרשמות לקורסים שהסטודנטים נרשמו אליהם בסמסטר האחרון (3 חודשים מתאריך הגשת התרגיל הנוכחי).",
-        instructions: "(סכמה: תעודת זהות של הסטודנט, שם הסטודנט, קוד קורס, תאריך ההרשמה).",
+        instructions: "סכמה: תעודת זהות של הסטודנט, שרשור שם פרטי ומשפחה של הסטודנט, קוד קורס, תאריך ההרשמה",
         starterSql: "",
         expectedResultSchema: [
           { column: "תעודת זהות", type: "string" },
-          { column: "שם הסטודנט", type: "string" },
+          { column: "שרשור שם פרטי ומשפחה של הסטודנט", type: "string" },
           { column: "קוד קורס", type: "string" },
           { column: "תאריך ההרשמה", type: "date" }
         ],
