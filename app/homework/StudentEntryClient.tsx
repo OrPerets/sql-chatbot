@@ -21,14 +21,12 @@ export function StudentEntryClient() {
 
   const [step, setStep] = useState<"id" | "instructions" | "loading">("id");
   const [studentEmail, setStudentEmail] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
+  const [password, setPassword] = useState("");
   const [studentId, setStudentId] = useState("");
   const [studentName, setStudentName] = useState("");
   const [error, setError] = useState("");
   const [homework, setHomework] = useState<HomeworkSet | null>(null);
   const [isStarting, setIsStarting] = useState(false);
-  
-  const ADMIN_PASSWORD = "r123";
 
   // Transform background story for תרגיל 3
   const transformBackgroundStory = (story: string | undefined, title: string): string => {
@@ -101,17 +99,6 @@ export function StudentEntryClient() {
     e.preventDefault();
     setError("");
 
-    // Validate admin password
-    if (!adminPassword.trim()) {
-      setError("נא להזין סיסמת מנהל");
-      return;
-    }
-
-    if (adminPassword.trim() !== ADMIN_PASSWORD) {
-      setError("סיסמת מנהל שגויה");
-      return;
-    }
-
     // Validate email
     if (!studentEmail.trim()) {
       setError("נא להזין כתובת אימייל");
@@ -125,26 +112,35 @@ export function StudentEntryClient() {
       return;
     }
 
+    // Validate password
+    if (!password.trim()) {
+      setError("נא להזין סיסמה");
+      return;
+    }
+
     setStep("loading");
 
     try {
-      // Look up user by email
-      const lookupResponse = await fetch("/api/users/lookup-by-email", {
+      // Login with email and password
+      const loginResponse = await fetch("/api/users/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email: studentEmail.trim() }),
+        body: JSON.stringify({ 
+          email: studentEmail.trim(),
+          password: password.trim()
+        }),
       });
 
-      if (!lookupResponse.ok) {
-        const errorData = await lookupResponse.json();
-        setError(errorData.error || "משתמש לא נמצא במערכת");
+      if (!loginResponse.ok) {
+        const errorData = await loginResponse.json();
+        setError(errorData.error || "שגיאה בהתחברות");
         setStep("id");
         return;
       }
 
-      const userData = await lookupResponse.json();
+      const userData = await loginResponse.json();
       setStudentId(userData.id);
       setStudentName(userData.name || userData.email);
 
@@ -206,7 +202,7 @@ export function StudentEntryClient() {
   const handleBack = () => {
     setStep("id");
     setStudentEmail("");
-    setAdminPassword("");
+    setPassword("");
     setStudentId("");
     setStudentName("");
   };
@@ -333,22 +329,10 @@ export function StudentEntryClient() {
             <Play size={40} />
           </div>
           <h1 className={styles.title}>שיעורי בית SQL</h1>
-          <p className={styles.subtitle}>נא להזין את סיסמת המנהל וכתובת האימייל שלך להתחלה</p>
+          <p className={styles.subtitle}>נא להזין את כתובת האימייל והסיסמה שלך להתחברות</p>
         </div>
 
         <form className={styles.form} onSubmit={handleEmailSubmit}>
-          <div className={styles.inputGroup}>
-            <label className={styles.label}>סיסמת מנהל</label>
-            <input
-              type="password"
-              className={styles.input}
-              placeholder="הזן סיסמת מנהל"
-              value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
-              autoFocus
-            />
-          </div>
-
           <div className={styles.inputGroup}>
             <label className={styles.label}>כתובת אימייל</label>
             <input
@@ -357,6 +341,18 @@ export function StudentEntryClient() {
               placeholder="your.email@example.com"
               value={studentEmail}
               onChange={(e) => setStudentEmail(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          <div className={styles.inputGroup}>
+            <label className={styles.label}>סיסמה</label>
+            <input
+              type="password"
+              className={styles.input}
+              placeholder="הזן סיסמה"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 
@@ -367,8 +363,8 @@ export function StudentEntryClient() {
             </div>
           )}
 
-          <button type="submit" className={styles.button} disabled={!adminPassword.trim() || !studentEmail.trim()}>
-            המשך
+          <button type="submit" className={styles.button} disabled={!password.trim() || !studentEmail.trim()}>
+            התחבר
           </button>
         </form>
       </div>
