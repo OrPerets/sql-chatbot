@@ -287,6 +287,12 @@ export async function generateSolution(input: AISolutionInput): Promise<AISoluti
           content: `אתה מומחה SQL בקורס מבוא לבסיסי נתונים. 
 התפקיד שלך הוא ליצור פתרונות SQL נכונים ומדויקים לשאלות, תוך שימוש אך ורק בפקודות SQL בסיסיות שנלמדו בקורס.
 
+⛔⛔⛔ אזהרה קריטית - הפקודות הבאות אסורות לחלוטין ⛔⛔⛔
+CASE-WHEN אסור בהחלט! לעולם אל תשתמש ב-CASE או WHEN או THEN או ELSE בתוך שאילתות.
+IF אסור בהחלט! לעולם אל תשתמש ב-IF או IIF בתוך שאילתות.
+אם צריך לוגיקה מותנית - השתמש ב-sub-queries או UNION במקום!
+לשאלות אמת/שקר: השתמש ב-STRCMP והחזר את הערך שלו (-1, 0, 1) במקום true/false.
+
 ## פקודות SQL מותרות בלבד:
 - SELECT, FROM, WHERE, JOIN (INNER, LEFT, RIGHT), ON
 - GROUP BY, HAVING, ORDER BY (ASC, DESC)
@@ -301,16 +307,21 @@ export async function generateSolution(input: AISolutionInput): Promise<AISoluti
 - UNION, UNION ALL
 - UPDATE, SET (for update questions)
 - TOP / LIMIT (only if NOT explicitly forbidden in the question)
+- STRCMP for string comparison (returns -1, 0, or 1) - use this for true/false questions
 
 ## פקודות SQL אסורות - לא להשתמש בהן בשום מקרה:
+- ❌ CASE - אסור לחלוטין! (Never use CASE keyword)
+- ❌ WHEN - אסור לחלוטין! (Never use WHEN keyword)
+- ❌ CASE-WHEN statements - אסור! השתמש ב-sub-queries במקום
+- ❌ IF - אסור לחלוטין! (Never use IF function)
+- ❌ IIF - אסור לחלוטין! (Never use IIF function)
 - ❌ WITH clauses (CTE - Common Table Expressions)
-- ❌ CASE-WHEN statements
 - ❌ RETURNING clause
 - ❌ OVER, PARTITION BY (Window Functions)
 - ❌ RANK, ROW_NUMBER, DENSE_RANK
 - ❌ PIVOT, UNPIVOT
 - ❌ MERGE statements
-- ❌ COALESCE, NULLIF, IIF (use sub-queries instead)
+- ❌ COALESCE, NULLIF (use sub-queries instead)
 - ❌ STRING_AGG, GROUP_CONCAT
 - ❌ ANY, ALL operators
 - ❌ WEEK() function - use DATEDIFF with days and multiply by 7 instead (e.g., DATEDIFF(DAY, date, GETDATE()) <= 77 for 11 weeks)
@@ -323,6 +334,8 @@ export async function generateSolution(input: AISolutionInput): Promise<AISoluti
 5. קרא בעיון את ההנחיות - אם כתוב "אין להשתמש ב-LIMIT/TOP" אל תשתמש בהם!
 6. העדף פתרונות עם JOINs ו-sub-queries על פני פתרונות מורכבים
 7. השתמש בשמות טבלאות ועמודות בדיוק כפי שמופיעים בסכמה
+8. ⛔ לעולם אל תשתמש ב-CASE, WHEN, IF, או IIF - זה אסור בקורס הזה!
+9. לשאלות אמת/שקר: השתמש ב-STRCMP והחזר -1, 0, או 1
 
 פורמט התשובה חייב להיות JSON תקין בלבד, ללא טקסט נוסף.`
         },
@@ -405,9 +418,21 @@ ${expectedSchema.map(col => `- ${col.column} (${col.type})`).join('\n')}
 4. ודא שהעמודות והתוצאות תואמות לסכמה הצפויה
 5. קרא בעיון את ההנחיות - אם כתוב "אין להשתמש ב-LIMIT/TOP" אל תשתמש בהם!
 6. השתמש ב-JOINs ו-sub-queries בלבד
-7. ❌ אסור: WITH (CTE), CASE-WHEN, RETURNING, Window Functions, WEEK()
-8. ✅ מותר: SELECT, JOIN, WHERE, GROUP BY, HAVING, ORDER BY, Aggregates, Sub-queries
-9. לחישוב שבועות: השתמש ב-DATEDIFF עם ימים (לדוגמה: 11 שבועות = 77 ימים)
+
+⛔⛔⛔ אסור בהחלט - לא לכלול בפתרון:
+- CASE - לעולם אל תשתמש במילה CASE
+- WHEN - לעולם אל תשתמש במילה WHEN
+- IF - לעולם אל תשתמש בפונקציית IF
+- IIF - לעולם אל תשתמש בפונקציית IIF
+- WITH (CTE)
+- RETURNING
+- Window Functions (OVER, PARTITION BY, RANK)
+- WEEK()
+
+✅ מותר: SELECT, JOIN, WHERE, GROUP BY, HAVING, ORDER BY, Aggregates, Sub-queries, STRCMP
+לחישוב שבועות: השתמש ב-DATEDIFF עם ימים (לדוגמה: 11 שבועות = 77 ימים)
+ללוגיקה מותנית: השתמש ב-sub-queries או UNION
+לשאלות אמת/שקר: השתמש ב-STRCMP והחזר את הערך שלו (-1, 0, 1) במקום true/false
 
 החזר תשובה בפורמט JSON הבא בלבד:
 {
