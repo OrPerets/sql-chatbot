@@ -145,6 +145,7 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
         serverSelectionTimeoutMS: 30000, // Increased from 15s to 30s
         socketTimeoutMS: 45000, // Socket timeout
         heartbeatFrequencyMS: 60000, // Less frequent heartbeats
+        waitQueueTimeoutMS: 5000, // Wait max 5s for connection from pool (prevents long waits)
         // Retry configuration (TLS is automatically enabled for mongodb+srv://)
         retryWrites: true,
         retryReads: true,
