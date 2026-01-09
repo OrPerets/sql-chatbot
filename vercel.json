@@ -2,5 +2,10 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",
-  "installCommand": "npm install --legacy-peer-deps"
+  "installCommand": "npm install --legacy-peer-deps",
+  "build": {
+    "env": {
+      "SKIP_BUILD_CACHE": "1"
+    }
+  }
 }
