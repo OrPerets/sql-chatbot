@@ -32,8 +32,8 @@ const getTotalConnectionsCreated = () => {
 };
 
 const POOL_CONFIG = {
-  minPoolSize: 0, // Don't keep idle connections
-  maxPoolSize: Number(process.env.DB_MAX_POOL_SIZE ?? 5), // Reduced from 10 to 5 for M0 cluster
+  minPoolSize: Number(process.env.DB_MIN_POOL_SIZE ?? 5), // Maintain warm connections for faster response
+  maxPoolSize: Number(process.env.DB_MAX_POOL_SIZE ?? 25), // Increased from 5 to 25 to handle many concurrent students
 };
 
 /**
