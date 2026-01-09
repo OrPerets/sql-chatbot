@@ -11,7 +11,7 @@ import { DATABASE_INDEXES } from '../lib/models';
 async function createIndexes(db: any) {
   console.log('📊 Creating database indexes...');
   
-  const indexDefinitions: Record<string, any[]> = DATABASE_INDEXES;
+  const indexDefinitions = DATABASE_INDEXES as Record<string, readonly any[]>;
   let totalCreated = 0;
   let totalSkipped = 0;
   

@@ -13,7 +13,7 @@ import { DATABASE_INDEXES } from './models';
 export async function ensureIndexes(): Promise<void> {
   try {
     const { db } = await connectToDatabase();
-    const indexDefinitions: Record<string, any[]> = DATABASE_INDEXES;
+    const indexDefinitions = DATABASE_INDEXES as Record<string, readonly any[]>;
     
     for (const [collectionKey, indexes] of Object.entries(indexDefinitions)) {
       const collectionName = COLLECTIONS[collectionKey as keyof typeof COLLECTIONS];
