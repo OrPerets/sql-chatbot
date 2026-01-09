@@ -691,8 +691,26 @@ class EnhancedTTSService {
               }),
             });
             
-            // Fallback to local route if server base failed
-            if (!response.ok) {
+            // Handle disabled feature gracefully (503) - don't retry
+            if (response.status === 503) {
+              const errorData = await response.json().catch(() => ({}));
+              if (errorData.enabled === false) {
+                this.dlog('⚠️ Voice feature is disabled, skipping TTS');
+                throw new Error('Voice feature disabled');
+              }
+            }
+            
+            // Handle disabled feature gracefully (503) - don't retry
+            if (response.status === 503) {
+              const errorData = await response.json().catch(() => ({}));
+              if (errorData.enabled === false) {
+                this.dlog('⚠️ Voice feature is disabled, skipping TTS');
+                throw new Error('Voice feature disabled');
+              }
+            }
+            
+            // Fallback to local route if server base failed (but not for 503)
+            if (!response.ok && response.status !== 503) {
               this.dlog('⚠️ TTS primary failed status:', response.status);
               try {
                 const localUrl = `/api/audio/tts`;
@@ -711,6 +729,15 @@ class EnhancedTTSService {
                     content_type: options.contentType || 'general'
                   }),
                 });
+                
+                // Check if local also returns 503
+                if (response.status === 503) {
+                  const errorData = await response.json().catch(() => ({}));
+                  if (errorData.enabled === false) {
+                    this.dlog('⚠️ Voice feature is disabled, skipping TTS');
+                    throw new Error('Voice feature disabled');
+                  }
+                }
               } catch {}
             }
 

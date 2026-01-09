@@ -16,7 +16,12 @@ export async function POST(request: NextRequest) {
   try {
     const featureVoiceEnabled = process.env.FEATURE_VOICE === '1';
     if (!featureVoiceEnabled) {
-      return NextResponse.json({ error: 'Voice feature disabled' }, { status: 404 });
+      // Return 503 (Service Unavailable) instead of 404 to indicate feature is disabled
+      // This prevents cluttering logs with 404 errors
+      return NextResponse.json({ 
+        error: 'Voice feature disabled',
+        enabled: false 
+      }, { status: 503 });
     }
 
     if (!process.env.OPENAI_API_KEY) {

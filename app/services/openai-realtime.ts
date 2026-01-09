@@ -241,6 +241,15 @@ export class OpenAIRealtimeService {
         }),
       });
 
+      // Handle disabled feature gracefully (503) - don't treat as error
+      if (response.status === 503) {
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.enabled === false) {
+          console.log('⚠️ Voice feature is disabled, skipping TTS');
+          return; // Silently skip TTS if feature is disabled
+        }
+      }
+
       if (!response.ok) {
         throw new Error('Failed to generate TTS');
       }
