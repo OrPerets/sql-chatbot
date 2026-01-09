@@ -1630,7 +1630,8 @@ return (
   </div>
 )} */}
     
-    <div className={styles.rightColumn}>
+    {/* AVATAR TEMPORARILY DISABLED - Commented out to prevent crashes */}
+    {false && <div className={styles.rightColumn}>
       {!isHydrated ? (
         <div 
           className={styles.avatarHydrationPlaceholder}
@@ -1786,7 +1787,7 @@ return (
         </div>
         </div>
       )}
-    </div>
+    </div>}
     {/* Exercise Modal */}
     <Modal isOpen={showExerciseModal} onClose={() => {
       setShowExerciseModal(false);

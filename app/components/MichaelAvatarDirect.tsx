@@ -254,8 +254,8 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
       setIsLoading(false);
 
       // Comprehensive gesture capability debugging
-      console.log('🔍 TalkingHead instance methods:', Object.getOwnPropertyNames(head).filter(name => typeof head[name] === 'function'));
-      console.log('🔍 TalkingHead prototype methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(head)).filter(name => typeof head[name] === 'function'));
+      console.log('🔍 TalkingHead instance methods:', Object.getOwnPropertyNames(head).filter((name: string) => name && typeof head[name] === 'function'));
+      console.log('🔍 TalkingHead prototype methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(head)).filter((name: string) => name && typeof head[name] === 'function'));
       console.log('🔍 Available setMood:', typeof head.setMood === 'function');
       console.log('🔍 Available playGesture:', typeof head.playGesture === 'function');
       console.log('🔍 Available stopGesture:', typeof head.stopGesture === 'function');
@@ -975,7 +975,8 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
                 console.log('📊 Available Gestures:', Object.keys(talkingHeadInstance.gestureTemplates));
                 
                 // Check each gesture template structure
-                Object.keys(talkingHeadInstance.gestureTemplates).forEach(gestureName => {
+                Object.keys(talkingHeadInstance.gestureTemplates).forEach((gestureName: string) => {
+                  if (!gestureName) return; // Skip null/undefined names
                   const template = talkingHeadInstance.gestureTemplates[gestureName];
                   console.log(`🎭 Gesture "${gestureName}":`, {
                     hasTemplate: !!template,

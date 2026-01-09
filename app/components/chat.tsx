@@ -21,6 +21,7 @@ import MichaelAvatarDirect from "./MichaelAvatarDirect";
 import VoiceModeCircle from "./VoiceModeCircle";
 import StaticLogoMode from "./StaticLogoMode";
 import { AvatarIcon, MicIcon } from "./AvatarToggleIcons";
+import Avatar3DErrorBoundary from "./michael-3d-visual-wrapper";
 import { enhancedTTS } from "@/app/utils/enhanced-tts";
 import AvatarInteractionManager from "./AvatarInteractionManager";
 import { analyzeMessage } from "../utils/sql-query-analyzer";
@@ -1814,7 +1815,8 @@ return (
   </div>
 )} */}
     
-    {!hideAvatar && !minimalMode && (
+    {/* AVATAR TEMPORARILY DISABLED - Commented out to prevent crashes */}
+    {false && !hideAvatar && !minimalMode && (
     <div className={styles.rightColumn}>
       {!isHydrated ? (
         <div 
@@ -1828,30 +1830,32 @@ return (
           {displayMode === 'avatar' && enableAvatar ? (
             <>
               {avatarMode === 'avatar' ? (
-                <React.Suspense fallback={<div style={{ width: '300px', height: '300px' }} />}>
-                  <MichaelAvatarDirect
-                    text={lastAssistantMessage}
-                    state={avatarState}
-                    size="medium"
-                    progressiveMode={enableVoice && !isDone}
-                    isStreaming={enableVoice && !isDone}
-                    onSpeakingStart={() => {
-                      console.log('🎤 Michael started speaking');
-                      if (enableVoice) setShouldSpeak(true);
-                    }}
-                    onSpeakingEnd={() => {
-                      console.log('🎤 Michael finished speaking');
-                      if (enableVoice) setShouldSpeak(false);
-                      setIsAssistantMessageComplete(false);
-                      setHasStartedSpeaking(false);
-                      setIsManualSpeech(false);  // Reset manual speech flag
-                    }}
-                    onError={(error) => {
-                      console.error('Avatar error caught:', error);
-                      // Avatar will fallback gracefully
-                    }}
-                  />
-                </React.Suspense>
+                <Avatar3DErrorBoundary fallback={<div style={{ width: '300px', height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f0f0', borderRadius: '50%', fontSize: '60px' }}>👨‍🏫</div>}>
+                  <React.Suspense fallback={<div style={{ width: '300px', height: '300px' }} />}>
+                    <MichaelAvatarDirect
+                      text={lastAssistantMessage}
+                      state={avatarState}
+                      size="medium"
+                      progressiveMode={enableVoice && !isDone}
+                      isStreaming={enableVoice && !isDone}
+                      onSpeakingStart={() => {
+                        console.log('🎤 Michael started speaking');
+                        if (enableVoice) setShouldSpeak(true);
+                      }}
+                      onSpeakingEnd={() => {
+                        console.log('🎤 Michael finished speaking');
+                        if (enableVoice) setShouldSpeak(false);
+                        setIsAssistantMessageComplete(false);
+                        setHasStartedSpeaking(false);
+                        setIsManualSpeech(false);  // Reset manual speech flag
+                      }}
+                      onError={(error) => {
+                        console.error('Avatar error caught:', error);
+                        // Avatar will fallback gracefully
+                      }}
+                    />
+                  </React.Suspense>
+                </Avatar3DErrorBoundary>
             ) : (
               <VoiceModeCircle
                 state={avatarState}
@@ -1879,9 +1883,7 @@ return (
           />
         )}
         
-        {/* Toggle Buttons Container */}
         <div className={styles.toggleButtonsContainer}>
-          {/* Display Mode Toggle Button */}
           <div className={styles.displayModeToggle}>
             <button 
               className={`${styles.displayToggleButton} ${displayMode === 'logo' ? styles.logoModeActive : styles.avatarModeActive}`}
@@ -1914,8 +1916,7 @@ return (
             </button>
           </div>
           
-          {/* Avatar Mode Toggle (only visible in avatar display mode) */}
-          {/* {displayMode === 'avatar' && enableAvatar && (
+          {displayMode === 'avatar' && enableAvatar && (
             <div className={styles.avatarModeToggle}>
               <button 
                 className={`${styles.modeToggleButton} ${avatarMode === 'voice' ? styles.voiceActive : styles.avatarActive}`}
@@ -1936,15 +1937,13 @@ return (
                 {avatarMode === 'avatar' ? <MicIcon size={18} /> : <AvatarIcon size={18} />}
               </button>
             </div>
-          )} */}
+          )}
         </div>
         
-          {/* User info below the avatar */}
           <div className={styles.userInfo}>
           <div className={styles.nickname}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px', }}>
               <span>היי {currentUser}</span>
-              {/* Clean version: hide auto audio toggle under avatar */}
               {/*
               <button
                 className={`${styles.audioToggle} ${autoPlaySpeech ? styles.audioToggleOn : styles.audioToggleOff}`}
