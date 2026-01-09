@@ -1828,24 +1828,30 @@ return (
           {displayMode === 'avatar' && enableAvatar ? (
             <>
               {avatarMode === 'avatar' ? (
-                <MichaelAvatarDirect
-                  text={lastAssistantMessage}
-                  state={avatarState}
-                  size="medium"
-                  progressiveMode={enableVoice && !isDone}
-                  isStreaming={enableVoice && !isDone}
-                  onSpeakingStart={() => {
-                    console.log('🎤 Michael started speaking');
-                    if (enableVoice) setShouldSpeak(true);
-                  }}
-                  onSpeakingEnd={() => {
-                    console.log('🎤 Michael finished speaking');
-                    if (enableVoice) setShouldSpeak(false);
-                    setIsAssistantMessageComplete(false);
-                    setHasStartedSpeaking(false);
-                    setIsManualSpeech(false);  // Reset manual speech flag
-                  }}
-                />
+                <React.Suspense fallback={<div style={{ width: '300px', height: '300px' }} />}>
+                  <MichaelAvatarDirect
+                    text={lastAssistantMessage}
+                    state={avatarState}
+                    size="medium"
+                    progressiveMode={enableVoice && !isDone}
+                    isStreaming={enableVoice && !isDone}
+                    onSpeakingStart={() => {
+                      console.log('🎤 Michael started speaking');
+                      if (enableVoice) setShouldSpeak(true);
+                    }}
+                    onSpeakingEnd={() => {
+                      console.log('🎤 Michael finished speaking');
+                      if (enableVoice) setShouldSpeak(false);
+                      setIsAssistantMessageComplete(false);
+                      setHasStartedSpeaking(false);
+                      setIsManualSpeech(false);  // Reset manual speech flag
+                    }}
+                    onError={(error) => {
+                      console.error('Avatar error caught:', error);
+                      // Avatar will fallback gracefully
+                    }}
+                  />
+                </React.Suspense>
             ) : (
               <VoiceModeCircle
                 state={avatarState}
