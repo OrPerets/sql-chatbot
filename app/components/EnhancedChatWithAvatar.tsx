@@ -33,7 +33,11 @@ const EnhancedChatWithAvatar: React.FC<EnhancedChatWithAvatarProps> = ({
     if (user) {
       try {
         const userObj = JSON.parse(user);
-        setCurrentUser(userObj.email || userObj.name || 'anonymous');
+        if (userObj && typeof userObj === 'object') {
+          setCurrentUser(userObj.email || userObj.name || 'anonymous');
+        } else {
+          setCurrentUser('anonymous');
+        }
       } catch (error) {
         console.error('Error parsing user from localStorage:', error);
         setCurrentUser('anonymous');

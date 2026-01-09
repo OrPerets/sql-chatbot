@@ -46,7 +46,7 @@ interface QueuedGesture {
 const forceFaceVisibleLoop = (head: any, startTime: number) => {
   if (head.scene && typeof head.scene.traverse === 'function') {
     head.scene.traverse((obj: any) => {
-      if (obj.isMesh && obj.name === 'Wolf3D_Head') {
+      if (obj && obj.isMesh && obj.name === 'Wolf3D_Head') {
         obj.visible = true;
         if (obj.material) {
           obj.material.transparent = false;
@@ -236,7 +236,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
 
       if (head.scene && typeof head.scene.traverse === 'function') {
         head.scene.traverse((obj: any) => {
-          if (obj.isMesh) {
+          if (obj && obj.isMesh && obj.name) {
             console.log('Mesh found:', obj.name);
           }
         });
@@ -308,7 +308,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
           if (head.scene && head.scene.children && head.scene.children.length > 0) {
             console.log('🔧 Scene has children, attempting to find armature...');
             head.scene.traverse((obj: any) => {
-              if (obj.type === 'SkinnedMesh' || obj.name.includes('Armature') || obj.isSkinnedMesh) {
+              if (obj && (obj.type === 'SkinnedMesh' || (obj.name && obj.name.includes('Armature')) || obj.isSkinnedMesh)) {
                 console.log('🔧 Found potential armature object:', obj.name, obj.type);
                 if (obj.skeleton) {
                   console.log('🔧 Setting armature from skeleton');
@@ -948,11 +948,11 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
                 const meshNames = [];
                 
                 talkingHeadInstance.scene.traverse((obj: any) => {
-                  if (obj.isMesh) {
+                  if (obj && obj.isMesh && obj.name) {
                     meshCount++;
                     meshNames.push(obj.name);
                   }
-                  if (obj.type === 'SkinnedMesh') {
+                  if (obj && obj.type === 'SkinnedMesh') {
                     skinnedMeshCount++;
                     if (obj.skeleton) {
                       boneCount += obj.skeleton.bones.length;
@@ -1063,7 +1063,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
                 // Try to find and restore armature like init does
                 if (talkingHeadInstance.scene && talkingHeadInstance.scene.children) {
                   talkingHeadInstance.scene.traverse((obj: any) => {
-                    if (obj.type === 'SkinnedMesh' || obj.name.includes('Armature') || obj.isSkinnedMesh) {
+                    if (obj && (obj.type === 'SkinnedMesh' || (obj.name && obj.name.includes('Armature')) || obj.isSkinnedMesh)) {
                       console.log('🔧 Found armature candidate:', obj.name, obj.type);
                       if (obj.skeleton) {
                         console.log('🔧 Restoring armature from skeleton');
