@@ -241,10 +241,10 @@ export class OpenAIRealtimeService {
         }),
       });
 
-      // Handle disabled feature gracefully (503) - don't treat as error
-      if (response.status === 503) {
-        const errorData = await response.json().catch(() => ({}));
-        if (errorData.enabled === false) {
+      // Handle disabled feature gracefully (200 with enabled: false) - don't treat as error
+      if (response.status === 200) {
+        const responseData = await response.json().catch(() => ({}));
+        if (responseData.enabled === false) {
           console.log('⚠️ Voice feature is disabled, skipping TTS');
           return; // Silently skip TTS if feature is disabled
         }
