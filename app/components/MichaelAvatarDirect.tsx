@@ -46,7 +46,7 @@ interface QueuedGesture {
 const forceFaceVisibleLoop = (head: any, startTime: number) => {
   if (head.scene && typeof head.scene.traverse === 'function') {
     head.scene.traverse((obj: any) => {
-      if (obj && obj.isMesh && obj.name === 'Wolf3D_Head') {
+      if (obj && obj.isMesh && obj.name && obj.name === 'Wolf3D_Head') {
         obj.visible = true;
         if (obj.material) {
           obj.material.transparent = false;
@@ -80,6 +80,22 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
   onGestureStarted,
   onGestureCompleted,
 }, ref) => {
+  // AVATAR DISABLED: Early return to prevent any execution
+  // Return null immediately to prevent any avatar code from running
+  if (typeof window === 'undefined' || process.env.NEXT_PUBLIC_AVATAR_ENABLED !== '1') {
+    // Set up a minimal ref interface to prevent errors
+    useImperativeHandle(ref, () => ({
+      setMood: () => {},
+      playGesture: () => {},
+      queueGesture: () => {},
+      clearGestureQueue: () => {},
+      getGestureQueue: () => [],
+      lookAt: () => {},
+      lookAtCamera: () => {},
+      setState: () => {},
+    }), []);
+    return null;
+  }
   const avatarRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -237,7 +253,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
       if (head.scene && typeof head.scene.traverse === 'function') {
         head.scene.traverse((obj: any) => {
           if (obj && obj.isMesh && obj.name) {
-            console.log('Mesh found:', obj.name);
+            console.log('Mesh found:', obj.name || 'unnamed');
           }
         });
       }
@@ -308,8 +324,8 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
           if (head.scene && head.scene.children && head.scene.children.length > 0) {
             console.log('🔧 Scene has children, attempting to find armature...');
             head.scene.traverse((obj: any) => {
-              if (obj && (obj.type === 'SkinnedMesh' || (obj.name && obj.name.includes('Armature')) || obj.isSkinnedMesh)) {
-                console.log('🔧 Found potential armature object:', obj.name || 'unnamed', obj.type);
+              if (obj && (obj.type === 'SkinnedMesh' || (obj.name && typeof obj.name === 'string' && obj.name.includes('Armature')) || obj.isSkinnedMesh)) {
+                console.log('🔧 Found potential armature object:', (obj && obj.name) || 'unnamed', obj.type);
                 if (obj.skeleton) {
                   console.log('🔧 Setting armature from skeleton');
                   head.armature = obj.skeleton.bones[0];
@@ -1064,8 +1080,8 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
                 // Try to find and restore armature like init does
                 if (talkingHeadInstance.scene && talkingHeadInstance.scene.children) {
                   talkingHeadInstance.scene.traverse((obj: any) => {
-                    if (obj && (obj.type === 'SkinnedMesh' || (obj.name && obj.name.includes('Armature')) || obj.isSkinnedMesh)) {
-                      console.log('🔧 Found armature candidate:', obj.name || 'unnamed', obj.type);
+                    if (obj && (obj.type === 'SkinnedMesh' || (obj.name && typeof obj.name === 'string' && obj.name.includes('Armature')) || obj.isSkinnedMesh)) {
+                      console.log('🔧 Found armature candidate:', (obj && obj.name) || 'unnamed', obj.type);
                       if (obj.skeleton) {
                         console.log('🔧 Restoring armature from skeleton');
                         talkingHeadInstance.armature = obj.skeleton.bones[0];
@@ -1100,7 +1116,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
                       console.log('🔧 CRITICAL: Armature missing! Attempting restore...');
                       if (th.scene) {
                         th.scene.traverse((obj: any) => {
-                          if (obj.type === 'SkinnedMesh' && obj.skeleton) {
+                          if (obj && obj.type === 'SkinnedMesh' && obj.skeleton) {
                             th.armature = obj.skeleton.bones[0];
                             console.log('✅ Armature restored for manual gesture');
                           }
