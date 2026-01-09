@@ -94,13 +94,13 @@ const SimpleSpeechAvatar: React.FC<SimpleSpeechAvatarProps> = ({
       if (isHebrew) {
         selectedVoice = voices.find(voice => 
           voice.lang.includes('he') || 
-          voice.name.includes('כרמית') ||
-          voice.name.includes('Hebrew')
+          voice?.name?.includes('כרמית') ||
+          voice?.name?.includes('Hebrew')
         );
       } else {
         selectedVoice = voices.find(voice => 
           voice.lang.startsWith('en') && 
-          !voice.name.includes('novelty')
+          !voice?.name?.includes('novelty')
         );
       }
       

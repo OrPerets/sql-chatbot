@@ -88,7 +88,7 @@ const TalkingAvatar: React.FC<TalkingAvatarProps> = ({
       selectedVoice = voices.find(voice => {
         return voice.lang.includes('he') || voice.lang.includes('iw'); // 'iw' is old Hebrew language code
       }) || voices.find(voice => {
-        const name = voice.name.toLowerCase();
+        const name = voice?.name?.toLowerCase() || '';
         return name.includes('carmit') || name.includes('כרמית') || name.includes('hebrew');
       });
     }
@@ -96,12 +96,12 @@ const TalkingAvatar: React.FC<TalkingAvatarProps> = ({
     // If no Hebrew voice found or text is English, use quality male voices
     if (!selectedVoice) {
       selectedVoice = voices.find(voice => {
-        const name = voice.name.toLowerCase();
+        const name = voice?.name?.toLowerCase() || '';
         return name.includes('grandpa') || name.includes('aaron') || name.includes('arthur') || 
             name.includes('gordon') || name.includes('martin') || name.includes('jacques') ||
             name.includes('eddy') || name.includes('reed') || name.includes('rocko');
       }) || voices.find(voice => {
-        const name = voice.name.toLowerCase();
+        const name = voice?.name?.toLowerCase() || '';
         return name.includes('male') && !name.includes('female');
       });
     }
