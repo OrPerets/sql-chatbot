@@ -31,6 +31,7 @@ const getTotalConnectionsCreated = () => {
   return globalThis._mongoTotalConnectionsCreated;
 };
 
+
 const POOL_CONFIG = {
   minPoolSize: Number(process.env.DB_MIN_POOL_SIZE ?? 10), // Maintain warm connections for faster response
   maxPoolSize: Number(process.env.DB_MAX_POOL_SIZE ?? 40), // Increased to 40: M0 supports 500 total, safe for ~12 concurrent instances
