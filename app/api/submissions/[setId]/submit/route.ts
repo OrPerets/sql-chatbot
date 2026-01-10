@@ -57,21 +57,40 @@ export async function POST(request: Request, { params }: RouteParams) {
     try {
       const homeworkSet = await getHomeworkSetById(params.setId);
       if (homeworkSet) {
-        // Get student email - studentId might be email or ObjectId
+        // Get student email - use submission.studentId (what's actually in DB) first
+        // This handles cases where studentId was converted to ObjectId during submission
         let studentEmail: string | null = null;
         let user: any = null;
         
+        // Try submission.studentId first (what's actually stored in DB)
+        const studentIdToLookup = submission.studentId || finalStudentIdValue;
+        
         // If studentId looks like an email, use it directly
-        if (finalStudentIdValue.includes("@")) {
-          studentEmail = finalStudentIdValue;
+        if (studentIdToLookup.includes("@")) {
+          studentEmail = studentIdToLookup;
+          // Still try to get user object for name
+          user = await findUserByIdOrEmail(studentIdToLookup);
         } else {
           // Try to look up user by ID (ObjectId) or email using service
-          user = await findUserByIdOrEmail(finalStudentIdValue);
+          // Try submission.studentId first (actual DB value)
+          user = await findUserByIdOrEmail(studentIdToLookup);
           
           if (user && user.email) {
             studentEmail = user.email;
           } else {
-            console.log(`⚠️ Could not find user email for studentId: ${finalStudentIdValue}, skipping email`);
+            // Fallback: try original finalStudentIdValue if different
+            if (finalStudentIdValue !== studentIdToLookup) {
+              console.log(`⚠️ User not found with submission.studentId (${studentIdToLookup}), trying original (${finalStudentIdValue})...`);
+              user = await findUserByIdOrEmail(finalStudentIdValue);
+              if (user && user.email) {
+                studentEmail = user.email;
+              }
+            }
+            
+            if (!studentEmail) {
+              console.error(`❌ Could not find user email for studentId: ${studentIdToLookup} or ${finalStudentIdValue}, skipping email`);
+              console.error(`   Submission ID: ${submission.id}, Homework Set: ${params.setId}`);
+            }
           }
         }
 
@@ -103,7 +122,8 @@ export async function POST(request: Request, { params }: RouteParams) {
               });
             }
 
-            await sendEmail({
+            console.log(`📧 Attempting to send email to ${studentEmail} for submission ${submission.id}...`);
+            const emailSent = await sendEmail({
               to: studentEmail,
               subject: `${homeworkTitle} הוגש בהצלחה - Michael SQL Assistant`,
               text: `${homeworkTitle} הוגש בהצלחה בקורס בסיסי נתונים.\n\nתודה על ההגשה!`,
@@ -121,7 +141,12 @@ export async function POST(request: Request, { params }: RouteParams) {
             `,
               attachments,
             });
-            console.log(`✅ Sent submission confirmation email to ${studentEmail}`);
+            
+            if (emailSent) {
+              console.log(`✅ Successfully sent submission confirmation email to ${studentEmail} (submission ${submission.id})`);
+            } else {
+              console.error(`❌ Failed to send email to ${studentEmail} (submission ${submission.id}) - sendEmail returned false`);
+            }
           }
       }
     } catch (emailError) {
