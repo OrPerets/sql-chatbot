@@ -445,6 +445,18 @@ const Chat = ({
   const [lastSpokenMessageId, setLastSpokenMessageId] = useState<string>("");
   const [currentAssistantMessageId, setCurrentAssistantMessageId] = useState<string>("");
 
+  const getStoredUser = () => {
+    if (typeof window === "undefined") return null;
+    const storedUser = localStorage.getItem("currentUser");
+    if (!storedUser) return null;
+    try {
+      return JSON.parse(storedUser);
+    } catch (error) {
+      console.error("Invalid currentUser in localStorage:", error);
+      return null;
+    }
+  };
+
   // Add state for progressive speech
   const [streamingText, setStreamingText] = useState<string>("");
   const [hasStartedSpeaking, setHasStartedSpeaking] = useState(false);
@@ -607,14 +619,18 @@ const Chat = ({
     if (!currentExercise || !exerciseAnswer.trim()) return;
 
     try {
-      const user = JSON.parse(localStorage.getItem("currentUser"));
+      const storedUser = getStoredUser();
+      if (!storedUser?.email) {
+        console.warn("No currentUser available for exercise submission.");
+        return;
+      }
       const response = await fetch(`/api/exercises/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId: user.email,
+          userId: storedUser.email,
           exerciseId: currentExercise.id,
           answerText: exerciseAnswer
         })
@@ -676,9 +692,9 @@ const Chat = ({
   useEffect(() => {
     const loadUserPoints = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem("currentUser"));
-        if (user) {
-          const response = await fetch(`/api/user-points?email=${encodeURIComponent(user.email)}`);
+        const storedUser = getStoredUser();
+        if (storedUser?.email) {
+          const response = await fetch(`/api/user-points?email=${encodeURIComponent(storedUser.email)}`);
           const userPointsData = await response.json();
           setUserPoints(userPointsData.points || 0);
         }
@@ -709,9 +725,13 @@ const Chat = ({
 
 
   useEffect(() => {
-    let cUser = JSON.parse(localStorage.getItem("currentUser"));
-    setCurrentUser(cUser["name"]);
-    setCurrentBalance(Number(localStorage.getItem("currentBalance")));
+    const storedUser = getStoredUser();
+    if (storedUser) {
+      setCurrentUser(storedUser.name ?? storedUser.email ?? null);
+    } else {
+      setCurrentUser(null);
+    }
+    setCurrentBalance(Number(localStorage.getItem("currentBalance")) || 0);
 
     fetch(`/api/users/coins?status=1`).then(response => response.json())
     .then(data => setIsTokenBalanceVisible(data["status"] === "ON"))
@@ -721,8 +741,9 @@ const Chat = ({
   // Add this useEffect to load chat sessions when the component mounts
 useEffect(() => {
   const loadChatSessions = () => {
-    let cUser = JSON.parse(localStorage.getItem("currentUser"))
-    fetch(`/api/chat/sessions?userId=${encodeURIComponent(cUser["email"])}`, {
+    const storedUser = getStoredUser();
+    if (!storedUser?.email) return;
+    fetch(`/api/chat/sessions?userId=${encodeURIComponent(storedUser.email)}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -737,8 +758,9 @@ useEffect(() => {
 
   // Function to refresh chat sessions from server
   const refreshChatSessions = () => {
-    let cUser = JSON.parse(localStorage.getItem("currentUser"))
-    fetch(`/api/chat/sessions?userId=${encodeURIComponent(cUser["email"])}`, {
+    const storedUser = getStoredUser();
+    if (!storedUser?.email) return;
+    fetch(`/api/chat/sessions?userId=${encodeURIComponent(storedUser.email)}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -781,9 +803,17 @@ const updateUserBalance = async (value) => {
   }
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("currentUser");
-    setUser(JSON.parse(storedUser));
-  }, []);
+    const storedUser = getStoredUser();
+    if (storedUser) {
+      setUser(storedUser);
+      return;
+    }
+    if (embeddedMode) {
+      setUser({ email: "homework-student", name: "Student" });
+      return;
+    }
+    setUser(null);
+  }, [embeddedMode]);
 
   // create a new threadID when chat component created
   useEffect(() => {
@@ -944,6 +974,8 @@ const updateUserBalance = async (value) => {
     // } else {
       updateUserBalance(currentBalance - estimatedCost)
       setCurrentBalance(currentBalance - estimatedCost)
+      const storedUser = getStoredUser();
+      const userEmail = storedUser?.email;
       let today = new Date().toISOString().slice(0, 10);
     if (!currentChatId) {
       // Trigger conversation analysis for the previous session if it exists
@@ -952,45 +984,49 @@ const updateUserBalance = async (value) => {
         triggerConversationAnalysis(previousSessionId);
       }
       
-      fetch(`/api/chat/sessions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ "title": text.substring(0, 30) + " (" + today + ")", "user": JSON.parse(localStorage.getItem("currentUser"))["email"]}),
-      }).then(response => response.json()).then(newChat => {
-        setCurrentChatId(newChat._id);
-        localStorage.setItem('previousSessionId', newChat._id);
-        refreshChatSessions(); // Refresh the chat sessions list from server
-        // Save the message to the server (save original text without tags)
-        fetch(`/api/chat/sessions/${newChat._id}/messages`, {
+      if (userEmail) {
+        fetch(`/api/chat/sessions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ "title": text.substring(0, 30) + " (" + today + ")", "user": userEmail }),
+        }).then(response => response.json()).then(newChat => {
+          setCurrentChatId(newChat._id);
+          localStorage.setItem('previousSessionId', newChat._id);
+          refreshChatSessions(); // Refresh the chat sessions list from server
+          // Save the message to the server (save original text without tags)
+          fetch(`/api/chat/sessions/${newChat._id}/messages`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              chatId: newChat._id,
+              userId: userEmail,
+              message: text, // Save original text without tags
+              role: 'user'
+            }),
+          });
+        })
+      }
+    }
+
+    else {
+      if (userEmail) {
+        fetch(`/api/chat/sessions/${currentChatId}/messages`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            chatId: newChat._id,
-            userId: JSON.parse(localStorage.getItem("currentUser"))["email"],
+            chatId: currentChatId,
+            userId: userEmail,
             message: text, // Save original text without tags
             role: 'user'
           }),
         });
-      })
-    }
-
-    else {
-      fetch(`/api/chat/sessions/${currentChatId}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chatId: currentChatId,
-          userId: JSON.parse(localStorage.getItem("currentUser"))["email"],
-          message: text, // Save original text without tags
-          role: 'user'
-        }),
-      });
+      }
     }
     
     // saveToDatabase(text, "user");
@@ -1064,7 +1100,8 @@ const updateUserBalance = async (value) => {
   // Function to trigger conversation analysis
   const triggerConversationAnalysis = async (sessionId) => {
     try {
-      const userId = JSON.parse(localStorage.getItem("currentUser"))?.email;
+      const storedUser = getStoredUser();
+      const userId = storedUser?.email;
       if (!userId || !sessionId) return;
 
       // Check if analysis already exists for this session
@@ -1259,9 +1296,11 @@ const loadChatMessages = (chatId: string) => {
   };
 
    // New function to handle message changes
-   const handleMessagesChange = useCallback(() => {
+  const handleMessagesChange = useCallback(() => {
     let msgs = messages.filter(msg => msg.role === "assistant")
     if (msgs.length > 0) {
+        const storedUser = getStoredUser();
+        if (!storedUser?.email) return;
         // Save the message to the server
         fetch(`/api/chat/sessions/${currentChatId}/messages`, {
           method: 'POST',
@@ -1270,7 +1309,7 @@ const loadChatMessages = (chatId: string) => {
           },
           body: JSON.stringify({
             chatId: currentChatId,
-            userId: JSON.parse(localStorage.getItem("currentUser"))["email"],
+            userId: storedUser.email,
             message: msgs[msgs.length - 1].text,
             role: 'assistant'
           }),
@@ -1297,13 +1336,11 @@ const loadChatMessages = (chatId: string) => {
   };
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("currentUser");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    } else {
+    const storedUser = getStoredUser();
+    if (!storedUser && !embeddedMode) {
       router.push('/login'); // Redirect to login if no user is found
     }
-  }, [router]);
+  }, [router, embeddedMode]);
 
   const handleLogout = () => {
     localStorage.removeItem("currentUser");
@@ -1429,6 +1466,9 @@ const loadChatMessages = (chatId: string) => {
     const message = messages[index];
     message.feedback = isLike;
 
+    const storedUser = getStoredUser();
+    if (!storedUser?.email) return;
+
     fetch(`/api/feedback`, {
       method: 'POST',
       headers: {
@@ -1436,7 +1476,7 @@ const loadChatMessages = (chatId: string) => {
       },
       body: JSON.stringify({
         "chatId": currentChatId,
-        "userId": JSON.parse(localStorage.getItem("currentUser"))["email"],
+        "userId": storedUser.email,
         "message": message.text,
         "feedback": message.feedback
       }),
