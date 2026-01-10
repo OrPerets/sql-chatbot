@@ -691,6 +691,15 @@ class EnhancedTTSService {
               }),
             });
             
+            // Handle disabled feature gracefully (200 with enabled: false) - don't retry
+            if (response.status === 200) {
+              const responseData = await response.json().catch(() => ({}));
+              if (responseData.enabled === false) {
+                this.dlog('⚠️ Voice feature is disabled, skipping TTS');
+                throw new Error('Voice feature disabled');
+              }
+            }
+            
             // Fallback to local route if server base failed
             if (!response.ok) {
               this.dlog('⚠️ TTS primary failed status:', response.status);
@@ -711,6 +720,15 @@ class EnhancedTTSService {
                     content_type: options.contentType || 'general'
                   }),
                 });
+                
+                // Check if local also returns disabled
+                if (response.status === 200) {
+                  const responseData = await response.json().catch(() => ({}));
+                  if (responseData.enabled === false) {
+                    this.dlog('⚠️ Voice feature is disabled, skipping TTS');
+                    throw new Error('Voice feature disabled');
+                  }
+                }
               } catch {}
             }
 

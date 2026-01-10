@@ -6,11 +6,49 @@
  */
 
 import { connectToDatabase, COLLECTIONS } from '../lib/database';
+import { DATABASE_INDEXES } from '../lib/models';
 
 async function createIndexes(db: any) {
   console.log('📊 Creating database indexes...');
-  // TODO: Define database indexes if needed
-  console.log('⚠️  No indexes defined - skipping index creation');
+  
+  const indexDefinitions = DATABASE_INDEXES as Record<string, readonly any[]>;
+  let totalCreated = 0;
+  let totalSkipped = 0;
+  
+  for (const [collectionKey, indexes] of Object.entries(indexDefinitions)) {
+    const collectionName = COLLECTIONS[collectionKey as keyof typeof COLLECTIONS];
+    
+    if (!collectionName) {
+      console.warn(`⚠️  No collection found for key: ${collectionKey}`);
+      continue;
+    }
+    
+    if (!Array.isArray(indexes) || indexes.length === 0) {
+      continue;
+    }
+    
+    console.log(`\n📇 Creating indexes for collection: ${collectionName}`);
+    const collection = db.collection(collectionName);
+    
+    for (const index of indexes) {
+      try {
+        // Create index (MongoDB will skip if it already exists)
+        await collection.createIndex(index, { background: true });
+        totalCreated++;
+        console.log(`  ✅ Created index: ${JSON.stringify(index)}`);
+      } catch (error: any) {
+        // Index might already exist, which is fine
+        if (error.code === 85 || error.codeName === 'IndexOptionsConflict') {
+          totalSkipped++;
+          console.log(`  ⚠️  Index already exists: ${JSON.stringify(index)}`);
+        } else {
+          console.error(`  ❌ Failed to create index ${JSON.stringify(index)}:`, error.message);
+        }
+      }
+    }
+  }
+  
+  console.log(`\n📊 Index creation summary: ${totalCreated} created, ${totalSkipped} already existed`);
 }
 
 async function createCollections(db: any) {

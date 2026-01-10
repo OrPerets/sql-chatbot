@@ -1,31 +1,39 @@
 // Service Worker for Michael - SQL Assistant PWA
-const CACHE_NAME = 'michael-sql-assistant-v3';
+const CACHE_NAME = 'michael-sql-assistant-v4';
 const urlsToCache = [
   '/',
-  '/bot.png',
-  '/logo.png',
   '/icon-72.png',
   '/icon-144.png',
   '/icon-192.png',
   '/icon-512.png',
   '/manifest.json',
-  '/static/css/',
-  '/static/js/',
-  // Add other critical assets
 ];
 
 // Install event - cache resources
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
+      .then(async (cache) => {
         console.log('Michael PWA: Cache opened');
-        return cache.addAll(urlsToCache);
+        // Cache files individually to handle failures gracefully
+        const cachePromises = urlsToCache.map(url => {
+          return cache.add(url).catch(error => {
+            // Log but don't fail the entire cache installation
+            console.warn(`Michael PWA: Failed to cache ${url}:`, error.message);
+            return null; // Return null instead of throwing
+          });
+        });
+        
+        await Promise.all(cachePromises);
+        console.log('Michael PWA: Cache installation completed');
       })
       .catch((error) => {
         console.error('Michael PWA: Cache installation failed:', error);
+        // Don't throw - allow service worker to install even if caching fails
       })
   );
+  // Skip waiting to activate immediately
+  self.skipWaiting();
 });
 
 // Fetch event - serve from cache when offline

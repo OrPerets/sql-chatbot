@@ -117,7 +117,13 @@ const Michael3DVisual: React.FC<Michael3DVisualProps> = ({
              try {
                const groupRef = React.useRef<any>(null);
                const gltf = useGLTF(avatarUrl) as any;
-               const { actions } = useAnimations(gltf.animations, groupRef);
+               
+               if (!gltf || !gltf.scene) {
+                 console.error('❌ GLTF scene is null');
+                 return null;
+               }
+               
+               const { actions } = useAnimations(gltf.animations || [], groupRef);
                
                console.log('🎭 Avatar model loaded:', gltf.scene);
                
@@ -131,6 +137,10 @@ const Michael3DVisual: React.FC<Michael3DVisualProps> = ({
                    groupRef.current.rotation.y = Math.sin(time * 2) * 0.02;
                  }
                });
+               
+               if (!gltf.scene) {
+                 return null;
+               }
                
                return (
                  <group ref={groupRef} scale={scale}>

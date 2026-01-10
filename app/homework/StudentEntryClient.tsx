@@ -143,6 +143,16 @@ export function StudentEntryClient() {
       const userData = await loginResponse.json();
       setStudentId(userData.id);
       setStudentName(userData.name || userData.email);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(
+          "currentUser",
+          JSON.stringify({
+            id: userData.id,
+            email: userData.email ?? studentEmail.trim(),
+            name: userData.name || userData.email || studentEmail.trim(),
+          }),
+        );
+      }
 
       // Now load the homework set
       let homeworkSetId = setId;
@@ -371,4 +381,3 @@ export function StudentEntryClient() {
     </div>
   );
 }
-

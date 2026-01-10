@@ -7,6 +7,12 @@ const DEFAULT_LOCALE = "he";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  
+  // Allow public access to manifest.json and other public assets
+  if (pathname === '/manifest.json' || pathname.startsWith('/_next/') || pathname.startsWith('/icon-')) {
+    return NextResponse.next();
+  }
+  
   const segments = pathname.split("/");
   const potentialLocale = segments[1]?.toLowerCase();
 

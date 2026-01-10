@@ -168,6 +168,7 @@ export const DATABASE_INDEXES = {
   QUESTION_ANALYTICS: [
     { submissionId: 1 }, // For submission-based analytics lookups
     { questionId: 1 }, // For question-level analysis
+    { submissionId: 1, questionId: 1 }, // CRITICAL: Compound index for upsert operations (most frequent query)
     { studentId: 1 }, // For student drilldowns
     { homeworkSetId: 1 }, // For homework set aggregations
   ],

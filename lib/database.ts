@@ -31,6 +31,7 @@ const getTotalConnectionsCreated = () => {
   return globalThis._mongoTotalConnectionsCreated;
 };
 
+
 const POOL_CONFIG = {
   minPoolSize: Number(process.env.DB_MIN_POOL_SIZE ?? 10), // Maintain warm connections for faster response
   maxPoolSize: Number(process.env.DB_MAX_POOL_SIZE ?? 40), // Increased to 40: M0 supports 500 total, safe for ~12 concurrent instances
@@ -145,6 +146,7 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
         serverSelectionTimeoutMS: 30000, // Increased from 15s to 30s
         socketTimeoutMS: 45000, // Socket timeout
         heartbeatFrequencyMS: 60000, // Less frequent heartbeats
+        waitQueueTimeoutMS: 5000, // Wait max 5s for connection from pool (prevents long waits)
         // Retry configuration (TLS is automatically enabled for mongodb+srv://)
         retryWrites: true,
         retryReads: true,
