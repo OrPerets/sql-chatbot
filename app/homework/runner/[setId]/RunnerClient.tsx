@@ -161,8 +161,15 @@ const parseSchemaError = (errorMessage: string | undefined): { type: 'table' | '
   }
   
   // Also check for generic "not found" that might indicate schema issues
-  if (lowerError.includes('not found') || lowerError.includes('does not exist') || lowerError.includes('undefined')) {
-    // Try to extract any identifier
+  // But skip JavaScript runtime errors (like "Cannot read properties of undefined")
+  const isJavaScriptError = lowerError.includes('cannot read properties') || 
+                           lowerError.includes('typeerror') ||
+                           lowerError.includes('referenceerror') ||
+                           lowerError.includes('reading \'0\'') ||
+                           lowerError.includes('reading "0"');
+  
+  if (!isJavaScriptError && (lowerError.includes('not found') || lowerError.includes('does not exist') || lowerError.includes('undefined'))) {
+    // Try to extract any identifier (but not from JavaScript errors)
     const genericMatch = errorMessage.match(/['"`](\w+)['"`]/);
     if (genericMatch && genericMatch[1]) {
       return { type: 'table', name: genericMatch[1] }; // Assume table if we can't tell
