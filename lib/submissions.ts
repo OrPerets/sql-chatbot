@@ -583,26 +583,58 @@ export class SubmissionsService {
         return diffDays;
       };
       
+      // Helper function for MySQL STRCMP compatibility (returns -1, 0, or 1)
+      const strcmp = (str1: string | null | undefined, str2: string | null | undefined): number => {
+        // Handle null/undefined
+        if (str1 === null || str1 === undefined) {
+          return str2 === null || str2 === undefined ? 0 : -1;
+        }
+        if (str2 === null || str2 === undefined) {
+          return 1;
+        }
+        
+        // Convert to strings if needed
+        const s1 = String(str1);
+        const s2 = String(str2);
+        
+        // Compare strings (MySQL STRCMP is case-sensitive)
+        if (s1 < s2) return -1;
+        if (s1 > s2) return 1;
+        return 0;
+      };
+      
       // Register MySQL-compatible DATEDIFF function for alasql
       // Register it so it can be called directly from SQL queries
       if (alasql.fn) {
         alasql.fn.DATEDIFF = calculateDateDiff;
         alasql.fn.datediff = calculateDateDiff;
-        console.log('✅ Registered DATEDIFF function in alasql.fn');
+        alasql.fn.STRCMP = strcmp;
+        alasql.fn.strcmp = strcmp;
+        console.log('✅ Registered DATEDIFF and STRCMP functions in alasql.fn');
       }
       
       // Also ensure it's available in the fn object directly
       if (typeof (alasql as any).fn === 'object') {
         (alasql as any).fn.DATEDIFF = calculateDateDiff;
         (alasql as any).fn.datediff = calculateDateDiff;
+        (alasql as any).fn.STRCMP = strcmp;
+        (alasql as any).fn.strcmp = strcmp;
       }
       
-      // Test the function registration by trying a simple query
+      // Test the function registration by trying simple queries
       try {
         const testResult = alasql("SELECT DATEDIFF('2026-01-14', '2026-01-13') AS diff");
         console.log('✅ DATEDIFF function test successful:', testResult);
       } catch (testError: any) {
         console.warn('⚠️ DATEDIFF function test failed:', testError.message);
+        console.log('💡 Function registered but may need different syntax or alasql version');
+      }
+      
+      try {
+        const testStrCmpResult = alasql("SELECT STRCMP('abc', 'def') AS cmp");
+        console.log('✅ STRCMP function test successful:', testStrCmpResult);
+      } catch (testError: any) {
+        console.warn('⚠️ STRCMP function test failed:', testError.message);
         console.log('💡 Function registered but may need different syntax or alasql version');
       }
       
@@ -1094,8 +1126,10 @@ export class SubmissionsService {
         console.error('❌ SQL execution error:', sqlError.message);
         
         // If VALUE() doesn't work, try a fallback with direct JavaScript expression
-        if (sqlError.message.includes('VALUE') || sqlError.message.includes('DATEDIFF') || sqlError.message.includes('datediff') || sqlError.message.includes('Parse error')) {
-          console.log('🔄 Attempting fallback: replacing DATEDIFF with direct JavaScript calculation');
+        if (sqlError.message.includes('VALUE') || sqlError.message.includes('DATEDIFF') || sqlError.message.includes('datediff') || sqlError.message.includes('STRCMP') || sqlError.message.includes('strcmp') || sqlError.message.includes('Parse error')) {
+          const hasStrCmp = sqlError.message.includes('STRCMP') || sqlError.message.includes('strcmp');
+          const hasDateDiff = sqlError.message.includes('DATEDIFF') || sqlError.message.includes('datediff');
+          console.log('🔄 Attempting fallback: replacing SQL functions with direct JavaScript calculations');
           
           // Transform DATEDIFF to use direct JavaScript calculation (bypass VALUE())
           let fallbackSql = payload.sql;
@@ -1120,6 +1154,17 @@ export class SubmissionsService {
             return `(Math.floor((new Date(${cleanDate1}).getTime() - new Date(${cleanDate2}).getTime()) / (1000 * 60 * 60 * 24)))`;
           });
           
+          // Replace STRCMP with JavaScript string comparison
+          // STRCMP(str1, str2) returns -1 if str1 < str2, 0 if equal, 1 if str1 > str2
+          const strcmpRegex = /\b(STRCMP|strcmp)\s*\(\s*([^,()]+(?:\([^)]*\)[^,()]*)*)\s*,\s*([^)]+)\s*\)/gi;
+          fallbackSql = fallbackSql.replace(strcmpRegex, (match, funcName, str1, str2) => {
+            const cleanStr1 = str1.trim();
+            const cleanStr2 = str2.trim();
+            // Create a JavaScript expression that compares strings
+            // Use ternary operators to return -1, 0, or 1
+            return `((${cleanStr1} < ${cleanStr2}) ? -1 : ((${cleanStr1} > ${cleanStr2}) ? 1 : 0))`;
+          });
+          
           // Normalize case for tables/columns (but skip function transformation to avoid recursion)
           let normalizedFallbackSql = fallbackSql;
           const caseMap: Record<string, string> = {
@@ -1141,7 +1186,8 @@ export class SubmissionsService {
           } catch (fallbackError: any) {
             console.error('❌ Fallback also failed:', fallbackError.message);
             // Return the error
-            const errorMessage = `SQL Error: ${sqlError.message || 'Invalid SQL syntax'}. DATEDIFF function transformation failed.`;
+            const functionName = hasStrCmp ? 'STRCMP' : hasDateDiff ? 'DATEDIFF' : 'SQL function';
+            const errorMessage = `SQL Error: ${sqlError.message || 'Invalid SQL syntax'}. ${functionName} function transformation failed.`;
             return {
               columns: [],
               rows: [],

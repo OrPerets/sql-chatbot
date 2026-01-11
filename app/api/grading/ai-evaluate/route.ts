@@ -7,6 +7,7 @@ import type { Question, Submission, SqlAnswer } from "@/app/homework/types";
 interface AIEvaluateRequest {
   homeworkSetId: string;
   submissionIds?: string[];  // Optional - if empty, grade all ungraded
+  additionalGradingInstructions?: string;  // Optional - additional instructions to append to each question
 }
 
 interface AIEvaluateResponse {
@@ -20,7 +21,7 @@ interface AIEvaluateResponse {
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as AIEvaluateRequest;
-    const { homeworkSetId, submissionIds } = body;
+    const { homeworkSetId, submissionIds, additionalGradingInstructions } = body;
 
     if (!homeworkSetId) {
       return NextResponse.json(
@@ -105,10 +106,16 @@ export async function POST(request: Request) {
             continue;
           }
 
+          // Combine question instructions with additional grading instructions if provided
+          let combinedInstructions = question.instructions;
+          if (additionalGradingInstructions?.trim()) {
+            combinedInstructions = `${question.instructions}\n\n## הנחיות נוספות להערכה\n${additionalGradingInstructions.trim()}`;
+          }
+
           gradingInputs.push({
             questionId,
             questionPrompt: question.prompt,
-            questionInstructions: question.instructions,
+            questionInstructions: combinedInstructions,
             referenceSql: question.starterSql,
             expectedSchema: question.expectedResultSchema || [],
             maxPoints: question.points || 10,
