@@ -1,5 +1,24 @@
-import puppeteer from "puppeteer";
 import type { HomeworkSet, Question, Submission } from "@/app/homework/types";
+
+// Use puppeteer-core for serverless environments, puppeteer for local development
+let puppeteer: any;
+try {
+  // Try puppeteer-core first (works in serverless)
+  puppeteer = require("puppeteer-core");
+} catch {
+  // Fallback to puppeteer (works in local development)
+  puppeteer = require("puppeteer");
+}
+
+// Use @sparticuz/chromium for serverless environments (Vercel, AWS Lambda, etc.)
+let chromium: any = null;
+if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  try {
+    chromium = require("@sparticuz/chromium");
+  } catch (error) {
+    console.warn("⚠️ @sparticuz/chromium not available, falling back to default puppeteer");
+  }
+}
 
 interface PdfOptions {
   submission: Submission;
@@ -215,10 +234,28 @@ export async function generateSubmissionPdf({
 }: PdfOptions): Promise<Buffer> {
   const html = generateHtml({ submission, questions, homework, studentName });
   
-  const browser = await puppeteer.launch({
+  // Configure browser launch options based on environment
+  const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+  const launchOptions: any = {
     headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--single-process",
+    ],
+  };
+  
+  // Use @sparticuz/chromium for serverless environments
+  if (isServerless && chromium) {
+    launchOptions.executablePath = await chromium.executablePath();
+    // Optimize for serverless
+    chromium.setGraphicsMode = false;
+    launchOptions.args.push(...chromium.args);
+  }
+  
+  const browser = await puppeteer.launch(launchOptions);
   
   try {
     const page = await browser.newPage();
