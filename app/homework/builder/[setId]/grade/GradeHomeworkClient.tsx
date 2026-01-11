@@ -223,6 +223,8 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
   // AI Grading state
   const [isAIGrading, setIsAIGrading] = useState(false);
   const [aiGradingProgress, setAIGradingProgress] = useState<{ current: number; total: number } | null>(null);
+  const [showAIGradingDialog, setShowAIGradingDialog] = useState(false);
+  const [aiGradingInstructions, setAIGradingInstructions] = useState("");
 
   const homeworkQuery = useQuery({
     queryKey: ["homework", setId],
@@ -714,14 +716,17 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
 
   // AI Grading mutation
   const aiGradingMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (additionalInstructions?: string) => {
       setIsAIGrading(true);
       setAIGradingProgress({ current: 0, total: 0 });
       
       const response = await fetch("/api/grading/ai-evaluate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ homeworkSetId: setId }),
+        body: JSON.stringify({ 
+          homeworkSetId: setId,
+          additionalGradingInstructions: additionalInstructions || undefined
+        }),
       });
       
       if (!response.ok) {
@@ -1052,7 +1057,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
           <button
             type="button"
             className={styles.aiGradeButton}
-            onClick={() => aiGradingMutation.mutate()}
+            onClick={() => setShowAIGradingDialog(true)}
             disabled={isAIGrading || summaries.length === 0}
             title="בדיקה אוטומטית באמצעות AI"
           >
@@ -1202,7 +1207,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                   )}
                   <StatusBadge status={summary.status} t={t} />
                   <span className={styles.summaryMeta}>
-                    {SCORE_FORMATTER.format(summary.overallScore)} pts
+                    {SCORE_FORMATTER.format(summary.overallScore)} נקודות
                   </span>
                   <span className={styles.summaryProgress}>{Math.round(summary.progress * 100)}%</span>
                 </button>
@@ -1305,7 +1310,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                     <article key={questionId} className={styles.questionCard}>
                       <header>
                         <h4>{question?.prompt ?? `Question ${questionId}`}</h4>
-                        <span className={styles.questionPoints}>{draft?.score ?? 0}/{question?.points ?? 0} pts</span>
+                        <span className={styles.questionPoints}>{draft?.score ?? 0}/{question?.points ?? 0} נקודות</span>
                       </header>
                       <p className={styles.questionInstructions}>{question?.instructions}</p>
                       <pre className={styles.sqlBlock}>{sqlAnswer.sql || t("builder.grade.noResponse")}</pre>
@@ -1751,6 +1756,62 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
           <span><kbd>←</kbd>/<kbd>→</kbd> {t("builder.grade.keyboard.prev")}/{t("builder.grade.keyboard.next")}</span>
           <span><kbd>?</kbd> {t("builder.grade.keyboard.shortcuts")}</span>
           <span><kbd>Esc</kbd> סגירה</span>
+        </div>
+      )}
+
+      {/* AI Grading Instructions Dialog */}
+      {showAIGradingDialog && (
+        <div className={styles.aiGradingDialogOverlay} onClick={(e) => e.target === e.currentTarget && setShowAIGradingDialog(false)}>
+          <div className={styles.aiGradingDialog}>
+            <div className={styles.aiGradingDialogHeader}>
+              <h3>הנחיות בדיקת AI</h3>
+              <button
+                type="button"
+                className={styles.aiGradingDialogClose}
+                onClick={() => setShowAIGradingDialog(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className={styles.aiGradingDialogContent}>
+              <p className={styles.aiGradingDialogDescription}>
+                הוסף הנחיות נוספות להערכת AI. ההנחיות יופיעו בכל השאלות ונוסף להנחיות הקיימות של כל שאלה.
+              </p>
+              <label className={styles.aiGradingDialogLabel}>
+                הנחיות נוספות להערכה (אופציונלי)
+                <textarea
+                  className={styles.aiGradingDialogTextarea}
+                  value={aiGradingInstructions}
+                  onChange={(e) => setAIGradingInstructions(e.target.value)}
+                  placeholder="לדוגמה: הקפד על תשובות מפורטות, שים לב לניקוד תקין..."
+                  rows={6}
+                  dir="rtl"
+                />
+              </label>
+            </div>
+            <div className={styles.aiGradingDialogActions}>
+              <button
+                type="button"
+                className={styles.aiGradingDialogCancel}
+                onClick={() => {
+                  setShowAIGradingDialog(false);
+                  setAIGradingInstructions("");
+                }}
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                className={styles.aiGradingDialogStart}
+                onClick={() => {
+                  setShowAIGradingDialog(false);
+                  aiGradingMutation.mutate(aiGradingInstructions.trim() || undefined);
+                }}
+              >
+                התחל בדיקת AI
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
