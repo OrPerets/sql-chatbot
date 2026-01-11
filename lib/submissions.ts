@@ -1070,11 +1070,16 @@ export class SubmissionsService {
       console.log('🔵 Normalized SQL:', normalizedSql);
       
       // Execute the SQL query using alasql
-      let result: any[];
+      let result: any[] | undefined;
       let columns: string[] = [];
       try {
         result = alasql(normalizedSql);
         console.log('✅ SQL executed successfully, result type:', typeof result, 'length:', Array.isArray(result) ? result.length : 'N/A');
+        
+        // Check if result is valid
+        if (result === undefined || result === null) {
+          throw new Error('SQL query returned undefined result');
+        }
         
         // If result is an array of objects, extract columns from first row
         if (Array.isArray(result) && result.length > 0 && typeof result[0] === 'object') {
@@ -1153,6 +1158,22 @@ export class SubmissionsService {
         } else {
           // Other errors - return as is
           const errorMessage = sqlError.message || 'Invalid SQL syntax';
+          
+          // Check if this is a JavaScript runtime error (like "Cannot read properties of undefined")
+          const isRuntimeError = errorMessage.includes('Cannot read properties') || 
+                                 errorMessage.includes('reading') ||
+                                 errorMessage.includes('undefined');
+          
+          // Check if the query uses nested subqueries (which alasql may struggle with)
+          const hasNestedSubquery = payload.sql.match(/\([^)]*\s+IN\s*\([^)]*\(/i) || 
+                                         payload.sql.match(/\([^)]*\s*=\s*\([^)]*\(/i);
+          
+          const errorHint = isRuntimeError && hasNestedSubquery
+            ? ' This error may occur with deeply nested subqueries. Try rewriting your query using JOINs instead of nested IN subqueries. For example, use "FROM Table1 JOIN Table2 ON ..." instead of "WHERE Column IN (SELECT ...)".'
+            : isRuntimeError
+            ? ' This error suggests the SQL engine may have trouble with this query pattern. Try simplifying the query or using a different approach (e.g., JOINs instead of subqueries).'
+            : '';
+          
           return {
             columns: [],
             rows: [],
@@ -1161,7 +1182,7 @@ export class SubmissionsService {
             feedback: {
               questionId: payload.questionId,
               score: 0,
-              autoNotes: `SQL Error: ${errorMessage}`,
+              autoNotes: `SQL Error: ${errorMessage}${errorHint}`,
               rubricBreakdown: [],
             },
           };
