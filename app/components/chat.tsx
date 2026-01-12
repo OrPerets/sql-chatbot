@@ -28,6 +28,7 @@ import { avatarAnalytics } from "../utils/avatar-analytics";
 import OpenAI from "openai";
 import PracticeModal from "./PracticeModal";
 import SqlQueryBuilder from "./SqlQueryBuilder/SqlQueryBuilder";
+import SqlVisualExplanation from "./SqlVisualExplanation";
 
 export const maxDuration = 50;
 
@@ -53,14 +54,130 @@ type ChatSession = {
 const UserMessage = ({ text }: { text: string }) => {
   return <div className={styles.userMessage}>{text}</div>;
 };
-const AssistantMessage = ({ text, feedback, onFeedback, autoPlaySpeech, onPlayMessage }: { text: string; feedback: "like" | "dislike" | null; onFeedback?: (feedback: "like" | "dislike" | null) => void; autoPlaySpeech?: boolean; onPlayMessage?: () => void }) => {
+// Helper function to detect if text is related to JOIN, GROUP BY, or WHERE
+const detectVisualType = (text: string, userMessage?: string): 'join' | 'groupby' | 'where' | null => {
+  const userQuestion = (userMessage || '').trim().toLowerCase();
+  const assistantText = text.toLowerCase();
+  
+  // Combine both texts for comprehensive search, but prioritize user question
+  const combinedText = `${userQuestion} ${assistantText}`.toLowerCase();
+  
+  // Check for GROUP BY first (most specific pattern) - priority 1
+  // Must check GROUP BY before generic "group" to avoid false positives
+  const groupByPatterns = [
+    /\bgroup\s+by\b/i,  // "group by" phrase
+    /group\s+by\s+\w+/i,  // "group by column"
+    /(קבץ|קיבוץ|סיכום|קיבוץ לפי)/,  // Hebrew keywords
+    /grouping/i,  // "grouping" word
+  ];
+  
+  for (const pattern of groupByPatterns) {
+    if (pattern.test(combinedText)) {
+      console.log('🔍 [Visual Detection] GROUP BY detected - User:', userQuestion.substring(0, 60), '| Assistant:', assistantText.substring(0, 60));
+      return 'groupby';
+    }
+  }
+  
+  // Check for JOIN-related keywords - priority 2
+  const joinPatterns = [
+    /\b(inner\s+join|left\s+join|right\s+join|outer\s+join|full\s+join|cross\s+join)\b/i,  // Specific join types
+    /\bjoin\s+(table|on)\b/i,  // "join table" or "join on"
+    /\bjoin\b/i,  // Generic "join" (but only if not preceded by "group" which would be "group join")
+    /(מחבר|מצטרף|חיבור|הצטרפות|חיבור בין|מצרף)/,  // Hebrew keywords
+  ];
+  
+  for (const pattern of joinPatterns) {
+    if (pattern.test(combinedText)) {
+      // Make sure it's not a false positive from "group join" or similar
+      const matchIndex = combinedText.search(pattern);
+      if (matchIndex > 0 && combinedText.substring(Math.max(0, matchIndex - 10), matchIndex).includes('group')) {
+        continue; // Skip if "group" appears before "join"
+      }
+      console.log('🔍 [Visual Detection] JOIN detected - User:', userQuestion.substring(0, 60), '| Assistant:', assistantText.substring(0, 60));
+      return 'join';
+    }
+  }
+  
+  // Check for WHERE-related keywords - priority 3
+  // Hebrew keywords for WHERE (most reliable)
+  const whereHebrewKeywords = /(מסנן|סינון|תנאי|כאשר|בתנאי|סינון לפי|איך מסננים|איך מסינים)/;
+  if (whereHebrewKeywords.test(combinedText)) {
+    console.log('🔍 [Visual Detection] WHERE detected (Hebrew) - User:', userQuestion.substring(0, 60), '| Assistant:', assistantText.substring(0, 60));
+    return 'where';
+  }
+  
+  // Check for "filter" keyword
+  const filterKeywords = /\bfilter\s+(by|with|rows|data|records|results)/i;
+  if (filterKeywords.test(combinedText)) {
+    console.log('🔍 [Visual Detection] WHERE detected (filter) - User:', userQuestion.substring(0, 60), '| Assistant:', assistantText.substring(0, 60));
+    return 'where';
+  }
+  
+  // Check for WHERE in user question first (most reliable indicator)
+  if (userQuestion) {
+    // Check if user question contains "where" in SQL context
+    const whereInUserQuestion = /\bwhere\b/i.test(userQuestion);
+    const sqlContextInQuestion = /(sql|query|שאילתה|select|from|סנן|מסנן|סינון)/i.test(userQuestion);
+    
+    // Also check for questions about WHERE
+    const questionsAboutWhere = /(מה זה where|מהו where|תסביר.*where|איך.*where|explain.*where|מה.*where)/i.test(userQuestion);
+    
+    if (whereInUserQuestion && !userQuestion.includes('whereas') && !userQuestion.includes('wherever') && 
+        (sqlContextInQuestion || questionsAboutWhere || userQuestion.length < 100)) {
+      // If user question is short or contains SQL context, it's likely about WHERE clause
+      console.log('🔍 [Visual Detection] WHERE detected in user question - User:', userQuestion.substring(0, 60));
+      return 'where';
+    }
+  }
+  
+  // Check for WHERE in combined text with conditions
+  const wherePatterns = [
+    /\bwhere\s+[\w\s=<>!']+/i,  // "where condition" with actual condition
+    /\bwhere\s+\w+\s*(=|!=|<>|<|>|<=|>=|like|in|between|is\s+not|null)/i,  // "where column operator"
+    /\bwhere\s+clause/i,  // "where clause" (very specific)
+  ];
+  
+  for (const pattern of wherePatterns) {
+    if (pattern.test(combinedText)) {
+      // Avoid false positives
+      if (!combinedText.includes('whereas') && !combinedText.includes('wherever') && 
+          !combinedText.includes('everywhere') && !combinedText.includes('somewhere') &&
+          !combinedText.includes('nowhere')) {
+        console.log('🔍 [Visual Detection] WHERE detected (pattern match) - User:', userQuestion.substring(0, 60), '| Assistant:', assistantText.substring(0, 60));
+        return 'where';
+      }
+    }
+  }
+  
+  // Last check: If assistant mentions WHERE clause explicitly
+  if (assistantText.includes('where clause') || assistantText.includes('clause where') || 
+      assistantText.includes('WHERE') || assistantText.includes('where clause')) {
+    // Make sure it's not a false positive
+    const whereMentions = (assistantText.match(/\bwhere\b/gi) || []).length;
+    if (whereMentions >= 2 || assistantText.includes('where clause') || assistantText.includes('clause where')) {
+      // Multiple mentions or explicit clause mention = likely about WHERE
+      if (!combinedText.includes('whereas') && !combinedText.includes('wherever')) {
+        console.log('🔍 [Visual Detection] WHERE detected in assistant response - User:', userQuestion.substring(0, 60), '| Assistant:', assistantText.substring(0, 60));
+        return 'where';
+      }
+    }
+  }
+  
+  return null;
+};
+
+const AssistantMessage = ({ text, feedback, onFeedback, autoPlaySpeech, onPlayMessage, userMessage }: { text: string; feedback: "like" | "dislike" | null; onFeedback?: (feedback: "like" | "dislike" | null) => void; autoPlaySpeech?: boolean; onPlayMessage?: () => void; userMessage?: string }) => {
   const [activeFeedback, setActiveFeedback] = useState(feedback);
   const [showTooltip, setShowTooltip] = useState(false);
   const [showPlayTooltip, setShowPlayTooltip] = useState(false);  // Separate state for play button tooltip
+  const [showVisualTooltip, setShowVisualTooltip] = useState(false);
+  const [showVisualModal, setShowVisualModal] = useState(false);
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [copied, setCopied] = useState(false);  // Tooltip state
   const [copiedText, setCopiedText] =  useState("העתק שאילתה")
   const [playTooltipText, setPlayTooltipText] = useState("השמע הודעה זו");
+  
+  const visualType = useMemo(() => detectVisualType(text, userMessage), [text, userMessage]);
 
 
   const handleLike = () => {
@@ -181,7 +298,11 @@ const renderers = {
     );
   },
 };
-const copyQueryToClipboard = (text) => {
+  const handleVisualPlay = () => {
+    setShowVisualModal(true);
+  };
+
+  const copyQueryToClipboard = () => {
   // Regular expression to find SQL queries within ```sql ... ``` blocks
   const sqlRegex = /```sql\s*([\s\S]*?)\s*```/gi; 
   let extractedQueries = [];
@@ -202,15 +323,19 @@ const copyQueryToClipboard = (text) => {
       .then(() => {
         console.log("SQL queries copied to clipboard:\n", queriesToCopy);
         setCopiedText("הועתק בהצלחה");
+          setShowTooltip(true);
         setTimeout(() => {
           setCopiedText("העתק שאילתה");
+            setShowTooltip(false);
         }, 3000);
       })
       .catch((error) => {
         console.error("Failed to copy:", error);
       });
 };
+
   return (
+    <>
     <div className={styles.assistantMessage}>
       <div className={styles.messageContent}>
         <Markdown components={renderers}>{text}</Markdown>
@@ -235,6 +360,28 @@ const copyQueryToClipboard = (text) => {
             )}
           </button>
         )}
+          {visualType && (
+            <button
+              onClick={handleVisualPlay}
+              className={`${styles.feedbackButton} ${styles.visualPlayButton}`}
+              onMouseEnter={() => setShowVisualTooltip(true)}
+              onMouseLeave={() => setShowVisualTooltip(false)}
+              style={{
+                marginLeft: "5px"
+              }}
+              title="הצג הסבר ויזואלי"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+              {showVisualTooltip && (
+                <div className={styles.tooltip}>הצג הסבר ויזואלי</div>
+            )}
+          </button>
+        )}
         <button
           onClick={handleLike}
           className={`${styles.feedbackButton} ${activeFeedback === "like" ? styles.positive : ""}`}
@@ -251,11 +398,10 @@ const copyQueryToClipboard = (text) => {
           {activeFeedback === "dislike" ? <ThumbsDown width="80%" height="80%" color="red" fill="red" /> : <ThumbsDown width="80%" height="80%" />}
         </button>
         <button
-          onClick={() => copyQueryToClipboard(text)} // Keep this for general copying
+            onClick={copyQueryToClipboard}
           className={`${styles.feedbackButton} ${styles.copyButton}`}
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
-          // style={{ opacity: extractedQuery ? 0.5 : 1 }} // Dim if SQL-specific copy exists
         >
           <ClipboardCopy />
           {showTooltip && (
@@ -264,6 +410,13 @@ const copyQueryToClipboard = (text) => {
         </button>
       </div>
     </div>
+      {showVisualModal && visualType && (
+        <SqlVisualExplanation 
+          visualType={visualType} 
+          onClose={() => setShowVisualModal(false)}
+        />
+      )}
+    </>
   );
 };
 const CodeMessage = ({ text }: { text: string }) => {
@@ -279,12 +432,12 @@ const CodeMessage = ({ text }: { text: string }) => {
   );
 };
 
-const Message = ({ role, text, feedback, onFeedback, hasImage, autoPlaySpeech, onPlayMessage }: MessageProps & { autoPlaySpeech?: boolean; onPlayMessage?: () => void }) => {
+const Message = ({ role, text, feedback, onFeedback, hasImage, autoPlaySpeech, onPlayMessage, userMessage }: MessageProps & { autoPlaySpeech?: boolean; onPlayMessage?: () => void; userMessage?: string }) => {
   switch (role) {
     case "user":
       return <UserMessage text={text} />;
     case "assistant":
-      return <AssistantMessage text={text} feedback={feedback} onFeedback={onFeedback} autoPlaySpeech={autoPlaySpeech} onPlayMessage={onPlayMessage} />;
+      return <AssistantMessage text={text} feedback={feedback} onFeedback={onFeedback} autoPlaySpeech={autoPlaySpeech} onPlayMessage={onPlayMessage} userMessage={userMessage} />;
     case "code":
       return <CodeMessage text={text} />;
     default:
@@ -1364,13 +1517,27 @@ return (
             <div className={styles.loadingIndicator}></div>
           ) : (
             <>
-              {messages.map((msg, index) => (
+              {messages.map((msg, index) => {
+                // Find the most recent user message before this assistant message
+                let userMessageForContext = '';
+                if (msg.role === 'assistant') {
+                  // Look backwards for the most recent user message
+                  for (let i = index - 1; i >= 0; i--) {
+                    if (messages[i].role === 'user') {
+                      userMessageForContext = messages[i].text;
+                      break; // Take only the most recent one
+                    }
+                  }
+                }
+                
+                return (
                 <Message
                   key={index}
                   role={msg.role}
                   text={msg.text}
                   feedback={msg.feedback}
                   hasImage={msg.hasImage}
+                    userMessage={msg.role === 'assistant' ? userMessageForContext : undefined}
                   onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
                   autoPlaySpeech={msg.role === 'assistant' ? (enableVoice && autoPlaySpeech) : undefined}
                   onPlayMessage={msg.role === 'assistant' ? () => {
@@ -1414,7 +1581,8 @@ return (
                     }, 100);
                   } : undefined}
                 />
-              ))}
+                );
+              })}
               {inputDisabled && (
                 <div className={styles.assistantMessage}>
                   <div className={styles.typingIndicator}>
@@ -1851,7 +2019,7 @@ return (
                     resize: 'none',
                     padding: '10px',
                     background: 'transparent',
-                    color: '#374151'
+                    color: '#000000'
                   }}
                 />
               </div>
