@@ -5,6 +5,7 @@ import { findUserByIdOrEmail } from "@/lib/users";
 import { sendEmail } from "@/app/utils/email-service";
 import { getQuestionsByHomeworkSet } from "@/lib/questions";
 import { generateSubmissionPdf } from "@/lib/submission-pdf";
+import { isHomeworkAccessible } from "@/lib/deadline-utils";
 
 interface RouteParams {
   params: { setId: string };
@@ -47,6 +48,36 @@ export async function POST(request: Request, { params }: RouteParams) {
         }
       : undefined;
 
+    // Check deadline before allowing submission
+    const homeworkSet = await getHomeworkSetById(params.setId);
+    if (!homeworkSet) {
+      return NextResponse.json({ message: "Homework set not found" }, { status: 404 });
+    }
+
+    // Get user email for deadline check
+    let userEmail: string | null = null;
+    if (finalStudentIdValue && finalStudentIdValue !== "student-demo") {
+      try {
+        const user = await findUserByIdOrEmail(finalStudentIdValue);
+        if (user && user.email) {
+          userEmail = user.email;
+        }
+      } catch (error) {
+        console.warn("Could not lookup user for deadline check:", error);
+      }
+    }
+
+    // Check if homework is still accessible
+    if (!isHomeworkAccessible(homeworkSet.dueAt, userEmail)) {
+      return NextResponse.json(
+        { 
+          error: "תאריך ההגשה חלף. שיעור הבית כבר לא זמין להגשה.",
+          dueAt: homeworkSet.dueAt
+        },
+        { status: 403 }
+      );
+    }
+
     // Submit the homework
     const submission = await submitSubmission(params.setId, finalStudentIdValue, commitmentPayload);
     if (!submission) {
@@ -55,7 +86,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     // Send confirmation email for all homework submissions
     try {
-      const homeworkSet = await getHomeworkSetById(params.setId);
+      // homeworkSet already fetched above, reuse it
       if (homeworkSet) {
         // Get student email - use submission.studentId (what's actually in DB) first
         // This handles cases where studentId was converted to ObjectId during submission
@@ -98,20 +129,27 @@ export async function POST(request: Request, { params }: RouteParams) {
           if (studentEmail && studentEmail.includes("@")) {
             const homeworkTitle = homeworkSet.title || "שיעורי בית";
             const questions = await getQuestionsByHomeworkSet(params.setId);
-            const pdfBuffer = await generateSubmissionPdf({
-              submission,
-              questions,
-              homework: homeworkSet,
-              studentName: user?.name,
-            });
-
-            const attachments: Array<{ filename: string; content: Buffer; contentType?: string }> = [
-              {
+            
+            const attachments: Array<{ filename: string; content: Buffer; contentType?: string }> = [];
+            
+            // Try to generate PDF, but don't fail if it doesn't work (serverless limitation)
+            try {
+              const pdfBuffer = await generateSubmissionPdf({
+                submission,
+                questions,
+                homework: homeworkSet,
+                studentName: user?.name,
+              });
+              
+              attachments.push({
                 filename: `submission-${submission.id}.pdf`,
                 content: pdfBuffer,
                 contentType: "application/pdf",
-              },
-            ];
+              });
+            } catch (pdfError: any) {
+              console.warn(`⚠️ PDF generation failed (${pdfError.message}), sending email without PDF attachment`);
+              // Continue without PDF - email will still be sent with HTML content
+            }
 
             if (aiConversationFile) {
               const buffer = Buffer.from(await aiConversationFile.arrayBuffer());
@@ -133,7 +171,7 @@ export async function POST(request: Request, { params }: RouteParams) {
                 <p>שלום${user?.name ? ` ${user.name}` : ''},</p>
                 <p>${homeworkTitle} הוגש בהצלחה בקורס בסיסי נתונים.</p>
                 <p>ההגשה ננעלה ועפ״י תקנון שנקר, ואינה ניתנת לעריכה נוספת.</p>
-                <p>הקובץ המצורף כולל את כל התשובות שנשלחו.</p>
+                ${attachments.length > 0 ? '<p>הקובץ המצורף כולל את כל התשובות שנשלחו.</p>' : '<p>ניתן לראות את ההגשה במערכת.</p>'}
                 <p>תודה על ההגשה!</p>
                 <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
                 <p style="font-size: 12px; color: #666;">Michael SQL Assistant Team</p>

@@ -66,6 +66,32 @@ interface AIEvaluateResponse {
   errors?: string[];
 }
 
+// Test AI types
+interface TestAIResult {
+  submissionId: string;
+  studentId: string;
+  studentName?: string;
+  studentIdNumber?: string;
+  sql: string;
+  result: {
+    score: number;
+    comment: string;
+    confidence: number;
+    breakdown: {
+      queryCorrectness: number;
+      outputCorrectness: number;
+    };
+  };
+}
+
+interface TestAIResponse {
+  success: boolean;
+  questionId: string;
+  questionPrompt: string;
+  results: TestAIResult[];
+  errors?: string[];
+}
+
 type GradeDraft = Record<string, GradeDraftEntry>;
 type QuestionGradeDraft = Record<string, Record<string, GradeDraftEntry>>; // questionId -> submissionId -> grade
 
@@ -225,6 +251,12 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
   const [aiGradingProgress, setAIGradingProgress] = useState<{ current: number; total: number } | null>(null);
   const [showAIGradingDialog, setShowAIGradingDialog] = useState(false);
   const [aiGradingInstructions, setAIGradingInstructions] = useState("");
+  
+  // Test AI state
+  const [showTestAIDialog, setShowTestAIDialog] = useState(false);
+  const [isTestingAI, setIsTestingAI] = useState(false);
+  const [testAIResults, setTestAIResults] = useState<TestAIResponse | null>(null);
+  const [selectedTestQuestionId, setSelectedTestQuestionId] = useState<string | null>(null);
 
   const homeworkQuery = useQuery({
     queryKey: ["homework", setId],
@@ -788,6 +820,39 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
     },
   });
 
+  // Test AI mutation
+  const testAIMutation = useMutation({
+    mutationFn: async (questionId: string) => {
+      setIsTestingAI(true);
+      setTestAIResults(null);
+      
+      const response = await fetch("/api/grading/test-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          homeworkSetId: setId,
+          questionId
+        }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to test AI evaluation");
+      }
+      
+      return response.json() as Promise<TestAIResponse>;
+    },
+    onSuccess: (data) => {
+      setTestAIResults(data);
+    },
+    onError: (error: Error) => {
+      setStatusMessage(`שגיאה בבדיקת AI: ${error.message}`);
+    },
+    onSettled: () => {
+      setIsTestingAI(false);
+    },
+  });
+
   const handleExportGrades = useCallback(async () => {
     if (isExporting) return;
 
@@ -1068,6 +1133,22 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
               </>
             ) : (
               <>✨ בדיקת AI</>
+            )}
+          </button>
+          <button
+            type="button"
+            className={styles.testAIButton}
+            onClick={() => setShowTestAIDialog(true)}
+            disabled={isTestingAI || summaries.length === 0 || (questionsQuery.data ?? []).length === 0}
+            title="בדיקת AI - לא נשמר במסד הנתונים"
+          >
+            {isTestingAI ? (
+              <>
+                <span className={styles.aiSpinner} />
+                בודק...
+              </>
+            ) : (
+              <>🧪 Test AI</>
             )}
           </button>
           <button
@@ -1811,6 +1892,149 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                 התחל בדיקת AI
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Test AI Dialog */}
+      {showTestAIDialog && (
+        <div className={styles.testAIDialogOverlay} onClick={(e) => e.target === e.currentTarget && setShowTestAIDialog(false)}>
+          <div className={styles.testAIDialog}>
+            <div className={styles.testAIDialogHeader}>
+              <h3>בדיקת AI - לא נשמר במסד הנתונים</h3>
+              <button
+                type="button"
+                className={styles.testAIDialogClose}
+                onClick={() => {
+                  setShowTestAIDialog(false);
+                  setTestAIResults(null);
+                  setSelectedTestQuestionId(null);
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className={styles.testAIDialogContent}>
+              {!testAIResults ? (
+                <>
+                  <p className={styles.testAIDialogDescription}>
+                    בחר שאלה כדי לבדוק את ביצועי ה-AI על כל התשובות של הסטודנטים. התוצאות לא יישמרו במסד הנתונים.
+                  </p>
+                  {isTestingAI && (
+                    <div className={styles.testAILoading}>
+                      <span className={styles.aiSpinner} />
+                      בודק תשובות...
+                    </div>
+                  )}
+                  <div className={styles.testAIQuestionList}>
+                    {(questionsQuery.data ?? []).map((question) => (
+                      <button
+                        key={question.id}
+                        type="button"
+                        className={`${styles.testAIQuestionButton} ${selectedTestQuestionId === question.id ? styles.active : ''}`}
+                        onClick={() => {
+                          setSelectedTestQuestionId(question.id);
+                          testAIMutation.mutate(question.id);
+                        }}
+                        disabled={isTestingAI}
+                      >
+                        <div className={styles.testAIQuestionTitle}>
+                          {question.prompt.length > 80 ? `${question.prompt.substring(0, 80)}...` : question.prompt}
+                        </div>
+                        <div className={styles.testAIQuestionMeta}>
+                          {question.points ?? 0} נקודות
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className={styles.testAIResults}>
+                  <div className={styles.testAIQuestionHeader}>
+                    <h4>{testAIResults.questionPrompt}</h4>
+                  </div>
+                  {isTestingAI ? (
+                    <div className={styles.testAILoading}>
+                      <span className={styles.aiSpinner} />
+                      בודק תשובות...
+                    </div>
+                  ) : (
+                    <>
+                      <div className={styles.testAIResultsSummary}>
+                        סה"כ {testAIResults.results.length} תשובות נבדקו
+                      </div>
+                      <div className={styles.testAIResultsList}>
+                        {testAIResults.results.map((result, index) => (
+                          <div key={result.submissionId} className={styles.testAIResultItem}>
+                            <div className={styles.testAIResultHeader}>
+                              <div className={styles.testAIResultStudent}>
+                                <strong>{result.studentName || result.studentId}</strong>
+                                {result.studentIdNumber && (
+                                  <span className={styles.testAIResultIdNumber}>ת.ז: {result.studentIdNumber}</span>
+                                )}
+                              </div>
+                              <div className={styles.testAIResultScore}>
+                                {result.result.score} / {questionsQuery.data?.find(q => q.id === testAIResults.questionId)?.points ?? 0}
+                              </div>
+                            </div>
+                            <div className={styles.testAIResultSQL}>
+                              <strong>SQL:</strong>
+                              <pre>{result.sql}</pre>
+                            </div>
+                            <div className={styles.testAIResultComment}>
+                              <strong>הערת AI:</strong>
+                              <p>{result.result.comment}</p>
+                            </div>
+                            <div className={styles.testAIResultBreakdown}>
+                              <span>נכונות שאילתה: {result.result.breakdown.queryCorrectness}%</span>
+                              <span>נכונות תוצאות: {result.result.breakdown.outputCorrectness}%</span>
+                              <span>רמת ביטחון: {result.result.confidence}%</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {testAIResults.errors && testAIResults.errors.length > 0 && (
+                        <div className={styles.testAIErrors}>
+                          <strong>שגיאות:</strong>
+                          <ul>
+                            {testAIResults.errors.map((error, index) => (
+                              <li key={index}>{error}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      <div className={styles.testAIResultsActions}>
+                        <button
+                          type="button"
+                          className={styles.testAIResultsBackButton}
+                          onClick={() => {
+                            setTestAIResults(null);
+                            setSelectedTestQuestionId(null);
+                          }}
+                        >
+                          חזור לבחירת שאלה
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            {!testAIResults && (
+              <div className={styles.testAIDialogActions}>
+                <button
+                  type="button"
+                  className={styles.testAIDialogCancel}
+                  onClick={() => {
+                    setShowTestAIDialog(false);
+                    setTestAIResults(null);
+                    setSelectedTestQuestionId(null);
+                  }}
+                >
+                  ביטול
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

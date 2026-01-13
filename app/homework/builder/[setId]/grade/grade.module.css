@@ -2052,3 +2052,373 @@
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
 }
+
+/* Test AI Button */
+.testAIButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 10px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 16px rgba(245, 158, 11, 0.25);
+  transition: all 0.2s ease;
+}
+
+.testAIButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(245, 158, 11, 0.3);
+}
+
+.testAIButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* Test AI Dialog */
+.testAIDialogOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.testAIDialog {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 0;
+  max-width: 900px;
+  width: 90%;
+  max-height: 85vh;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.4s ease;
+  direction: rtl;
+}
+
+.testAIDialogHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.testAIDialogHeader h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.testAIDialogClose {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.testAIDialogClose:hover {
+  background: #f1f5f9;
+  color: #374151;
+}
+
+.testAIDialogContent {
+  padding: 24px 28px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.testAIDialogDescription {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.testAIQuestionList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.testAIQuestionButton {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: right;
+}
+
+.testAIQuestionButton:hover:not(:disabled) {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+}
+
+.testAIQuestionButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.testAIQuestionButton.active {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+}
+
+.testAIQuestionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  flex: 1;
+}
+
+.testAIQuestionMeta {
+  font-size: 12px;
+  color: #64748b;
+  margin-right: 12px;
+}
+
+.testAIResults {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.testAIQuestionHeader {
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.testAIQuestionHeader h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.5;
+}
+
+.testAILoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.testAIResultsSummary {
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.testAIResultsList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.testAIResultItem {
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.testAIResultHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.testAIResultStudent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.testAIResultStudent strong {
+  font-size: 16px;
+  color: #1e293b;
+}
+
+.testAIResultIdNumber {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.testAIResultScore {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f59e0b;
+}
+
+.testAIResultSQL {
+  margin-bottom: 16px;
+}
+
+.testAIResultSQL strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #475569;
+}
+
+.testAIResultSQL pre {
+  margin: 0;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'Courier New', monospace;
+  color: #1e293b;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  direction: ltr;
+  text-align: left;
+}
+
+.testAIResultComment {
+  margin-bottom: 16px;
+}
+
+.testAIResultComment strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #475569;
+}
+
+.testAIResultComment p {
+  margin: 0;
+  padding: 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #166534;
+  line-height: 1.6;
+}
+
+.testAIResultBreakdown {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.testAIResultBreakdown span {
+  padding: 6px 12px;
+  background: #f8fafc;
+  border-radius: 6px;
+}
+
+.testAIErrors {
+  padding: 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #991b1b;
+}
+
+.testAIErrors strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.testAIErrors ul {
+  margin: 0;
+  padding-right: 20px;
+  font-size: 13px;
+}
+
+.testAIResultsActions {
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.testAIResultsBackButton {
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 20px;
+  background: #ffffff;
+  color: #374151;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.testAIResultsBackButton:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.testAIDialogActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 20px 28px;
+  border-top: 1px solid #e2e8f0;
+  background: #f9fafb;
+}
+
+.testAIDialogCancel {
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 20px;
+  background: #ffffff;
+  color: #374151;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.testAIDialogCancel:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}

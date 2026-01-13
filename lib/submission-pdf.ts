@@ -249,10 +249,66 @@ export async function generateSubmissionPdf({
   
   // Use @sparticuz/chromium for serverless environments
   if (isServerless && chromium) {
-    launchOptions.executablePath = await chromium.executablePath();
-    // Optimize for serverless
-    chromium.setGraphicsMode = false;
-    launchOptions.args.push(...chromium.args);
+    try {
+      // Configure chromium for serverless (Vercel/AWS Lambda)
+      chromium.setGraphicsMode = false;
+      launchOptions.executablePath = await chromium.executablePath();
+      launchOptions.args = chromium.args;
+    } catch (error: any) {
+      console.error("⚠️ Failed to configure chromium for serverless:", error.message);
+      throw new Error(`PDF generation not available in serverless environment: ${error.message}`);
+    }
+  } else if (!isServerless) {
+    // For local development, try to find Chrome/Chromium executable
+    // Check if puppeteer-core is being used (which doesn't include browser)
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Common Chrome/Chromium paths
+    const chromePaths = [
+      process.env.PUPPETEER_EXECUTABLE_PATH,
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', // macOS
+      '/usr/bin/google-chrome', // Linux
+      '/usr/bin/chromium', // Linux
+      '/usr/bin/chromium-browser', // Linux
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // Windows
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', // Windows
+    ];
+    
+    // Find first existing Chrome executable
+    for (const chromePath of chromePaths) {
+      if (chromePath && fs.existsSync(chromePath)) {
+        launchOptions.executablePath = chromePath;
+        break;
+      }
+    }
+    
+    // If no Chrome found and using puppeteer-core, try to use regular puppeteer
+    if (!launchOptions.executablePath && puppeteer.name === 'puppeteer-core') {
+      try {
+        const puppeteerFull = require('puppeteer');
+        const browser = await puppeteerFull.launch(launchOptions);
+        try {
+          const page = await browser.newPage();
+          await page.setContent(html, { waitUntil: "networkidle0" });
+          const pdfBuffer = await page.pdf({
+            format: "A4",
+            printBackground: true,
+            margin: {
+              top: "15mm",
+              right: "10mm",
+              bottom: "15mm",
+              left: "10mm",
+            },
+          });
+          return Buffer.from(pdfBuffer);
+        } finally {
+          await browser.close();
+        }
+      } catch (error: any) {
+        throw new Error(`PDF generation failed: ${error.message}. Please install Chrome or set PUPPETEER_EXECUTABLE_PATH environment variable.`);
+      }
+    }
   }
   
   const browser = await puppeteer.launch(launchOptions);
