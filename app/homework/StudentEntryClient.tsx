@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BookOpen, Play, ArrowRight } from "lucide-react";
 import styles from "./student-entry.module.css";
+import { isHomeworkAccessible, getDeadlineMessage } from "@/lib/deadline-utils";
 
 interface HomeworkSet {
   id: string;
@@ -181,11 +182,25 @@ export function StudentEntryClient() {
       }
 
       // Fetch homework details
-      const response = await fetch(`/api/homework/${homeworkSetId}`);
+      const response = await fetch(`/api/homework/${homeworkSetId}?studentId=${studentId}`);
       if (!response.ok) {
+        if (response.status === 403) {
+          const errorData = await response.json();
+          setError(errorData.error || "תאריך ההגשה חלף. שיעור הבית כבר לא זמין להגשה.");
+          setStep("id");
+          return;
+        }
         throw new Error("Failed to load homework");
       }
       const data = await response.json();
+      
+      // Double-check deadline on client side as well
+      if (!isHomeworkAccessible(data.dueAt, studentEmail)) {
+        setError("תאריך ההגשה חלף. שיעור הבית כבר לא זמין להגשה.");
+        setStep("id");
+        return;
+      }
+      
       setHomework(data);
       setStep("instructions");
     } catch (err) {
@@ -197,6 +212,13 @@ export function StudentEntryClient() {
 
   const handleStart = async () => {
     if (homework && studentId && !isStarting) {
+      // Double-check deadline before navigating
+      if (!isHomeworkAccessible(homework.dueAt, studentEmail)) {
+        setError("תאריך ההגשה חלף. שיעור הבית כבר לא זמין להגשה.");
+        setStep("id");
+        return;
+      }
+      
       setIsStarting(true);
       try {
         // Small delay to show loading state
@@ -252,7 +274,7 @@ export function StudentEntryClient() {
                 {homework.dueAt && (
                   <div className={styles.metaItem}>
                     <span>📅</span>
-                    <span>תאריך הגשה: 13.01.2026 ב-23:59</span>
+                    <span>{getDeadlineMessage(homework.dueAt, studentEmail)}</span>
                   </div>
                 )}
               </div>

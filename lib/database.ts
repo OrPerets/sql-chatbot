@@ -289,4 +289,6 @@ export const COLLECTIONS = {
   RATE_LIMITS: 'rate_limits',
   IP_RATE_LIMITS: 'ip_rate_limits',
   SECURITY_EVENTS: 'security_events',
+  // Submitted students tracking (for PDF report delivery)
+  SUBMITTED: 'submitted',
 } as const;
