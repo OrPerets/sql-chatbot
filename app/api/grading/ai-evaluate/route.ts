@@ -20,7 +20,8 @@ interface AIEvaluateResponse {
 }
 
 // Increase timeout for this route (AI grading can take a long time)
-export const maxDuration = 300; // 5 minutes
+// Note: Vercel hobby plan max is 60 seconds. For longer execution, consider upgrading plan or using background jobs
+export const maxDuration = 60; // 60 seconds (max for Vercel hobby plan)
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
