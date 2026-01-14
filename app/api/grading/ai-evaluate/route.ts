@@ -8,6 +8,7 @@ interface AIEvaluateRequest {
   homeworkSetId: string;
   submissionIds?: string[];  // Optional - if empty, grade all ungraded
   additionalGradingInstructions?: string;  // Optional - additional instructions to append to each question
+  limit?: number;  // Optional - limit number of submissions for debugging (default: no limit)
 }
 
 interface AIEvaluateResponse {
@@ -18,10 +19,17 @@ interface AIEvaluateResponse {
   errors?: string[];
 }
 
+// Increase timeout for this route (AI grading can take a long time)
+export const maxDuration = 300; // 5 minutes
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
+    console.log("[AI Grading] Starting evaluation...");
     const body = (await request.json()) as AIEvaluateRequest;
-    const { homeworkSetId, submissionIds, additionalGradingInstructions } = body;
+    const { homeworkSetId, submissionIds, additionalGradingInstructions, limit } = body;
+    
+    console.log("[AI Grading] Request:", { homeworkSetId, submissionCount: submissionIds?.length || "all", limit });
 
     if (!homeworkSetId) {
       return NextResponse.json(
@@ -60,6 +68,13 @@ export async function POST(request: Request) {
     } else {
       // Grade all ungraded submissions (status is "submitted" or "in_progress")
       submissionsToGrade = summaries.filter((s) => s.status !== "graded");
+    }
+    
+    // Apply limit for debugging if provided
+    if (limit && limit > 0) {
+      const originalCount = submissionsToGrade.length;
+      submissionsToGrade = submissionsToGrade.slice(0, limit);
+      console.log(`[AI Grading] Limited to ${submissionsToGrade.length} submissions (from ${originalCount} total) for debugging`);
     }
 
     if (submissionsToGrade.length === 0) {
@@ -159,8 +174,14 @@ export async function POST(request: Request) {
       });
     }
 
-    // Run AI evaluation
-    const results = await evaluateBulk(submissionsWithAnswers);
+    console.log(`[AI Grading] Processing ${submissionsWithAnswers.length} submissions...`);
+    
+    // Run AI evaluation with progress logging
+    const results = await evaluateBulk(submissionsWithAnswers, (completed, total) => {
+      console.log(`[AI Grading] Progress: ${completed}/${total} submissions`);
+    });
+
+    console.log(`[AI Grading] Completed evaluation for ${results.length} submissions`);
 
     // Calculate totals
     const totalQuestionsGraded = results.reduce(
@@ -176,6 +197,7 @@ export async function POST(request: Request) {
       errors: errors.length > 0 ? errors : undefined,
     };
 
+    console.log(`[AI Grading] Returning response: ${results.length} submissions, ${totalQuestionsGraded} questions`);
     return NextResponse.json(response);
   } catch (error) {
     console.error("AI evaluation error:", error);

@@ -19,8 +19,11 @@ export async function listHomeworkSets(
   });
 }
 
-export async function getHomeworkSet(setId: string): Promise<HomeworkSet> {
-  return http(`${BASE_PATH}/${setId}`, { method: "GET" });
+export async function getHomeworkSet(setId: string, role?: string): Promise<HomeworkSet> {
+  return http(`${BASE_PATH}/${setId}`, { 
+    method: "GET",
+    params: role ? { role } : undefined,
+  });
 }
 
 export async function getHomeworkQuestions(setId: string, studentId?: string): Promise<Question[]> {

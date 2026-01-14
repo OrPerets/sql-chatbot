@@ -55,15 +55,43 @@ export async function evaluateAnswer(input: AIGradingInput): Promise<AIGradingRe
       messages: [
         {
           role: 'system',
-          content: `אתה מעריך מומחה לשאילתות SQL בקורס בסיסי נתונים. 
+          content: `אתה מעריך מומחה לשאילתות SQL בקורס מבוא לבסיסי נתונים. 
 התפקיד שלך הוא להעריך תשובות של סטודנטים ולתת ציון והערה קצרה וברורה.
 
-כללים חשובים:
+⛔⛔⛔ אזהרה קריטית - הפקודות הבאות אסורות בקורס זה ⛔⛔⛔
+- CASE-WHEN אסור בהחלט! לעולם אל תצפה או תדרוש שימוש ב-CASE, WHEN, THEN, ELSE
+- IF אסור בהחלט! לעולם אל תצפה או תדרוש שימוש ב-IF או IIF
+- WITH clauses (CTE) - אסור בקורס זה
+- RETURNING clause - אסור בקורס זה
+- Window Functions (OVER, PARTITION BY, RANK, ROW_NUMBER) - אסור בקורס זה
+- WEEK() function - אסור בקורס זה
+
+✅ פקודות SQL מותרות בקורס:
+- SELECT, FROM, WHERE, JOIN (INNER, LEFT, RIGHT), ON
+- GROUP BY, HAVING, ORDER BY (ASC, DESC)
+- Aggregate functions: COUNT, SUM, AVG, MIN, MAX
+- DISTINCT, AS (aliases)
+- AND, OR, NOT, IN, BETWEEN, LIKE
+- IS NULL, IS NOT NULL
+- Sub-queries (nested SELECT statements)
+- Comparison: =, <>, <, >, <=, >=
+- Basic string functions: CONCAT, UPPER, LOWER, SUBSTRING, LENGTH
+- Basic date functions: YEAR, MONTH, DAY, DATEADD, DATEDIFF
+- UNION, UNION ALL
+- UPDATE, SET (for update questions)
+- TOP / LIMIT (only if NOT explicitly forbidden in the question)
+- STRCMP for string comparison (returns -1, 0, or 1)
+
+כללים חשובים להערכה:
 1. הערות בעברית בלבד
 2. הערה קצרה ותמציתית (2-3 משפטים מקסימום)
 3. ציין במדויק מה נכון ומה חסר/שגוי
 4. השתמש בטון חינוכי ומעודד
 5. התייחס גם לנכונות השאילתה וגם לתוצאות
+6. בדוק אופטימיזציה של השאילתה - האם ניתן לכתוב אותה בצורה יעילה יותר?
+7. ודא שהשאילתה משתמשת רק בפקודות SQL מותרות בקורס
+8. אם השאילתה נכונה אבל לא מותאמת, ציין זאת בהערה
+9. התייחס לכתיבת השאילתה (syntax, structure) ונכונות התוצאות
 
 פורמט התשובה חייב להיות JSON תקין בלבד, ללא טקסט נוסף.`
         },
@@ -84,10 +112,25 @@ export async function evaluateAnswer(input: AIGradingInput): Promise<AIGradingRe
 
     const parsed = JSON.parse(content)
     
+    // Log what AI returned for debugging
+    console.log(`[AI Grading] AI Response for question ${input.questionId}:`, {
+      hasComment: !!parsed.comment,
+      commentLength: parsed.comment?.length || 0,
+      commentPreview: parsed.comment?.substring(0, 100) || "(empty)",
+      score: parsed.score,
+      fullParsed: parsed,
+    });
+    
+    const comment = parsed.comment?.trim() || 'לא ניתן לבצע הערכה';
+    
+    if (!parsed.comment || !parsed.comment.trim()) {
+      console.warn(`⚠️ [AI Grading] WARNING: AI returned empty comment for question ${input.questionId}`);
+    }
+    
     return {
       questionId: input.questionId,
       score: Math.min(input.maxPoints, Math.max(0, parsed.score ?? 0)),
-      comment: parsed.comment ?? 'לא ניתן לבצע הערכה',
+      comment,
       confidence: parsed.confidence ?? 50,
       breakdown: {
         queryCorrectness: parsed.queryCorrectness ?? 0,
@@ -183,12 +226,25 @@ ${studentResults.rows.length > 5 ? `... (סה"כ ${studentResults.rows.length} �
 1. השווה את השאילתה של הסטודנט לפתרון הייחוס (אם קיים)
 2. בדוק אם התוצאות תואמות לסכמה הצפויה
 3. שים לב ל: JOIN נכון, תנאי WHERE, GROUP BY, ORDER BY, פונקציות אגרגציה
-4. תן ציון הוגן בהתאם למה שנכון ומה חסר
+4. בדוק אופטימיזציה של השאילתה:
+   - האם השאילתה כתובה בצורה יעילה?
+   - האם יש שימוש מיותר ב-sub-queries שניתן להחליף ב-JOIN?
+   - האם התנאים ב-WHERE מותאמים (indexed columns, efficient filters)?
+   - האם יש שימוש מיותר ב-DISTINCT שניתן להימנע ממנו?
+   - האם השאילתה קריאה וברורה?
+5. ודא שהשאילתה משתמשת רק בפקודות SQL מותרות בקורס:
+   - ❌ אסור: CASE, WHEN, IF, IIF, WITH (CTE), RETURNING, Window Functions, WEEK()
+   - ✅ מותר: SELECT, JOIN, WHERE, GROUP BY, HAVING, ORDER BY, Sub-queries, Aggregates, STRCMP
+6. אם השאילתה משתמשת בפקודות אסורות, ציין זאת בהערה והפחת נקודות
+7. תן ציון הוגן בהתאם למה שנכון ומה חסר
+8. התייחס לכתיבת השאילתה (syntax, structure) ונכונות התוצאות
+
+הערה: אין צורך לבדוק את השאילתה בסביבות SQL שונות - התמקד בכתיבת השאילתה ובנכונות התוצאות.
 
 החזר תשובה בפורמט JSON הבא בלבד:
 {
   "score": <ציון מ-0 עד ${maxPoints}>,
-  "comment": "<הערה קצרה בעברית - מקסימום 2-3 משפטים>",
+  "comment": "<הערה קצרה בעברית - מקסימום 2-3 משפטים. התייחס לנכונות, אופטימיזציה, ושימוש בפקודות מותרות>",
   "confidence": <רמת ביטחון 0-100>,
   "queryCorrectness": <אחוז נכונות השאילתה 0-100>,
   "outputCorrectness": <אחוז נכונות התוצאות 0-100>

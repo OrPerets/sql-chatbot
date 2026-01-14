@@ -260,7 +260,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
 
   const homeworkQuery = useQuery({
     queryKey: ["homework", setId],
-    queryFn: () => getHomeworkSet(setId),
+    queryFn: () => getHomeworkSet(setId, "builder"),
   });
 
   const questionsQuery = useQuery({
@@ -681,9 +681,9 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
     Object.entries(submission.answers).forEach(([questionId, answer]) => {
       const question = questionsById.get(questionId);
         const sqlAnswer = answer as SqlAnswer;
-      // Start with 0 (empty) - only use existing instructor notes if they exist
+      // Use saved score if it exists, otherwise start with 0
       draft[questionId] = {
-        score: 0,
+        score: sqlAnswer.feedback?.score ?? 0,
         instructorNotes: sqlAnswer.feedback?.instructorNotes ?? "",
       };
     });
@@ -696,10 +696,14 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
       allSubmissions.forEach((submission) => {
         const answer = submission.answers[activeQuestionId] as SqlAnswer | undefined;
         if (answer) {
-          // Start with 0 (empty) - only use existing instructor notes if they exist
+          // Use saved score if it exists, otherwise start with 0
+          const instructorNotes = answer.feedback?.instructorNotes ?? "";
+          if (instructorNotes) {
+            console.log(`[Load Draft] Question ${activeQuestionId}, Submission ${submission.id}: Found instructorNotes:`, instructorNotes.substring(0, 100));
+          }
           draft[submission.id] = {
-            score: 0,
-            instructorNotes: answer.feedback?.instructorNotes ?? "",
+            score: answer.feedback?.score ?? 0,
+            instructorNotes,
           };
         }
       });
@@ -752,6 +756,11 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
       setIsAIGrading(true);
       setAIGradingProgress({ current: 0, total: 0 });
       
+      try {
+        // Create an AbortController for timeout handling
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10 minute timeout
+        
       const response = await fetch("/api/grading/ai-evaluate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -759,57 +768,244 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
           homeworkSetId: setId,
           additionalGradingInstructions: additionalInstructions || undefined
         }),
+        signal: controller.signal,
       });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to evaluate submissions");
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ error: `HTTP ${response.status}: ${response.statusText}` }));
+          throw new Error(error.error || error.details || "Failed to evaluate submissions");
+        }
+        
+        return response.json() as Promise<AIEvaluateResponse>;
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          throw new Error("הבקשה ארכה זמן רב מדי. נסה שוב או בדוק פחות הגשות בבת אחת.");
+        }
+        if (error.message) {
+          throw error;
+        }
+        throw new Error(`שגיאה בהערכת AI: ${error.message || "Unknown error"}`);
       }
-      
-      return response.json() as Promise<AIEvaluateResponse>;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       if (!data.success || data.results.length === 0) {
         setStatusMessage("אין הגשות לבדיקה או שכולן כבר נבדקו");
         return;
       }
 
-      // Apply AI results to grade drafts
-      const allSubmissions = allSubmissionsQuery.data ?? [];
-      const newQuestionGradeDraft: QuestionGradeDraft = { ...questionGradeDraft };
-      const newGradeDraft: GradeDraft = { ...gradeDraft };
+      // Save AI results directly to database
+      try {
+        const allSubmissions = allSubmissionsQuery.data ?? [];
+        const submissionsMap = new Map(allSubmissions.map(s => [s.id, s]));
+        const questionsMap = new Map((questionsQuery.data ?? []).map(q => [q.id, q]));
 
-      for (const result of data.results) {
-        for (const aiResult of result.results) {
-          // Update question-based draft
-          if (!newQuestionGradeDraft[aiResult.questionId]) {
-            newQuestionGradeDraft[aiResult.questionId] = {};
-          }
-          newQuestionGradeDraft[aiResult.questionId][result.submissionId] = {
-            score: aiResult.score,
-            instructorNotes: aiResult.comment,
-            aiSuggested: true,
-          };
+        // Save each submission with AI grades
+        const savePromises = data.results.map(async (result) => {
+          try {
+            const submission = submissionsMap.get(result.submissionId);
+            if (!submission) {
+              console.warn(`[AI Grading] Submission ${result.submissionId} not found in submissionsMap`);
+              return { success: false, submissionId: result.submissionId, error: "Submission not found" };
+            }
 
-          // If this is the active submission, also update the student draft
-          if (result.submissionId === activeSubmissionId) {
-            newGradeDraft[aiResult.questionId] = {
+          // Build updated answers with AI grades
+          const updatedAnswers: Submission["answers"] = { ...submission.answers };
+
+          for (const aiResult of result.results) {
+            const question = questionsMap.get(aiResult.questionId);
+            if (!question) continue;
+
+            const answer = submission.answers[aiResult.questionId] as SqlAnswer | undefined;
+            if (!answer) continue;
+
+            // Use AI comment if there's no existing instructor note (or if it's empty)
+            const existingInstructorNotes = answer.feedback?.instructorNotes?.trim();
+            const aiComment = aiResult.comment?.trim() || "";
+            
+            console.log(`[AI Grading] Question ${aiResult.questionId}, Submission ${result.submissionId}:`, {
+              existingInstructorNotes: existingInstructorNotes || "(empty)",
+              aiComment: aiComment || "(EMPTY - AI didn't return comment!)",
+              aiCommentLength: aiComment.length,
               score: aiResult.score,
-              instructorNotes: aiResult.comment,
-              aiSuggested: true,
+              fullAiResult: aiResult, // Log full result to see what AI returned
+            });
+            
+            if (!aiComment) {
+              console.warn(`⚠️ [AI Grading] WARNING: AI comment is empty for question ${aiResult.questionId}, submission ${result.submissionId}`);
+            }
+
+            // Determine what to save - prioritize AI comment if no existing note
+            // Only use existing notes if they're not empty, otherwise use AI comment
+            const notesToSave = (existingInstructorNotes && existingInstructorNotes.trim()) 
+              ? existingInstructorNotes 
+              : (aiComment && aiComment.trim() ? aiComment : "");
+            
+            updatedAnswers[aiResult.questionId] = {
+              ...answer,
+              feedback: {
+                questionId: aiResult.questionId,
+                score: aiResult.score,
+                // Keep existing autoNotes from SQL execution (if any), but don't overwrite with AI comment
+                autoNotes: answer.feedback?.autoNotes || "",
+                // Put AI comment in instructorNotes - use AI comment if no existing note or if existing is empty
+                instructorNotes: notesToSave,
+                rubricBreakdown: answer.feedback?.rubricBreakdown || [],
+              },
             };
+            
+            // Verify what we're about to save
+            if (!notesToSave || !notesToSave.trim()) {
+              console.error(`❌ [AI Grading] ERROR: No instructorNotes to save for question ${aiResult.questionId}, submission ${result.submissionId}`);
+              console.error(`   existingInstructorNotes: "${existingInstructorNotes}" (length: ${existingInstructorNotes?.length || 0})`);
+              console.error(`   aiComment: "${aiComment}" (length: ${aiComment?.length || 0})`);
+              console.error(`   aiResult object:`, JSON.stringify(aiResult, null, 2));
+            } else {
+              console.log(`✅ [AI Grading] Will save instructorNotes (${notesToSave.length} chars) for question ${aiResult.questionId}:`, notesToSave.substring(0, 100));
+            }
+          }
+
+          // Calculate overall score
+          const overallScore = Object.values(updatedAnswers).reduce(
+            (sum, ans) => sum + (ans.feedback?.score ?? 0),
+            0
+          );
+
+          // Verify what we're about to save before sending to DB
+          const answersWithFeedback = Object.entries(updatedAnswers).filter(([_, ans]) => {
+            const hasNotes = ans.feedback?.instructorNotes?.trim();
+            if (hasNotes) {
+              console.log(`[AI Grading] Answer ${Object.keys(updatedAnswers).indexOf(_)} has instructorNotes:`, {
+                questionId: _,
+                notesLength: hasNotes.length,
+                notesPreview: hasNotes.substring(0, 50),
+              });
+            }
+            return !!hasNotes;
+          });
+          console.log(`[AI Grading] Submission ${result.submissionId}: ${answersWithFeedback.length} answers with instructorNotes before save`);
+          
+          // Log the exact structure we're sending
+          console.log(`[AI Grading] Sending to gradeSubmission:`, {
+            submissionId: result.submissionId,
+            totalAnswers: Object.keys(updatedAnswers).length,
+            answersWithNotes: answersWithFeedback.length,
+            sampleAnswerStructure: answersWithFeedback[0] ? {
+              questionId: answersWithFeedback[0][0],
+              feedback: answersWithFeedback[0][1].feedback,
+            } : null,
+          });
+          
+          // Save to database
+          const saved = await gradeSubmission(result.submissionId, {
+            answers: updatedAnswers,
+            overallScore,
+            status: "graded",
+          });
+          
+          // Log what was actually saved for debugging
+          if (saved) {
+            const savedAnswersWithNotes = Object.entries(saved.answers).filter(([_, ans]) => ans.feedback?.instructorNotes);
+            console.log(`[AI Grading] Saved submission ${result.submissionId}:`, {
+              totalAnswers: Object.keys(saved.answers).length,
+              answersWithInstructorNotes: savedAnswersWithNotes.length,
+              sampleAnswer: savedAnswersWithNotes[0] ? {
+                questionId: savedAnswersWithNotes[0][0],
+                hasFeedback: !!savedAnswersWithNotes[0][1].feedback,
+                instructorNotes: savedAnswersWithNotes[0][1].feedback?.instructorNotes?.substring(0, 100),
+                score: savedAnswersWithNotes[0][1].feedback?.score,
+              } : null,
+            });
+            
+            if (savedAnswersWithNotes.length === 0) {
+              console.error(`❌ [AI Grading] CRITICAL: No instructorNotes found in saved submission ${result.submissionId}!`);
+              console.error(`   Expected ${answersWithFeedback.length} answers with notes, but got 0 after save`);
+            }
+          } else {
+            console.error(`❌ [AI Grading] Failed to save submission ${result.submissionId} - gradeSubmission returned null`);
+            return { success: false, submissionId: result.submissionId, error: "gradeSubmission returned null" };
+          }
+          
+          return { success: true, submissionId: result.submissionId, saved };
+          } catch (error) {
+            console.error(`❌ [AI Grading] Error saving submission ${result.submissionId}:`, error);
+            return { success: false, submissionId: result.submissionId, error: error instanceof Error ? error.message : String(error) };
+          }
+        });
+
+        // Use allSettled instead of all to continue even if some fail
+        const saveResults = await Promise.allSettled(savePromises);
+        const successful = saveResults.filter(r => r.status === 'fulfilled' && r.value && r.value.success).length;
+        const failed = saveResults.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && (!r.value || !r.value.success)));
+        
+        console.log(`[AI Grading] Save results: ${successful} successful, ${failed.length} failed out of ${saveResults.length} total`);
+        
+        // Log failed submissions
+        failed.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            console.error(`[AI Grading] Promise rejected for submission at index ${index}:`, result.reason);
+          } else if (result.status === 'fulfilled' && result.value && !result.value.success) {
+            console.error(`[AI Grading] Failed to save submission ${result.value.submissionId}:`, result.value.error);
+          } else if (result.status === 'fulfilled' && !result.value) {
+            console.error(`[AI Grading] Unexpected: fulfilled promise with null value at index ${index}`);
+          }
+        });
+
+        // Also update local drafts for UI
+        const newQuestionGradeDraft: QuestionGradeDraft = { ...questionGradeDraft };
+        const newGradeDraft: GradeDraft = { ...gradeDraft };
+
+        for (const result of data.results) {
+          for (const aiResult of result.results) {
+            // Update question-based draft - use AI comment directly since we just saved it
+            if (!newQuestionGradeDraft[aiResult.questionId]) {
+              newQuestionGradeDraft[aiResult.questionId] = {};
+            }
+            const submission = submissionsMap.get(result.submissionId);
+            const existingAnswer = submission?.answers[aiResult.questionId] as SqlAnswer | undefined;
+            const existingInstructorNotes = existingAnswer?.feedback?.instructorNotes?.trim();
+            const aiComment = aiResult.comment?.trim() || "";
+            
+            newQuestionGradeDraft[aiResult.questionId][result.submissionId] = {
+              score: aiResult.score,
+              // Use AI comment if no existing note, otherwise keep existing
+              instructorNotes: existingInstructorNotes || aiComment,
+              aiSuggested: !existingInstructorNotes, // Only mark as AI if there was no existing note
+            };
+
+            // If this is the active submission, also update the student draft
+            if (result.submissionId === activeSubmissionId) {
+              newGradeDraft[aiResult.questionId] = {
+                score: aiResult.score,
+                // Use AI comment if no existing note, otherwise keep existing
+                instructorNotes: existingInstructorNotes || aiComment,
+                aiSuggested: !existingInstructorNotes, // Only mark as AI if there was no existing note
+              };
+            }
           }
         }
+
+        setQuestionGradeDraft(newQuestionGradeDraft);
+        setGradeDraft(newGradeDraft);
+
+        // Refresh submission data - wait a bit to ensure DB write is complete
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        queryClient.invalidateQueries({ queryKey: ["submissions", setId, "summaries"] });
+        queryClient.invalidateQueries({ queryKey: ["submissions", setId, "all"] });
+        queryClient.invalidateQueries({ queryKey: ["submission"] });
+        
+        // Force refetch to get fresh data
+        await queryClient.refetchQueries({ queryKey: ["submissions", setId, "all"] });
+        
+        console.log(`[AI Grading] Refreshed queries, data should be reloaded`);
+
+        setStatusMessage(`✨ הערכת AI הושלמה ונשמרה: ${data.totalSubmissions} הגשות, ${data.totalQuestionsGraded} תשובות. ניתן לבדוק ולעדכן את הציונים בממשק.`);
+      } catch (error) {
+        console.error("Error saving AI grades:", error);
+        setStatusMessage(`שגיאה בשמירת ציוני AI: ${error instanceof Error ? error.message : "Unknown error"}`);
       }
-
-      setQuestionGradeDraft(newQuestionGradeDraft);
-      setGradeDraft(newGradeDraft);
-
-      // Refresh submission data
-      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "summaries"] });
-      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "all"] });
-
-      setStatusMessage(`✨ הערכת AI הושלמה: ${data.totalSubmissions} הגשות, ${data.totalQuestionsGraded} תשובות`);
     },
     onError: (error: Error) => {
       setStatusMessage(`שגיאה בהערכת AI: ${error.message}`);
@@ -1447,7 +1643,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                             {draft?.aiSuggested && <span className={styles.aiSuggestedBadge}>AI</span>}
                             <textarea
                               placeholder={t("builder.grade.notes.placeholder")}
-                              value={draft?.instructorNotes ?? ""}
+                              value={draft?.instructorNotes ?? sqlAnswer.feedback?.instructorNotes ?? ""}
                               onChange={(event) =>
                                 setGradeDraft((prev) => ({
                                   ...prev,
@@ -1651,15 +1847,15 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                 )}
 
                                 <div className={styles.cardGradeControls}>
-                                  <label className={draft?.aiSuggested ? styles.aiSuggestedField : ""}>
+                                  <label className={draft?.aiSuggested || (answer?.feedback?.autoNotes && !answer?.feedback?.instructorNotes) ? styles.aiSuggestedField : ""}>
                                     {t("builder.grade.score.label")}
-                                    {draft?.aiSuggested && <span className={styles.aiSuggestedBadge}>AI</span>}
+                                    {(draft?.aiSuggested || (answer?.feedback?.autoNotes && !answer?.feedback?.instructorNotes)) && <span className={styles.aiSuggestedBadge}>AI</span>}
                                     <input
                                       type="number"
                                       min={0}
                                       max={question?.points ?? 100}
                                       step={0.5}
-                                      value={draft?.score ?? 0}
+                                      value={draft?.score ?? answer?.feedback?.score ?? 0}
                                       onChange={(event) =>
                                         setQuestionGradeDraft((prev) => ({
                                           ...prev,
@@ -1682,7 +1878,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                       {draft?.aiSuggested && <span className={styles.aiSuggestedBadge}>AI</span>}
                                       <textarea
                                         placeholder={t("builder.grade.notes.placeholder")}
-                                        value={draft?.instructorNotes ?? ""}
+                                        value={draft?.instructorNotes ?? answer?.feedback?.instructorNotes ?? ""}
                                         onChange={(event) =>
                                           setQuestionGradeDraft((prev) => ({
                                             ...prev,
@@ -1856,7 +2052,9 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
             </div>
             <div className={styles.aiGradingDialogContent}>
               <p className={styles.aiGradingDialogDescription}>
-                הוסף הנחיות נוספות להערכת AI. ההנחיות יופיעו בכל השאלות ונוסף להנחיות הקיימות של כל שאלה.
+                בדיקת AI תבדוק את כל השאלות והסטודנטים ותשמור את הציונים במסד הנתונים. לאחר מכן תוכל לבדוק, לעדכן ולאשר את הציונים בממשק.
+                <br /><br />
+                הוסף הנחיות נוספות להערכת AI (אופציונלי). ההנחיות יופיעו בכל השאלות ונוסף להנחיות הקיימות של כל שאלה.
               </p>
               <label className={styles.aiGradingDialogLabel}>
                 הנחיות נוספות להערכה (אופציונלי)
