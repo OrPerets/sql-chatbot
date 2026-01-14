@@ -359,6 +359,22 @@ export class SubmissionsService {
       updatedAt: now,
     };
 
+    // Log what we're about to save for debugging
+    if (updates.answers) {
+      const answersWithNotes = Object.entries(updates.answers).filter(([_, ans]: [string, any]) => 
+        ans.feedback?.instructorNotes?.trim()
+      );
+      console.log(`[DB Save] Submission ${submissionId}: Saving ${answersWithNotes.length} answers with instructorNotes`);
+      if (answersWithNotes.length > 0) {
+        const sample = answersWithNotes[0];
+        console.log(`[DB Save] Sample answer ${sample[0]}:`, {
+          hasFeedback: !!sample[1].feedback,
+          instructorNotes: sample[1].feedback?.instructorNotes?.substring(0, 100),
+          score: sample[1].feedback?.score,
+        });
+      }
+    }
+
     const result = await this.db
       .collection<SubmissionModel>(COLLECTIONS.SUBMISSIONS)
       .findOneAndUpdate(
@@ -372,7 +388,28 @@ export class SubmissionsService {
         { returnDocument: 'after' }
       );
 
-    if (!result) return null;
+    if (!result) {
+      console.error(`[DB Save] Failed to find/update submission ${submissionId}`);
+      return null;
+    }
+
+    // Log what was actually saved
+    const savedAnswersWithNotes = Object.entries(result.answers || {}).filter(([_, ans]: [string, any]) => 
+      ans.feedback?.instructorNotes?.trim()
+    );
+    console.log(`[DB Save] Submission ${submissionId}: After save, found ${savedAnswersWithNotes.length} answers with instructorNotes`);
+    if (savedAnswersWithNotes.length === 0 && updates.answers) {
+      const expectedWithNotes = Object.entries(updates.answers).filter(([_, ans]: [string, any]) => 
+        ans.feedback?.instructorNotes?.trim()
+      );
+      if (expectedWithNotes.length > 0) {
+        console.error(`[DB Save] ❌ CRITICAL: Expected ${expectedWithNotes.length} answers with notes, but got 0 after save!`);
+        console.error(`[DB Save] Expected sample:`, {
+          questionId: expectedWithNotes[0][0],
+          instructorNotes: expectedWithNotes[0][1].feedback?.instructorNotes?.substring(0, 100),
+        });
+      }
+    }
 
     // Track student performance for AI analysis (Sprint 3)
     try {
@@ -1400,4 +1437,9 @@ export async function gradeSubmission(submissionId: string, updates: Partial<Sub
 export async function executeSqlForSubmission(payload: SqlExecutionRequest): Promise<SqlExecutionResponse | null> {
   const service = await getSubmissionsService();
   return service.executeSqlForSubmission(payload);
+}
+
+export async function getSubmissionProgress(submissionId: string): Promise<QuestionProgress[] | null> {
+  const service = await getSubmissionsService();
+  return service.getSubmissionProgress(submissionId);
 }

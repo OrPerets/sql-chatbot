@@ -61,11 +61,15 @@ export async function POST(request: Request) {
     const summaries = await getSubmissionSummaries(homeworkSetId);
     const summariesById = new Map(summaries.map((s) => [s.id, s]));
 
+    // Limit to first 3 submissions for faster debugging
+    const limitedSummaries = summaries.slice(0, 3);
+    console.log(`[Test AI] Processing ${limitedSummaries.length} submissions (limited from ${summaries.length} total)`);
+
     // Get all submissions and extract answers for this question
     const testResults: TestAIResult[] = [];
     const errors: string[] = [];
 
-    for (const summary of summaries) {
+    for (const summary of limitedSummaries) {
       try {
         const submission = await getSubmissionById(summary.id);
         if (!submission) {

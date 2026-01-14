@@ -181,8 +181,9 @@ export function StudentEntryClient() {
         console.log("✅ Using homework set:", homeworkSetId, exercise3 ? "(תרגיל 3)" : "");
       }
 
-      // Fetch homework details
-      const response = await fetch(`/api/homework/${homeworkSetId}?studentId=${studentId}`);
+      // Fetch homework details - pass email for accurate deadline extension check
+      const emailParam = studentEmail.trim() ? `&email=${encodeURIComponent(studentEmail.trim())}` : '';
+      const response = await fetch(`/api/homework/${homeworkSetId}?studentId=${studentId}${emailParam}`);
       if (!response.ok) {
         if (response.status === 403) {
           const errorData = await response.json();

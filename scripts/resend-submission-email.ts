@@ -132,16 +132,27 @@ async function resendSubmissionEmail() {
     
     // Generate PDF
     console.log(`\n📄 Generating PDF...`)
-    const pdfBuffer = await generateSubmissionPdf({
-      submission,
-      questions,
-      homework: homeworkSet,
-      studentName: user.name,
-    })
-    console.log(`✅ PDF generated (${pdfBuffer.length} bytes)`)
+    let pdfBuffer: Buffer
+    try {
+      pdfBuffer = await generateSubmissionPdf({
+        submission,
+        questions,
+        homework: homeworkSet,
+        studentName: user.name,
+      })
+      if (!pdfBuffer || pdfBuffer.length === 0) {
+        throw new Error('PDF buffer is empty')
+      }
+      console.log(`✅ PDF generated (${pdfBuffer.length} bytes)`)
+    } catch (pdfError: any) {
+      console.error(`❌ PDF generation failed: ${pdfError.message}`)
+      console.error(`❌ Error details:`, pdfError)
+      throw new Error(`Failed to generate PDF: ${pdfError.message}`)
+    }
     
     // Send email
     const homeworkTitle = homeworkSet.title || "שיעורי בית"
+    console.log(`📧 Sending email with PDF attachment (${pdfBuffer.length} bytes) to ${user.email}...`)
     const emailSent = await sendEmail({
       to: user.email,
       subject: `${homeworkTitle} הוגש בהצלחה - Michael SQL Assistant`,
@@ -304,16 +315,27 @@ async function findAndSendMissingSubmissions() {
         
         // Generate PDF
         console.log(`   📄 Generating PDF...`)
-        const pdfBuffer = await generateSubmissionPdf({
-          submission,
-          questions,
-          homework: homeworkSet,
-          studentName: user.name,
-        })
-        console.log(`   ✅ PDF generated (${pdfBuffer.length} bytes)`)
+        let pdfBuffer: Buffer
+        try {
+          pdfBuffer = await generateSubmissionPdf({
+            submission,
+            questions,
+            homework: homeworkSet,
+            studentName: user.name,
+          })
+          if (!pdfBuffer || pdfBuffer.length === 0) {
+            throw new Error('PDF buffer is empty')
+          }
+          console.log(`   ✅ PDF generated (${pdfBuffer.length} bytes)`)
+        } catch (pdfError: any) {
+          console.error(`   ❌ PDF generation failed: ${pdfError.message}`)
+          console.error(`   ❌ Error details:`, pdfError)
+          throw new Error(`Failed to generate PDF: ${pdfError.message}`)
+        }
         
         // Send email
         const homeworkTitle = homeworkSet.title || "שיעורי בית"
+        console.log(`   📧 Sending email with PDF attachment (${pdfBuffer.length} bytes) to ${user.email}...`)
         const emailSent = await sendEmail({
           to: user.email,
           subject: `${homeworkTitle} הוגש בהצלחה - Michael SQL Assistant`,
