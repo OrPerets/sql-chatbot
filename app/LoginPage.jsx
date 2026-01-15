@@ -1,7 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { User, Lock, Loader, Shield, UserCheck } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import styles from './login.module.css';
+import React, { useState, useEffect } from "react";
+import { User, Lock, Loader, Shield, UserCheck } from "lucide-react";
+import Image from "next/image";
+import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
+import styles from "./login.module.css";
+
+const ForgotPasswordModal = dynamic(
+  () => import("./components/ForgotPasswordModal"),
+  {
+    ssr: false,
+  }
+);
 
 const SERVER = `/api/users`;
 const UPDATE_PASSWORD = `/api/users`;
@@ -66,34 +75,32 @@ const LoginPage = () => {
   const fetchUsers = async () => {
     setIsFetchingUsers(true);
     try {
-      const response = await fetch(SERVER, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      const data = await response.json();
-      setUsers(data);
+      const [usersResponse, statusResponse] = await Promise.all([
+        fetch(SERVER, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }),
+        fetch("/api/admin/status", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }),
+      ]);
+
+      const usersData = await usersResponse.json();
+      setUsers(usersData);
+
+      const statusData = await statusResponse.json();
+      // setStatus(statusData["status"]);
+      setStatus(statusData?.status ?? "ON");
     } catch (error) {
-      console.error('Error fetching users:', error);
-      setError('Failed to fetch users. Please try again.');
+      console.error("Error fetching users or status:", error);
+      setError("Failed to fetch login data. Please try again.");
     } finally {
       setIsFetchingUsers(false);
-    }
-    
-    try {
-      const response = await fetch('/api/admin/status', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      const data = await response.json();
-      // setStatus(data["status"]);
-      setStatus("ON");
-    } catch (error) {
-      console.error('Error fetching status:', error);
-      setError('Failed to fetch status. Please try again.');
     }
   };
 
@@ -265,9 +272,23 @@ const LoginPage = () => {
       {status === "ON" && (
         <div>
           <div className={styles.logoWrapper}>
-            <img className={styles.botImage} src="bot.png" alt="Bot" />
+            <Image
+              className={styles.botImage}
+              src="/bot.png"
+              alt="Bot"
+              width={160}
+              height={160}
+              priority
+            />
             <div className={styles.assistantName}>
-              <img className={styles.logoImage} src="logo.png" alt="Logo" />
+              <Image
+                className={styles.logoImage}
+                src="/logo.png"
+                alt="Logo"
+                width={96}
+                height={96}
+                priority
+              />
               <h2 className={styles.assistantTitle}>MICHAEL</h2>
               <p className={styles.assistantSubtitle}>SQL AI Assistant</p>
             </div>
@@ -410,84 +431,18 @@ const LoginPage = () => {
       
       {/* Forgot Password Modal */}
       {showForgotPassword && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '30px',
-            borderRadius: '10px',
-            maxWidth: '400px',
-            width: '90%',
-            textAlign: 'center'
-          }}>
-            <h3>איפוס סיסמה</h3>
-            <p style={{ marginBottom: '20px', color: '#666' }}>
-              הזן את כתובת המייל שלך ונשלח לך קישור לאיפוס הסיסמה
-            </p>
-            
-            <form onSubmit={handleForgotPassword}>
-              <div className={styles.inputGroup}>
-                <span className={styles.iconWrapper}>
-                  <User size={18} />
-                </span>
-                <input 
-                  type="email" 
-                  className={styles.input}
-                  placeholder="כתובת מייל" 
-                  value={forgotPasswordEmail}
-                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                  required
-                />
-              </div>
-              
-              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                <button 
-                  type="submit" 
-                  className={styles.button} 
-                  disabled={forgotPasswordLoading}
-                  style={{ flex: 1 }}
-                >
-                  {forgotPasswordLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'שלח קישור'}
-                </button>
-                <button 
-                  type="button" 
-                  className={styles.button}
-                  style={{ backgroundColor: '#666', flex: 1 }}
-                  onClick={() => {
-                    setShowForgotPassword(false);
-                    setForgotPasswordEmail('');
-                    setForgotPasswordMessage('');
-                  }}
-                >
-                  ביטול
-                </button>
-              </div>
-            </form>
-            
-            {forgotPasswordMessage && (
-              <div style={{ 
-                marginTop: '15px', 
-                padding: '10px', 
-                backgroundColor: forgotPasswordMessage.includes('שגיאה') ? '#f8d7da' : '#d4edda',
-                color: forgotPasswordMessage.includes('שגיאה') ? '#721c24' : '#155724',
-                borderRadius: '5px',
-                fontSize: '14px'
-              }}>
-                {forgotPasswordMessage}
-              </div>
-            )}
-          </div>
-        </div>
+        <ForgotPasswordModal
+          email={forgotPasswordEmail}
+          onEmailChange={setForgotPasswordEmail}
+          onClose={() => {
+            setShowForgotPassword(false);
+            setForgotPasswordEmail("");
+            setForgotPasswordMessage("");
+          }}
+          onSubmit={handleForgotPassword}
+          isLoading={forgotPasswordLoading}
+          message={forgotPasswordMessage}
+        />
       )}
     </div>
   );

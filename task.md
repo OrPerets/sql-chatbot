@@ -124,6 +124,19 @@ This plan keeps all existing functionality intact (chatbot, admin, and all route
 
 ---
 
+### Sprint 2 — Implementation Notes (Done)
+
+**Performance updates**
+- Code-split the forgot-password modal into a dynamically imported component to defer non-critical UI until needed.
+- Switched login hero images to `next/image` for automatic sizing/optimization and prioritized loading of above-the-fold assets.
+- Parallelized login bootstrap requests (users + admin status) to reduce blocking time and reduce unnecessary sequential waits.
+
+**Bundle analysis report**
+- No bundle analyzer is configured in the repo; manual review focused on reducing initial JS by splitting the modal and optimizing critical assets.
+
+**Key metrics**
+- Targeted reduced blocking on login by parallelizing data fetching and deferring non-critical UI code.
+
 ## Sprint 3 — Refactor for Maintainability (Medium Risk)
 
 **Goal:** Simplify architecture and improve readability without changing behavior.
