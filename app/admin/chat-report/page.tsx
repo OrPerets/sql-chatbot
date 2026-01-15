@@ -212,14 +212,14 @@ const ChatReportPage: React.FC = () => {
               <div className={styles.summaryCard}>
                 <MessageSquare size={24} />
                 <div className={styles.summaryContent}>
-                  <h3>סה"כ שיחות</h3>
+                  <h3>סה&quot;כ שיחות</h3>
                   <p className={styles.summaryNumber}>{report.summary.totalSessions}</p>
                 </div>
               </div>
               <div className={styles.summaryCard}>
                 <FileText size={24} />
                 <div className={styles.summaryContent}>
-                  <h3>סה"כ הודעות</h3>
+                  <h3>סה&quot;כ הודעות</h3>
                   <p className={styles.summaryNumber}>{report.summary.totalMessages}</p>
                 </div>
               </div>

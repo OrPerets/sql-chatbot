@@ -2422,3 +2422,132 @@
   background: #f9fafb;
   border-color: #9ca3af;
 }
+
+/* Student Statistics */
+.studentStatistics {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Student Grid View */
+.studentGridView {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #f8fbff;
+  border-radius: 12px;
+}
+
+.studentGridCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: #ffffff;
+  border: 2px solid rgba(12, 71, 124, 0.1);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.studentGridCard:hover {
+  border-color: #0e62bf;
+  box-shadow: 0 4px 12px rgba(14, 98, 191, 0.15);
+  transform: translateY(-2px);
+}
+
+.studentGridCard.active {
+  border-color: #0e62bf;
+  background: #f0f7ff;
+  box-shadow: 0 6px 16px rgba(14, 98, 191, 0.2);
+}
+
+.studentGridHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(12, 71, 124, 0.1);
+}
+
+.studentGridName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2a37;
+  line-height: 1.3;
+}
+
+.studentGridId {
+  font-size: 11px;
+  color: #4a5c6d;
+  font-family: monospace;
+}
+
+.studentGridScore {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.studentGridScore .scoreValue {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0e62bf;
+}
+
+.studentGridScore .scoreMax {
+  font-size: 14px;
+  color: #5d6a7c;
+}
+
+/* Student Detailed View */
+.studentDetailedView {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 2px solid rgba(12, 71, 124, 0.1);
+}
+
+/* Responsive Grid */
+@media (max-width: 1279px) and (min-width: 1024px) {
+  .studentGridView {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 1023px) and (min-width: 768px) {
+  .studentGridView {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+}
+
+@media (max-width: 767px) {
+  .studentGridView {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .studentGridCard {
+    padding: 12px;
+  }
+  
+  .studentGridName {
+    font-size: 13px;
+  }
+  
+  .studentGridScore .scoreValue {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 479px) {
+  .studentGridView {
+    grid-template-columns: 1fr;
+  }
+}

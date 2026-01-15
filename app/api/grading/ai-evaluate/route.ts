@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSubmissionSummaries, getSubmissionById } from "@/lib/submissions";
+import { getSubmissionSummaries, getSubmissionById, gradeSubmission } from "@/lib/submissions";
 import { getQuestionsByHomeworkSet } from "@/lib/questions";
-import { evaluateBulk, type AIGradingInput, type BulkGradingResult } from "@/lib/ai-grading";
+import { evaluateSubmission, type AIGradingInput, type BulkGradingResult } from "@/lib/ai-grading";
 import type { Question, Submission, SqlAnswer } from "@/app/homework/types";
 
 interface AIEvaluateRequest {
@@ -21,7 +21,8 @@ interface AIEvaluateResponse {
 
 // Increase timeout for this route (AI grading can take a long time)
 // Note: Vercel hobby plan max is 60 seconds. For longer execution, consider upgrading plan or using background jobs
-export const maxDuration = 60; // 60 seconds (max for Vercel hobby plan)
+// For local development, we use 300 seconds (5 minutes) to allow full grading
+export const maxDuration = process.env.VERCEL ? 60 : 300; // 60s on Vercel, 300s locally
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
@@ -177,18 +178,90 @@ export async function POST(request: Request) {
 
     console.log(`[AI Grading] Processing ${submissionsWithAnswers.length} submissions...`);
     
-    // Run AI evaluation with progress logging
-    const results = await evaluateBulk(submissionsWithAnswers, (completed, total) => {
-      console.log(`[AI Grading] Progress: ${completed}/${total} submissions`);
-    });
+    // Process submissions one by one, saving each to DB immediately after grading
+    const results: BulkGradingResult[] = [];
+    let totalQuestionsGraded = 0;
+    const total = submissionsWithAnswers.length;
 
-    console.log(`[AI Grading] Completed evaluation for ${results.length} submissions`);
+    for (let i = 0; i < submissionsWithAnswers.length; i++) {
+      const submissionData = submissionsWithAnswers[i];
+      
+      try {
+        console.log(`[AI Grading] Processing submission ${i + 1}/${total}: ${submissionData.submissionId}`);
+        
+        // Grade this submission
+        const gradingResult = await evaluateSubmission(
+          submissionData.submissionId,
+          submissionData.studentId,
+          submissionData.answers
+        );
+        
+        // Get the full submission to update it
+        const submission = await getSubmissionById(submissionData.submissionId);
+        if (!submission) {
+          errors.push(`Submission ${submissionData.submissionId} not found for saving`);
+          continue;
+        }
 
-    // Calculate totals
-    const totalQuestionsGraded = results.reduce(
-      (sum, r) => sum + r.results.length,
-      0
-    );
+        // Build updated answers with AI grades
+        const updatedAnswers: Submission["answers"] = { ...submission.answers };
+
+        for (const aiResult of gradingResult.results) {
+          const answer = submission.answers[aiResult.questionId] as SqlAnswer | undefined;
+          if (!answer) continue;
+
+          // Use AI comment if there's no existing instructor note
+          const existingInstructorNotes = answer.feedback?.instructorNotes?.trim();
+          const aiComment = aiResult.comment?.trim() || "";
+          
+          const notesToSave = (existingInstructorNotes && existingInstructorNotes.trim()) 
+            ? existingInstructorNotes 
+            : (aiComment && aiComment.trim() ? aiComment : "");
+
+          updatedAnswers[aiResult.questionId] = {
+            ...answer,
+            feedback: {
+              questionId: aiResult.questionId,
+              score: aiResult.score,
+              autoNotes: answer.feedback?.autoNotes || "",
+              instructorNotes: notesToSave,
+              rubricBreakdown: answer.feedback?.rubricBreakdown || [],
+            },
+          };
+        }
+
+        // Calculate overall score
+        const overallScore = Object.values(updatedAnswers).reduce(
+          (sum, ans) => sum + (ans.feedback?.score ?? 0),
+          0
+        );
+
+        // Save to database immediately
+        console.log(`[AI Grading] Saving submission ${submissionData.submissionId} to database...`);
+        const saved = await gradeSubmission(submissionData.submissionId, {
+          answers: updatedAnswers,
+          overallScore,
+          status: "graded",
+        });
+
+        if (saved) {
+          console.log(`[AI Grading] ✅ Successfully saved submission ${submissionData.submissionId}`);
+          results.push(gradingResult);
+          totalQuestionsGraded += gradingResult.results.length;
+        } else {
+          errors.push(`Failed to save submission ${submissionData.submissionId}`);
+          console.error(`[AI Grading] ❌ Failed to save submission ${submissionData.submissionId}`);
+        }
+
+        console.log(`[AI Grading] Progress: ${i + 1}/${total} submissions (${results.length} saved)`);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        errors.push(`Error processing submission ${submissionData.submissionId}: ${message}`);
+        console.error(`[AI Grading] ❌ Error processing submission ${submissionData.submissionId}:`, err);
+      }
+    }
+
+    console.log(`[AI Grading] Completed: ${results.length}/${total} submissions saved successfully`);
 
     const response: AIEvaluateResponse = {
       success: true,

@@ -264,7 +264,7 @@ const DatasetsPage: React.FC = () => {
             <div className={styles.sectionHeader}>
               <h2>רשימת מסדי נתונים</h2>
               <div className={styles.stats}>
-                <span>סה"כ: {datasets.length} מסדי נתונים</span>
+                <span>סה&quot;כ: {datasets.length} מסדי נתונים</span>
               </div>
             </div>
 
@@ -348,7 +348,7 @@ const DatasetsPage: React.FC = () => {
                       <span>{selectedDataset.previewTables.length}</span>
                     </div>
                     <div className={styles.infoItem}>
-                      <label>סה"כ עמודות:</label>
+                      <label>סה&quot;כ עמודות:</label>
                       <span>{selectedDataset.previewTables.reduce((sum, table) => sum + table.columns.length, 0)}</span>
                     </div>
                   </div>
@@ -530,7 +530,7 @@ const DatasetsPage: React.FC = () => {
                         <span>{generatedDataPreview.totalTables}</span>
                       </div>
                       <div className={styles.statItem}>
-                        <label>סה"כ שורות:</label>
+                        <label>סה&quot;כ שורות:</label>
                         <span>{generatedDataPreview.totalRows}</span>
                       </div>
                       <div className={styles.statItem}>
