@@ -21,6 +21,58 @@ This plan keeps all existing functionality intact (chatbot, admin, and all route
 - Route/endpoint inventory map.
 - “Do not break” acceptance checklist.
 
+### Sprint 0 — Implementation Notes (Done)
+
+**Baseline test report**
+- `npm test` ✅ (23/23 suites passed; 218/220 tests passed; 2 skipped). Console warnings/errors are expected from test fixtures (mocked API errors, React `act(...)` warnings) and do not fail the suite.
+
+**Route/endpoint inventory map**
+- **Public app routes**
+  - `/` (main chatbot UI).
+  - `/english-demo`.
+  - `/403`.
+  - `/auth/reset-password`.
+- **Entities demos**
+  - `/entities/all`, `/entities/basic-chat`, `/entities/file-search`, `/entities/function-calling`, `/entities/questionnaire`, `/entities/enhanced-avatar-demo`.
+- **Homework flows**
+  - `/homework` + `/homework/start`, `/homework/questions`, `/homework/runner/[setId]`.
+  - Builder/admin flows: `/homework/builder`, `/homework/builder/create`, `/homework/builder/[setId]/{edit,preview,publish,grade,solution}`.
+- **Admin UI**
+  - `/admin` + `/admin/{datasets,databases,templates,templates/new,homework,chat-report,model-management,mcp-michael}`.
+- **API routes (selected groupings)**
+  - Auth/users: `/api/auth/*`, `/api/users/*`.
+  - Chat + assistants: `/api/chat/*`, `/api/assistants/*`, `/api/conversation-summary/*`.
+  - Homework + submissions: `/api/homework/*`, `/api/submissions/*`.
+  - Admin + analytics: `/api/admin/*`, `/api/analysis/*`, `/api/analytics/*`, `/api/students/*`.
+  - Content + datasets + templates: `/api/datasets/*`, `/api/templates/*`, `/api/content/*`.
+  - SQL + practice + grading: `/api/sql/execute`, `/api/practice/*`, `/api/grading/*`.
+  - Voice + audio: `/api/voice/*`, `/api/audio/*`, `/api/tts`.
+
+**Runtime entrypoints**
+- Next.js app router: `app/layout.tsx`, `app/page.tsx`, and all `app/**/page.tsx` routes.
+- API handlers: `app/api/**/route.ts` (see inventory above).
+- Middleware: `middleware.ts`.
+- CLI/scripts: `npm run <script>` in `package.json` (maintenance, database setup, deployment verify, etc.).
+
+**Environment variables & config dependencies**
+- App/runtime: `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_ASSISTANT_ID`, `OPENAI_ASSISTANT_ID_GPT5`, `USE_LATEST_MODEL`, `USE_GPT5_ASSISTANT`.
+- Voice/feature flags: `FEATURE_VOICE`, `NEXT_PUBLIC_VOICE_ENABLED`, `NEXT_PUBLIC_AVATAR_ENABLED`, `NEXT_PUBLIC_ANALYTICS_ENABLED`, `NEXT_PUBLIC_CONTEXT_AWARE`, `NEXT_PUBLIC_VISUALIZATION_ENABLED`, `NEXT_PUBLIC_ACCESSIBILITY_ENABLED`, `NEXT_PUBLIC_REALTIME_ENABLED`, `NEXT_PUBLIC_AUDIO_PROCESSING`, `NEXT_PUBLIC_DEBUG_VOICE`, `NEXT_PUBLIC_SERVER_BASE`.
+- Database: `MONGODB_URI`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME`, `DB_MIN_POOL_SIZE`, `DB_MAX_POOL_SIZE`.
+- Email/SMTP: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`.
+- Deployment: `NEXT_PUBLIC_BASE_URL`, `INTERNAL_API_BASE_URL`, `NEXT_PUBLIC_API_BASE_URL`, `VERCEL`, `AWS_LAMBDA_FUNCTION_NAME`.
+
+**Lint/format scripts (confirmed in package.json)**
+- `npm run lint` (Next.js lint).
+- No formatter script present; Prettier config exists in `package.json`.
+
+**Do not break — acceptance checklist**
+- Chatbot core flow: load `/`, send message, receive assistant response (OpenAI or fallback stubs).
+- Auth flow: reset password request and token validation (`/auth/reset-password`, `/api/auth/forgot-password`, `/api/auth/reset-password`).
+- Admin access: `/admin` and primary admin tools (datasets, templates, homework, chat report, model management).
+- Homework delivery: student can start homework, answer questions, submit, and see status.
+- Grading/analysis: `/api/grading/*`, `/api/submissions/*`, `/api/analysis/*` continue to work.
+- Voice features (when enabled): audio/voice endpoints respond with feature-flag gating.
+
 ---
 
 ## Sprint 1 — Dead Code & Asset Removal (Low Risk)
