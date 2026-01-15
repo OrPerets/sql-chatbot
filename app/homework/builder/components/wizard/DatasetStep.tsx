@@ -53,7 +53,7 @@ export function DatasetStep({ value, onChange, onBack, onNext }: DatasetStepProp
           <div className={styles.emptyState}>
             <p className={styles.mutedText}>{t("builder.dataset.none")}</p>
             <p className={styles.mutedText}>
-              לחץ על "יצירת מסד נתונים" בתפריט הניהול כדי ליצור מאגר נתונים חדש
+              לחץ על &quot;יצירת מסד נתונים&quot; בתפריט הניהול כדי ליצור מאגר נתונים חדש
             </p>
           </div>
         )}

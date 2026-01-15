@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["scripts/**/*"],
+  "exclude": ["node_modules"]
+}

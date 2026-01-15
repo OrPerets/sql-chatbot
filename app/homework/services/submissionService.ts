@@ -1,6 +1,12 @@
 import { http } from "./http";
 import type { QuestionProgress, Submission, SubmissionSummary } from "../types";
 
+export interface SubmitHomeworkPayload {
+  studentId: string;
+  aiCommitment?: Submission["aiCommitment"];
+  aiConversationFile?: File | null;
+}
+
 const BASE_PATH = "/api/submissions";
 
 export async function getSubmission(setId: string, studentId: string) {
@@ -20,10 +26,19 @@ export async function saveSubmissionDraft(
   });
 }
 
-export async function submitHomework(setId: string, payload: { studentId: string }) {
+export async function submitHomework(setId: string, payload: SubmitHomeworkPayload) {
+  const formData = new FormData();
+  formData.append("studentId", payload.studentId);
+  if (payload.aiCommitment) {
+    formData.append("aiCommitment", JSON.stringify(payload.aiCommitment));
+  }
+  if (payload.aiConversationFile) {
+    formData.append("aiConversation", payload.aiConversationFile);
+  }
+
   return http<Submission>(`${BASE_PATH}/${setId}/submit`, {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: formData,
   });
 }
 

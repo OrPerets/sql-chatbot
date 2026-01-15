@@ -175,7 +175,7 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
   gap: var(--hw-space-6);
 }
 
@@ -306,7 +306,8 @@
 }
 
 .cardActions {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   padding: var(--hw-space-4) var(--hw-space-6);
   gap: var(--hw-space-2);
   background: var(--hw-surface);
@@ -314,13 +315,12 @@
 }
 
 .cardAction {
-  flex: 1;
   text-decoration: none;
   color: var(--hw-text-secondary);
   font-weight: var(--hw-font-semibold);
-  font-size: var(--hw-text-sm);
+  font-size: var(--hw-text-xs);
   transition: all var(--hw-transition-normal);
-  padding: var(--hw-space-3) var(--hw-space-4);
+  padding: var(--hw-space-2) var(--hw-space-3);
   border-radius: var(--hw-radius);
   border: 2px solid var(--hw-border-light);
   background: var(--hw-surface);
@@ -329,6 +329,9 @@
   align-items: center;
   justify-content: center;
   gap: var(--hw-space-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cardAction:hover {
@@ -472,11 +475,22 @@
   }
 
   .grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   }
 
   .card {
     padding: 1rem;
+  }
+
+  .cardActions {
+    grid-template-columns: repeat(2, 1fr);
+    padding: var(--hw-space-3) var(--hw-space-4);
+    gap: var(--hw-space-2);
+  }
+
+  .cardAction {
+    font-size: var(--hw-text-xs);
+    padding: var(--hw-space-2) var(--hw-space-2);
   }
 
   .cardFooter {

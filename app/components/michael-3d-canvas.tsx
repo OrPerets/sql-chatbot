@@ -18,38 +18,58 @@ const AvatarModel: React.FC<AvatarModelProps> = ({ avatarUrl, avatarState, scale
   try {
     console.log('🎭 Loading avatar from:', avatarUrl);
     const { scene, animations } = useGLTF(avatarUrl);
+    
+    if (!scene) {
+      console.error('❌ Scene is null from useGLTF');
+      return null;
+    }
+    
     console.log('✅ Avatar loaded successfully!', scene);
-    const { actions } = useAnimations(animations, group);
+    const { actions } = useAnimations(animations || [], group);
 
     // Animation state management
     useEffect(() => {
+      if (!actions) return;
+      
       // Stop all animations first
-      Object.values(actions).forEach((action: any) => action?.stop());
+      Object.values(actions).forEach((action: any) => {
+        if (action && typeof action.stop === 'function') {
+          action.stop();
+        }
+      });
 
       // Play animation based on state
       switch (avatarState) {
         case 'speaking':
           if (actions['Talking'] || actions['talking']) {
             const talkAction = actions['Talking'] || actions['talking'];
-            talkAction.reset().play();
+            if (talkAction && typeof talkAction.reset === 'function' && typeof talkAction.play === 'function') {
+              talkAction.reset().play();
+            }
           }
           break;
         case 'thinking':
           if (actions['Thinking'] || actions['thinking'] || actions['Idle']) {
             const thinkAction = actions['Thinking'] || actions['thinking'] || actions['Idle'];
-            thinkAction.reset().play();
+            if (thinkAction && typeof thinkAction.reset === 'function' && typeof thinkAction.play === 'function') {
+              thinkAction.reset().play();
+            }
           }
           break;
         case 'listening':
           if (actions['Listening'] || actions['listening'] || actions['Idle']) {
             const listenAction = actions['Listening'] || actions['listening'] || actions['Idle'];
-            listenAction.reset().play();
+            if (listenAction && typeof listenAction.reset === 'function' && typeof listenAction.play === 'function') {
+              listenAction.reset().play();
+            }
           }
           break;
         default:
           if (actions['Idle'] || actions['idle']) {
             const idleAction = actions['Idle'] || actions['idle'];
-            idleAction.reset().play();
+            if (idleAction && typeof idleAction.reset === 'function' && typeof idleAction.play === 'function') {
+              idleAction.reset().play();
+            }
           }
           break;
       }
@@ -124,11 +144,13 @@ const Michael3DCanvas: React.FC<Michael3DCanvasProps> = ({
       
       {/* Avatar Model */}
       <PresentationControls enabled={false} global>
-        <AvatarModel 
-          avatarUrl={avatarUrl} 
-          avatarState={avatarState}
-          scale={scale}
-        />
+        <React.Suspense fallback={null}>
+          <AvatarModel 
+            avatarUrl={avatarUrl} 
+            avatarState={avatarState}
+            scale={scale}
+          />
+        </React.Suspense>
       </PresentationControls>
     </Canvas>
   );

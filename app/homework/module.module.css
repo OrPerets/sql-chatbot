@@ -126,6 +126,19 @@
   flex-direction: column;
 }
 
+/* Runner Layout - No header, full height */
+.runnerLayout {
+  min-height: 100vh;
+}
+
+.runnerMainContent {
+  padding: 0 !important;
+  margin: 0 !important;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .navContent {

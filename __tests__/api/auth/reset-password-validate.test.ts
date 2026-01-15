@@ -1,3 +1,7 @@
+/**
+ * @jest-environment node
+ */
+
 import { GET } from '@/app/api/auth/reset-password/validate/route'
 import { validatePasswordResetToken } from '@/lib/users'
 

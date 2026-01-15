@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Search, Filter, BookOpen, Edit3, Trash2, Copy, AlertCircle, X, Database } from "lucide-react";
+import { Plus, Search, Filter, BookOpen, Edit3, Trash2, Copy, AlertCircle, X, Database, Trash, RefreshCw } from "lucide-react";
 import { useHomeworkLocale } from "../context/HomeworkLocaleProvider";
 import styles from "./questions.module.css";
 
@@ -20,6 +20,8 @@ interface Question {
   createdAt?: string;
   updatedAt?: string;
   usageCount?: number;
+  homeworkSetId?: string;
+  homeworkSetTitle?: string;
 }
 
 interface Dataset {
@@ -40,7 +42,7 @@ interface CreateQuestionForm {
 }
 
 const difficulties = ["הכל", "קל", "בינוני", "מתקדם"];
-const categories = ["הכל", "בחירה בסיסית", "פונקציות צבירה", "JOIN", "תת-שאילתות", "פונקציות חלון"];
+const categories = ["הכל", "בחירה בסיסית", "פונקציות צבירה", "JOIN", "תת-שאילתות", "פונקציות חלון", "מטלה 3"];
 
 export default function QuestionsPage() {
   const { t, direction } = useHomeworkLocale();
@@ -53,9 +55,13 @@ export default function QuestionsPage() {
   
   // Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateDatasetModal, setShowCreateDatasetModal] = useState(false);
   const [availableDatasets, setAvailableDatasets] = useState<Dataset[]>([]);
   const [isLoadingDatasets, setIsLoadingDatasets] = useState(false);
   const [isCreatingQuestion, setIsCreatingQuestion] = useState(false);
+  const [isSeedingExercise3, setIsSeedingExercise3] = useState(false);
+  const [isCreatingDataset, setIsCreatingDataset] = useState(false);
+  const [savedDatasetId, setSavedDatasetId] = useState<string | null>(null);
   const [createForm, setCreateForm] = useState<CreateQuestionForm>({
     prompt: '',
     instructions: '',
@@ -67,42 +73,55 @@ export default function QuestionsPage() {
     datasetId: ''
   });
 
-  // Load questions from database
-  useEffect(() => {
-    const loadQuestions = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        // Get all homework sets first
-        const homeworkResponse = await fetch('/api/homework');
-        if (!homeworkResponse.ok) {
-          throw new Error('Failed to load homework sets');
-        }
-        const homeworkData = await homeworkResponse.json();
-        
-        // Get questions from all homework sets
-        const allQuestions: Question[] = [];
-        for (const homeworkSet of homeworkData.items || []) {
-          try {
-            const questionsResponse = await fetch(`/api/homework/${homeworkSet.id}/questions`);
-            if (questionsResponse.ok) {
-              const questionsData = await questionsResponse.json();
-              allQuestions.push(...questionsData);
-            }
-          } catch (error) {
-            console.error(`Error loading questions for homework set ${homeworkSet.id}:`, error);
-          }
-        }
-        
-        setQuestions(allQuestions);
-      } catch (error) {
-        console.error('Error loading questions:', error);
-        setError('שגיאה בטעינת השאלות');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Dataset creation form state
+  const [datasetForm, setDatasetForm] = useState({
+    tableName: '',
+    columns: [{ id: Date.now().toString(), name: '', type: 'VARCHAR' }]
+  });
 
+  // Function to load questions from database
+  const loadQuestions = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Get all homework sets first
+      const homeworkResponse = await fetch('/api/homework');
+      if (!homeworkResponse.ok) {
+        throw new Error('Failed to load homework sets');
+      }
+      const homeworkData = await homeworkResponse.json();
+      
+      // Get questions from all homework sets
+      const allQuestions: Question[] = [];
+      for (const homeworkSet of homeworkData.items || []) {
+        try {
+          const questionsResponse = await fetch(`/api/homework/${homeworkSet.id}/questions`);
+          if (questionsResponse.ok) {
+            const questionsData = await questionsResponse.json();
+            // Add homework set info to each question
+            const questionsWithSetInfo = questionsData.map((q: Question) => ({
+              ...q,
+              homeworkSetId: homeworkSet.id,
+              homeworkSetTitle: homeworkSet.title
+            }));
+            allQuestions.push(...questionsWithSetInfo);
+          }
+        } catch (error) {
+          console.error(`Error loading questions for homework set ${homeworkSet.id}:`, error);
+        }
+      }
+      
+      setQuestions(allQuestions);
+    } catch (error) {
+      console.error('Error loading questions:', error);
+      setError('שגיאה בטעינת השאלות');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load questions from database on mount
+  useEffect(() => {
     loadQuestions();
   }, []);
 
@@ -225,8 +244,8 @@ export default function QuestionsPage() {
         datasetId: ''
       });
       
-      // Reload questions
-      window.location.reload();
+      // Reload questions from database
+      await loadQuestions();
     } catch (error) {
       console.error('Error creating question:', error);
       alert('שגיאה ביצירת השאלה');
@@ -249,13 +268,239 @@ export default function QuestionsPage() {
     });
   };
 
+  const handleSeedExercise3 = async () => {
+    if (!confirm('האם אתה בטוח שברצונך להוסיף את 13 השאלות של תרגיל 3?')) {
+      return;
+    }
+
+    setIsSeedingExercise3(true);
+    try {
+      const response = await fetch('/api/admin/seed-exercise3', {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to seed Exercise 3');
+      }
+
+      const data = await response.json();
+      alert(`תרגיל 3 נוצר בהצלחה! ${data.questionsCreated} שאלות נוספו.`);
+      
+      // Reload questions from database
+      await loadQuestions();
+    } catch (error) {
+      console.error('Error seeding Exercise 3:', error);
+      alert(`שגיאה ביצירת תרגיל 3: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSeedingExercise3(false);
+    }
+  };
+
+  const handleCreateDatasetClick = () => {
+    setShowCreateDatasetModal(true);
+    setDatasetForm({
+      tableName: '',
+      columns: [{ id: Date.now().toString(), name: '', type: 'VARCHAR' }]
+    });
+  };
+
+  const handleAddColumn = () => {
+    setDatasetForm(prev => ({
+      ...prev,
+      columns: [...prev.columns, { id: Date.now().toString(), name: '', type: 'VARCHAR' }]
+    }));
+  };
+
+  const handleRemoveColumn = (columnId: string) => {
+    setDatasetForm(prev => ({
+      ...prev,
+      columns: prev.columns.filter(col => col.id !== columnId)
+    }));
+  };
+
+  const handleUpdateColumn = (columnId: string, field: 'name' | 'type', value: string) => {
+    setDatasetForm(prev => ({
+      ...prev,
+      columns: prev.columns.map(col => 
+        col.id === columnId ? { ...col, [field]: value } : col
+      )
+    }));
+  };
+
+  const handleSaveDataset = async () => {
+    if (!datasetForm.tableName.trim()) {
+      alert('נא להזין שם טבלה');
+      return;
+    }
+
+    if (datasetForm.columns.some(col => !col.name.trim())) {
+      alert('נא למלא את כל שמות העמודות');
+      return;
+    }
+
+    setIsCreatingDataset(true);
+    try {
+      // Create preview tables structure
+      const previewTables = [{
+        name: datasetForm.tableName,
+        columns: datasetForm.columns.map(col => col.name)
+      }];
+
+      const response = await fetch('/api/datasets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: datasetForm.tableName,
+          description: `מסד נתונים עם טבלה ${datasetForm.tableName}`,
+          scenario: `טבלה ${datasetForm.tableName} עם ${datasetForm.columns.length} עמודות`,
+          story: `מסד נתונים שנוצר דרך ממשק יצירת מאגר נתונים`,
+          previewTables: previewTables,
+          tags: ['user-created']
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save dataset');
+      }
+
+      const createdDataset = await response.json();
+      setSavedDatasetId(createdDataset.id);
+      alert(`מאגר הנתונים "${datasetForm.tableName}" נשמר בהצלחה! לחץ על "צור טבלה" כדי ליצור את הטבלה במסד הנתונים.`);
+      
+      // Reload datasets if needed
+      if (showCreateModal) {
+        const datasetsResponse = await fetch('/api/datasets');
+        if (datasetsResponse.ok) {
+          const datasetsData = await datasetsResponse.json();
+          setAvailableDatasets(datasetsData.items || []);
+        }
+      }
+    } catch (error) {
+      console.error('Error saving dataset:', error);
+      alert('שגיאה בשמירת מאגר הנתונים');
+    } finally {
+      setIsCreatingDataset(false);
+    }
+  };
+
+  const handleCreateDataset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!datasetForm.tableName.trim()) {
+      alert('נא להזין שם טבלה');
+      return;
+    }
+
+    if (datasetForm.columns.some(col => !col.name.trim())) {
+      alert('נא למלא את כל שמות העמודות');
+      return;
+    }
+
+    setIsCreatingDataset(true);
+    try {
+      let datasetId = savedDatasetId;
+
+      // If not saved yet, save the dataset first
+      if (!datasetId) {
+        const previewTables = [{
+          name: datasetForm.tableName,
+          columns: datasetForm.columns.map(col => col.name)
+        }];
+
+        const saveResponse = await fetch('/api/datasets', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: datasetForm.tableName,
+            description: `מסד נתונים עם טבלה ${datasetForm.tableName}`,
+            scenario: `טבלה ${datasetForm.tableName} עם ${datasetForm.columns.length} עמודות`,
+            story: `מסד נתונים שנוצר דרך ממשק יצירת מאגר נתונים`,
+            previewTables: previewTables,
+            tags: ['user-created']
+          }),
+        });
+
+        if (!saveResponse.ok) {
+          throw new Error('Failed to save dataset');
+        }
+
+        const createdDataset = await saveResponse.json();
+        datasetId = createdDataset.id;
+      }
+
+      // Now create the table
+      const createTableResponse = await fetch(`/api/datasets/${datasetId}/create-table`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tableName: datasetForm.tableName,
+          columns: datasetForm.columns
+        }),
+      });
+
+      if (!createTableResponse.ok) {
+        throw new Error('Failed to create table');
+      }
+
+      alert(`מאגר הנתונים "${datasetForm.tableName}" והטבלה נוצרו בהצלחה!`);
+      
+      setShowCreateDatasetModal(false);
+      setSavedDatasetId(null);
+      setDatasetForm({
+        tableName: '',
+        columns: [{ id: Date.now().toString(), name: '', type: 'VARCHAR' }]
+      });
+      
+      // Reload datasets if needed
+      if (showCreateModal) {
+        const datasetsResponse = await fetch('/api/datasets');
+        if (datasetsResponse.ok) {
+          const datasetsData = await datasetsResponse.json();
+          setAvailableDatasets(datasetsData.items || []);
+        }
+      }
+    } catch (error) {
+      console.error('Error creating dataset and table:', error);
+      alert('שגיאה ביצירת מאגר הנתונים והטבלה');
+    } finally {
+      setIsCreatingDataset(false);
+    }
+  };
+
+  const handleCloseDatasetModal = () => {
+    setShowCreateDatasetModal(false);
+    setSavedDatasetId(null);
+    setDatasetForm({
+      tableName: '',
+      columns: [{ id: Date.now().toString(), name: '', type: 'VARCHAR' }]
+    });
+  };
+
   const filteredQuestions = questions.filter(question => {
     const matchesSearch = question.prompt.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          question.instructions.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // For now, we'll show all questions since we don't have difficulty/category fields in the database
-    // You can add these fields later if needed
-    return matchesSearch;
+    // Filter by category
+    let matchesCategory = true;
+    if (selectedCategory !== "הכל") {
+      if (selectedCategory === "מטלה 3") {
+        // Filter questions from "תרגיל 3" homework set
+        matchesCategory = question.homeworkSetTitle === "תרגיל 3";
+      } else {
+        // For other categories, we don't have category data yet, so show all
+        // You can add category field to questions later if needed
+        matchesCategory = true;
+      }
+    }
+    
+    return matchesSearch && matchesCategory;
   });
 
   return (
@@ -273,6 +518,29 @@ export default function QuestionsPage() {
         </div>
         
         <div className={styles.headerActions}>
+          <button 
+            className={styles.refreshButton}
+            onClick={loadQuestions}
+            disabled={isLoading}
+            title="רענון רשימת השאלות"
+          >
+            <RefreshCw size={20} className={isLoading ? styles.spinning : ''} />
+          </button>
+          <button 
+            className={styles.createButton}
+            onClick={handleCreateDatasetClick}
+          >
+            <Database size={20} />
+            יצירת מאגר נתונים
+          </button>
+          <button 
+            className={styles.createButton}
+            onClick={handleSeedExercise3}
+            disabled={isSeedingExercise3}
+            style={{ marginLeft: '12px' }}
+          >
+            {isSeedingExercise3 ? 'יוצר...' : 'הוסף תרגיל 3'}
+          </button>
           <button 
             className={styles.createButton}
             onClick={handleCreateQuestionClick}
@@ -589,6 +857,116 @@ export default function QuestionsPage() {
                   className={styles.submitButton}
                 >
                   {isCreatingQuestion ? 'יוצר...' : 'צור שאלה'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Dataset Modal */}
+      {showCreateDatasetModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent}>
+            <div className={styles.modalHeader}>
+              <h2>יצירת מאגר נתונים</h2>
+              <button 
+                className={styles.closeButton}
+                onClick={handleCloseDatasetModal}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateDataset} className={styles.modalForm}>
+              <div className={styles.formGroup}>
+                <label htmlFor="tableName">שם הטבלה *</label>
+                <input
+                  id="tableName"
+                  type="text"
+                  value={datasetForm.tableName}
+                  onChange={(e) => setDatasetForm(prev => ({ ...prev, tableName: e.target.value }))}
+                  placeholder="לדוגמה: Students"
+                  required
+                  className={styles.formInput}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <label>עמודות *</label>
+                  <button
+                    type="button"
+                    onClick={handleAddColumn}
+                    className={styles.addColumnButton}
+                  >
+                    <Plus size={16} />
+                    הוסף עמודה
+                  </button>
+                </div>
+                
+                {datasetForm.columns.map((column, index) => (
+                  <div key={column.id} className={styles.columnRow}>
+                    <input
+                      type="text"
+                      value={column.name}
+                      onChange={(e) => handleUpdateColumn(column.id, 'name', e.target.value)}
+                      placeholder="שם העמודה"
+                      required
+                      className={styles.columnNameInput}
+                    />
+                    <select
+                      value={column.type}
+                      onChange={(e) => handleUpdateColumn(column.id, 'type', e.target.value)}
+                      className={styles.columnTypeSelect}
+                    >
+                      <option value="VARCHAR">VARCHAR</option>
+                      <option value="INT">INT</option>
+                      <option value="DECIMAL">DECIMAL</option>
+                      <option value="DATE">DATE</option>
+                      <option value="DATETIME">DATETIME</option>
+                      <option value="TEXT">TEXT</option>
+                      <option value="BOOLEAN">BOOLEAN</option>
+                      <option value="FLOAT">FLOAT</option>
+                      <option value="DOUBLE">DOUBLE</option>
+                      <option value="TIMESTAMP">TIMESTAMP</option>
+                    </select>
+                    {datasetForm.columns.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveColumn(column.id)}
+                        className={styles.removeColumnButton}
+                        title="מחק עמודה"
+                      >
+                        <Trash size={16} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className={styles.modalActions}>
+                <button
+                  type="button"
+                  onClick={handleCloseDatasetModal}
+                  className={styles.cancelButton}
+                >
+                  ביטול
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveDataset}
+                  disabled={isCreatingDataset || !datasetForm.tableName.trim() || datasetForm.columns.some(col => !col.name.trim())}
+                  className={styles.saveButton}
+                >
+                  {isCreatingDataset && savedDatasetId === null ? 'שומר...' : 'שמור'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingDataset || !datasetForm.tableName.trim() || datasetForm.columns.some(col => !col.name.trim())}
+                  className={styles.submitButton}
+                >
+                  {isCreatingDataset ? 'יוצר...' : 'צור מאגר נתונים'}
                 </button>
               </div>
             </form>

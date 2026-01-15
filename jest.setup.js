@@ -1,3 +1,6 @@
+// Note: API route tests should use @jest-environment node at the top of the file
+// This ensures Request/Response from Node.js 18+ are available
+
 import '@testing-library/jest-dom'
 
 // Mock Next.js router
@@ -130,11 +133,13 @@ if (typeof window !== 'undefined') {
   })
 }
 
-// Mock navigator.userAgent to be writable
-Object.defineProperty(navigator, 'userAgent', {
-  writable: true,
-  value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-});
+// Mock navigator.userAgent to be writable (only if navigator exists)
+if (typeof navigator !== 'undefined') {
+  Object.defineProperty(navigator, 'userAgent', {
+    writable: true,
+    value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+  });
+}
 
 // Mock HTMLMediaElement.prototype for JSDOM (only if HTMLMediaElement exists)
 if (typeof HTMLMediaElement !== 'undefined') {

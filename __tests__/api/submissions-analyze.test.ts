@@ -1,9 +1,12 @@
+/**
+ * @jest-environment node
+ */
+
 import { NextRequest } from 'next/server';
 import { POST, GET } from '@/app/api/submissions/[setId]/analyze/route';
 
 // Mock the services
 jest.mock('@/lib/ai-analysis');
-jest.mock('@/lib/analysis-service');
 jest.mock('@/lib/submissions');
 jest.mock('@/lib/questions');
 
@@ -13,7 +16,8 @@ const mockAIAnalysisService = {
 
 const mockAnalysisService = {
   getAnalysisResultsForSubmission: jest.fn(),
-  saveAnalysisResult: jest.fn()
+  getAnalysisResultsForStudent: jest.fn(),
+  getAnalysisResultsForHomeworkSet: jest.fn()
 };
 
 const mockSubmissionsService = {
@@ -21,15 +25,17 @@ const mockSubmissionsService = {
 };
 
 const mockQuestionsService = {
-  getQuestionsForHomeworkSet: jest.fn()
+  getQuestionsByHomeworkSet: jest.fn(),
+  getQuestionsByHomeworkSet: jest.fn()
 };
 
 jest.mock('@/lib/ai-analysis', () => ({
   getAIAnalysisService: () => mockAIAnalysisService
 }));
 
+
 jest.mock('@/lib/analysis-service', () => ({
-  getAnalysisService: () => mockAnalysisService,
+  getAnalysisService: jest.fn(() => mockAnalysisService),
   saveAnalysisResult: jest.fn()
 }));
 
@@ -131,15 +137,20 @@ describe('/api/submissions/[setId]/analyze', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Ensure all mock methods return arrays by default
+    mockAnalysisService.getAnalysisResultsForSubmission.mockResolvedValue([]);
+    mockAnalysisService.getAnalysisResultsForStudent.mockResolvedValue([]);
+    mockAnalysisService.getAnalysisResultsForHomeworkSet.mockResolvedValue([]);
   });
 
   describe('POST', () => {
     it('should analyze a submission successfully', async () => {
       mockSubmissionsService.getSubmissionById.mockResolvedValue(mockSubmission);
-      mockQuestionsService.getQuestionsForHomeworkSet.mockResolvedValue(mockQuestions);
+      mockQuestionsService.getQuestionsByHomeworkSet.mockResolvedValue(mockQuestions);
       mockAnalysisService.getAnalysisResultsForSubmission.mockResolvedValue([]);
       mockAIAnalysisService.analyzeSubmission.mockResolvedValue(mockAnalysisResult);
-      mockAnalysisService.saveAnalysisResult.mockResolvedValue(mockAnalysisResult);
+      const { saveAnalysisResult } = require('@/lib/analysis-service');
+      (saveAnalysisResult as jest.Mock).mockResolvedValue(mockAnalysisResult);
 
       const request = new NextRequest('http://localhost:3000/api/submissions/homework-1/analyze', {
         method: 'POST',
@@ -201,7 +212,7 @@ describe('/api/submissions/[setId]/analyze', () => {
 
     it('should return 404 for homework set with no questions', async () => {
       mockSubmissionsService.getSubmissionById.mockResolvedValue(mockSubmission);
-      mockQuestionsService.getQuestionsForHomeworkSet.mockResolvedValue([]);
+      mockQuestionsService.getQuestionsByHomeworkSet.mockResolvedValue([]);
 
       const request = new NextRequest('http://localhost:3000/api/submissions/homework-1/analyze', {
         method: 'POST',
@@ -219,7 +230,7 @@ describe('/api/submissions/[setId]/analyze', () => {
 
     it('should return existing analysis if already exists and force is false', async () => {
       mockSubmissionsService.getSubmissionById.mockResolvedValue(mockSubmission);
-      mockQuestionsService.getQuestionsForHomeworkSet.mockResolvedValue(mockQuestions);
+      mockQuestionsService.getQuestionsByHomeworkSet.mockResolvedValue(mockQuestions);
       mockAnalysisService.getAnalysisResultsForSubmission.mockResolvedValue([mockAnalysisResult]);
 
       const request = new NextRequest('http://localhost:3000/api/submissions/homework-1/analyze', {
@@ -241,10 +252,11 @@ describe('/api/submissions/[setId]/analyze', () => {
 
     it('should force new analysis when force is true', async () => {
       mockSubmissionsService.getSubmissionById.mockResolvedValue(mockSubmission);
-      mockQuestionsService.getQuestionsForHomeworkSet.mockResolvedValue(mockQuestions);
+      mockQuestionsService.getQuestionsByHomeworkSet.mockResolvedValue(mockQuestions);
       mockAnalysisService.getAnalysisResultsForSubmission.mockResolvedValue([mockAnalysisResult]);
       mockAIAnalysisService.analyzeSubmission.mockResolvedValue(mockAnalysisResult);
-      mockAnalysisService.saveAnalysisResult.mockResolvedValue(mockAnalysisResult);
+      const { saveAnalysisResult } = require('@/lib/analysis-service');
+      (saveAnalysisResult as jest.Mock).mockResolvedValue(mockAnalysisResult);
 
       const request = new NextRequest('http://localhost:3000/api/submissions/homework-1/analyze', {
         method: 'POST',
@@ -264,7 +276,7 @@ describe('/api/submissions/[setId]/analyze', () => {
 
     it('should handle analysis errors gracefully', async () => {
       mockSubmissionsService.getSubmissionById.mockResolvedValue(mockSubmission);
-      mockQuestionsService.getQuestionsForHomeworkSet.mockResolvedValue(mockQuestions);
+      mockQuestionsService.getQuestionsByHomeworkSet.mockResolvedValue(mockQuestions);
       mockAnalysisService.getAnalysisResultsForSubmission.mockResolvedValue([]);
       mockAIAnalysisService.analyzeSubmission.mockRejectedValue(new Error('AI Analysis failed'));
 

@@ -123,7 +123,24 @@ export class RealisticDataGenerator implements DataGenerator {
       if (type === 'integer') {
         numbers.push(Math.floor(random));
       } else {
-        numbers.push(Math.round(random * 100) / 100); // 2 decimal places
+        // Generate a decimal number with 2 decimal places
+        // Use floor to get integer part, then add a guaranteed non-zero decimal part
+        const integerPart = Math.floor(random);
+        // Generate a decimal part between 0.01 and 0.99
+        const decimalPart = Math.random() * 0.98 + 0.01; // Between 0.01 and 0.99
+        let result = integerPart + decimalPart;
+        // Ensure we don't exceed max
+        if (result > max) {
+          // If we exceed max, use max minus a small decimal
+          result = Math.max(min, max - (Math.random() * 0.98 + 0.01));
+        }
+        // Round to 2 decimal places
+        result = Math.round(result * 100) / 100;
+        // Final safety check: if somehow still an integer, add 0.01 (or subtract if at max)
+        if (result % 1 === 0) {
+          result = result >= max ? result - 0.01 : result + 0.01;
+        }
+        numbers.push(result);
       }
     }
     return numbers;

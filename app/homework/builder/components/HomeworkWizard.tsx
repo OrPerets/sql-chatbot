@@ -143,7 +143,6 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
       saveHomeworkDraft(setId, payload),
     onSuccess: (serverSet, variables) => {
       setAutoSaveState("saved");
-      setLastSavedHash(JSON.stringify(variables.payload));
       // Adopt authoritative server response to prevent drift
       setController((prev) => {
         const incomingQuestions = (serverSet as any).questions as Question[] | undefined;
@@ -178,6 +177,10 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
           })),
           publishNotes: prev.draft.publishNotes,
         };
+        // Update lastSavedHash to match the new draft state to prevent infinite loop
+        // Build payload from the new draft state (with server's question IDs)
+        const newPayload = buildDraftPayload(nextDraft);
+        setLastSavedHash(JSON.stringify(newPayload));
         return { ...prev, draft: nextDraft };
       });
     },

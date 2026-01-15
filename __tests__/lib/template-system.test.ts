@@ -35,8 +35,8 @@ describe('TemplateSystem', () => {
       const result = TemplateSystem.parseTemplate(template);
       
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Invalid variable name: "123invalid"');
-      expect(result.errors).toContain('Invalid variable name: "also-valid"');
+      expect(result.errors.some(err => err.includes('Invalid variable name: "123invalid"'))).toBe(true);
+      expect(result.errors.some(err => err.includes('Invalid variable name: "also-valid"'))).toBe(true);
     });
 
     it('should handle empty template', () => {

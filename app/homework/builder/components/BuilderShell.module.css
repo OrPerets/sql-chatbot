@@ -5,6 +5,10 @@
   min-height: calc(100vh - 120px);
 }
 
+.container[data-hide-sidebar="true"] {
+  grid-template-columns: 1fr;
+}
+
 .sidebar {
   background: var(--homework-secondary, #0c3a61);
   border-radius: var(--homework-radius-lg, 20px);

@@ -63,6 +63,8 @@ export class ContentService {
       const now = new Date()
       const startDate = new Date(startDateStr)
       const diffMs = now.getTime() - startDate.getTime()
+      // Calculate week: Week 1 = days 0-6, Week 2 = days 7-13, etc.
+      // Formula: Math.floor(days / 7) + 1 ensures day 0-6 = week 1, day 7-13 = week 2
       const rawWeek = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1
       const week = this.clampWeek(rawWeek)
       const current = await db.collection<WeeklyContentDoc>(COLLECTIONS.WEEKLY_CONTENT).findOne({ week })
@@ -102,6 +104,8 @@ export class ContentService {
       const now = new Date()
       const startDate = new Date(startDateStr)
       const diffMs = now.getTime() - startDate.getTime()
+      // Calculate week: Week 1 = days 0-6, Week 2 = days 7-13, etc.
+      // Formula: Math.floor(days / 7) + 1 ensures day 0-6 = week 1, day 7-13 = week 2
       const rawWeek = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1
       const week = this.clampWeek(rawWeek)
 

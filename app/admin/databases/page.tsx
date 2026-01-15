@@ -396,7 +396,7 @@ const DatabaseCreationPage: React.FC = () => {
               <div className={styles.emptyState}>
                 <Table size={48} />
                 <p>אין טבלאות במסד הנתונים</p>
-                <p>לחץ על "הוסף טבלה" כדי להתחיל</p>
+                <p>לחץ על &quot;הוסף טבלה&quot; כדי להתחיל</p>
               </div>
             ) : (
               <div className={styles.tablesContainer}>
@@ -549,7 +549,7 @@ const DatabaseCreationPage: React.FC = () => {
             <div className={styles.listHeader}>
               <h2>רשימת מסדי נתונים קיימים</h2>
               <div className={styles.stats}>
-                <span>סה"כ: {existingDatasets.length} מסדי נתונים</span>
+                <span>סה&quot;כ: {existingDatasets.length} מסדי נתונים</span>
               </div>
             </div>
 

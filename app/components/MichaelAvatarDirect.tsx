@@ -46,7 +46,7 @@ interface QueuedGesture {
 const forceFaceVisibleLoop = (head: any, startTime: number) => {
   if (head.scene && typeof head.scene.traverse === 'function') {
     head.scene.traverse((obj: any) => {
-      if (obj.isMesh && obj.name === 'Wolf3D_Head') {
+      if (obj && obj.isMesh && obj.name && obj.name === 'Wolf3D_Head') {
         obj.visible = true;
         if (obj.material) {
           obj.material.transparent = false;
@@ -80,6 +80,22 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
   onGestureStarted,
   onGestureCompleted,
 }, ref) => {
+  // AVATAR DISABLED: Early return to prevent any execution
+  // Return null immediately to prevent any avatar code from running
+  if (typeof window === 'undefined' || process.env.NEXT_PUBLIC_AVATAR_ENABLED !== '1') {
+    // Set up a minimal ref interface to prevent errors
+    useImperativeHandle(ref, () => ({
+      setMood: () => {},
+      playGesture: () => {},
+      queueGesture: () => {},
+      clearGestureQueue: () => {},
+      getGestureQueue: () => [],
+      lookAt: () => {},
+      lookAtCamera: () => {},
+      setState: () => {},
+    }), []);
+    return null;
+  }
   const avatarRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -236,8 +252,8 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
 
       if (head.scene && typeof head.scene.traverse === 'function') {
         head.scene.traverse((obj: any) => {
-          if (obj.isMesh) {
-            console.log('Mesh found:', obj.name);
+          if (obj && obj.isMesh && obj.name) {
+            console.log('Mesh found:', obj.name || 'unnamed');
           }
         });
       }
@@ -254,8 +270,8 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
       setIsLoading(false);
 
       // Comprehensive gesture capability debugging
-      console.log('🔍 TalkingHead instance methods:', Object.getOwnPropertyNames(head).filter(name => typeof head[name] === 'function'));
-      console.log('🔍 TalkingHead prototype methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(head)).filter(name => typeof head[name] === 'function'));
+      console.log('🔍 TalkingHead instance methods:', Object.getOwnPropertyNames(head).filter((name: string) => name && typeof head[name] === 'function'));
+      console.log('🔍 TalkingHead prototype methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(head)).filter((name: string) => name && typeof head[name] === 'function'));
       console.log('🔍 Available setMood:', typeof head.setMood === 'function');
       console.log('🔍 Available playGesture:', typeof head.playGesture === 'function');
       console.log('🔍 Available stopGesture:', typeof head.stopGesture === 'function');
@@ -308,8 +324,8 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
           if (head.scene && head.scene.children && head.scene.children.length > 0) {
             console.log('🔧 Scene has children, attempting to find armature...');
             head.scene.traverse((obj: any) => {
-              if (obj.type === 'SkinnedMesh' || obj.name.includes('Armature') || obj.isSkinnedMesh) {
-                console.log('🔧 Found potential armature object:', obj.name, obj.type);
+              if (obj && (obj.type === 'SkinnedMesh' || (obj.name && typeof obj.name === 'string' && obj.name.includes('Armature')) || obj.isSkinnedMesh)) {
+                console.log('🔧 Found potential armature object:', (obj && obj.name) || 'unnamed', obj.type);
                 if (obj.skeleton) {
                   console.log('🔧 Setting armature from skeleton');
                   head.armature = obj.skeleton.bones[0];
@@ -948,15 +964,15 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
                 const meshNames = [];
                 
                 talkingHeadInstance.scene.traverse((obj: any) => {
-                  if (obj.isMesh) {
+                  if (obj && obj.isMesh && obj.name) {
                     meshCount++;
                     meshNames.push(obj.name);
                   }
-                  if (obj.type === 'SkinnedMesh') {
+                  if (obj && obj.type === 'SkinnedMesh') {
                     skinnedMeshCount++;
                     if (obj.skeleton) {
                       boneCount += obj.skeleton.bones.length;
-                      console.log('🦴 SkinnedMesh found:', obj.name, 'bones:', obj.skeleton.bones.length);
+                      console.log('🦴 SkinnedMesh found:', obj.name || 'unnamed', 'bones:', obj.skeleton.bones.length);
                     }
                   }
                 });
@@ -975,7 +991,8 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
                 console.log('📊 Available Gestures:', Object.keys(talkingHeadInstance.gestureTemplates));
                 
                 // Check each gesture template structure
-                Object.keys(talkingHeadInstance.gestureTemplates).forEach(gestureName => {
+                Object.keys(talkingHeadInstance.gestureTemplates).forEach((gestureName: string) => {
+                  if (!gestureName) return; // Skip null/undefined names
                   const template = talkingHeadInstance.gestureTemplates[gestureName];
                   console.log(`🎭 Gesture "${gestureName}":`, {
                     hasTemplate: !!template,
@@ -1002,9 +1019,9 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
                 console.log('✅ Armature available - same as working init conditions');
                 console.log('🔬 ARMATURE ANALYSIS:', {
                   armatureType: typeof talkingHeadInstance.armature,
-                  armatureName: talkingHeadInstance.armature.name,
-                  armatureParent: talkingHeadInstance.armature.parent?.name,
-                  armatureChildren: talkingHeadInstance.armature.children?.length
+                  armatureName: talkingHeadInstance.armature?.name || 'unnamed',
+                  armatureParent: talkingHeadInstance.armature?.parent?.name || 'no parent',
+                  armatureChildren: talkingHeadInstance.armature?.children?.length || 0
                 });
                 
                 // Use EXACT same setTimeout timing as working init gestures
@@ -1063,8 +1080,8 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
                 // Try to find and restore armature like init does
                 if (talkingHeadInstance.scene && talkingHeadInstance.scene.children) {
                   talkingHeadInstance.scene.traverse((obj: any) => {
-                    if (obj.type === 'SkinnedMesh' || obj.name.includes('Armature') || obj.isSkinnedMesh) {
-                      console.log('🔧 Found armature candidate:', obj.name, obj.type);
+                    if (obj && (obj.type === 'SkinnedMesh' || (obj.name && typeof obj.name === 'string' && obj.name.includes('Armature')) || obj.isSkinnedMesh)) {
+                      console.log('🔧 Found armature candidate:', (obj && obj.name) || 'unnamed', obj.type);
                       if (obj.skeleton) {
                         console.log('🔧 Restoring armature from skeleton');
                         talkingHeadInstance.armature = obj.skeleton.bones[0];
@@ -1099,7 +1116,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
                       console.log('🔧 CRITICAL: Armature missing! Attempting restore...');
                       if (th.scene) {
                         th.scene.traverse((obj: any) => {
-                          if (obj.type === 'SkinnedMesh' && obj.skeleton) {
+                          if (obj && obj.type === 'SkinnedMesh' && obj.skeleton) {
                             th.armature = obj.skeleton.bones[0];
                             console.log('✅ Armature restored for manual gesture');
                           }

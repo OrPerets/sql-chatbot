@@ -1,10 +1,14 @@
+/**
+ * @jest-environment node
+ */
+
 import { POST } from '@/app/api/auth/reset-password/route'
 import { applyPasswordResetToken, validatePasswordResetToken } from '@/lib/users'
-import { sendEmail } from '@/app/utils/email-service'
+import { sendEmail } from '@/app/utils/mock-email-service'
 
 // Mock dependencies
 jest.mock('@/lib/users')
-jest.mock('@/app/utils/email-service')
+jest.mock('@/app/utils/mock-email-service')
 
 const mockApplyPasswordResetToken = applyPasswordResetToken as jest.MockedFunction<typeof applyPasswordResetToken>
 const mockValidatePasswordResetToken = validatePasswordResetToken as jest.MockedFunction<typeof validatePasswordResetToken>

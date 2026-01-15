@@ -17,7 +17,7 @@ interface QuestionsStepProps {
 
 const NEXT_STEP: WizardStepId = "rubric";
 const PREV_STEP: WizardStepId = "dataset";
-const MAX_QUESTIONS = 10;
+const MAX_QUESTIONS = 25; // Increased to support homework sets with more questions (e.g., תרגיל 3 with 13 questions)
 
 export function QuestionsStep({ questions, onChange, onBack, onNext, primaryDatasetId }: QuestionsStepProps) {
   const { t } = useHomeworkLocale();

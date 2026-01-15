@@ -151,9 +151,10 @@ export class TemplateSystem {
       if (variables.includes(variableName)) {
         errors.push(`Duplicate variable: "${variableName}"`);
         isValid = false;
+      } else {
+        // Only add if not already present (deduplicate)
+        variables.push(variableName);
       }
-      
-      variables.push(variableName);
     }
 
     return {

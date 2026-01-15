@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTemplateService } from '@/lib/template-service';
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/questions/instantiated - Get instantiated questions
  */

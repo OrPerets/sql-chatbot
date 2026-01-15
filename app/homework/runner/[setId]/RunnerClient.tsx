@@ -9,12 +9,15 @@ import {
   getSubmission,
   saveSubmissionDraft,
   submitHomework,
+  SubmitHomeworkPayload,
 } from "@/app/homework/services/submissionService";
 import { executeSql } from "@/app/homework/services/sqlService";
 import type { Question, SqlExecutionRequest, Submission } from "@/app/homework/types";
 import styles from "./runner.module.css";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 import { InstructionsSection } from "./InstructionsSection";
+import { SubmittedPage } from "./SubmittedPage";
+import Chat from "@/app/components/chat";
 
 import Editor from "@monaco-editor/react";
 
@@ -34,16 +37,208 @@ interface PendingSave {
   timer: number;
 }
 
+interface QuestionAnalyticsState {
+  startedAt: number;
+  lastActivity: number;
+  firstTypeAt?: number;
+  firstExecutionAt?: number;
+  lastExecutionAt?: number;
+  attempts: number;
+  timeBetweenExecutions: number[];
+  executionTimes: number[];
+  charactersTyped: number;
+  editsCount: number;
+  copyPasteCount: number;
+  lastValue: string;
+}
+
 const AUTOSAVE_DELAY = 800;
+
+// Transform background story for תרגיל 3
+const transformBackgroundStory = (story: string | undefined, title: string): string => {
+  if (!story) return "";
+  
+  // Only transform if it's תרגיל 3
+  if (title === "תרגיל 3" || title === "תרגיל בית 3") {
+    // First, remove unwanted sections from the entire story (before processing)
+    let cleanedStory = story;
+    
+    // Remove: "הנחייה חשובה" section - remove from entire story first
+    cleanedStory = cleanedStory.replace(/הנחייה חשובה:[\s\S]*?וכד'\.?\s*/g, "").trim();
+    cleanedStory = cleanedStory.replace(/הנחייה חשובה:[^\n]*(?:[^\n]*וכד'[^\n]*)?/g, "").trim();
+    
+    // Remove: "דוגמא: אם ת.ז.:321654987 (ABCDEFGHI), אז ABC= 321, DEF= 654, GHI= 987."
+    cleanedStory = cleanedStory.replace(/דוגמא: אם ת\.ז\.:321654987 \(ABCDEFGHI\), אז ABC= 321, DEF= 654, GHI= 987\.\s*/g, "").trim();
+    
+    // Remove: "יש להיצמד להגדרות סוגי הנתונים בבואכם להגדיר את סכמת הטבלה לפי הפירוט המופיע בכל טבלה וטבלה."
+    cleanedStory = cleanedStory.replace(/יש להיצמד להגדרות סוגי הנתונים בבואכם להגדיר את סכמת הטבלה לפי הפירוט המופיע בכל טבלה וטבלה\.\s*/g, "").trim();
+    
+    // Remove: "למרות שניתן לפתור את התרגיל רק ע"י הצגת הסכמות וללא רשומות בטבלאות עצמן כפי שלמדנו בתרגיל 2, נבנו בתרגיל זה לכל טבלה מספר רשומות לדוגמא בכדי לסייע בהבנת הסכמות. עם זאת במקרה ותשובה של אחת מהשאילתות יוצאת ריקה - יש להוסיף נתונים לטבלאות כך שע"י הפעלת כל אחת מהשאילתות בתרגיל תתקבל תשובה שאינה טבלה ריקה, ז"א עליכם למלא תוכן רלוונטי בטבלאות כך שבכל תוצאת שאילתא תחזור לפחות שורה אחת - שאילתות שיחזירו סכמות ריקות לא תקבלנה את מלאו הנקודות!"
+    cleanedStory = cleanedStory.replace(/למרות שניתן לפתור את התרגיל רק ע"י הצגת הסכמות וללא רשומות בטבלאות עצמן כפי שלמדנו בתרגיל 2, נבנו בתרגיל זה לכל טבלה מספר רשומות לדוגמא בכדי לסייע בהבנת הסכמות\. עם זאת במקרה ותשובה של אחת מהשאילתות יוצאת ריקה - יש להוסיף נתונים לטבלאות כך שע"י הפעלת כל אחת מהשאילתות בתרגיל תתקבל תשובה שאינה טבלה ריקה, ז"א עליכם למלא תוכן רלוונטי בטבלאות כך שבכל תוצאת שאילתא תחזור לפחות שורה אחת - שאילתות שיחזירו סכמות ריקות לא תקבלנה את מלאו הנקודות!\s*/g, "").trim();
+    
+    // Remove any remaining lines that contain "הנחייה חשובה"
+    const allLines = cleanedStory.split('\n');
+    cleanedStory = allLines.filter(line => !line.includes('הנחייה חשובה')).join('\n').trim();
+    
+    // Remove existing credits note from the entire story (before processing)
+    cleanedStory = cleanedStory.replace(/עמודת credits מייצגת[^\n]*/g, "").trim();
+    cleanedStory = cleanedStory.replace(/עמודת credits מייצגת את כמות נקודות הזכות שהסטודנט יקבל בסיום הקורס\.?\s*/g, "").trim();
+    
+    // Now process the cleaned story
+    // Find where the tables start
+    const tablesStart = cleanedStory.indexOf("1) מידע על הסטודנטים:");
+    if (tablesStart === -1) return cleanedStory;
+    
+    // Find where the tables end (after Enrollments table definition)
+    const enrollmentsEnd = cleanedStory.indexOf("Enrollments (StudentID, CourseID, EnrollmentDate, Grade)");
+    if (enrollmentsEnd === -1) return cleanedStory;
+    
+    // Find the newline after the Enrollments line
+    let tablesEndIndex = cleanedStory.indexOf("\n", enrollmentsEnd + 60);
+    if (tablesEndIndex === -1) tablesEndIndex = cleanedStory.length;
+    
+    // Extract the tables section
+    const tablesText = cleanedStory.substring(tablesStart, tablesEndIndex).trim();
+    
+    // Get everything after the tables
+    let afterTables = cleanedStory.substring(tablesEndIndex).trim();
+    
+    // Clean up multiple consecutive newlines
+    afterTables = afterTables.replace(/\n{3,}/g, "\n\n").trim();
+    
+    // Build the new background story
+    const newFirstParagraph = `בתרגיל זה, נתון מסד נתונים הקשור לניהול מערכת סטודנטים וקורסים במכללה. הנכם מגלמים תפקיד של מנהל/מנהלת מערכת קורסים במכללה האחראי/ת על ניהול קורסים, סטודנטים, מרצים ונרשמים לקורסים. מסד הנתונים כולל 4 טבלאות.`;
+    const creditsNote = `עמודת credits מייצגת את כמות נקודות הזכות שהסטודנט יקבל בסיום הקורס`;
+    
+    // Combine: new first paragraph + tables + credits note + rest
+    if (afterTables) {
+      return `${newFirstParagraph}\n\n${tablesText}\n\n${creditsNote}\n\n${afterTables}`;
+    } else {
+      return `${newFirstParagraph}\n\n${tablesText}\n\n${creditsNote}`;
+    }
+  }
+  
+  return story;
+};
+
+// Helper function to check if SQL error is about non-existing table/column
+const parseSchemaError = (errorMessage: string | undefined): { type: 'table' | 'column' | null; name: string | null } => {
+  if (!errorMessage) return { type: null, name: null };
+  
+  const lowerError = errorMessage.toLowerCase();
+  
+  // Common patterns for table not found errors
+  const tablePatterns = [
+    /table\s+['"`]?(\w+)['"`]?\s+(?:does not exist|not found|doesn't exist)/i,
+    /no such table:?\s*['"`]?(\w+)['"`]?/i,
+    /unknown table\s*['"`]?(\w+)['"`]?/i,
+    /relation\s+['"`]?(\w+)['"`]?\s+does not exist/i,
+    /table\s+['"`]?(\w+)['"`]?\s+is not defined/i,
+    /from\s+['"`]?(\w+)['"`]?.*(?:does not exist|not found)/i,
+  ];
+  
+  for (const pattern of tablePatterns) {
+    const match = errorMessage.match(pattern);
+    if (match && match[1]) {
+      return { type: 'table', name: match[1] };
+    }
+  }
+  
+  // Common patterns for column not found errors
+  const columnPatterns = [
+    /column\s+['"`]?(\w+)['"`]?\s+(?:does not exist|not found|doesn't exist)/i,
+    /unknown column\s*['"`]?(\w+)['"`]?/i,
+    /no such column:?\s*['"`]?(\w+)['"`]?/i,
+    /column\s+['"`]?(\w+)['"`]?\s+is not defined/i,
+    /field\s+['"`]?(\w+)['"`]?\s+(?:does not exist|not found)/i,
+  ];
+  
+  for (const pattern of columnPatterns) {
+    const match = errorMessage.match(pattern);
+    if (match && match[1]) {
+      return { type: 'column', name: match[1] };
+    }
+  }
+  
+  // Also check for generic "not found" that might indicate schema issues
+  // But skip JavaScript runtime errors (like "Cannot read properties of undefined")
+  const isJavaScriptError = lowerError.includes('cannot read properties') || 
+                           lowerError.includes('typeerror') ||
+                           lowerError.includes('referenceerror') ||
+                           lowerError.includes('reading \'0\'') ||
+                           lowerError.includes('reading "0"');
+  
+  if (!isJavaScriptError && (lowerError.includes('not found') || lowerError.includes('does not exist') || lowerError.includes('undefined'))) {
+    // Try to extract any identifier (but not from JavaScript errors)
+    const genericMatch = errorMessage.match(/['"`](\w+)['"`]/);
+    if (genericMatch && genericMatch[1]) {
+      return { type: 'table', name: genericMatch[1] }; // Assume table if we can't tell
+    }
+  }
+  
+  return { type: null, name: null };
+};
+
+// Database sample data for each table (matches תרגיל 3 schema)
+const DATABASE_SAMPLE_DATA: Record<string, { columns: string[]; rows: Record<string, string | number>[] }> = {
+  Students: {
+    columns: ["StudentID", "FirstName", "LastName", "BirthDate", "City", "Email"],
+    rows: [
+      { StudentID: 1, FirstName: "יעל", LastName: "כהן", BirthDate: "1999-03-15", City: "תל אביב", Email: "yael@example.com" },
+      { StudentID: 2, FirstName: "דוד", LastName: "לוי", BirthDate: "2000-07-22", City: "חיפה", Email: "david@example.com" },
+      { StudentID: 3, FirstName: "שרה", LastName: "מזרחי", BirthDate: "1998-11-08", City: "ירושלים", Email: "sara@example.com" },
+    ],
+  },
+  Courses: {
+    columns: ["CourseID", "CourseName", "Credits", "Department"],
+    rows: [
+      { CourseID: 101, CourseName: "מבוא למערכות מידע", Credits: 3, Department: "מערכות מידע" },
+      { CourseID: 102, CourseName: "מסדי נתונים", Credits: 4, Department: "מדעי המחשב" },
+      { CourseID: 103, CourseName: "תכנות מתקדם", Credits: 3, Department: "מדעי המחשב" },
+    ],
+  },
+  Lecturers: {
+    columns: ["LecturerID", "FirstName", "LastName", "City", "HireDate", "CourseID", "Seniority"],
+    rows: [
+      { LecturerID: 1, FirstName: "משה", LastName: "אברהם", City: "תל אביב", HireDate: "2015-09-01", CourseID: 101, Seniority: 9 },
+      { LecturerID: 2, FirstName: "רות", LastName: "בנימין", City: "חיפה", HireDate: "2018-03-15", CourseID: 102, Seniority: 6 },
+      { LecturerID: 3, FirstName: "יוסף", LastName: "כהן", City: "ירושלים", HireDate: "2020-10-01", CourseID: 103, Seniority: 4 },
+    ],
+  },
+  Enrollments: {
+    columns: ["StudentID", "CourseID", "EnrollmentDate", "Grade"],
+    rows: [
+      { StudentID: 1, CourseID: 101, EnrollmentDate: "2024-09-01", Grade: 85 },
+      { StudentID: 1, CourseID: 102, EnrollmentDate: "2024-09-01", Grade: 92 },
+      { StudentID: 2, CourseID: 101, EnrollmentDate: "2024-09-01", Grade: 78 },
+      { StudentID: 3, CourseID: 103, EnrollmentDate: "2024-09-01", Grade: 88 },
+    ],
+  },
+};
 
 export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const queryClient = useQueryClient();
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const [editorValues, setEditorValues] = useState<Record<string, string>>({});
   const [autosaveState, setAutosaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showCommitmentDialog, setShowCommitmentDialog] = useState(false);
+  const [aiConversationFile, setAiConversationFile] = useState<File | null>(null);
+  const [aiDeclarationChecked, setAiDeclarationChecked] = useState(false);
+  const [commitmentError, setCommitmentError] = useState<string | null>(null);
+  const [showDatabaseViewer, setShowDatabaseViewer] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
   const pendingRef = useRef<Record<string, PendingSave>>({});
+  const analyticsRef = useRef<Record<string, QuestionAnalyticsState>>({});
+  const activeQuestionRef = useRef<string | null>(null);
   const { t, direction, formatDateTime, formatNumber } = useHomeworkLocale();
   const backArrow = direction === "rtl" ? "→" : "←";
+
+  const toggleTableExpanded = useCallback((tableName: string) => {
+    setExpandedTables((prev) => ({ ...prev, [tableName]: !prev[tableName] }));
+  }, []);
 
   const clearPendingSaves = useCallback(() => {
     Object.values(pendingRef.current).forEach((pending) => {
@@ -96,6 +291,135 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     }
   }, [questionsQuery.data, activeQuestionId]);
 
+  const ensureAnalyticsState = useCallback(
+    (questionId: string) => {
+      if (!analyticsRef.current[questionId]) {
+        analyticsRef.current[questionId] = {
+          startedAt: Date.now(),
+          lastActivity: Date.now(),
+          attempts: 0,
+          timeBetweenExecutions: [],
+          executionTimes: [],
+          charactersTyped: 0,
+          editsCount: 0,
+          copyPasteCount: 0,
+          lastValue: editorValues[questionId] ?? "",
+        };
+      }
+      return analyticsRef.current[questionId];
+    },
+    [editorValues]
+  );
+
+  const recordTyping = useCallback(
+    (questionId: string, nextValue: string) => {
+      const state = ensureAnalyticsState(questionId);
+      const previousValue = state.lastValue ?? "";
+      const delta = Math.max(0, nextValue.length - previousValue.length);
+
+      state.charactersTyped += delta;
+      state.editsCount += 1;
+      state.lastValue = nextValue;
+      state.lastActivity = Date.now();
+      if (!state.firstTypeAt) {
+        state.firstTypeAt = Date.now();
+      }
+    },
+    [ensureAnalyticsState]
+  );
+
+  const recordExecutionStart = useCallback(
+    (questionId: string) => {
+      const state = ensureAnalyticsState(questionId);
+      const now = Date.now();
+
+      if (state.lastExecutionAt) {
+        state.timeBetweenExecutions.push(now - state.lastExecutionAt);
+      }
+
+      if (!state.firstExecutionAt) {
+        state.firstExecutionAt = now;
+      }
+
+      state.lastExecutionAt = now;
+      state.attempts += 1;
+      state.lastActivity = now;
+    },
+    [ensureAnalyticsState]
+  );
+
+  const recordExecutionResult = useCallback(
+    (questionId: string, executionMs: number | undefined) => {
+      const state = ensureAnalyticsState(questionId);
+      state.executionTimes.push(executionMs ?? 0);
+      state.lastActivity = Date.now();
+    },
+    [ensureAnalyticsState]
+  );
+
+  const finalizeAnalytics = useCallback(
+    async (questionId: string) => {
+      const state = analyticsRef.current[questionId];
+      if (!state) return;
+
+      const submission = submissionQuery.data;
+      if (!submission) return;
+
+      const now = Date.now();
+      const timeSpent = (state.lastActivity || now) - state.startedAt;
+      const typingSpeed = timeSpent > 0 ? Math.round((state.charactersTyped / timeSpent) * 60000) : 0;
+
+      const payload = {
+        submissionId: submission.id ?? `${setId}-${studentId}`,
+        questionId,
+        studentId,
+        homeworkSetId: setId,
+        metrics: {
+          timeSpent,
+          typingSpeed,
+          attempts: state.attempts,
+          timeToFirstExecution: state.firstExecutionAt ? state.firstExecutionAt - state.startedAt : null,
+          timeBetweenExecutions: state.timeBetweenExecutions,
+          queryExecutionTimes: state.executionTimes,
+          charactersTyped: state.charactersTyped,
+          editsCount: state.editsCount,
+          copyPasteCount: state.copyPasteCount,
+          startedAt: new Date(state.startedAt).toISOString(),
+          lastActivityAt: new Date(state.lastActivity || now).toISOString(),
+        },
+      };
+
+      try {
+        await fetch("/api/analytics/question", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch (error) {
+        console.error("Failed to submit question analytics", error);
+      }
+    },
+    [setId, studentId, submissionQuery.data]
+  );
+
+  useEffect(() => {
+    if (activeQuestionId) {
+      ensureAnalyticsState(activeQuestionId);
+    }
+
+    if (activeQuestionRef.current && activeQuestionRef.current !== activeQuestionId) {
+      finalizeAnalytics(activeQuestionRef.current);
+    }
+
+    activeQuestionRef.current = activeQuestionId;
+
+    return () => {
+      if (activeQuestionRef.current) {
+        finalizeAnalytics(activeQuestionRef.current);
+      }
+    };
+  }, [activeQuestionId, ensureAnalyticsState, finalizeAnalytics]);
+
 
   const autosaveMutation = useMutation({
     mutationFn: (payload: { questionId: string; sql: string }) =>
@@ -125,10 +449,12 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       console.log("🔵 executeMutation mutationFn called", payload);
       return executeSql(payload);
     },
-    onSuccess: (result, variables) => {
+    onSuccess: async (result, variables) => {
       console.log("✅ SQL execution successful", result);
       console.log("📊 Result has", result.rows.length, "rows and", result.columns.length, "columns");
-      
+      recordExecutionResult(variables.questionId, result.executionMs);
+
+      // Update the query cache first for immediate UI update
       queryClient.setQueryData<Submission | undefined>(["submission", setId, studentId], (prev) => {
         console.log("🔄 Updating query cache, prev submission:", prev);
         if (!prev) {
@@ -163,6 +489,21 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         return updatedSubmission;
       });
       
+      // Save the result to the database
+      try {
+        const updatedSubmission = queryClient.getQueryData<Submission>(["submission", setId, studentId]);
+        if (updatedSubmission) {
+          await saveSubmissionDraft(setId, {
+            studentId,
+            answers: updatedSubmission.answers,
+          });
+          console.log("💾 Saved execution result to database");
+        }
+      } catch (error) {
+        console.error("⚠️ Failed to save execution result to database:", error);
+        // Don't fail the whole operation if save fails - the cache is already updated
+      }
+      
       queryClient.invalidateQueries({ queryKey: ["submission", setId, studentId] });
     },
     onError: (error) => {
@@ -171,12 +512,65 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   });
 
   const submitMutation = useMutation({
-    mutationFn: () => submitHomework(setId, { studentId }),
+    mutationFn: (payload: SubmitHomeworkPayload) => submitHomework(setId, payload),
     onSuccess: (submission) => {
+      // Update the query cache immediately so the component re-renders with new status
       queryClient.setQueryData<Submission | undefined>(["submission", setId, studentId], submission);
       queryClient.invalidateQueries({ queryKey: ["submission", setId, studentId] });
+      // Close confirmation dialog
+      setShowConfirmDialog(false);
+      setShowCommitmentDialog(false);
+      setAiConversationFile(null);
+      setAiDeclarationChecked(false);
+      // The page will automatically show SubmittedPage due to the check below
+      // Force a refetch to ensure the UI updates
+      submissionQuery.refetch();
     },
   });
+
+  const handleSubmitClick = useCallback(() => {
+    setCommitmentError(null);
+    setAiConversationFile(null);
+    setAiDeclarationChecked(false);
+    setShowCommitmentDialog(false);
+    setShowConfirmDialog(true);
+  }, []);
+
+  const handleConfirmSubmit = useCallback(() => {
+    setShowConfirmDialog(false);
+    setShowCommitmentDialog(true);
+  }, []);
+
+  const handleCancelSubmit = useCallback(() => {
+    setShowConfirmDialog(false);
+  }, []);
+
+  const handleCommitmentSubmit = useCallback(() => {
+    if (!aiConversationFile && !aiDeclarationChecked) {
+      setCommitmentError("אנא צרף שיחה או אשר שלא השתמשת בכלי AI");
+      return;
+    }
+
+    setCommitmentError(null);
+    const aiCommitment: SubmitHomeworkPayload["aiCommitment"] = {
+      signed: true,
+      declaredNoAi: aiDeclarationChecked,
+      fileAttached: aiConversationFile?.name,
+      timestamp: new Date().toISOString(),
+    };
+
+    submitMutation.mutate({
+      studentId,
+      aiCommitment,
+      aiConversationFile,
+    });
+  }, [aiConversationFile, aiDeclarationChecked, studentId, submitMutation]);
+
+  const handleCancelCommitment = useCallback(() => {
+    setShowCommitmentDialog(false);
+    setAiConversationFile(null);
+    setAiDeclarationChecked(false);
+  }, []);
 
   const scheduleAutosave = useCallback(
     (questionId: string, value: string) => {
@@ -211,15 +605,16 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     (questionId: string, value?: string) => {
       const nextValue = value ?? "";
       console.log("🔵 handleSqlChange called:", { questionId, nextValueLength: nextValue.length });
+      recordTyping(questionId, nextValue);
       setEditorValues((prev) => ({ ...prev, [questionId]: nextValue }));
       scheduleAutosave(questionId, nextValue);
     },
-    [scheduleAutosave],
+    [recordTyping, scheduleAutosave],
   );
 
   const handleExecute = useCallback(() => {
-    console.log("🔴 handleExecute called", { 
-      activeQuestionId, 
+    console.log("🔴 handleExecute called", {
+      activeQuestionId,
       hasSubmission: !!submissionQuery.data,
       sql: editorValues[activeQuestionId]
     });
@@ -234,7 +629,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     }
     const sql = editorValues[activeQuestionId] ?? "";
     console.log("🟢 Executing SQL:", sql);
-    
+
+    recordExecutionStart(activeQuestionId);
+
     executeMutation.mutate({
       setId,
       submissionId: submissionQuery.data.id,
@@ -243,7 +640,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       studentId,
       attemptNumber: submissionQuery.data.attemptNumber,
     });
-  }, [activeQuestionId, editorValues, executeMutation, setId, studentId, submissionQuery.data]);
+  }, [activeQuestionId, editorValues, executeMutation, recordExecutionStart, setId, studentId, submissionQuery.data]);
 
   const submission = submissionQuery.data;
   const homework = homeworkQuery.data;
@@ -268,6 +665,40 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     ? Math.max(0, activeQuestion.maxAttempts - (activeAnswer?.executionCount ?? 0))
     : undefined;
 
+  const chatHomeworkContext = useMemo(() => {
+    if (!homework) return null;
+
+    const currentQuestionIndex = activeQuestion
+      ? Math.max(0, questions.findIndex((question) => question.id === activeQuestion.id))
+      : -1;
+
+    return {
+      homeworkTitle: homework.title,
+      backgroundStory: homework.backgroundStory,
+      tables: Object.entries(DATABASE_SAMPLE_DATA).map(([name, data]) => ({
+        name,
+        columns: data.columns,
+        sampleRows: data.rows,
+      })),
+      questions: questions.map((question, index) => ({
+        id: question.id,
+        prompt: question.prompt,
+        instructions: question.instructions,
+        index: index + 1,
+        points: question.points,
+      })),
+      currentQuestion: activeQuestion
+        ? {
+            id: activeQuestion.id,
+            prompt: activeQuestion.prompt,
+            instructions: activeQuestion.instructions,
+            index: currentQuestionIndex >= 0 ? currentQuestionIndex + 1 : 1,
+          }
+        : null,
+      studentTableData: submission?.studentTableData,
+    };
+  }, [activeQuestion, homework, questions, submission?.studentTableData]);
+
   // Debug: Log activeAnswer whenever it changes
   useEffect(() => {
     if (activeQuestionId) {
@@ -276,6 +707,32 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       console.log("   ResultPreview:", activeAnswer?.resultPreview);
     }
   }, [activeQuestionId, activeAnswer]);
+
+  const handleDownloadDatabasePdf = useCallback(async () => {
+    try {
+      setIsDownloadingPdf(true);
+      const response = await fetch(`/api/homework/${setId}/database-pdf?studentId=${studentId}`);
+
+      if (!response.ok) {
+        console.error("Failed to download database PDF", await response.text());
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `database-${setId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error downloading database PDF", error);
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  }, [setId, studentId]);
 
   if (homeworkQuery.isLoading || questionsQuery.isLoading || submissionQuery.isLoading) {
     return (
@@ -297,128 +754,226 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     );
   }
 
+  // If submission is already submitted or graded, show submitted page
+  if (submission && (submission.status === "submitted" || submission.status === "graded")) {
+    return (
+      <SubmittedPage 
+        homeworkTitle={homework?.title}
+        submittedAt={submission.submittedAt}
+        studentId={studentId}
+      />
+    );
+  }
+
   const statusLabel = submission?.status ? t(`runner.status.${submission.status}`) : t("runner.status.in_progress");
   const autosaveLabel = t(`runner.progress.autosave.${autosaveState}`);
 
   return (
     <div className={styles.runner} dir={direction}>
+
+      {/* Confirmation Dialog Overlay */}
+      {showConfirmDialog && (
+        <div className={styles.confirmOverlay}>
+          <div className={styles.confirmDialog}>
+            <h3 className={styles.confirmTitle}>אישור הגשה</h3>
+            <p className={styles.confirmText}>
+              האם אתה בטוח שברצונך להגיש? לאחר מכן לא יהיה ניתן לחזור ולערוך את התרגיל
+            </p>
+            <div className={styles.confirmActions}>
+              <button
+                className={styles.confirmButton}
+                onClick={handleConfirmSubmit}
+                disabled={submitMutation.isPending}
+              >
+                {submitMutation.isPending ? "מגיש..." : "כן, הגש"}
+              </button>
+              <button
+                className={styles.cancelButton}
+                onClick={handleCancelSubmit}
+                disabled={submitMutation.isPending}
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Commitment Dialog */}
+      {showCommitmentDialog && (
+        <div className={styles.confirmOverlay}>
+          <div className={styles.confirmDialog}>
+            <h3 className={styles.confirmTitle}>הצהרת שימוש בכלי AI</h3>
+            <p className={styles.confirmText}>
+              אני מתחייב/ת שאם השתמשתי בכלי AI אחר אני מצרף את השיחה להלן או מסמן שלא נעשה שימוש.
+            </p>
+
+            <div className={styles.commitmentField}>
+              <label className={styles.fileLabel} htmlFor="ai-conversation">
+                צרף שיחה או קובץ (אופציונלי)
+              </label>
+              <input
+                id="ai-conversation"
+                name="ai-conversation"
+                type="file"
+                className={styles.fileInput}
+                onChange={(event) => setAiConversationFile(event.target.files?.[0] ?? null)}
+                disabled={submitMutation.isPending}
+              />
+              {aiConversationFile && (
+                <p className={styles.fileName}>📎 {aiConversationFile.name}</p>
+              )}
+            </div>
+
+            <label className={styles.checkboxRow}>
+              <input
+                type="checkbox"
+                checked={aiDeclarationChecked}
+                onChange={(event) => setAiDeclarationChecked(event.target.checked)}
+                disabled={submitMutation.isPending}
+              />
+              <span>אישרתי שלא השתמשתי בכלי AI</span>
+            </label>
+
+            {commitmentError && <p className={styles.commitmentError}>{commitmentError}</p>}
+
+            <div className={styles.confirmActions}>
+              <button
+                className={styles.confirmButton}
+                onClick={handleCommitmentSubmit}
+                disabled={submitMutation.isPending}
+              >
+                {submitMutation.isPending ? "מגיש..." : "אישור והגשה"}
+              </button>
+              <button
+                className={styles.cancelButton}
+                onClick={handleCancelCommitment}
+                disabled={submitMutation.isPending}
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Right Sidebar: Background Story */}
       <aside className={styles.sidebar}>
         <div className={styles.assignmentMeta}>
-          <Link href="/homework/start" className={styles.backLink}>
-            {backArrow} {t("runner.back")}
-          </Link>
-          
-          {/* Student Info */}
-          <div className={styles.studentInfo}>
-            <div className={styles.studentAvatar}>
-              {STUDENT_NAMES[studentId]?.charAt(0) || studentId.charAt(0)}
-            </div>
-            <div className={styles.studentDetails}>
-              <div className={styles.studentName}>
-                {STUDENT_NAMES[studentId] || "סטודנט"}
-              </div>
-              <div className={styles.studentId}>ת.ז: {studentId}</div>
-            </div>
-          </div>
+          {homework.backgroundStory && (
+            <InstructionsSection
+              instructions={transformBackgroundStory(homework.backgroundStory, homework.title)}
+            />
+          )}
 
-          <h2>{homework.title}</h2>
-          {/* <p className={styles.courseTag}>{homework.courseId}</p> */}
-          <div className={styles.metaGrid}>
-            <div className={styles.progressCircle}>
-              <svg width="120" height="120">
-                <defs>
-                  <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#3b82f6" />
-                    <stop offset="100%" stopColor="#8b5cf6" />
-                  </linearGradient>
-                </defs>
-                <circle
-                  className={styles.progressCircleBackground}
-                  cx="60"
-                  cy="60"
-                  r="52"
-                />
-                <circle
-                  className={styles.progressCircleForeground}
-                  cx="60"
-                  cy="60"
-                  r="52"
-                  strokeDasharray={`${2 * Math.PI * 52}`}
-                  strokeDashoffset={`${2 * Math.PI * 52 * (1 - progressPercent / 100)}`}
-                />
-              </svg>
-              <div className={styles.progressText}>
-                <span className={styles.progressPercent}>{formatNumber(progressPercent)}%</span>
-                <span className={styles.progressLabel}>{t("runner.meta.progress")}</span>
+          {/* Database Viewer Button */}
+          <div className={styles.databaseViewerSection}>
+            <button
+              type="button"
+              className={styles.databasePdfButton}
+              onClick={handleDownloadDatabasePdf}
+              disabled={isDownloadingPdf}
+            >
+              <span>📄</span>
+              {isDownloadingPdf ? "יוצר PDF..." : "הורד PDF של מסד הנתונים"}
+            </button>
+
+            <button
+              type="button"
+              className={styles.databaseViewerButton}
+              onClick={() => setShowDatabaseViewer(!showDatabaseViewer)}
+            >
+              <span>🗃️</span>
+              {showDatabaseViewer ? "הסתר נתוני דוגמא" : "הצג נתוני דוגמא מהטבלאות"}
+            </button>
+            
+            {showDatabaseViewer && (
+              <div className={styles.databaseViewer}>
+                <p className={styles.databaseViewerNote}>
+                  להלן נתונים לדוגמא מכל טבלה בבסיס הנתונים:
+                </p>
+                {Object.entries(DATABASE_SAMPLE_DATA).map(([tableName, tableData]) => (
+                  <div key={tableName} className={styles.tableSection}>
+                    <button
+                      type="button"
+                      className={styles.tableHeader}
+                      onClick={() => toggleTableExpanded(tableName)}
+                    >
+                      <span className={styles.tableToggle}>
+                        {expandedTables[tableName] ? "▼" : "▶"}
+                      </span>
+                      <span className={styles.tableName}>{tableName}</span>
+                      <span className={styles.tableRowCount}>({tableData.rows.length} שורות)</span>
+                    </button>
+                    
+                    {expandedTables[tableName] && (
+                      <div className={styles.tableSampleData}>
+                        <table className={styles.sampleDataTable}>
+                          <thead>
+                            <tr>
+                              {tableData.columns.map((col) => (
+                                <th key={col}>{col}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {tableData.rows.map((row, idx) => (
+                              <tr key={idx}>
+                                {tableData.columns.map((col) => (
+                                  <td key={col}>{String(row[col] ?? "")}</td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-            </div>
+            )}
           </div>
-          {homework.backgroundStory && <InstructionsSection instructions={homework.backgroundStory} />}
         </div>
-
-        <nav className={styles.navigator}>
-          <h3>{t("runner.nav.heading")}</h3>
-          <ul>
-            {questions.map((question, index) => {
-              const questionId = question.id;
-              const answer = answers[questionId];
-              const isActive = questionId === activeQuestionId;
-              const isCompleted = Boolean(answer?.feedback?.score);
-              const hasDraft = Boolean(answer?.sql?.trim());
-              return (
-                <li key={questionId}>
-                  <button
-                    type="button"
-                    className={isActive ? `${styles.navButton} ${styles.navButtonActive}` : styles.navButton}
-                    onClick={() => setActiveQuestionId(questionId)}
-                  >
-                    <span className={styles.navIndex}>{formatNumber(index + 1)}</span>
-                    <span className={styles.navLabel}>{question.prompt ?? t("runner.nav.fallback")}</span>
-                    <span className={styles.navStatus} data-state={isCompleted ? "complete" : hasDraft ? "draft" : "todo"}>
-                      {isCompleted
-                        ? t("runner.nav.status.complete")
-                        : hasDraft
-                          ? t("runner.nav.status.draft")
-                          : t("runner.nav.status.new")}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
       </aside>
 
+      {/* Middle Section: Question + SQL Editor */}
       <section className={styles.workspace}>
         <header className={styles.workspaceHeader}>
-          {/* Question Stepper */}
-          <div className={styles.questionStepper}>
-            {questions.map((question, index) => {
-              const qId = question.id;
-              const isActive = qId === activeQuestionId;
-              const answer = answers[qId];
-              const isCompleted = Boolean(answer?.feedback?.score);
-              const questionNum = index + 1;
-              
-              return (
-                <div key={qId} className={styles.stepperItem}>
-                  <div 
-                    className={`${styles.stepperCircle} ${isActive ? styles.stepperCircleActive : ''} ${isCompleted ? styles.stepperCircleCompleted : ''}`}
-                    onClick={() => setActiveQuestionId(qId)}
-                  >
-                    {isCompleted ? '✓' : questionNum}
+          {/* Question Stepper - full width with proper padding */}
+          <div className={styles.questionStepperWrapper}>
+            <div className={styles.questionStepper}>
+              {questions.map((question, index) => {
+                const qId = question.id;
+                const isActive = qId === activeQuestionId;
+                const answer = answers[qId];
+                const isCompleted = Boolean(answer?.feedback?.score);
+                const questionNum = index + 1;
+
+                return (
+                  <div key={qId} className={styles.stepperItem}>
+                    <div
+                      className={`${styles.stepperCircle} ${isActive ? styles.stepperCircleActive : ''} ${isCompleted ? styles.stepperCircleCompleted : ''}`}
+                      onClick={() => setActiveQuestionId(qId)}
+                    >
+                      {isCompleted ? '⚡' : questionNum}
+                    </div>
+                    {index < questions.length - 1 && (
+                      <div className={`${styles.stepperLine} ${isCompleted ? styles.stepperLineCompleted : ''}`} />
+                    )}
                   </div>
-                  {index < questions.length - 1 && (
-                    <div className={`${styles.stepperLine} ${isCompleted ? styles.stepperLineCompleted : ''}`} />
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-          
+
           <div className={styles.questionContent}>
             <h3>{activeQuestion?.prompt ?? t("runner.question.placeholder")}</h3>
-            {/* <p className={styles.instructions}>{activeQuestion?.instructions}</p> */}
+            {activeQuestion?.instructions && (
+              <p className={styles.instructions}>{activeQuestion.instructions}</p>
+            )}
+          </div>
+          <div className={styles.unknownAnswerNote}>
+            💡 עבור שאלות שאינכם יודעים לענות, עליכם לרשום &quot;X&quot;
           </div>
         </header>
 
@@ -458,27 +1013,44 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               </div>
             </div>
             <div className={styles.editorActions}>
+              {/* Navigation Buttons */}
+              <div className={styles.navigationButtons}>
+                <button
+                  type="button"
+                  className={styles.navButtonPrev}
+                  onClick={() => {
+                    const currentIndex = questions.findIndex(q => q.id === activeQuestionId);
+                    if (currentIndex > 0) {
+                      setActiveQuestionId(questions[currentIndex - 1].id);
+                    }
+                  }}
+                  disabled={questions.findIndex(q => q.id === activeQuestionId) <= 0}
+                >
+                  ← שאלה קודמת
+                </button>
+                <button
+                  type="button"
+                  className={styles.navButtonNext}
+                  onClick={() => {
+                    const currentIndex = questions.findIndex(q => q.id === activeQuestionId);
+                    if (currentIndex < questions.length - 1) {
+                      setActiveQuestionId(questions[currentIndex + 1].id);
+                    }
+                  }}
+                  disabled={questions.findIndex(q => q.id === activeQuestionId) >= questions.length - 1}
+                >
+                  שאלה הבאה →
+                </button>
+              </div>
+              
               <button
                 type="button"
                 className={styles.runButton}
                 onClick={handleExecute}
                 disabled={executeMutation.isPending || !activeQuestionId}
               >
-                <span>{executeMutation.isPending ? "⏳" : "▶️"}</span>
+                <span className={styles.runIcon}>{executeMutation.isPending ? "⏳" : "▶"}</span>
                 {executeMutation.isPending ? t("runner.actions.running") : t("runner.actions.run")}
-              </button>
-              <button
-                type="button"
-                className={styles.submitButton}
-                onClick={() => submitMutation.mutate()}
-                disabled={submitMutation.isPending || submission?.status === "submitted" || submission?.status === "graded"}
-              >
-                <span>{submitMutation.isPending ? "⏳" : submission?.status === "submitted" ? "✅" : "📤"}</span>
-                {submitMutation.isPending
-                  ? t("runner.actions.submitting")
-                  : submission?.status === "submitted"
-                    ? t("runner.actions.submitted")
-                    : t("runner.actions.submit")}
               </button>
             </div>
           </div>
@@ -486,6 +1058,52 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           <div className={styles.feedbackPanel}>
             <h4>{t("runner.results.heading")}</h4>
             {executeMutation.isError && <p className={styles.errorText}>{t("runner.results.error")}</p>}
+            
+            {/* Schema Error Notification - Show when there's a table/column not found error */}
+            {activeAnswer?.feedback?.autoNotes && activeAnswer.feedback.score === 0 && (() => {
+              const schemaError = parseSchemaError(activeAnswer.feedback.autoNotes);
+              const isSchemaError = schemaError.type !== null || 
+                activeAnswer.feedback.autoNotes.toLowerCase().includes('sql error') ||
+                activeAnswer.feedback.autoNotes.toLowerCase().includes('not found') ||
+                activeAnswer.feedback.autoNotes.toLowerCase().includes('does not exist') ||
+                activeAnswer.feedback.autoNotes.toLowerCase().includes('undefined');
+              
+              if (isSchemaError) {
+                return (
+                  <div className={styles.schemaErrorNotification}>
+                    <div className={styles.schemaErrorHeader}>
+                      <span className={styles.schemaErrorIcon}>⚠️</span>
+                      <span className={styles.schemaErrorTitle}>שגיאה בשאילתה</span>
+                    </div>
+                    <p className={styles.schemaErrorMessage}>
+                      {activeAnswer.feedback.autoNotes}
+                    </p>
+                    {schemaError.name && (
+                      <p className={styles.schemaErrorHint}>
+                        {schemaError.type === 'table' 
+                          ? `הטבלה "${schemaError.name}" לא קיימת במסד הנתונים.`
+                          : `העמודה "${schemaError.name}" לא קיימת.`}
+                      </p>
+                    )}
+                    <div className={styles.schemaHelpSection}>
+                      <p className={styles.schemaHelpTitle}>📋 הטבלאות והעמודות הזמינות:</p>
+                      <div className={styles.schemaTablesList}>
+                        {Object.entries(DATABASE_SAMPLE_DATA).map(([tableName, tableData]) => (
+                          <div key={tableName} className={styles.schemaTableItem}>
+                            <span className={styles.schemaTableName}>{tableName}</span>
+                            <span className={styles.schemaColumns}>
+                              ({tableData.columns.join(', ')})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+            
             {activeAnswer?.resultPreview ? (
               <div className={styles.resultTableWrapper}>
                 <table className={styles.resultTable}>
@@ -522,6 +1140,49 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           </div>
         </div>
       </section>
+
+      {/* Right Sidebar: Michael Chat */}
+      <aside className={styles.chatSidebar}>
+        <div className={styles.chatHeader}>
+          <span className={styles.chatIcon}>💬</span>
+          <h3 className={styles.chatTitle}>שאל את Michael</h3>
+        </div>
+        <div 
+          className={styles.chatContent}
+          style={{
+            flex: '1 1 0',
+            minHeight: 0,
+            height: 0,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <Chat
+            chatId={null}
+            hideSidebar={true}
+            hideAvatar={true}
+            minimalMode={true}
+            embeddedMode={true}
+            homeworkContext={chatHomeworkContext}
+          />
+        </div>
+      </aside>
+
+      {/* Submit Button - Fixed Bottom Right */}
+      <button
+        type="button"
+        className={styles.submitButtonFixed}
+        onClick={handleSubmitClick}
+        disabled={submitMutation.isPending || submission?.status === "submitted" || submission?.status === "graded"}
+      >
+        <span>{submitMutation.isPending ? "⏳" : submission?.status === "submitted" ? "✅" : "📤"}</span>
+        {submitMutation.isPending
+          ? t("runner.actions.submitting")
+          : submission?.status === "submitted"
+            ? t("runner.actions.submitted")
+            : t("runner.actions.submit")}
+      </button>
     </div>
   );
 }

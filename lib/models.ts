@@ -1,9 +1,9 @@
 import { ObjectId } from 'mongodb';
-import type { 
-  Dataset, 
-  HomeworkSet, 
-  Question, 
-  Submission, 
+import type {
+  Dataset,
+  HomeworkSet,
+  Question,
+  Submission,
   AnalyticsEvent,
   AuditLogEntry,
   QuestionTemplate,
@@ -34,6 +34,7 @@ export interface QuestionModel extends Omit<Question, 'id'> {
 export interface SubmissionModel extends Omit<Submission, 'id'> {
   _id?: ObjectId;
   id: string;
+  studentTableData?: Record<string, any[]>; // Key: table name, Value: array of row data
 }
 
 export interface AnalyticsEventModel extends Omit<AnalyticsEvent, 'id'> {
@@ -59,6 +60,45 @@ export interface InstantiatedQuestionModel extends Omit<InstantiatedQuestion, 'i
 export interface AnalysisResultModel extends Omit<AnalysisResult, 'id'> {
   _id?: ObjectId;
   id: string;
+}
+
+export interface QuestionAnalyticsModel {
+  _id?: ObjectId;
+  id?: string;
+  submissionId: string;
+  questionId: string;
+  studentId: string;
+  homeworkSetId: string;
+  metrics: {
+    timeSpent: number;
+    typingSpeed: number;
+    attempts: number;
+    timeToFirstExecution?: number | null;
+    timeBetweenExecutions: number[];
+    queryExecutionTimes: number[];
+    charactersTyped: number;
+    editsCount: number;
+    copyPasteCount: number;
+    startedAt: string;
+    lastActivityAt: string;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CommentBankEntryModel {
+  _id?: ObjectId;
+  id: string;
+  homeworkSetId: string;
+  questionId: string;
+  comment: string;
+  score: number; // Associated score (e.g., 8 out of 10)
+  maxScore: number; // Max possible score for context
+  category?: string; // Optional: "syntax error", "logic error", "correct", etc.
+  usageCount: number;
+  createdBy: string; // Instructor who created the comment
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -124,6 +164,13 @@ export const DATABASE_INDEXES = {
     { status: 1 }, // For status filtering
     { createdAt: -1 }, // For creation date sorting
     { submissionId: 1, status: 1 }, // Compound for active analyses
+  ],
+  QUESTION_ANALYTICS: [
+    { submissionId: 1 }, // For submission-based analytics lookups
+    { questionId: 1 }, // For question-level analysis
+    { submissionId: 1, questionId: 1 }, // CRITICAL: Compound index for upsert operations (most frequent query)
+    { studentId: 1 }, // For student drilldowns
+    { homeworkSetId: 1 }, // For homework set aggregations
   ],
 } as const;
 

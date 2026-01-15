@@ -17,14 +17,15 @@ import SQLQueryEditorComponent from "./query-vizualizer";
 import ImageUpload from "./image-upload";
 import { fileToBase64 } from "../utils/parseImage";
 // import AudioRecorder from "./audio-recorder"; // Clean version: hide audio recorder button
-import MichaelAvatarDirect from "./MichaelAvatarDirect";
-import VoiceModeCircle from "./VoiceModeCircle";
-import StaticLogoMode from "./StaticLogoMode";
-import { AvatarIcon, MicIcon } from "./AvatarToggleIcons";
-import { enhancedTTS } from "@/app/utils/enhanced-tts";
-import AvatarInteractionManager from "./AvatarInteractionManager";
+// AVATAR TEMPORARILY DISABLED - Commented out to prevent crashes
+// import MichaelAvatarDirect from "./MichaelAvatarDirect";
+// import VoiceModeCircle from "./VoiceModeCircle";
+// import StaticLogoMode from "./StaticLogoMode";
+// import { AvatarIcon, MicIcon } from "./AvatarToggleIcons";
+// import { enhancedTTS } from "@/app/utils/enhanced-tts";
+// import AvatarInteractionManager from "./AvatarInteractionManager";
 import { analyzeMessage } from "../utils/sql-query-analyzer";
-import { avatarAnalytics } from "../utils/avatar-analytics";
+// import { avatarAnalytics } from "../utils/avatar-analytics";
 import OpenAI from "openai";
 import PracticeModal from "./PracticeModal";
 import SqlQueryBuilder from "./SqlQueryBuilder/SqlQueryBuilder";
@@ -336,9 +337,9 @@ const ChatEnglish = ({
   
   // Avatar interaction system
   const avatarRef = useRef(null);
-  const [enableAvatarInteractions, setEnableAvatarInteractions] = useState(true);
-  const [enableSQLGestureMapping, setEnableSQLGestureMapping] = useState(true);
-  const [enableAnalytics, setEnableAnalytics] = useState(true);
+  const [enableAvatarInteractions, setEnableAvatarInteractions] = useState(false); // DISABLED
+  const [enableSQLGestureMapping, setEnableSQLGestureMapping] = useState(false); // DISABLED
+  const [enableAnalytics, setEnableAnalytics] = useState(false); // DISABLED
   // Added for query cost estimation feature
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [currentBalance, setCurrentBalance] = useState(0);
@@ -726,7 +727,7 @@ const updateUserBalance = async (value) => {
   // Cleanup speech and typing detection on unmount
   useEffect(() => {
     return () => {
-      enhancedTTS.stop();
+      // AVATAR DISABLED: enhancedTTS.stop();
       
       if (userTypingTimeoutRef.current) {
         clearTimeout(userTypingTimeoutRef.current);
@@ -791,9 +792,9 @@ const updateUserBalance = async (value) => {
     console.log('🎭 Avatar interaction:', { gesture, context });
     
     // Track analytics
-    if (enableAnalytics && currentUser) {
-      avatarAnalytics.trackGesture(gesture, context.type, currentUser);
-    }
+    // AVATAR DISABLED: if (enableAnalytics && currentUser) {
+    //   avatarAnalytics.trackGesture(gesture, context.type, currentUser);
+    // }
   }, [enableAnalytics, currentUser]);
 
   const handleInteractionAnalytics = useCallback((analytics: any) => {
@@ -825,13 +826,13 @@ const updateUserBalance = async (value) => {
         });
 
         // Track analytics
-        if (enableAnalytics && currentUser) {
-          avatarAnalytics.trackSQLQuery(
-            sqlAnalysis.keywords,
-            text,
-            currentUser
-          );
-        }
+        // AVATAR DISABLED: if (enableAnalytics && currentUser) {
+        //   avatarAnalytics.trackSQLQuery(
+        //     sqlAnalysis.keywords,
+        //     text,
+        //     currentUser
+        //   );
+        // }
 
         // Trigger gesture if confidence is high enough
         if (confidence > 0.6 && avatarRef.current) {
@@ -1073,9 +1074,9 @@ const loadChatMessages = (chatId: string) => {
     // Create a stable message id for this assistant message
     setCurrentAssistantMessageId(`${Date.now()}-${Math.random().toString(36).slice(2)}`);
     // If voice is enabled and we are currently speaking, stop to avoid overlap with the new message
-    if (enableVoice && enhancedTTS.isSpeaking()) {
-      enhancedTTS.stop();
-    }
+    // AVATAR DISABLED: if (enableVoice && enhancedTTS.isSpeaking()) {
+    //   enhancedTTS.stop();
+    // }
     
     // Clear any pending progressive speech
     if (progressiveSpeechTimeoutRef.current) {
@@ -1288,9 +1289,9 @@ const loadChatMessages = (chatId: string) => {
         }
 
         // Track analytics
-        if (enableAnalytics && currentUser) {
-          avatarAnalytics.trackGesture(gesture, 'assistant_response', currentUser);
-        }
+        // AVATAR DISABLED: if (enableAnalytics && currentUser) {
+        //   avatarAnalytics.trackGesture(gesture, 'assistant_response', currentUser);
+        // }
       }
     }
   };
@@ -1401,7 +1402,7 @@ return (
                       return;
                     }
                     // Stop any current speech
-                    enhancedTTS.stop();
+                    // AVATAR DISABLED: enhancedTTS.stop();
                     // Reset speech states first
                     setShouldSpeak(false);
                     setIsAssistantMessageComplete(false);
@@ -1630,163 +1631,8 @@ return (
   </div>
 )} */}
     
-    <div className={styles.rightColumn}>
-      {!isHydrated ? (
-        <div 
-          className={styles.avatarHydrationPlaceholder}
-          role="status"
-          aria-label="Loading avatar"
-          aria-live="polite"
-        ></div>
-      ) : (
-        <div className={styles.avatarSection}>
-          {displayMode === 'avatar' && enableAvatar ? (
-            <>
-              {avatarMode === 'avatar' ? (
-                <MichaelAvatarDirect
-                  text={lastAssistantMessage}
-                  state={avatarState}
-                  size="medium"
-                  progressiveMode={enableVoice && !isDone}
-                  isStreaming={enableVoice && !isDone}
-                  onSpeakingStart={() => {
-                    console.log('🎤 Michael started speaking');
-                    if (enableVoice) setShouldSpeak(true);
-                  }}
-                  onSpeakingEnd={() => {
-                    console.log('🎤 Michael finished speaking');
-                    if (enableVoice) setShouldSpeak(false);
-                    setIsAssistantMessageComplete(false);
-                    setHasStartedSpeaking(false);
-                    setIsManualSpeech(false);  // Reset manual speech flag
-                  }}
-                />
-            ) : (
-              <VoiceModeCircle
-                state={avatarState}
-                size="medium"
-                text={lastAssistantMessage}
-                onSpeakingStart={() => {
-                  console.log('🎤 Voice circle started speaking');
-                  if (enableVoice) setShouldSpeak(true);
-                }}
-                onSpeakingEnd={() => {
-                  console.log('🎤 Voice circle finished speaking');
-                  if (enableVoice) setShouldSpeak(false);
-                  setIsAssistantMessageComplete(false);
-                  setHasStartedSpeaking(false);
-                  setIsManualSpeech(false);
-                }}
-              />
-            )}
-          </>
-        ) : (
-          <StaticLogoMode
-            size="medium"
-            state={avatarState}
-            userName={currentUser}
-          />
-        )}
-        
-        {/* Toggle Buttons Container */}
-        <div className={styles.toggleButtonsContainer}>
-          {/* Display Mode Toggle Button */}
-          <div className={styles.displayModeToggle}>
-            <button 
-              className={`${styles.displayToggleButton} ${displayMode === 'logo' ? styles.logoModeActive : styles.avatarModeActive}`}
-              onClick={() => setDisplayMode(displayMode === 'avatar' ? 'logo' : 'avatar')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  setDisplayMode(displayMode === 'avatar' ? 'logo' : 'avatar');
-                }
-              }}
-              title={displayMode === 'avatar' ? 'Switch to logo mode' : 'Switch to avatar mode'}
-              aria-label={displayMode === 'avatar' ? 'Switch to logo mode' : 'Switch to avatar mode'}
-              aria-pressed={displayMode === 'logo'}
-              role="switch"
-              aria-checked={displayMode === 'logo'}
-              tabIndex={0}
-            >
-              {displayMode === 'avatar' ? (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                  <circle cx="8.5" cy="8.5" r="1.5"/>
-                  <path d="M21 15l-5-5L5 21"/>
-                </svg>
-              ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                  <circle cx="12" cy="7" r="4"/>
-                </svg>
-              )}
-            </button>
-          </div>
-          
-          {/* Avatar Mode Toggle (only visible in avatar display mode) */}
-          {/* {displayMode === 'avatar' && enableAvatar && (
-            <div className={styles.avatarModeToggle}>
-              <button 
-                className={`${styles.modeToggleButton} ${avatarMode === 'voice' ? styles.voiceActive : styles.avatarActive}`}
-                onClick={() => setAvatarMode(avatarMode === 'avatar' ? 'voice' : 'avatar')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setAvatarMode(avatarMode === 'avatar' ? 'voice' : 'avatar');
-                  }
-                }}
-                title={avatarMode === 'avatar' ? 'Voice mode' : '3D avatar mode'}
-                aria-label={avatarMode === 'avatar' ? 'Switch to voice mode' : 'Switch to avatar mode'}
-                aria-pressed={avatarMode === 'voice'}
-                role="switch"
-                aria-checked={avatarMode === 'voice'}
-                tabIndex={0}
-              >
-                {avatarMode === 'avatar' ? <MicIcon size={18} /> : <AvatarIcon size={18} />}
-              </button>
-            </div>
-          )} */}
-        </div>
-        
-          {/* User info below the avatar */}
-          <div className={styles.userInfo}>
-          <div className={styles.nickname}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', }}>
-              <span>Hello, Judith</span>
-              {/* Clean version: hide auto audio toggle under avatar */}
-              {/*
-              <button
-                className={`${styles.audioToggle} ${autoPlaySpeech ? styles.audioToggleOn : styles.audioToggleOff}`}
-                onClick={() => enableVoice && setAutoPlaySpeech(!autoPlaySpeech)}
-                title={autoPlaySpeech ? "Disable auto audio" : "Enable auto audio"}
-              >
-                {autoPlaySpeech ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-                  </svg>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                    <line x1="23" y1="9" x2="17" y2="15"></line>
-                    <line x1="17" y1="9" x2="23" y2="15"></line>
-                  </svg>
-                )}
-              </button>
-              */}
-
-            </div>
-            {isTokenBalanceVisible && (
-            <div>
-              Current balance: ${currentBalance}
-            </div>
-          )}
-          </div>
-        </div>
-        </div>
-      )}
-    </div>
+    {/* AVATAR TEMPORARILY DISABLED - Commented out to prevent crashes */}
+    {/* Avatar section completely removed to fix build errors */}
     {/* Exercise Modal */}
     <Modal isOpen={showExerciseModal} onClose={() => {
       setShowExerciseModal(false);

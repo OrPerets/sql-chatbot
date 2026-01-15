@@ -24,19 +24,41 @@ export async function POST(request, { params: { threadId } }) {
   try {
     const { content, imageData } = await request.json();
 
-    // Always fetch weekly context to ensure SQL concept restrictions are applied
+    // CRITICAL: Inject current week context directly into message to ensure assistant knows the week
+    // Use getCurrentWeekContextNormalized directly instead of API call to avoid inconsistencies
     let weeklyContext = '';
+    let currentWeekNumber: number | null = null;
     try {
-      const weeklyResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/mcp-michael/current-week`);
-      if (weeklyResponse.ok) {
-        const weeklyData = await weeklyResponse.json();
-        const weekNum = weeklyData.weekNumber ?? weeklyData.currentWeek; // support both shapes during rollout
-        if (weeklyData.content && weeklyData.content.trim()) {
-          weeklyContext = `\n\n[Current Week Context - Week ${weekNum}: ${weeklyData.content}. IMPORTANT: Only use SQL concepts taught up to week ${weekNum}. Do NOT use JOINs before week 7, or sub-queries before week 9.]`;
-        }
+      // Use the same function that get_course_week_context uses to ensure consistency
+      const { getCurrentWeekContextNormalized } = await import('@/lib/content');
+      const weekContext = await getCurrentWeekContextNormalized(null);
+      currentWeekNumber = weekContext.weekNumber;
+      
+      if (currentWeekNumber) {
+        console.log(`[messages-route] Injected week context: Week ${currentWeekNumber} (from getCurrentWeekContextNormalized)`);
+        
+        // Get SQL restrictions for this week
+        const { getAllowedConceptsForWeek, getForbiddenConceptsForWeek } = await import('@/lib/sql-curriculum');
+        const allowedConcepts = getAllowedConceptsForWeek(currentWeekNumber);
+        const forbiddenConcepts = getForbiddenConceptsForWeek(currentWeekNumber);
+        
+        // Create explicit context with week number and key restrictions
+        const hasJOIN = allowedConcepts.some(c => c.toLowerCase().includes('join'));
+        const hasALTER = forbiddenConcepts.some(c => c.toLowerCase().includes('alter'));
+        
+        weeklyContext = `\n\n[CRITICAL WEEK CONTEXT - DO NOT IGNORE]
+השבוע הנוכחי הוא שבוע ${currentWeekNumber} (לא שבוע 6 ולא שבוע אחר).
+השבוע הנוכחי הוא שבוע ${currentWeekNumber}.
+Week ${currentWeekNumber} includes ALL concepts from weeks 1-${currentWeekNumber}.
+${hasJOIN ? 'JOIN is ALLOWED (learned in week 7).' : 'JOIN is NOT yet learned.'}
+${hasALTER ? 'ALTER is FORBIDDEN (will be learned in week 11). Do NOT use ALTER TABLE.' : 'ALTER is allowed.'}
+You MUST call get_course_week_context() to get the complete list of allowed/forbidden concepts.
+The weekNumber from that function is the SOURCE OF TRUTH. Use it, not any other number.]`;
+      } else {
+        console.warn('[messages-route] Could not determine current week - weekNumber is null');
       }
     } catch (weeklyError) {
-      console.log('Could not fetch weekly context:', weeklyError);
+      console.error('[messages-route] Could not fetch weekly context:', weeklyError);
       // Continue without weekly context if fetch fails
     }
 
@@ -57,8 +79,10 @@ export async function POST(request, { params: { threadId } }) {
         console.log(`Uploading image: ${fileName}, size: ${buffer.length} bytes`);
         
         // Upload image to OpenAI file storage
+        // Convert Buffer to Uint8Array for File constructor compatibility
+        const uint8Array = new Uint8Array(buffer);
         const file = await openai.files.create({
-          file: new File([buffer], fileName, { type: mimeType }),
+          file: new File([uint8Array], fileName, { type: mimeType }),
           purpose: 'assistants',
         });
         
@@ -91,6 +115,9 @@ export async function POST(request, { params: { threadId } }) {
     }
 
     console.log("Creating message in thread:", threadId);
+    if (currentWeekNumber) {
+      console.log(`[messages-route] Current week injected: ${currentWeekNumber}`);
+    }
     
     await openai.beta.threads.messages.create(threadId, {
       role: "user",
@@ -98,6 +125,7 @@ export async function POST(request, { params: { threadId } }) {
     });
 
     console.log("Starting assistant run...");
+    console.log(`[messages-route] Waiting for assistant to call get_course_week_context() - should return week ${currentWeekNumber || 'unknown'}`);
     
     const stream = openai.beta.threads.runs.stream(threadId, {
       assistant_id: getAssistantId(),

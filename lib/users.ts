@@ -7,6 +7,9 @@ export interface UserModel {
   id?: string
   email: string
   name?: string
+  firstName?: string
+  lastName?: string
+  studentIdNumber?: string // Israeli ID number (ת.ז)
   password?: string
   role?: string
   [key: string]: any
@@ -108,6 +111,48 @@ export class UsersService {
         .updateOne({ email }, { $set: updateData })
       
       return { success: true, modifiedCount: result.modifiedCount ?? 0 }
+    })
+  }
+
+  async getUserByEmail(email: string): Promise<UserModel | null> {
+    return executeWithRetry(async (db) => {
+      const user = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({ email })
+      return user || null
+    })
+  }
+
+  /**
+   * Find user by ID (ObjectId or string) or email
+   * Useful for looking up users when studentId might be either format
+   */
+  async findUserByIdOrEmail(identifier: string): Promise<UserModel | null> {
+    return executeWithRetry(async (db) => {
+      const { ObjectId } = await import('mongodb')
+      
+      // If identifier looks like an email, try email first
+      if (identifier.includes('@')) {
+        const user = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({ email: identifier })
+        if (user) return user
+      }
+      
+      // Try by ObjectId if it's a valid ObjectId
+      if (ObjectId.isValid(identifier)) {
+        const user = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({
+          $or: [
+            { _id: new ObjectId(identifier) },
+            { id: identifier }
+          ]
+        } as any)
+        if (user) return user
+      }
+      
+      // Try by email (in case identifier doesn't contain @ but is an email)
+      const user = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({ email: identifier })
+      if (user) return user
+      
+      // Try by id field
+      const userById = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({ id: identifier })
+      return userById || null
     })
   }
 
@@ -280,6 +325,16 @@ export async function createUser(userData: { email: string; firstName: string; l
 export async function updateUser(email: string, userData: { firstName?: string; lastName?: string; email?: string }) {
   const service = await getUsersService()
   return service.updateUser(email, userData)
+}
+
+export async function getUserByEmail(email: string) {
+  const service = await getUsersService()
+  return service.getUserByEmail(email)
+}
+
+export async function findUserByIdOrEmail(identifier: string) {
+  const service = await getUsersService()
+  return service.findUserByIdOrEmail(identifier)
 }
 
 

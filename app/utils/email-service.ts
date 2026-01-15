@@ -1,27 +1,48 @@
 import nodemailer from 'nodemailer';
 
-// Create reusable transporter object using SMTP transport
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_PORT === '465', // Use SSL only for port 465
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false // Allow self-signed certificates
+// Helper function to get transporter (creates new one each time to ensure env vars are loaded)
+function getTransporter() {
+  const host = process.env.SMTP_HOST;
+  const port = Number(process.env.SMTP_PORT) || 587;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  
+  if (!host || !user || !pass) {
+    throw new Error('SMTP configuration is incomplete. Missing SMTP_HOST, SMTP_USER, or SMTP_PASS');
   }
-});
+  
+  // Strip quotes from values if present (dotenv sometimes includes them)
+  const cleanHost = host.replace(/^["']|["']$/g, '');
+  const cleanUser = user.replace(/^["']|["']$/g, '');
+  const cleanPass = pass.replace(/^["']|["']$/g, '');
+  
+  return nodemailer.createTransport({
+    host: cleanHost,
+    port: port,
+    secure: port === 465, // Use SSL only for port 465
+    auth: {
+      user: cleanUser,
+      pass: cleanPass,
+    },
+    tls: {
+      rejectUnauthorized: false // Allow self-signed certificates
+    },
+    // Force IPv4 if hostname resolution causes IPv6 issues
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
+  });
+}
 
 interface EmailContent {
   to: string;
   subject: string;
   text: string;
   html?: string;
+  attachments?: Array<{ filename: string; content: Buffer; contentType?: string }>;
 }
 
-export async function sendEmail({ to, subject, text, html }: EmailContent) {
+export async function sendEmail({ to, subject, text, html, attachments }: EmailContent) {
   try {
     // Log email configuration (without sensitive data)
     console.log('Email configuration:', {
@@ -32,16 +53,20 @@ export async function sendEmail({ to, subject, text, html }: EmailContent) {
       to
     });
 
+    // Create transporter with current env vars (ensures fresh config)
+    const transporter = getTransporter();
+
     // Verify transporter configuration
     await transporter.verify();
     console.log('SMTP connection verified successfully');
 
     const info = await transporter.sendMail({
-      from: process.env.SMTP_FROM,
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to,
       subject,
       text,
       html: html || text,
+      attachments,
     });
     console.log('Email sent successfully:', info.messageId);
     return true;
