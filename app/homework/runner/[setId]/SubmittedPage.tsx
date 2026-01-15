@@ -35,7 +35,7 @@ export function SubmittedPage({ homeworkTitle, submittedAt, studentId }: Submitt
           <div className={styles.infoBox}>
             <div className={styles.infoItem}>
               <Mail className={styles.infoIcon} size={20} />
-              <span>אימייל אישור נשלח לכתובת הדוא"ל שלך</span>
+              <span>אימייל אישור נשלח לכתובת הדוא&quot;ל שלך</span>
             </div>
             
             <div className={styles.infoItem}>

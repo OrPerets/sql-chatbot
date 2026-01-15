@@ -219,6 +219,12 @@ function StatusBadge({ status, t }: { status: string; t: (key: string) => string
 const SCORE_FORMATTER = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1, minimumFractionDigits: 0 });
 
 export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
+  // Test console.log on component mount
+  useEffect(() => {
+    console.log(`[AI Grading] 🧪 TEST: Console.log is working! Component mounted.`);
+    console.log(`[AI Grading] Component props:`, { setId });
+  }, [setId]);
+  
   const queryClient = useQueryClient();
   const { t, direction, formatNumber } = useHomeworkLocale();
   const [viewMode, setViewMode] = useState<ViewMode>("student");
@@ -753,268 +759,195 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
   // AI Grading mutation
   const aiGradingMutation = useMutation({
     mutationFn: async (additionalInstructions?: string) => {
+      console.log(`[AI Grading] 🚀 mutationFn called with instructions:`, additionalInstructions || "none");
       setIsAIGrading(true);
       setAIGradingProgress({ current: 0, total: 0 });
       
       try {
         // Create an AbortController for timeout handling
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10 minute timeout
+        const timeoutId = setTimeout(() => {
+          console.error(`[AI Grading] ⏱️ Request timeout after 10 minutes`);
+          controller.abort();
+        }, 10 * 60 * 1000); // 10 minute timeout
         
-      const response = await fetch("/api/grading/ai-evaluate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          homeworkSetId: setId,
-          additionalGradingInstructions: additionalInstructions || undefined
-        }),
-        signal: controller.signal,
-      });
+        console.log(`[AI Grading] Starting fetch request to /api/grading/ai-evaluate...`);
+        // Add timestamp to URL to bypass service worker cache
+        // Use cache: 'no-store' and mode: 'no-cors' workaround
+        const timestamp = Date.now();
+        const url = `/api/grading/ai-evaluate?t=${timestamp}`;
+        
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+          },
+          body: JSON.stringify({ 
+            homeworkSetId: setId,
+            additionalGradingInstructions: additionalInstructions || undefined
+          }),
+          signal: controller.signal,
+          cache: 'no-store', // Bypass service worker cache
+          credentials: 'same-origin', // Include cookies/auth
+        });
         
         clearTimeout(timeoutId);
+        console.log(`[AI Grading] Fetch completed, status: ${response.status}, ok: ${response.ok}, headers:`, {
+          contentType: response.headers.get("content-type"),
+          contentLength: response.headers.get("content-length"),
+        });
         
         if (!response.ok) {
-          const error = await response.json().catch(() => ({ error: `HTTP ${response.status}: ${response.statusText}` }));
-          throw new Error(error.error || error.details || "Failed to evaluate submissions");
+          let errorData;
+          try {
+            errorData = await response.json();
+          } catch (parseError) {
+            const text = await response.text().catch(() => "");
+            errorData = { error: `HTTP ${response.status}: ${response.statusText}`, details: text.substring(0, 200) };
+          }
+          console.error(`[AI Grading] ❌ Fetch failed with status ${response.status}:`, errorData);
+          throw new Error(errorData.error || errorData.details || `HTTP ${response.status}: ${response.statusText}`);
         }
         
-        return response.json() as Promise<AIEvaluateResponse>;
+        console.log(`[AI Grading] Parsing response JSON...`);
+        let data: AIEvaluateResponse;
+        try {
+          const responseText = await response.text();
+          console.log(`[AI Grading] Response text length: ${responseText.length} characters`);
+          if (!responseText || responseText.trim().length === 0) {
+            throw new Error("Empty response from server");
+          }
+          data = JSON.parse(responseText) as AIEvaluateResponse;
+        } catch (parseError) {
+          console.error(`[AI Grading] ❌ Failed to parse response JSON:`, parseError);
+          throw new Error(`Failed to parse server response: ${parseError instanceof Error ? parseError.message : "Unknown parsing error"}`);
+        }
+        
+        console.log(`[AI Grading] ✅ Response parsed successfully:`, {
+          success: data.success,
+          resultsCount: data.results?.length || 0,
+          totalSubmissions: data.totalSubmissions,
+          totalQuestionsGraded: data.totalQuestionsGraded,
+          hasErrors: !!data.errors && data.errors.length > 0,
+        });
+        
+        // Validate response structure
+        if (!data || typeof data.success !== 'boolean') {
+          console.error(`[AI Grading] ❌ Invalid response structure:`, data);
+          throw new Error("Invalid response format from server");
+        }
+        
+        console.log(`[AI Grading] ✅ mutationFn returning data, will trigger onSuccess`);
+        return data;
       } catch (error: any) {
+        console.error(`[AI Grading] ❌ Error in mutationFn:`, error);
+        console.error(`[AI Grading] Error type:`, error?.constructor?.name);
+        console.error(`[AI Grading] Error name:`, error?.name);
+        console.error(`[AI Grading] Error message:`, error?.message);
+        console.error(`[AI Grading] Error stack:`, error?.stack);
+        
         if (error.name === 'AbortError') {
+          console.error(`[AI Grading] Request aborted due to timeout`);
           throw new Error("הבקשה ארכה זמן רב מדי. נסה שוב או בדוק פחות הגשות בבת אחת.");
         }
-        if (error.message) {
+        
+        // Re-throw with proper error message
+        if (error instanceof Error) {
           throw error;
         }
-        throw new Error(`שגיאה בהערכת AI: ${error.message || "Unknown error"}`);
+        throw new Error(`שגיאה בהערכת AI: ${error?.message || "Unknown error"}`);
       }
     },
     onSuccess: async (data) => {
-      if (!data.success || data.results.length === 0) {
+      // Critical: This log MUST appear if onSuccess is called
+      // Using multiple console methods to ensure visibility
+      console.log(`[AI Grading] ✅✅✅ onSuccess CALLED - THIS SHOULD APPEAR IN CONSOLE ✅✅✅`);
+      console.warn(`[AI Grading] ⚠️ WARNING: onSuccess was called (this is good!)`);
+      console.info(`[AI Grading] ℹ️ INFO: onSuccess handler executing`);
+      console.error(`[AI Grading] This is an ERROR-level log to test visibility (onSuccess was called)`);
+      
+      console.log(`[AI Grading] ✅ onSuccess called with data:`, {
+        success: data.success,
+        resultsCount: data.results?.length || 0,
+        totalSubmissions: data.totalSubmissions,
+        totalQuestionsGraded: data.totalQuestionsGraded,
+        fullData: data
+      });
+      
+      if (!data.success || !data.results || data.results.length === 0) {
+        console.warn(`[AI Grading] Early exit: success=${data.success}, results.length=${data.results?.length || 0}`);
         setStatusMessage("אין הגשות לבדיקה או שכולן כבר נבדקו");
+        setIsAIGrading(false);
+        setAIGradingProgress(null);
         return;
       }
 
-      // Save AI results directly to database
+      // Note: Results are already saved to database by the server (one by one as they're graded)
+      // We just need to refresh the UI to show the updated data
       try {
-        const allSubmissions = allSubmissionsQuery.data ?? [];
-        const submissionsMap = new Map(allSubmissions.map(s => [s.id, s]));
-        const questionsMap = new Map((questionsQuery.data ?? []).map(q => [q.id, q]));
-
-        // Save each submission with AI grades
-        const savePromises = data.results.map(async (result) => {
-          try {
-            const submission = submissionsMap.get(result.submissionId);
-            if (!submission) {
-              console.warn(`[AI Grading] Submission ${result.submissionId} not found in submissionsMap`);
-              return { success: false, submissionId: result.submissionId, error: "Submission not found" };
-            }
-
-          // Build updated answers with AI grades
-          const updatedAnswers: Submission["answers"] = { ...submission.answers };
-
-          for (const aiResult of result.results) {
-            const question = questionsMap.get(aiResult.questionId);
-            if (!question) continue;
-
-            const answer = submission.answers[aiResult.questionId] as SqlAnswer | undefined;
-            if (!answer) continue;
-
-            // Use AI comment if there's no existing instructor note (or if it's empty)
-            const existingInstructorNotes = answer.feedback?.instructorNotes?.trim();
-            const aiComment = aiResult.comment?.trim() || "";
-            
-            console.log(`[AI Grading] Question ${aiResult.questionId}, Submission ${result.submissionId}:`, {
-              existingInstructorNotes: existingInstructorNotes || "(empty)",
-              aiComment: aiComment || "(EMPTY - AI didn't return comment!)",
-              aiCommentLength: aiComment.length,
-              score: aiResult.score,
-              fullAiResult: aiResult, // Log full result to see what AI returned
-            });
-            
-            if (!aiComment) {
-              console.warn(`⚠️ [AI Grading] WARNING: AI comment is empty for question ${aiResult.questionId}, submission ${result.submissionId}`);
-            }
-
-            // Determine what to save - prioritize AI comment if no existing note
-            // Only use existing notes if they're not empty, otherwise use AI comment
-            const notesToSave = (existingInstructorNotes && existingInstructorNotes.trim()) 
-              ? existingInstructorNotes 
-              : (aiComment && aiComment.trim() ? aiComment : "");
-            
-            updatedAnswers[aiResult.questionId] = {
-              ...answer,
-              feedback: {
-                questionId: aiResult.questionId,
-                score: aiResult.score,
-                // Keep existing autoNotes from SQL execution (if any), but don't overwrite with AI comment
-                autoNotes: answer.feedback?.autoNotes || "",
-                // Put AI comment in instructorNotes - use AI comment if no existing note or if existing is empty
-                instructorNotes: notesToSave,
-                rubricBreakdown: answer.feedback?.rubricBreakdown || [],
-              },
-            };
-            
-            // Verify what we're about to save
-            if (!notesToSave || !notesToSave.trim()) {
-              console.error(`❌ [AI Grading] ERROR: No instructorNotes to save for question ${aiResult.questionId}, submission ${result.submissionId}`);
-              console.error(`   existingInstructorNotes: "${existingInstructorNotes}" (length: ${existingInstructorNotes?.length || 0})`);
-              console.error(`   aiComment: "${aiComment}" (length: ${aiComment?.length || 0})`);
-              console.error(`   aiResult object:`, JSON.stringify(aiResult, null, 2));
-            } else {
-              console.log(`✅ [AI Grading] Will save instructorNotes (${notesToSave.length} chars) for question ${aiResult.questionId}:`, notesToSave.substring(0, 100));
-            }
-          }
-
-          // Calculate overall score
-          const overallScore = Object.values(updatedAnswers).reduce(
-            (sum, ans) => sum + (ans.feedback?.score ?? 0),
-            0
-          );
-
-          // Verify what we're about to save before sending to DB
-          const answersWithFeedback = Object.entries(updatedAnswers).filter(([_, ans]) => {
-            const hasNotes = ans.feedback?.instructorNotes?.trim();
-            if (hasNotes) {
-              console.log(`[AI Grading] Answer ${Object.keys(updatedAnswers).indexOf(_)} has instructorNotes:`, {
-                questionId: _,
-                notesLength: hasNotes.length,
-                notesPreview: hasNotes.substring(0, 50),
-              });
-            }
-            return !!hasNotes;
-          });
-          console.log(`[AI Grading] Submission ${result.submissionId}: ${answersWithFeedback.length} answers with instructorNotes before save`);
-          
-          // Log the exact structure we're sending
-          console.log(`[AI Grading] Sending to gradeSubmission:`, {
-            submissionId: result.submissionId,
-            totalAnswers: Object.keys(updatedAnswers).length,
-            answersWithNotes: answersWithFeedback.length,
-            sampleAnswerStructure: answersWithFeedback[0] ? {
-              questionId: answersWithFeedback[0][0],
-              feedback: answersWithFeedback[0][1].feedback,
-            } : null,
-          });
-          
-          // Save to database
-          const saved = await gradeSubmission(result.submissionId, {
-            answers: updatedAnswers,
-            overallScore,
-            status: "graded",
-          });
-          
-          // Log what was actually saved for debugging
-          if (saved) {
-            const savedAnswersWithNotes = Object.entries(saved.answers).filter(([_, ans]) => ans.feedback?.instructorNotes);
-            console.log(`[AI Grading] Saved submission ${result.submissionId}:`, {
-              totalAnswers: Object.keys(saved.answers).length,
-              answersWithInstructorNotes: savedAnswersWithNotes.length,
-              sampleAnswer: savedAnswersWithNotes[0] ? {
-                questionId: savedAnswersWithNotes[0][0],
-                hasFeedback: !!savedAnswersWithNotes[0][1].feedback,
-                instructorNotes: savedAnswersWithNotes[0][1].feedback?.instructorNotes?.substring(0, 100),
-                score: savedAnswersWithNotes[0][1].feedback?.score,
-              } : null,
-            });
-            
-            if (savedAnswersWithNotes.length === 0) {
-              console.error(`❌ [AI Grading] CRITICAL: No instructorNotes found in saved submission ${result.submissionId}!`);
-              console.error(`   Expected ${answersWithFeedback.length} answers with notes, but got 0 after save`);
-            }
-          } else {
-            console.error(`❌ [AI Grading] Failed to save submission ${result.submissionId} - gradeSubmission returned null`);
-            return { success: false, submissionId: result.submissionId, error: "gradeSubmission returned null" };
-          }
-          
-          return { success: true, submissionId: result.submissionId, saved };
-          } catch (error) {
-            console.error(`❌ [AI Grading] Error saving submission ${result.submissionId}:`, error);
-            return { success: false, submissionId: result.submissionId, error: error instanceof Error ? error.message : String(error) };
-          }
-        });
-
-        // Use allSettled instead of all to continue even if some fail
-        const saveResults = await Promise.allSettled(savePromises);
-        const successful = saveResults.filter(r => r.status === 'fulfilled' && r.value && r.value.success).length;
-        const failed = saveResults.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && (!r.value || !r.value.success)));
+        console.log(`[AI Grading] Results already saved by server. Refreshing UI for ${data.results.length} submissions...`);
         
-        console.log(`[AI Grading] Save results: ${successful} successful, ${failed.length} failed out of ${saveResults.length} total`);
-        
-        // Log failed submissions
-        failed.forEach((result, index) => {
-          if (result.status === 'rejected') {
-            console.error(`[AI Grading] Promise rejected for submission at index ${index}:`, result.reason);
-          } else if (result.status === 'fulfilled' && result.value && !result.value.success) {
-            console.error(`[AI Grading] Failed to save submission ${result.value.submissionId}:`, result.value.error);
-          } else if (result.status === 'fulfilled' && !result.value) {
-            console.error(`[AI Grading] Unexpected: fulfilled promise with null value at index ${index}`);
-          }
-        });
-
-        // Also update local drafts for UI
-        const newQuestionGradeDraft: QuestionGradeDraft = { ...questionGradeDraft };
-        const newGradeDraft: GradeDraft = { ...gradeDraft };
-
-        for (const result of data.results) {
-          for (const aiResult of result.results) {
-            // Update question-based draft - use AI comment directly since we just saved it
-            if (!newQuestionGradeDraft[aiResult.questionId]) {
-              newQuestionGradeDraft[aiResult.questionId] = {};
-            }
-            const submission = submissionsMap.get(result.submissionId);
-            const existingAnswer = submission?.answers[aiResult.questionId] as SqlAnswer | undefined;
-            const existingInstructorNotes = existingAnswer?.feedback?.instructorNotes?.trim();
-            const aiComment = aiResult.comment?.trim() || "";
-            
-            newQuestionGradeDraft[aiResult.questionId][result.submissionId] = {
-              score: aiResult.score,
-              // Use AI comment if no existing note, otherwise keep existing
-              instructorNotes: existingInstructorNotes || aiComment,
-              aiSuggested: !existingInstructorNotes, // Only mark as AI if there was no existing note
-            };
-
-            // If this is the active submission, also update the student draft
-            if (result.submissionId === activeSubmissionId) {
-              newGradeDraft[aiResult.questionId] = {
-                score: aiResult.score,
-                // Use AI comment if no existing note, otherwise keep existing
-                instructorNotes: existingInstructorNotes || aiComment,
-                aiSuggested: !existingInstructorNotes, // Only mark as AI if there was no existing note
-              };
-            }
-          }
-        }
-
-        setQuestionGradeDraft(newQuestionGradeDraft);
-        setGradeDraft(newGradeDraft);
-
-        // Refresh submission data - wait a bit to ensure DB write is complete
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
+        // Invalidate and refetch all submission queries to get fresh data from DB
         queryClient.invalidateQueries({ queryKey: ["submissions", setId, "summaries"] });
         queryClient.invalidateQueries({ queryKey: ["submissions", setId, "all"] });
         queryClient.invalidateQueries({ queryKey: ["submission"] });
         
         // Force refetch to get fresh data
+        await queryClient.refetchQueries({ queryKey: ["submissions", setId, "summaries"] });
         await queryClient.refetchQueries({ queryKey: ["submissions", setId, "all"] });
         
-        console.log(`[AI Grading] Refreshed queries, data should be reloaded`);
+        console.log(`[AI Grading] ✅ UI refreshed - ${data.totalSubmissions} submissions graded and saved`);
 
         setStatusMessage(`✨ הערכת AI הושלמה ונשמרה: ${data.totalSubmissions} הגשות, ${data.totalQuestionsGraded} תשובות. ניתן לבדוק ולעדכן את הציונים בממשק.`);
       } catch (error) {
-        console.error("Error saving AI grades:", error);
+        console.error(`[AI Grading] ❌ Error in onSuccess handler:`, error);
+        console.error(`[AI Grading] Error stack:`, error instanceof Error ? error.stack : "No stack trace");
         setStatusMessage(`שגיאה בשמירת ציוני AI: ${error instanceof Error ? error.message : "Unknown error"}`);
+        // Still reset loading state even on error
+        setIsAIGrading(false);
+        setAIGradingProgress(null);
       }
     },
     onError: (error: Error) => {
+      // Critical: This log MUST appear if onError is called
+      // Using multiple console methods to ensure visibility
+      console.error(`[AI Grading] ❌❌❌ onError CALLED - THIS SHOULD APPEAR IN CONSOLE ❌❌❌`);
+      console.warn(`[AI Grading] ⚠️ WARNING: onError was called`);
+      console.log(`[AI Grading] ❌ onError called:`, error);
+      console.error(`[AI Grading] Error details:`, {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      });
       setStatusMessage(`שגיאה בהערכת AI: ${error.message}`);
+      setIsAIGrading(false);
+      setAIGradingProgress(null);
     },
-    onSettled: () => {
+    onSettled: (data, error) => {
+      console.log(`[AI Grading] 🔄 onSettled called:`, {
+        hasData: !!data,
+        hasError: !!error,
+        dataSuccess: data?.success,
+        errorMessage: error?.message,
+      });
       setIsAIGrading(false);
       setAIGradingProgress(null);
     },
   });
+  
+  // Debug: Verify mutation is available
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      console.log(`[AI Grading] 🔧 Component mounted, mutation available:`, {
+        hasMutate: typeof aiGradingMutation.mutate === 'function',
+        hasMutateAsync: typeof aiGradingMutation.mutateAsync === 'function',
+        isPending: aiGradingMutation.isPending,
+      });
+    }
+  }, []);
 
   // Test AI mutation
   const testAIMutation = useMutation({
@@ -1318,7 +1251,10 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
           <button
             type="button"
             className={styles.aiGradeButton}
-            onClick={() => setShowAIGradingDialog(true)}
+            onClick={() => {
+              console.log(`[AI Grading] 🎯 AI Grade button clicked - Opening dialog`);
+              setShowAIGradingDialog(true);
+            }}
             disabled={isAIGrading || summaries.length === 0}
             title="בדיקה אוטומטית באמצעות AI"
           >
@@ -1367,6 +1303,30 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
       </header>
 
       {statusMessage && <div className={styles.banner}>{statusMessage}</div>}
+      
+      {/* Debug indicator - remove after fixing */}
+      {process.env.NODE_ENV === 'development' && (
+        <div style={{ 
+          position: 'fixed', 
+          bottom: 10, 
+          right: 10, 
+          background: 'rgba(0,0,0,0.8)', 
+          color: 'white', 
+          padding: '10px', 
+          borderRadius: '5px',
+          fontSize: '12px',
+          zIndex: 9999,
+          fontFamily: 'monospace'
+        }}>
+          <div>AI Grading State:</div>
+          <div>Pending: {aiGradingMutation.isPending ? 'YES' : 'NO'}</div>
+          <div>Success: {aiGradingMutation.isSuccess ? 'YES' : 'NO'}</div>
+          <div>Error: {aiGradingMutation.isError ? 'YES' : 'NO'}</div>
+          {aiGradingMutation.error && (
+            <div style={{ color: 'red' }}>Error: {aiGradingMutation.error.message}</div>
+          )}
+        </div>
+      )}
 
       {/* Progress Bar */}
       <div className={styles.progressBarContainer}>
@@ -1532,158 +1492,187 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
 
         <section className={styles.detailPane}>
           {viewMode === "student" ? (
-            submissionQuery.isLoading ? (
-              <div className={styles.placeholder}>{t("builder.grade.loading")}</div>
-            ) : submissionQuery.isError ? (
-              <div className={styles.placeholder}>
-                {t("builder.grade.error")}: {submissionQuery.error instanceof Error ? submissionQuery.error.message : "Unknown error"}
-              </div>
-            ) : !submission ? (
-              <div className={styles.placeholder}>{t("builder.grade.submission.select")}</div>
-            ) : (
             <div className={styles.detailInner}>
               <header className={styles.detailHeader}>
-                <div>
-                  <h3>{t("builder.grade.submission.by", { studentId: summaries.find(s => s.id === activeSubmissionId)?.studentName || submission.studentId })}</h3>
-                  {summaries.find(s => s.id === activeSubmissionId)?.studentIdNumber && (
-                    <p className={styles.studentIdBadge}>
-                      ת.ז: {summaries.find(s => s.id === activeSubmissionId)?.studentIdNumber}
-                    </p>
-                  )}
-                  <p className={styles.detailMeta}>
-                    {t("builder.grade.submission.attempt", { number: submission.attemptNumber })} · {t("builder.grade.submission.status", { status: submission.status })}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className={styles.saveButton}
-                  onClick={() => gradeMutation.mutate()}
-                  disabled={gradeMutation.isPending}
-                >
-                  {gradeMutation.isPending ? t("builder.grade.submission.saving") : t("builder.grade.submission.save")}
-                </button>
+                <h3>סקירת סטודנטים</h3>
+                <p className={styles.detailMeta}>לחץ על סטודנט לפתיחת תצוגה מפורטת</p>
               </header>
+              
+              <div className={styles.studentGridView}>
+                {filteredSummaries.map((summary) => (
+                  <button
+                    key={summary.id}
+                    type="button"
+                    className={`${styles.studentGridCard} ${summary.id === activeSubmissionId ? styles.active : ""}`}
+                    onClick={() => setActiveSubmissionId(summary.id)}
+                  >
+                    <div className={styles.studentGridHeader}>
+                      <div className={styles.studentGridName}>
+                        {summary.studentName || summary.studentId}
+                      </div>
+                      {summary.studentIdNumber && (
+                        <div className={styles.studentGridId}>
+                          ת.ז: {summary.studentIdNumber}
+                        </div>
+                      )}
+                    </div>
+                    <div className={styles.studentGridScore}>
+                      <span className={styles.scoreValue}>
+                        {SCORE_FORMATTER.format(summary.overallScore ?? 0)}
+                      </span>
+                      <span className={styles.scoreMax}>/ {totalPoints}</span>
+                    </div>
+                    <StatusBadge status={summary.status} t={t} />
+                  </button>
+                ))}
+              </div>
 
-              <div className={styles.progressGrid}>
-                {(progress ?? []).map((item) => {
-                  const question = questionsById.get(item.questionId);
-                  return (
-                    <div key={item.questionId} className={styles.progressCard}>
-                      <span className={styles.progressTitle}>{question?.prompt ?? item.questionId}</span>
-                      <span className={styles.progressStats}>
-                        {t("builder.grade.attempts")}: {item.attempts} · {t("builder.grade.score.label")}: {item.earnedScore ?? 0}/{question?.points ?? 0}
+              {/* Detailed view when student is selected */}
+              {activeSubmissionId && submission && (
+                <div className={styles.studentDetailedView}>
+                  <header className={styles.detailHeader}>
+                    <div>
+                      <h3>{t("builder.grade.submission.by", { studentId: summaries.find(s => s.id === activeSubmissionId)?.studentName || submission.studentId })}</h3>
+                      {summaries.find(s => s.id === activeSubmissionId)?.studentIdNumber && (
+                        <p className={styles.studentIdBadge}>
+                          ת.ז: {summaries.find(s => s.id === activeSubmissionId)?.studentIdNumber}
+                        </p>
+                      )}
+                      <p className={styles.detailMeta}>
+                        {t("builder.grade.submission.attempt", { number: submission.attemptNumber })} · {t("builder.grade.submission.status", { status: submission.status })}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.saveButton}
+                      onClick={() => gradeMutation.mutate()}
+                      disabled={gradeMutation.isPending}
+                    >
+                      {gradeMutation.isPending ? t("builder.grade.submission.saving") : t("builder.grade.submission.save")}
+                    </button>
+                  </header>
+
+                  <div className={styles.progressGrid}>
+                    {(progress ?? []).map((item) => {
+                      const question = questionsById.get(item.questionId);
+                      return (
+                        <div key={item.questionId} className={styles.progressCard}>
+                          <span className={styles.progressTitle}>{question?.prompt ?? item.questionId}</span>
+                          <span className={styles.progressStats}>
+                            {t("builder.grade.attempts")}: {item.attempts} · {t("builder.grade.score.label")}: {item.earnedScore ?? 0}/{question?.points ?? 0}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className={styles.questionsList}>
+                    {Object.entries(submission.answers).map(([questionId, answer]) => {
+                      const question = questionsById.get(questionId);
+                      const draft = gradeDraft[questionId];
+                      const sqlAnswer = answer as SqlAnswer;
+                      return (
+                        <article key={questionId} className={styles.questionCard}>
+                          <header>
+                            <h4>{question?.prompt ?? `Question ${questionId}`}</h4>
+                            <span className={styles.questionPoints}>{draft?.score ?? 0}/{question?.points ?? 0} נקודות</span>
+                          </header>
+                          <p className={styles.questionInstructions}>{question?.instructions}</p>
+                          <pre className={styles.sqlBlock}>{sqlAnswer.sql || t("builder.grade.noResponse")}</pre>
+                          {sqlAnswer.resultPreview?.rows?.length ? (
+                            <div className={styles.resultPreview}>
+                              <strong>{t("builder.grade.resultPreview")}</strong>
+                              <table>
+                                <thead>
+                                  <tr>
+                                    {sqlAnswer.resultPreview.columns.map((column) => (
+                                      <th key={column}>{column}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {sqlAnswer.resultPreview.rows.slice(0, 3).map((row, rowIndex) => (
+                                    <tr key={rowIndex}>
+                                      {sqlAnswer.resultPreview!.columns.map((column) => (
+                                        <td key={column}>{String(row[column] ?? "")}</td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : null}
+
+                          <div className={styles.gradeControls}>
+                            <label className={draft?.aiSuggested ? styles.aiSuggestedField : ""}>
+                              {t("builder.grade.score.label")}
+                              {draft?.aiSuggested && <span className={styles.aiSuggestedBadge}>AI</span>}
+                              <input
+                                type="number"
+                                min={0}
+                                max={question?.points ?? 100}
+                                step={0.5}
+                                value={draft?.score ?? 0}
+                                onChange={(event) =>
+                                  setGradeDraft((prev) => ({
+                                    ...prev,
+                                    [questionId]: {
+                                      ...prev[questionId],
+                                      score: Number(event.target.value),
+                                      aiSuggested: false, // Clear AI flag when manually edited
+                                    },
+                                  }))
+                                }
+                              />
+                            </label>
+                            <div className={styles.notesFieldWithBank}>
+                              <label className={`${styles.notesField} ${draft?.aiSuggested ? styles.aiSuggestedField : ""}`}>
+                                {t("builder.grade.notes.label")}
+                                {draft?.aiSuggested && <span className={styles.aiSuggestedBadge}>AI</span>}
+                                <textarea
+                                  placeholder={t("builder.grade.notes.placeholder")}
+                                  value={draft?.instructorNotes ?? sqlAnswer.feedback?.instructorNotes ?? ""}
+                                  onChange={(event) =>
+                                    setGradeDraft((prev) => ({
+                                      ...prev,
+                                      [questionId]: {
+                                        ...prev[questionId],
+                                        aiSuggested: false, // Clear AI flag when manually edited
+                                        instructorNotes: event.target.value,
+                                      },
+                                    }))
+                                  }
+                                />
+                              </label>
+                              <CommentBankDropdown
+                                questionId={questionId}
+                                comments={commentBankQuery.data ?? []}
+                                onApply={(comment) => applyCommentFromBank(questionId, comment)}
+                                onSave={() => saveCurrentCommentToBank(questionId)}
+                                onDelete={(commentId) => deleteCommentMutation.mutate(commentId)}
+                                isOpen={showCommentBank === questionId}
+                                onToggle={() => setShowCommentBank(showCommentBank === questionId ? null : questionId)}
+                                direction={direction}
+                              />
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
+
+                    <div className={styles.summaryBar}>
+                      <strong>{t("builder.grade.totalScore")}:</strong>
+                      <span>
+                        {SCORE_FORMATTER.format(
+                          Object.values(gradeDraft).reduce((sum, entry) => sum + (entry.score ?? 0), 0),
+                        )}
+                        /{totalPoints}
                       </span>
                     </div>
-                  );
-                })}
-              </div>
-
-              <div className={styles.questionsList}>
-                {Object.entries(submission.answers).map(([questionId, answer]) => {
-                  const question = questionsById.get(questionId);
-                  const draft = gradeDraft[questionId];
-                  const sqlAnswer = answer as SqlAnswer;
-                  return (
-                    <article key={questionId} className={styles.questionCard}>
-                      <header>
-                        <h4>{question?.prompt ?? `Question ${questionId}`}</h4>
-                        <span className={styles.questionPoints}>{draft?.score ?? 0}/{question?.points ?? 0} נקודות</span>
-                      </header>
-                      <p className={styles.questionInstructions}>{question?.instructions}</p>
-                      <pre className={styles.sqlBlock}>{sqlAnswer.sql || t("builder.grade.noResponse")}</pre>
-                      {sqlAnswer.resultPreview?.rows?.length ? (
-                        <div className={styles.resultPreview}>
-                          <strong>{t("builder.grade.resultPreview")}</strong>
-                          <table>
-                            <thead>
-                              <tr>
-                                {sqlAnswer.resultPreview.columns.map((column) => (
-                                  <th key={column}>{column}</th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {sqlAnswer.resultPreview.rows.slice(0, 3).map((row, rowIndex) => (
-                                <tr key={rowIndex}>
-                                  {sqlAnswer.resultPreview!.columns.map((column) => (
-                                    <td key={column}>{String(row[column] ?? "")}</td>
-                                  ))}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : null}
-
-                      <div className={styles.gradeControls}>
-                        <label className={draft?.aiSuggested ? styles.aiSuggestedField : ""}>
-                          {t("builder.grade.score.label")}
-                          {draft?.aiSuggested && <span className={styles.aiSuggestedBadge}>AI</span>}
-                          <input
-                            type="number"
-                            min={0}
-                            max={question?.points ?? 100}
-                            step={0.5}
-                            value={draft?.score ?? 0}
-                            onChange={(event) =>
-                              setGradeDraft((prev) => ({
-                                ...prev,
-                                [questionId]: {
-                                  ...prev[questionId],
-                                  score: Number(event.target.value),
-                                  aiSuggested: false, // Clear AI flag when manually edited
-                                },
-                              }))
-                            }
-                          />
-                        </label>
-                        <div className={styles.notesFieldWithBank}>
-                          <label className={`${styles.notesField} ${draft?.aiSuggested ? styles.aiSuggestedField : ""}`}>
-                            {t("builder.grade.notes.label")}
-                            {draft?.aiSuggested && <span className={styles.aiSuggestedBadge}>AI</span>}
-                            <textarea
-                              placeholder={t("builder.grade.notes.placeholder")}
-                              value={draft?.instructorNotes ?? sqlAnswer.feedback?.instructorNotes ?? ""}
-                              onChange={(event) =>
-                                setGradeDraft((prev) => ({
-                                  ...prev,
-                                  [questionId]: {
-                                    ...prev[questionId],
-                                    aiSuggested: false, // Clear AI flag when manually edited
-                                    instructorNotes: event.target.value,
-                                  },
-                                }))
-                              }
-                            />
-                          </label>
-                          <CommentBankDropdown
-                            questionId={questionId}
-                            comments={commentBankQuery.data ?? []}
-                            onApply={(comment) => applyCommentFromBank(questionId, comment)}
-                            onSave={() => saveCurrentCommentToBank(questionId)}
-                            onDelete={(commentId) => deleteCommentMutation.mutate(commentId)}
-                            isOpen={showCommentBank === questionId}
-                            onToggle={() => setShowCommentBank(showCommentBank === questionId ? null : questionId)}
-                            direction={direction}
-                          />
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-
-                <div className={styles.summaryBar}>
-                  <strong>{t("builder.grade.totalScore")}:</strong>
-                  <span>
-                    {SCORE_FORMATTER.format(
-                      Object.values(gradeDraft).reduce((sum, entry) => sum + (entry.score ?? 0), 0),
-                    )}
-                    /{totalPoints}
-                  </span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-          )
           ) : (
             !activeQuestionId ? (
               <div className={styles.placeholder}>{t("builder.grade.question.select")}</div>
@@ -1931,18 +1920,53 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
         <aside className={styles.analyticsPane}>
           {viewMode === "student" ? (
             <>
-          <h3>{t("builder.grade.analytics.title")}</h3>
-          <ul className={styles.analyticsList}>
-            {analytics.length === 0 && <li>{t("builder.grade.noEvents")}</li>}
-            {analytics.map((event) => (
-              <li key={event.id}>
-                <span className={styles.analyticsType}>{event.type}</span>
-                <span className={styles.analyticsMeta}>
-                  {new Date(event.createdAt).toLocaleString()} · actor: {event.actorId}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <h3>סטטיסטיקות כלליות</h3>
+          <div className={styles.studentStatistics}>
+            {(() => {
+              const scores = summaries.map(s => s.overallScore ?? 0);
+              const totalStudents = scores.length;
+              const average = totalStudents > 0 
+                ? scores.reduce((sum, score) => sum + score, 0) / totalStudents 
+                : 0;
+              const variance = totalStudents > 0
+                ? scores.reduce((sum, score) => sum + Math.pow(score - average, 2), 0) / totalStudents
+                : 0;
+              const stdDev = Math.sqrt(variance);
+              
+              return (
+                <>
+                  <div className={styles.analyticsMetric}>
+                    <span className={styles.metricLabel}>סה"כ סטודנטים:</span>
+                    <span className={styles.metricValue}>{totalStudents}</span>
+                  </div>
+                  <div className={styles.analyticsMetric}>
+                    <span className={styles.metricLabel}>ממוצע כללי:</span>
+                    <span className={styles.metricValue}>
+                      {SCORE_FORMATTER.format(average)} / {totalPoints}
+                    </span>
+                  </div>
+                  <div className={styles.analyticsMetric}>
+                    <span className={styles.metricLabel}>סטיית תקן:</span>
+                    <span className={styles.metricValue}>
+                      {SCORE_FORMATTER.format(stdDev)}
+                    </span>
+                  </div>
+                  <div className={styles.analyticsMetric}>
+                    <span className={styles.metricLabel}>ציון מקסימלי:</span>
+                    <span className={styles.metricValue}>
+                      {SCORE_FORMATTER.format(Math.max(...scores, 0))}
+                    </span>
+                  </div>
+                  <div className={styles.analyticsMetric}>
+                    <span className={styles.metricLabel}>ציון מינימלי:</span>
+                    <span className={styles.metricValue}>
+                      {totalStudents > 0 ? SCORE_FORMATTER.format(Math.min(...scores)) : 0}
+                    </span>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
             </>
           ) : (
             (() => {
@@ -2082,9 +2106,37 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
               <button
                 type="button"
                 className={styles.aiGradingDialogStart}
-                onClick={() => {
+                onClick={async () => {
+                  // Test console.log first
+                  console.log(`[AI Grading] 🎯 Button clicked - Starting AI grading`);
+                  console.log(`[AI Grading] Instructions:`, aiGradingInstructions.trim() || "none");
+                  console.log(`[AI Grading] Homework Set ID:`, setId);
+                  
                   setShowAIGradingDialog(false);
-                  aiGradingMutation.mutate(aiGradingInstructions.trim() || undefined);
+                  
+                  // Use mutateAsync for explicit error handling
+                  try {
+                    console.log(`[AI Grading] Calling mutateAsync...`);
+                    const result = await aiGradingMutation.mutateAsync(aiGradingInstructions.trim() || undefined);
+                    console.log(`[AI Grading] ✅ mutateAsync completed with result:`, {
+                      success: result.success,
+                      resultsCount: result.results?.length || 0,
+                    });
+                    
+                    // Manually trigger the save logic since onSuccess might not fire
+                    console.log(`[AI Grading] Manually triggering save process...`);
+                    // The onSuccess handler should still fire, but we'll also handle it here
+                  } catch (error) {
+                    console.error(`[AI Grading] ❌ Error in mutateAsync:`, error);
+                    console.error(`[AI Grading] Error details:`, {
+                      name: error instanceof Error ? error.name : 'Unknown',
+                      message: error instanceof Error ? error.message : String(error),
+                      stack: error instanceof Error ? error.stack : 'No stack',
+                    });
+                    setStatusMessage(`שגיאה בהערכת AI: ${error instanceof Error ? error.message : "Unknown error"}`);
+                    setIsAIGrading(false);
+                    setAIGradingProgress(null);
+                  }
                 }}
               >
                 התחל בדיקת AI

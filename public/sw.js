@@ -38,6 +38,25 @@ self.addEventListener('install', (event) => {
 
 // Fetch event - serve from cache when offline
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  
+  // Bypass service worker completely for:
+  // 1. ALL API routes (they should always go to network)
+  // 2. ALL non-GET requests (mutations should not be cached)
+  // 3. Long-running endpoints like AI grading
+  // 4. Requests with cache-busting query params
+  if (
+    url.pathname.startsWith('/api/') ||
+    event.request.method !== 'GET' ||
+    url.pathname.includes('/api/grading/') ||
+    url.searchParams.has('t') // Cache-busting timestamp parameter
+  ) {
+    // Let the request go directly to the network, bypassing service worker entirely
+    // Don't call event.respondWith() - this allows the request to bypass the SW
+    return;
+  }
+  
+  // For other GET requests, try cache first, then network
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -46,6 +65,10 @@ self.addEventListener('fetch', (event) => {
           return response;
         }
         return fetch(event.request);
+      })
+      .catch(() => {
+        // If both cache and network fail, return a basic offline response
+        return new Response('Offline', { status: 503 });
       })
   );
 });
