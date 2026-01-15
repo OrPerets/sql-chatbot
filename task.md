@@ -93,6 +93,18 @@ This plan keeps all existing functionality intact (chatbot, admin, and all route
 
 ---
 
+### Sprint 1 — Implementation Notes (Done)
+
+**Cleaned dependency list**
+- Removed unused dependencies: `react-router-dom`, `react-ace`, and `bidi-js` (no imports found in app/lib/scripts). 
+
+**Unused scripts and config cleanup**
+- Removed unused asset compression scripts from `package.json` (`compress:glb`, `compress:textures`) because they were not referenced in docs or code.
+
+**Assets and experimental code paths**
+- Completed usage scan of `public/` assets referenced by the app and confirmed all remaining assets are in use; no asset deletions required.
+- Reviewed feature flags and experimental paths during dependency/asset audit; no unused flags or dead code paths found that could be safely removed in this sprint.
+
 ## Sprint 2 — Performance & Bundle Optimization
 
 **Goal:** Reduce bundle size, improve runtime performance, and ensure fast page loads.
