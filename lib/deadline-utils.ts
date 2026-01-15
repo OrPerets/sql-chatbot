@@ -43,14 +43,19 @@ export function getEffectiveDeadline(
 /**
  * Check if a homework is still accessible for a user
  * Returns true if the current time is before the effective deadline
+ * NOTE: Currently disabled - always returns true to allow unlimited access
  */
 export function isHomeworkAccessible(
   dueAt: string | Date,
   userEmail: string | null | undefined
 ): boolean {
-  const effectiveDeadline = getEffectiveDeadline(dueAt, userEmail);
-  const now = new Date();
-  return now < effectiveDeadline;
+  // Time limit disabled - always allow access
+  return true;
+  
+  // Original implementation (commented out):
+  // const effectiveDeadline = getEffectiveDeadline(dueAt, userEmail);
+  // const now = new Date();
+  // return now < effectiveDeadline;
 }
 
 /**
