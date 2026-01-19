@@ -263,6 +263,10 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
   const [isTestingAI, setIsTestingAI] = useState(false);
   const [testAIResults, setTestAIResults] = useState<TestAIResponse | null>(null);
   const [selectedTestQuestionId, setSelectedTestQuestionId] = useState<string | null>(null);
+  
+  // Track completed submissions per question (marked as done in question view)
+  const [completedSubmissions, setCompletedSubmissions] = useState<Map<string, Set<string>>>(new Map());
+  const [savingSubmissionId, setSavingSubmissionId] = useState<string | null>(null);
 
   const homeworkQuery = useQuery({
     queryKey: ["homework", setId],
@@ -1098,6 +1102,86 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
     });
   }, [activeQuestionId, allSubmissionsQuery.data]);
 
+  // Save single submission and mark as done
+  const handleMarkAsDone = useCallback(async (submissionId: string) => {
+    if (!activeQuestionId || savingSubmissionId === submissionId) return;
+    
+    setSavingSubmissionId(submissionId);
+    
+    try {
+      const submission = allSubmissionsQuery.data?.find((s) => s.id === submissionId);
+      if (!submission) return;
+
+      const draft = questionGradeDraft[activeQuestionId]?.[submissionId];
+      const question = questionsById.get(activeQuestionId);
+      if (!question) return;
+
+      const answer = submission.answers[activeQuestionId] as SqlAnswer | undefined;
+      if (!answer) return;
+
+      const maxPoints = question.points ?? draft?.score ?? 0;
+      const score = draft ? Math.min(maxPoints, Math.max(0, draft.score)) : answer.feedback?.score ?? 0;
+      
+      const updatedAnswer: SqlAnswer = {
+        ...answer,
+        feedback: {
+          questionId: activeQuestionId,
+          score,
+          autoNotes: answer.feedback?.autoNotes ?? "",
+          instructorNotes: draft?.instructorNotes ?? answer.feedback?.instructorNotes,
+          rubricBreakdown: answer.feedback?.rubricBreakdown ?? [],
+        },
+      };
+
+      const updatedAnswers: Submission["answers"] = {
+        ...submission.answers,
+        [activeQuestionId]: updatedAnswer,
+      };
+
+      const overallScore = Object.values(updatedAnswers).reduce(
+        (sum, ans) => sum + (ans.feedback?.score ?? 0),
+        0
+      );
+
+      await gradeSubmission(submissionId, {
+        answers: updatedAnswers,
+        overallScore,
+        status: "graded",
+      });
+
+      // Mark as completed and remove from view
+      setCompletedSubmissions((prev) => {
+        const next = new Map(prev);
+        const questionCompleted = next.get(activeQuestionId) ?? new Set();
+        questionCompleted.add(submissionId);
+        next.set(activeQuestionId, questionCompleted);
+        return next;
+      });
+
+      // Remove from draft
+      setQuestionGradeDraft((prev) => {
+        const next = { ...prev };
+        if (next[activeQuestionId]) {
+          const questionDraft = { ...next[activeQuestionId] };
+          delete questionDraft[submissionId];
+          next[activeQuestionId] = questionDraft;
+        }
+        return next;
+      });
+
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "summaries"] });
+      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "all"] });
+      
+      setStatusMessage("הציון נשמר והתשובה הוסרה מהרשימה");
+    } catch (error) {
+      console.error("Failed to save submission:", error);
+      setStatusMessage("שגיאה בשמירת הציון");
+    } finally {
+      setSavingSubmissionId(null);
+    }
+  }, [activeQuestionId, allSubmissionsQuery.data, questionGradeDraft, questionsById, queryClient, setId, savingSubmissionId]);
+
   // Apply a saved comment from the comment bank
   const applyCommentFromBank = useCallback((questionId: string, comment: CommentBankEntry, submissionId?: string) => {
     if (viewMode === "student") {
@@ -1681,8 +1765,9 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                 {(() => {
                   const question = questionsById.get(activeQuestionId);
                   const allSubmissions = allSubmissionsQuery.data ?? [];
+                  const questionCompletedSet = completedSubmissions.get(activeQuestionId) ?? new Set();
                   const submissionsForQuestion = allSubmissions.filter(
-                    (s) => s.answers[activeQuestionId] as SqlAnswer | undefined
+                    (s) => s.answers[activeQuestionId] as SqlAnswer | undefined && !questionCompletedSet.has(s.id)
                   );
                   const questionDraft = questionGradeDraft[activeQuestionId] ?? {};
                   const stats = questionStats.get(activeQuestionId);
@@ -1799,7 +1884,22 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                     )}
                                   </div>
                                 </label>
-                                <span className={styles.cardStatus}>{submission.status}</span>
+                                <div className={styles.cardHeaderActions}>
+                                  <span className={styles.cardStatus}>{submission.status}</span>
+                                  <button
+                                    type="button"
+                                    className={styles.doneButton}
+                                    onClick={() => handleMarkAsDone(submission.id)}
+                                    disabled={savingSubmissionId === submission.id}
+                                    title="שמור וסיים בדיקה"
+                                  >
+                                    {savingSubmissionId === submission.id ? (
+                                      <span className={styles.doneButtonSpinner} />
+                                    ) : (
+                                      "✓"
+                                    )}
+                                  </button>
+                                </div>
                               </div>
                               
                               <div className={styles.cardContent}>

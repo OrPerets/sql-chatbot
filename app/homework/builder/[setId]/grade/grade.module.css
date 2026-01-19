@@ -958,6 +958,12 @@
   cursor: pointer;
 }
 
+.cardHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .cardStatus {
   font-size: 12px;
   padding: 4px 8px;
@@ -965,6 +971,49 @@
   background: #f5f8fb;
   color: #4a5c6d;
   font-weight: 600;
+}
+
+.doneButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: #0f9d58;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(15, 157, 88, 0.2);
+}
+
+.doneButton:hover {
+  background: #0d8a4d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(15, 157, 88, 0.3);
+}
+
+.doneButton:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(15, 157, 88, 0.2);
+}
+
+.doneButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.doneButtonSpinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 .cardContent {
