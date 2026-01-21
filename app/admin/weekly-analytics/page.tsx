@@ -34,6 +34,13 @@ interface WeeklyChatReport {
       topic: string;
       count: number;
     }>;
+    sampleQuestions: Array<{
+      userId: string;
+      userEmail?: string;
+      message: string;
+      timestamp: string;
+      sessionId: string;
+    }>;
   };
   dailyBreakdown: Array<{
     date: string;
@@ -44,15 +51,164 @@ interface WeeklyChatReport {
   exportedAt: string;
 }
 
+interface StudentAnalytics {
+  totalStudents: number;
+  scoreDistribution: {
+    empty: number;
+    good: number;
+    needs_attention: number;
+    struggling: number;
+  };
+  riskDistribution: {
+    low: number;
+    medium: number;
+    high: number;
+  };
+  averageGrade: number;
+  averageEngagement: number;
+  topChallenges: string[];
+}
+
+interface TopicListProps {
+  title: string;
+  description: string;
+  topics: WeeklyChatReport['relationalAlgebra']['topTopics'];
+  isLoading: boolean;
+  emptyMessage: string;
+}
+
+const TopicList: React.FC<TopicListProps> = ({
+  title,
+  description,
+  topics,
+  isLoading,
+  emptyMessage
+}) => {
+  if (isLoading) {
+    return (
+      <div className={styles.sectionCard}>
+        <div className={styles.sectionHeader}>
+          <h2>{title}</h2>
+          <span className={styles.sectionMeta}>{description}</span>
+        </div>
+        <div className={styles.loadingStack}>
+          {Array.from({ length: 4 }).map((_, index) => (
+            <SkeletonCard key={`topic-skeleton-${index}`} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.sectionCard}>
+      <div className={styles.sectionHeader}>
+        <h2>{title}</h2>
+        <span className={styles.sectionMeta}>{description}</span>
+      </div>
+      <ul className={styles.topicList}>
+        {topics.map((topic) => (
+          <li key={topic.topic}>
+            <span className={styles.topicName}>{topic.topic}</span>
+            <span className={styles.topicCount}>{topic.count.toLocaleString('he-IL')}</span>
+          </li>
+        ))}
+      </ul>
+      {topics.length === 0 && <div className={styles.emptyState}>{emptyMessage}</div>}
+    </div>
+  );
+};
+
+interface PerformanceSummaryProps {
+  analytics: StudentAnalytics;
+}
+
+const PerformanceSummary: React.FC<PerformanceSummaryProps> = ({ analytics }) => {
+  const totalScores = Object.values(analytics.scoreDistribution).reduce((sum, value) => sum + value, 0);
+  const totalRisks = Object.values(analytics.riskDistribution).reduce((sum, value) => sum + value, 0);
+
+  const scoreItems = [
+    { key: 'good', label: 'במצב טוב', value: analytics.scoreDistribution.good, tone: styles.goodTone },
+    { key: 'needs_attention', label: 'דורש תשומת לב', value: analytics.scoreDistribution.needs_attention, tone: styles.warnTone },
+    { key: 'struggling', label: 'בסיכון גבוה', value: analytics.scoreDistribution.struggling, tone: styles.dangerTone },
+    { key: 'empty', label: 'ללא ציון', value: analytics.scoreDistribution.empty, tone: styles.neutralTone }
+  ];
+
+  const riskItems = [
+    { key: 'low', label: 'סיכון נמוך', value: analytics.riskDistribution.low, tone: styles.goodTone },
+    { key: 'medium', label: 'סיכון בינוני', value: analytics.riskDistribution.medium, tone: styles.warnTone },
+    { key: 'high', label: 'סיכון גבוה', value: analytics.riskDistribution.high, tone: styles.dangerTone }
+  ];
+
+  const formatPercent = (value: number, total: number) =>
+    total > 0 ? `${Math.round((value / total) * 100)}%` : '—';
+
+  return (
+    <div className={styles.sectionCard}>
+      <div className={styles.sectionHeader}>
+        <h2>סיכום ביצועי סטודנטים</h2>
+        <span className={styles.sectionMeta}>התפלגות ציונים וסיכון</span>
+      </div>
+      <div className={styles.performanceGrid}>
+        <div className={styles.metricCard}>
+          <p className={styles.metricLabel}>ממוצע ציון</p>
+          <p className={styles.metricValue}>{analytics.averageGrade.toFixed(1)}</p>
+        </div>
+        <div className={styles.metricCard}>
+          <p className={styles.metricLabel}>ממוצע מעורבות</p>
+          <p className={styles.metricValue}>{analytics.averageEngagement.toFixed(1)}</p>
+        </div>
+        <div className={styles.metricCard}>
+          <p className={styles.metricLabel}>סה"כ סטודנטים</p>
+          <p className={styles.metricValue}>{analytics.totalStudents.toLocaleString('he-IL')}</p>
+        </div>
+      </div>
+      <div className={styles.distributionGrid}>
+        <div>
+          <h3 className={styles.distributionTitle}>התפלגות ציונים</h3>
+          <ul className={styles.distributionList}>
+            {scoreItems.map((item) => (
+              <li key={item.key} className={styles.distributionItem}>
+                <span>{item.label}</span>
+                <div className={styles.distributionMeta}>
+                  <span className={item.tone}>{item.value.toLocaleString('he-IL')}</span>
+                  <span className={styles.distributionPercent}>{formatPercent(item.value, totalScores)}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h3 className={styles.distributionTitle}>התפלגות סיכון</h3>
+          <ul className={styles.distributionList}>
+            {riskItems.map((item) => (
+              <li key={item.key} className={styles.distributionItem}>
+                <span>{item.label}</span>
+                <div className={styles.distributionMeta}>
+                  <span className={item.tone}>{item.value.toLocaleString('he-IL')}</span>
+                  <span className={styles.distributionPercent}>{formatPercent(item.value, totalRisks)}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const WeeklyAnalyticsPage: React.FC = () => {
   const router = useRouter();
   const [report, setReport] = useState<WeeklyChatReport | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [analytics, setAnalytics] = useState<StudentAnalytics | null>(null);
+  const [isReportLoading, setIsReportLoading] = useState(true);
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(true);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
 
   const fetchReport = async () => {
-    setIsLoading(true);
-    setError(null);
+    setIsReportLoading(true);
+    setReportError(null);
 
     try {
       const response = await fetch('/api/admin/chat-report?days=7&format=json&includeDetails=true');
@@ -67,15 +223,44 @@ const WeeklyAnalyticsPage: React.FC = () => {
         throw new Error(data.error || 'אין נתונים זמינים');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'אירעה שגיאה בלתי צפויה');
+      setReportError(err instanceof Error ? err.message : 'אירעה שגיאה בלתי צפויה');
       console.error('Error fetching weekly analytics:', err);
     } finally {
-      setIsLoading(false);
+      setIsReportLoading(false);
     }
   };
 
-  useEffect(() => {
+  const fetchAnalytics = async () => {
+    setIsAnalyticsLoading(true);
+    setAnalyticsError(null);
+
+    try {
+      const response = await fetch('/api/admin/students/analytics');
+      if (!response.ok) {
+        throw new Error('לא ניתן לטעון נתוני סטודנטים');
+      }
+
+      const data = await response.json();
+      if (data.success && data.data) {
+        setAnalytics(data.data);
+      } else {
+        throw new Error(data.error || 'אין נתוני סטודנטים זמינים');
+      }
+    } catch (err) {
+      setAnalyticsError(err instanceof Error ? err.message : 'אירעה שגיאה בלתי צפויה');
+      console.error('Error fetching student analytics:', err);
+    } finally {
+      setIsAnalyticsLoading(false);
+    }
+  };
+
+  const refreshData = () => {
     fetchReport();
+    fetchAnalytics();
+  };
+
+  useEffect(() => {
+    refreshData();
   }, []);
 
   const formatNumber = (value: number) => value.toLocaleString('he-IL');
@@ -148,19 +333,28 @@ const WeeklyAnalyticsPage: React.FC = () => {
           </div>
           <button
             className={styles.refreshButton}
-            onClick={fetchReport}
-            disabled={isLoading}
+            onClick={refreshData}
+            disabled={isReportLoading || isAnalyticsLoading}
           >
-            {isLoading ? 'טוען נתונים...' : 'רענן נתונים'}
+            {isReportLoading || isAnalyticsLoading ? 'טוען נתונים...' : 'רענן נתונים'}
           </button>
         </div>
 
-        {error && (
+        {reportError && (
           <ErrorBanner
             message="טעינת הדוח נכשלה"
-            details={error}
+            details={reportError}
             retryable
             onRetry={fetchReport}
+          />
+        )}
+
+        {analyticsError && (
+          <ErrorBanner
+            message="טעינת נתוני הסטודנטים נכשלה"
+            details={analyticsError}
+            retryable
+            onRetry={fetchAnalytics}
           />
         )}
 
@@ -174,11 +368,11 @@ const WeeklyAnalyticsPage: React.FC = () => {
             )}
           </div>
           <div className={styles.kpiGrid}>
-            {isLoading &&
+            {isReportLoading &&
               Array.from({ length: 5 }).map((_, index) => (
                 <SkeletonCard key={`kpi-skeleton-${index}`} />
               ))}
-            {!isLoading &&
+            {!isReportLoading &&
               kpiCards.map((card) => (
                 <StatsCard
                   key={card.title}
@@ -217,31 +411,105 @@ const WeeklyAnalyticsPage: React.FC = () => {
                 ))}
               </tbody>
             </table>
-            {!isLoading && report?.dailyBreakdown.length === 0 && (
+            {!isReportLoading && report?.dailyBreakdown.length === 0 && (
               <div className={styles.emptyState}>אין נתונים להצגה בטווח הנבחר.</div>
             )}
           </div>
         </section>
 
-        <section className={styles.sectionGrid}>
-          <div className={styles.sectionCard}>
-            <div className={styles.sectionHeader}>
-              <h2>נושאים מובילים</h2>
-              <span className={styles.sectionMeta}>נושאים שחזרו בשיחות</span>
-            </div>
-            <ul className={styles.topicList}>
-              {report?.relationalAlgebra.topTopics.map((topic) => (
-                <li key={topic.topic}>
-                  <span className={styles.topicName}>{topic.topic}</span>
-                  <span className={styles.topicCount}>{formatNumber(topic.count)}</span>
-                </li>
-              ))}
-            </ul>
-            {!isLoading && report?.relationalAlgebra.topTopics.length === 0 && (
-              <div className={styles.emptyState}>לא נמצאו נושאים מובילים לשבוע הנוכחי.</div>
-            )}
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h2>תובנות נושאים ושאלות</h2>
+            <span className={styles.sectionMeta}>נושאים חמים ושאלות לדוגמה</span>
           </div>
+          <div className={styles.sectionGrid}>
+            <TopicList
+              title="נושאים מובילים"
+              description="נושאים שחזרו בשיחות"
+              topics={report?.relationalAlgebra.topTopics ?? []}
+              isLoading={isReportLoading}
+              emptyMessage="לא נמצאו נושאים מובילים לשבוע הנוכחי."
+            />
+            <div className={styles.sectionCard}>
+              <div className={styles.sectionHeader}>
+                <h2>שאלות לדוגמה</h2>
+                <span className={styles.sectionMeta}>דוגמאות לשאלות חוזרות</span>
+              </div>
+              {isReportLoading && (
+                <div className={styles.loadingStack}>
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <SkeletonCard key={`question-skeleton-${index}`} />
+                  ))}
+                </div>
+              )}
+              {!isReportLoading && (
+                <ul className={styles.questionList}>
+                  {report?.relationalAlgebra.sampleQuestions.map((question, index) => (
+                    <li key={`${question.sessionId}-${index}`}>
+                      <div className={styles.questionHeader}>
+                        <span>{question.userEmail || question.userId}</span>
+                        <span>{new Date(question.timestamp).toLocaleString('he-IL')}</span>
+                      </div>
+                      <p>{question.message}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {!isReportLoading && report?.relationalAlgebra.sampleQuestions.length === 0 && (
+                <div className={styles.emptyState}>אין שאלות לדוגמה לשבוע הנוכחי.</div>
+              )}
+            </div>
+          </div>
+        </section>
 
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h2>סיכום ביצועי סטודנטים</h2>
+            <span className={styles.sectionMeta}>ציונים, סיכונים ואתגרים מובילים</span>
+          </div>
+          <div className={styles.sectionGrid}>
+            {isAnalyticsLoading && (
+              <div className={styles.sectionCard}>
+                <div className={styles.loadingStack}>
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <SkeletonCard key={`performance-skeleton-${index}`} />
+                  ))}
+                </div>
+              </div>
+            )}
+            {!isAnalyticsLoading && analytics && <PerformanceSummary analytics={analytics} />}
+            {!isAnalyticsLoading && !analytics && (
+              <div className={styles.sectionCard}>
+                <div className={styles.emptyState}>אין נתוני סטודנטים להצגה כעת.</div>
+              </div>
+            )}
+            <div className={styles.sectionCard}>
+              <div className={styles.sectionHeader}>
+                <h2>אתגרים בולטים</h2>
+                <span className={styles.sectionMeta}>הנושאים שמקשים על הסטודנטים</span>
+              </div>
+              {isAnalyticsLoading && (
+                <div className={styles.loadingStack}>
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <SkeletonCard key={`challenge-skeleton-${index}`} />
+                  ))}
+                </div>
+              )}
+              {!isAnalyticsLoading && (
+                <ul className={styles.challengeList}>
+                  {analytics?.topChallenges.map((challenge) => (
+                    <li key={challenge}>{challenge}</li>
+                  ))}
+                </ul>
+              )}
+              {!isAnalyticsLoading && analytics?.topChallenges.length === 0 && (
+                <div className={styles.emptyState}>לא זוהו אתגרים מובילים לשבוע הנוכחי.</div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.sectionGrid}>
           <div className={styles.sectionCard}>
             <div className={styles.sectionHeader}>
               <h2>סטטוס הדוח</h2>
@@ -259,7 +527,7 @@ const WeeklyAnalyticsPage: React.FC = () => {
               </div>
               <div>
                 <p className={styles.statusLabel}>מקור נתונים</p>
-                <p className={styles.statusValue}>chat-report</p>
+                <p className={styles.statusValue}>chat-report + students/analytics</p>
               </div>
             </div>
           </div>

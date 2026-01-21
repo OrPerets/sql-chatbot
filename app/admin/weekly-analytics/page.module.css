@@ -128,6 +128,11 @@
   gap: 16px;
 }
 
+.loadingStack {
+  display: grid;
+  gap: 12px;
+}
+
 .topicList {
   list-style: none;
   padding: 0;
@@ -155,6 +160,147 @@
 .topicCount {
   font-weight: 700;
   color: #1d4ed8;
+}
+
+.questionList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.questionList li {
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: #344054;
+}
+
+.questionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #667085;
+  gap: 12px;
+}
+
+.questionList p {
+  margin: 0;
+  color: #101828;
+  font-weight: 500;
+}
+
+.performanceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.metricCard {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metricLabel {
+  margin: 0;
+  font-size: 12px;
+  color: #667085;
+}
+
+.metricValue {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #101828;
+}
+
+.distributionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.distributionTitle {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #101828;
+}
+
+.distributionList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: #344054;
+}
+
+.distributionItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.distributionMeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+}
+
+.distributionPercent {
+  color: #667085;
+  font-size: 12px;
+}
+
+.goodTone {
+  color: #16a34a;
+}
+
+.warnTone {
+  color: #d97706;
+}
+
+.dangerTone {
+  color: #dc2626;
+}
+
+.neutralTone {
+  color: #475467;
+}
+
+.challengeList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.challengeList li {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: 14px;
+  color: #344054;
+  font-weight: 600;
 }
 
 .statusCard {
