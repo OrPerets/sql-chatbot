@@ -37,6 +37,19 @@ interface WeeklyChatReport {
       count: number
     }>
   }
+  sessionTopics: {
+    topTopics: Array<{
+      topic: string
+      count: number
+    }>
+    sampleQuestions: Array<{
+      userId: string
+      userEmail?: string
+      message: string
+      timestamp: Date
+      sessionId: string
+    }>
+  }
   dailyBreakdown: Array<{
     date: string
     sessions: number
@@ -137,6 +150,57 @@ const RELATIONAL_ALGEBRA_KEYWORDS = [
   'מכפלה קרטזית'
 ]
 
+const SESSION_TOPIC_KEYWORDS: Array<{ topic: string; keywords: string[] }> = [
+  {
+    topic: 'JOINs וצירופים',
+    keywords: [' join ', 'left join', 'right join', 'full join', 'צירוף', 'צירופים', 'join']
+  },
+  {
+    topic: 'GROUP BY ואגרגציות',
+    keywords: ['group by', 'aggregate', 'avg', 'count', 'sum', 'min', 'max', 'אגרגציה', 'קיבוץ', 'ממוצע', 'סכום']
+  },
+  {
+    topic: 'סינון ותנאים',
+    keywords: ['where', 'having', 'filter', 'סינון', 'תנאי', 'איפה']
+  },
+  {
+    topic: 'תתי-שאילתות (Subquery)',
+    keywords: ['subquery', 'nested', 'exists', ' in ', 'תת', 'תתי']
+  },
+  {
+    topic: 'מיון והגבלת תוצאות',
+    keywords: ['order by', 'limit', 'top ', 'מיון', 'מוגבל', 'שורה ראשונה']
+  },
+  {
+    topic: 'אופרטורי סט (UNION/INTERSECT/EXCEPT)',
+    keywords: ['union', 'intersect', 'except', 'minus', 'איחוד', 'חיתוך', 'הפרש']
+  },
+  {
+    topic: 'DDL ומבנה טבלאות',
+    keywords: ['create table', 'alter table', 'drop', 'schema', 'ddl', 'טבלה', 'עמודה', 'סכמה']
+  },
+  {
+    topic: 'מפתחות ואילוצים',
+    keywords: ['primary key', 'foreign key', 'unique', 'constraint', 'מפתח', 'זר', 'ייחודי', 'אילוץ']
+  },
+  {
+    topic: 'נרמול ו-ERD',
+    keywords: ['normalization', '3nf', '2nf', '1nf', 'erd', 'נרמול', 'תרשים', 'ישויות', 'קשרים']
+  },
+  {
+    topic: 'אינדקסים וביצועים',
+    keywords: ['index', 'explain', 'performance', 'optimization', 'אינדקס', 'ביצועים', 'אופטימיזציה']
+  },
+  {
+    topic: 'CRUD ועדכונים',
+    keywords: ['insert', 'update', 'delete', 'truncate', 'crud', 'הכנסה', 'עדכון', 'מחיקה']
+  },
+  {
+    topic: 'פונקציות תאריך/טקסט',
+    keywords: ['date', 'time', 'timestamp', 'substring', 'concat', 'like', 'תאריך', 'זמן', 'מחרוזת', 'דפוס']
+  }
+]
+
 const SESSION_DURATION_CAP_MS = 2 * 60 * 60 * 1000
 const SESSION_DURATION_OUTLIER_MS = 8 * 60 * 60 * 1000
 const ASSIGNMENT_KEYWORDS = ['assignment', 'homework', 'exercise', 'תרגיל', 'מטלה', 'הגשתי', 'submitted', 'submit']
@@ -181,6 +245,15 @@ function extractTopicFromMessage(text: string): string {
   }
   
   return 'General Relational Algebra'
+}
+
+function extractSessionTopics(text: string): string[] {
+  const lowerText = ` ${text.toLowerCase()} `
+  const topics = SESSION_TOPIC_KEYWORDS.filter(entry =>
+    entry.keywords.some(keyword => lowerText.includes(keyword.toLowerCase()))
+  ).map(entry => entry.topic)
+
+  return topics.length > 0 ? topics : ['שאלות כלליות']
 }
 
 function detectLanguageBucket(text: string): 'hebrew' | 'english' | 'mixed' | 'other' {
@@ -316,6 +389,7 @@ export async function GET(request: NextRequest) {
       const raMessages = allMessages.filter(msg => 
         msg.role === 'user' && isRelationalAlgebraMessage(msg.text)
       )
+      const userMessages = allMessages.filter(msg => msg.role === 'user')
 
       const sessionMessageMap = new Map<string, {
         userMessages: number
@@ -347,6 +421,32 @@ export async function GET(request: NextRequest) {
 
       // Get sample questions (first 20 user messages about RA)
       const sampleQuestions = raMessages
+        .slice(0, 20)
+        .map(msg => {
+          const session = sessions.find(s => s._id?.toString() === msg.chatId?.toString())
+          const userId = session?.userId ? String(session.userId) : 'unknown'
+          return {
+            userId,
+            userEmail: userEmailMap.get(userId) || undefined,
+            message: msg.text,
+            timestamp: msg.timestamp,
+            sessionId: msg.chatId?.toString() || 'unknown'
+          }
+        })
+
+      const sessionTopicCounts = new Map<string, number>()
+      userMessages.forEach(msg => {
+        extractSessionTopics(msg.text).forEach(topic => {
+          sessionTopicCounts.set(topic, (sessionTopicCounts.get(topic) || 0) + 1)
+        })
+      })
+
+      const sessionTopTopics = Array.from(sessionTopicCounts.entries())
+        .map(([topic, count]) => ({ topic, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 12)
+
+      const sessionSampleQuestions = userMessages
         .slice(0, 20)
         .map(msg => {
           const session = sessions.find(s => s._id?.toString() === msg.chatId?.toString())
@@ -661,6 +761,10 @@ export async function GET(request: NextRequest) {
             : 0,
           sampleQuestions: includeDetails ? sampleQuestions : sampleQuestions.slice(0, 10),
           topTopics
+        },
+        sessionTopics: {
+          topTopics: sessionTopTopics,
+          sampleQuestions: includeDetails ? sessionSampleQuestions : sessionSampleQuestions.slice(0, 10)
         },
         dailyBreakdown,
         usageFunnel: {

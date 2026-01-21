@@ -58,6 +58,19 @@ interface WeeklyChatReport {
       sessionId: string;
     }>;
   };
+  sessionTopics: {
+    topTopics: Array<{
+      topic: string;
+      count: number;
+    }>;
+    sampleQuestions: Array<{
+      userId: string;
+      userEmail?: string;
+      message: string;
+      timestamp: string;
+      sessionId: string;
+    }>;
+  };
   dailyBreakdown: Array<{
     date: string;
     sessions: number;
@@ -149,7 +162,7 @@ interface AdminAnnotation {
 interface TopicListProps {
   title: string;
   description: string;
-  topics: WeeklyChatReport['relationalAlgebra']['topTopics'];
+  topics: WeeklyChatReport['sessionTopics']['topTopics'];
   isLoading: boolean;
   emptyMessage: string;
 }
@@ -1558,20 +1571,20 @@ const WeeklyAnalyticsPage: React.FC = () => {
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
             <h2>תובנות נושאים ושאלות</h2>
-            <span className={styles.sectionMeta}>נושאים חמים ושאלות לדוגמה</span>
+            <span className={styles.sectionMeta}>מיפוי הנושאים שעלו בשיחות הסטודנטים</span>
           </div>
           <div className={styles.sectionGrid}>
             <TopicList
               title="נושאים מובילים"
-              description="נושאים שחזרו בשיחות"
-              topics={report?.relationalAlgebra.topTopics ?? []}
+              description="נושאים שחזרו בכלל הסשנים"
+              topics={report?.sessionTopics.topTopics ?? []}
               isLoading={isReportLoading}
               emptyMessage="לא נמצאו נושאים מובילים לשבוע הנוכחי."
             />
             <div className={styles.sectionCard}>
               <div className={styles.sectionHeader}>
                 <h2>שאלות לדוגמה</h2>
-                <span className={styles.sectionMeta}>דוגמאות לשאלות חוזרות</span>
+                <span className={styles.sectionMeta}>דוגמאות מהשיחות האחרונות</span>
               </div>
               {isReportLoading && (
                 <div className={styles.loadingStack}>
@@ -1582,7 +1595,7 @@ const WeeklyAnalyticsPage: React.FC = () => {
               )}
               {!isReportLoading && (
                 <ul className={styles.questionList}>
-                  {report?.relationalAlgebra.sampleQuestions.map((question, index) => (
+                  {report?.sessionTopics.sampleQuestions.map((question, index) => (
                     <li key={`${question.sessionId}-${index}`}>
                       <div className={styles.questionHeader}>
                         <span>{question.userEmail || question.userId}</span>
@@ -1593,7 +1606,7 @@ const WeeklyAnalyticsPage: React.FC = () => {
                   ))}
                 </ul>
               )}
-              {!isReportLoading && report?.relationalAlgebra.sampleQuestions.length === 0 && (
+              {!isReportLoading && report?.sessionTopics.sampleQuestions.length === 0 && (
                 <div className={styles.emptyState}>אין שאלות לדוגמה לשבוע הנוכחי.</div>
               )}
             </div>
@@ -1835,7 +1848,7 @@ const WeeklyAnalyticsPage: React.FC = () => {
                   נושא
                   <select value={noteTopic} onChange={(event) => setNoteTopic(event.target.value)}>
                     <option value="general">כללי</option>
-                    {(report?.relationalAlgebra.topTopics ?? []).map((topic) => (
+                    {(report?.sessionTopics.topTopics ?? []).map((topic) => (
                       <option key={topic.topic} value={topic.topic}>
                         {topic.topic}
                       </option>
