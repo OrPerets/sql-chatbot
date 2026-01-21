@@ -59,6 +59,59 @@ interface WeeklyChatReport {
     messages: number;
     uniqueUsers: number;
   }>;
+  usageFunnel: {
+    visits: number;
+    firstQuestion: number;
+    followUp: number;
+    assignmentCompletion: number;
+  };
+  cohorts: {
+    newUsers: number;
+    returningUsers: number;
+    languageBreakdown: {
+      hebrew: number;
+      english: number;
+      mixed: number;
+      other: number;
+    };
+  };
+  retention: {
+    d1Retention: number;
+    d7Retention: number;
+    returningTrend: Array<{
+      date: string;
+      returningUsers: number;
+      totalUsers: number;
+    }>;
+  };
+  messageDepth: {
+    averageThreadLength: number;
+    followUpRate: number;
+    averageUserMessages: number;
+    averageAssistantMessages: number;
+    averageTopicsPerSession: number;
+  };
+  heatmap: {
+    days: Array<{
+      day: string;
+      counts: number[];
+    }>;
+  };
+  curriculumMapping: {
+    chapters: Array<{
+      chapter: string;
+      count: number;
+      topics: Array<{
+        topic: string;
+        count: number;
+      }>;
+    }>;
+  };
+  validation: {
+    cappedSessions: number;
+    excludedSessions: number;
+    flaggedAverage: boolean;
+  };
   exportedAt: string;
 }
 
@@ -354,6 +407,9 @@ const WeeklyAnalyticsPage: React.FC = () => {
       day: '2-digit'
     });
 
+  const formatRatio = (value: number, total: number) =>
+    total > 0 ? `${Math.round((value / total) * 100)}%` : '—';
+
   const kpiCards = useMemo(() => {
     if (!report) return [];
 
@@ -472,6 +528,115 @@ const WeeklyAnalyticsPage: React.FC = () => {
     return alerts;
   }, [analytics, report]);
 
+  const actionInsights = useMemo(() => {
+    if (!report || !analytics) return [];
+
+    const insights = [];
+    const riskShare =
+      analytics.riskDistribution.high /
+      Math.max(
+        1,
+        analytics.riskDistribution.low +
+          analytics.riskDistribution.medium +
+          analytics.riskDistribution.high
+      );
+
+    if (report.messageDepth.followUpRate < 35) {
+      insights.push({
+        title: 'שיפור עומק הדיון',
+        description: 'היחס בין שאלות המשך נמוך. מומלץ לעודד תלמידים לשאול שאלות המשך ולשלב דוגמאות פתוחות.'
+      });
+    }
+
+    if (report.retention.d7Retention < 15) {
+      insights.push({
+        title: 'חיזוק חזרת תלמידים',
+        description: 'שיעור D7 נמוך. מומלץ לתזמן משימות המשך שבועיות והודעות תזכורת.'
+      });
+    }
+
+    if (report.usageFunnel.assignmentCompletion < report.usageFunnel.followUp * 0.4) {
+      insights.push({
+        title: 'המרת שימוש למשימות',
+        description: 'מעט תלמידים עוברים לשלב השלמת המטלה. אפשר לשלב קישור ישיר לתרגילים באמצע השיחה.'
+      });
+    }
+
+    if (riskShare > 0.2) {
+      insights.push({
+        title: 'התמקדות בקבוצות סיכון',
+        description: 'קיימת עלייה בסטודנטים בסיכון גבוה. מומלץ לעקוב אחרי קורסים חלשים ולתאם סדנאות תגבור.'
+      });
+    }
+
+    if (report.validation.flaggedAverage) {
+      insights.push({
+        title: 'בדיקת איכות מדדי זמן',
+        description: 'זוהו ערכי זמן לא טיפוסיים. כדאי לבדוק מקור נתונים או לסנן סשנים חריגים.'
+      });
+    }
+
+    if (insights.length === 0) {
+      insights.push({
+        title: 'שבוע יציב',
+        description: 'אין חריגות בולטות. המשיכו לעקוב אחרי נושאים חמים ולחזק את האזורים החלשים.'
+      });
+    }
+
+    return insights;
+  }, [analytics, report]);
+
+  const funnelSteps = useMemo(() => {
+    if (!report) return [];
+    return [
+      { label: 'ביקורים', value: report.usageFunnel.visits },
+      { label: 'שאלה ראשונה', value: report.usageFunnel.firstQuestion },
+      { label: 'שאלת המשך', value: report.usageFunnel.followUp },
+      { label: 'השלמת מטלה', value: report.usageFunnel.assignmentCompletion }
+    ];
+  }, [report]);
+
+  const cohortCards = useMemo(() => {
+    if (!report) return [];
+    const totalLanguage = Object.values(report.cohorts.languageBreakdown).reduce(
+      (sum, value) => sum + value,
+      0
+    );
+    return [
+      {
+        title: 'משתמשים חדשים',
+        value: formatNumber(report.cohorts.newUsers),
+        description: 'סטודנטים ללא פעילות קודמת'
+      },
+      {
+        title: 'משתמשים חוזרים',
+        value: formatNumber(report.cohorts.returningUsers),
+        description: 'סטודנטים פעילים בעבר'
+      },
+      {
+        title: 'עברית',
+        value: formatRatio(report.cohorts.languageBreakdown.hebrew, totalLanguage),
+        description: 'שפת הודעות מובילה'
+      },
+      {
+        title: 'אנגלית/מעורב',
+        value: formatRatio(
+          report.cohorts.languageBreakdown.english + report.cohorts.languageBreakdown.mixed,
+          totalLanguage
+        ),
+        description: 'שימוש בשפה זרה'
+      }
+    ];
+  }, [report]);
+
+  const retentionSummary = useMemo(() => {
+    if (!report) return [];
+    return [
+      { title: 'D1 Retention', value: formatPercentage(report.retention.d1Retention) },
+      { title: 'D7 Retention', value: formatPercentage(report.retention.d7Retention) }
+    ];
+  }, [report]);
+
   const handleExportCsv = () => {
     if (!report) return;
     const rows: string[][] = [
@@ -486,6 +651,20 @@ const WeeklyAnalyticsPage: React.FC = () => {
       ['Median session duration (ms)', report.summary.medianSessionDuration.toString()],
       ['Avg user duration (ms)', report.summary.averageUserDuration.toString()],
       ['Returning users %', report.summary.returningUsersPercentage.toFixed(1)],
+      ['D1 retention %', report.retention.d1Retention.toFixed(1)],
+      ['D7 retention %', report.retention.d7Retention.toFixed(1)],
+      ['Funnel - visits', report.usageFunnel.visits.toString()],
+      ['Funnel - first question', report.usageFunnel.firstQuestion.toString()],
+      ['Funnel - follow-up', report.usageFunnel.followUp.toString()],
+      ['Funnel - assignment completion', report.usageFunnel.assignmentCompletion.toString()],
+      ['Avg thread length', report.messageDepth.averageThreadLength.toString()],
+      ['Follow-up rate %', report.messageDepth.followUpRate.toFixed(1)],
+      ['Avg user messages', report.messageDepth.averageUserMessages.toString()],
+      ['Avg assistant messages', report.messageDepth.averageAssistantMessages.toString()],
+      ['Avg topics per session', report.messageDepth.averageTopicsPerSession.toString()],
+      ['Validation - capped sessions', report.validation.cappedSessions.toString()],
+      ['Validation - excluded sessions', report.validation.excludedSessions.toString()],
+      ['Validation - flagged avg', report.validation.flaggedAverage ? 'true' : 'false'],
       [],
       ['Daily breakdown'],
       ['Date', 'Sessions', 'Messages', 'Unique users'],
@@ -496,6 +675,17 @@ const WeeklyAnalyticsPage: React.FC = () => {
         day.uniqueUsers.toString()
       ])
     ];
+
+    if (report.curriculumMapping.chapters.length > 0) {
+      rows.push([]);
+      rows.push(['Curriculum mapping']);
+      report.curriculumMapping.chapters.forEach((chapter) => {
+        rows.push([chapter.chapter, chapter.count.toString()]);
+        chapter.topics.forEach((topic) => {
+          rows.push([` - ${topic.topic}`, topic.count.toString()]);
+        });
+      });
+    }
 
     if (analytics) {
       rows.push([]);
@@ -680,6 +870,143 @@ const WeeklyAnalyticsPage: React.FC = () => {
 
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
+            <h2>הבנת שימוש והתנהגות</h2>
+            <span className={styles.sectionMeta}>משפך שימוש, עומק דיון ומקטעי משתמשים</span>
+          </div>
+          <div className={styles.sectionGrid}>
+            <div className={styles.sectionCard}>
+              <div className={styles.sectionHeader}>
+                <h2>משפך שימוש</h2>
+                <span className={styles.sectionMeta}>מהכניסה ועד השלמת מטלה</span>
+              </div>
+              {isReportLoading ? (
+                <div className={styles.loadingStack}>
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <SkeletonCard key={`funnel-skeleton-${index}`} />
+                  ))}
+                </div>
+              ) : (
+                <ul className={styles.funnelList}>
+                  {funnelSteps.map((step, index) => (
+                    <li key={step.label}>
+                      <span className={styles.funnelIndex}>{index + 1}</span>
+                      <div>
+                        <p className={styles.funnelLabel}>{step.label}</p>
+                        <p className={styles.funnelValue}>{formatNumber(step.value)}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className={styles.sectionCard}>
+              <div className={styles.sectionHeader}>
+                <h2>עומק הודעות</h2>
+                <span className={styles.sectionMeta}>צפיפות שיח ומעקב אחר נושאים</span>
+              </div>
+              {isReportLoading ? (
+                <div className={styles.loadingStack}>
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <SkeletonCard key={`depth-skeleton-${index}`} />
+                  ))}
+                </div>
+              ) : report ? (
+                <div className={styles.metricStack}>
+                  <div>
+                    <p className={styles.metricLabel}>אורך שרשור ממוצע</p>
+                    <p className={styles.metricValue}>{report.messageDepth.averageThreadLength}</p>
+                  </div>
+                  <div>
+                    <p className={styles.metricLabel}>יחס שאלות המשך</p>
+                    <p className={styles.metricValue}>{formatPercentage(report.messageDepth.followUpRate)}</p>
+                  </div>
+                  <div>
+                    <p className={styles.metricLabel}>הודעות סטודנטים לסשן</p>
+                    <p className={styles.metricValue}>{report.messageDepth.averageUserMessages}</p>
+                  </div>
+                  <div>
+                    <p className={styles.metricLabel}>עומק נושאים לסשן</p>
+                    <p className={styles.metricValue}>{report.messageDepth.averageTopicsPerSession}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.emptyState}>אין נתונים להצגה.</div>
+              )}
+            </div>
+            <div className={styles.sectionCard}>
+              <div className={styles.sectionHeader}>
+                <h2>מקטעי משתמשים</h2>
+                <span className={styles.sectionMeta}>חדשים מול חוזרים ושפה</span>
+              </div>
+              {isReportLoading ? (
+                <div className={styles.loadingStack}>
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <SkeletonCard key={`cohort-skeleton-${index}`} />
+                  ))}
+                </div>
+              ) : (
+                <div className={styles.cohortGrid}>
+                  {cohortCards.map((card) => (
+                    <div key={card.title} className={styles.cohortCard}>
+                      <p className={styles.metricLabel}>{card.title}</p>
+                      <p className={styles.metricValue}>{card.value}</p>
+                      <p className={styles.helperText}>{card.description}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className={styles.sectionCard}>
+              <div className={styles.sectionHeader}>
+                <h2>שימור משתמשים</h2>
+                <span className={styles.sectionMeta}>D1/D7 וחזרתיות יומית</span>
+              </div>
+              {isReportLoading ? (
+                <div className={styles.loadingStack}>
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <SkeletonCard key={`retention-skeleton-${index}`} />
+                  ))}
+                </div>
+              ) : report ? (
+                <>
+                  <div className={styles.retentionRow}>
+                    {retentionSummary.map((item) => (
+                      <div key={item.title} className={styles.retentionCard}>
+                        <p className={styles.metricLabel}>{item.title}</p>
+                        <p className={styles.metricValue}>{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className={styles.tableWrapper}>
+                    <table className={styles.table}>
+                      <thead>
+                        <tr>
+                          <th>תאריך</th>
+                          <th>משתמשים חוזרים</th>
+                          <th>סה"כ משתמשים</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {report.retention.returningTrend.map((day) => (
+                          <tr key={`returning-${day.date}`}>
+                            <td>{formatDate(day.date)}</td>
+                            <td>{formatNumber(day.returningUsers)}</td>
+                            <td>{formatNumber(day.totalUsers)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <div className={styles.emptyState}>אין נתונים להצגה.</div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
             <h2>פירוט יומי</h2>
             <span className={styles.sectionMeta}>סשנים, הודעות ומשתמשים ייחודיים</span>
           </div>
@@ -706,6 +1033,48 @@ const WeeklyAnalyticsPage: React.FC = () => {
             </table>
             {!isReportLoading && report?.dailyBreakdown.length === 0 && (
               <div className={styles.emptyState}>אין נתונים להצגה בטווח הנבחר.</div>
+            )}
+          </div>
+        </section>
+
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h2>דפוסי שימוש בזמן</h2>
+            <span className={styles.sectionMeta}>חלון עומס לפי שעה ויום</span>
+          </div>
+          <div className={styles.sectionCard}>
+            {isReportLoading ? (
+              <div className={styles.loadingStack}>
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <SkeletonCard key={`heatmap-skeleton-${index}`} />
+                ))}
+              </div>
+            ) : report ? (
+              <div className={styles.heatmapWrapper}>
+                <div className={styles.heatmapHeader}>
+                  {Array.from({ length: 24 }).map((_, hour) => (
+                    <span key={`hour-${hour}`}>{hour}</span>
+                  ))}
+                </div>
+                {report.heatmap.days.map((day) => (
+                  <div key={day.day} className={styles.heatmapRow}>
+                    <span className={styles.heatmapLabel}>{day.day}</span>
+                    <div className={styles.heatmapCells}>
+                      {day.counts.map((value, index) => (
+                        <span
+                          key={`${day.day}-${index}`}
+                          className={styles.heatmapCell}
+                          style={{ opacity: value === 0 ? 0.15 : Math.min(1, value / 12 + 0.2) }}
+                        >
+                          {value > 0 ? value : ''}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className={styles.emptyState}>אין נתונים להצגה.</div>
             )}
           </div>
         </section>
@@ -760,6 +1129,10 @@ const WeeklyAnalyticsPage: React.FC = () => {
             <h2>סיכום ביצועי סטודנטים</h2>
             <span className={styles.sectionMeta}>ציונים, סיכונים ואתגרים מובילים</span>
           </div>
+          <p className={styles.helperText}>
+            קורסים בסיכון מוגדרים כאחוז הסטודנטים עם ציון נמוך או מדד סיכון ≥ 0.7 בהתאם לנתוני
+            students/analytics.
+          </p>
           <div className={styles.sectionGrid}>
             {isAnalyticsLoading && (
               <div className={styles.sectionCard}>
@@ -831,6 +1204,95 @@ const WeeklyAnalyticsPage: React.FC = () => {
               <div className={styles.sectionCard}>
                 <div className={styles.emptyState}>לא זוהו חריגות משמעותיות השבוע.</div>
               </div>
+            )}
+          </div>
+        </section>
+
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h2>מיפוי תכנית לימודים</h2>
+            <span className={styles.sectionMeta}>נושאים לפי פרק ויעדי למידה</span>
+          </div>
+          <div className={styles.sectionGrid}>
+            {isReportLoading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <SkeletonCard key={`curriculum-skeleton-${index}`} />
+              ))
+            ) : report && report.curriculumMapping.chapters.length > 0 ? (
+              report.curriculumMapping.chapters.map((chapter) => (
+                <div key={chapter.chapter} className={styles.sectionCard}>
+                  <div className={styles.sectionHeader}>
+                    <h2>{chapter.chapter}</h2>
+                    <span className={styles.sectionMeta}>{formatNumber(chapter.count)} אזכורים</span>
+                  </div>
+                  <ul className={styles.topicList}>
+                    {chapter.topics.map((topic) => (
+                      <li key={topic.topic}>
+                        <span className={styles.topicName}>{topic.topic}</span>
+                        <span className={styles.topicCount}>{formatNumber(topic.count)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))
+            ) : (
+              <div className={styles.sectionCard}>
+                <div className={styles.emptyState}>אין מיפוי נושאים לשבוע הנוכחי.</div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h2>פעולות מומלצות</h2>
+            <span className={styles.sectionMeta}>המלצות מבוססות שימוש ונושאים</span>
+          </div>
+          <div className={styles.sectionGrid}>
+            {isReportLoading || isAnalyticsLoading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <SkeletonCard key={`action-skeleton-${index}`} />
+              ))
+            ) : (
+              actionInsights.map((insight) => (
+                <div key={insight.title} className={styles.sectionCard}>
+                  <h3 className={styles.actionTitle}>{insight.title}</h3>
+                  <p className={styles.actionDescription}>{insight.description}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        <section className={styles.sectionGrid}>
+          <div className={styles.sectionCard}>
+            <div className={styles.sectionHeader}>
+              <h2>אימות מדדים</h2>
+              <span className={styles.sectionMeta}>סינון חריגים וזיהוי חריגות</span>
+            </div>
+            {isReportLoading ? (
+              <div className={styles.loadingStack}>
+                {Array.from({ length: 2 }).map((_, index) => (
+                  <SkeletonCard key={`validation-skeleton-${index}`} />
+                ))}
+              </div>
+            ) : report ? (
+              <div className={styles.validationList}>
+                <div>
+                  <p className={styles.metricLabel}>סשנים שגובהו</p>
+                  <p className={styles.metricValue}>{formatNumber(report.validation.cappedSessions)}</p>
+                </div>
+                <div>
+                  <p className={styles.metricLabel}>סשנים שסוננו</p>
+                  <p className={styles.metricValue}>{formatNumber(report.validation.excludedSessions)}</p>
+                </div>
+                <div>
+                  <p className={styles.metricLabel}>חריגה מממוצע צפוי</p>
+                  <p className={styles.metricValue}>{report.validation.flaggedAverage ? 'כן' : 'לא'}</p>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.emptyState}>אין נתוני אימות להצגה.</div>
             )}
           </div>
         </section>
