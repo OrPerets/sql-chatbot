@@ -17,6 +17,8 @@ export type JoinPair = {
   matched: boolean;
 };
 
+export type RowState = 'default' | 'kept' | 'filtered' | 'matched';
+
 export type VisualizationNode = {
   id: string;
   label: string;
@@ -24,6 +26,8 @@ export type VisualizationNode = {
   data?: {
     columns: string[];
     rows: Array<Record<string, string | number>>;
+    rowStates?: RowState[];
+    highlightColumns?: string[];
   };
   detail?: string;
   pairs?: JoinPair[];

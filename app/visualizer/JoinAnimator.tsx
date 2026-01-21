@@ -51,6 +51,36 @@ const JoinAnimator = ({ node }: JoinAnimatorProps) => {
           </div>
         ))}
       </div>
+      {node.data && (
+        <div className={styles.joinOutput}>
+          <div className={styles.joinOutputHeader}>
+            <span className={styles.tableTitle}>Join output</span>
+            <span className={styles.tableKind}>RESULT</span>
+          </div>
+          <div className={styles.tableScroll} role="region" aria-label="Join output rows" tabIndex={0}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  {node.data.columns.map((column) => (
+                    <th key={column} scope="col">
+                      {column}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {node.data.rows.map((row, index) => (
+                  <tr key={`${node.id}-join-row-${index}`} className={styles.tableRowMatched}>
+                    {node.data?.columns.map((column) => (
+                      <td key={`${node.id}-${column}-${index}`}>{row[column]}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
