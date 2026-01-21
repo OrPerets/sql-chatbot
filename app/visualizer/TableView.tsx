@@ -18,6 +18,35 @@ const TableView = ({ node }: TableViewProps) => {
     );
   }
 
+  const { columns, rows, rowStates, highlightColumns } = node.data;
+  const hasColumnHighlights = Boolean(highlightColumns?.length);
+
+  const getColumnClassName = (column: string) => {
+    if (!hasColumnHighlights) {
+      return undefined;
+    }
+
+    return highlightColumns?.includes(column) ? styles.columnHighlighted : styles.columnMuted;
+  };
+
+  const getRowClassName = (index: number) => {
+    const rowState = rowStates?.[index] ?? 'default';
+
+    if (rowState === 'kept') {
+      return styles.tableRowKept;
+    }
+
+    if (rowState === 'filtered') {
+      return styles.tableRowFiltered;
+    }
+
+    if (rowState === 'matched') {
+      return styles.tableRowMatched;
+    }
+
+    return undefined;
+  };
+
   return (
     <div className={styles.tableCard}>
       <div className={styles.tableHeader}>
@@ -28,18 +57,20 @@ const TableView = ({ node }: TableViewProps) => {
         <table className={styles.table}>
           <thead>
             <tr>
-              {node.data.columns.map((column) => (
-                <th key={column} scope="col">
+              {columns.map((column) => (
+                <th key={column} scope="col" className={getColumnClassName(column)}>
                   {column}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {node.data.rows.map((row, index) => (
-              <tr key={`${node.id}-row-${index}`}>
-                {node.data?.columns.map((column) => (
-                  <td key={`${node.id}-${column}-${index}`}>{row[column]}</td>
+            {rows.map((row, index) => (
+              <tr key={`${node.id}-row-${index}`} className={getRowClassName(index)}>
+                {columns.map((column) => (
+                  <td key={`${node.id}-${column}-${index}`} className={getColumnClassName(column)}>
+                    {row[column]}
+                  </td>
                 ))}
               </tr>
             ))}

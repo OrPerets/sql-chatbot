@@ -52,7 +52,20 @@ export const mockSteps: QueryStep[] = [
         id: 'join-output',
         label: 'Joined rows',
         kind: 'join',
-        detail: 'Match students with their courses.'
+        detail: 'Match students with their courses.',
+        data: {
+          columns: ['Students.id', 'Students.name', 'Enrollments.student_id', 'Enrollments.course'],
+          rows: [
+            { 'Students.id': 1, 'Students.name': 'Ada', 'Enrollments.student_id': 1, 'Enrollments.course': 'SQL 101' },
+            {
+              'Students.id': 2,
+              'Students.name': 'Linus',
+              'Enrollments.student_id': 2,
+              'Enrollments.course': 'Databases'
+            }
+          ],
+          rowStates: ['matched', 'matched']
+        }
       }
     ],
     animations: [
@@ -79,7 +92,8 @@ export const mockSteps: QueryStep[] = [
           rows: [
             { name: 'Ada', course: 'SQL 101' },
             { name: 'Linus', course: 'Databases' }
-          ]
+          ],
+          highlightColumns: ['name', 'course']
         }
       }
     ],

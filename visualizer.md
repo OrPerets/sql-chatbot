@@ -98,17 +98,22 @@ Create an educational "Query Visualizer" for the AI assistant chat that animates
 **Objective:** Render and animate core SQL operations.
 
 **Tasks**
-1. **Table visualization**
+1. **Table visualization** ✅
    - Render tables with rows, columns, and highlight filters.
-2. **Join animations (core demo)**
+2. **Join animations (core demo)** ✅
    - Visualize INNER JOIN as matching row pairs.
    - Animate row pairing and resulting output table.
-3. **Filters and projections**
+3. **Filters and projections** ✅
    - Animate WHERE filtering and SELECT column projection.
 
 **Deliverables**
 - Working visualizer for basic SELECT + JOIN queries.
 - Reusable animation helpers.
+
+**Implementation Notes**
+- Added row state styling for kept/filtered/matched rows and column highlighting for projections.
+- Updated join rendering to include paired rows plus a live join output table.
+- Enhanced the projection step to show pre-projection data alongside the final result.
 
 ---
 

@@ -170,6 +170,11 @@ const applyFilter = (rows: Array<Record<string, string | number>>, clause: Filte
   return rows.filter((row) => compareValues(row[key(row)], clause.op, clause.value));
 };
 
+const buildFilterStates = (rows: Array<Record<string, string | number>>, clause: FilterClause) => {
+  const key = (row: Record<string, string | number>) => resolveColumnKey(row, clause.column);
+  return rows.map((row) => (compareValues(row[key(row)], clause.op, clause.value) ? 'kept' : 'filtered'));
+};
+
 const applyOrder = (
   rows: Array<Record<string, string | number>>,
   clause: OrderByClause
@@ -371,7 +376,8 @@ export const generateStepsFromSql = (sql: string): QueryStep[] => {
       }.${join.on.right.column}`,
       data: {
         columns: [...current.columns, ...right.columns],
-        rows: joinedRows
+        rows: joinedRows,
+        rowStates: joinedRows.map(() => 'matched')
       },
       pairs
     };
@@ -395,13 +401,15 @@ export const generateStepsFromSql = (sql: string): QueryStep[] => {
 
   if (normalized.where) {
     const filteredRows = applyFilter(current.rows, normalized.where);
+    const rowStates = buildFilterStates(current.rows, normalized.where);
     const filterNode: VisualizationNode = {
       id: 'filtered-rows',
       label: 'Filtered rows',
       kind: 'filter',
       data: {
         columns: current.columns,
-        rows: filteredRows
+        rows: current.rows,
+        rowStates
       }
     };
 
@@ -481,6 +489,16 @@ export const generateStepsFromSql = (sql: string): QueryStep[] => {
   }
 
   const projection = applyProjection(current.rows, normalized.select, current.columns);
+  const projectionSourceNode: VisualizationNode = {
+    id: 'projection-source',
+    label: 'Before projection',
+    kind: 'projection',
+    data: {
+      columns: current.columns,
+      rows: current.rows,
+      highlightColumns: projection.columns
+    }
+  };
   const projectionNode: VisualizationNode = {
     id: 'projection-output',
     label: 'Final result',
@@ -493,9 +511,9 @@ export const generateStepsFromSql = (sql: string): QueryStep[] => {
       'step-projection',
       `${steps.length + 1}. Project columns`,
       'Select the output columns for the final result set.',
-      [projectionNode],
+      [projectionSourceNode, projectionNode],
       'Reveal projected columns',
-      [projectionNode.id]
+      [projectionSourceNode.id, projectionNode.id]
     )
   );
 
