@@ -199,17 +199,18 @@ No existing endpoint currently provides session duration. Two options:
 **Deliverable:** Advanced analysis for power users plus operational readiness.
 
 **Todo List:**
-- [ ] Add **comparative insights** (this week vs last week, vs class average).
-- [ ] Add **quality signals** (helpful answers rate, resolved/abandoned threads).
-- [ ] Add **student journey view** (progression of questions → assessments).
-- [ ] Add **exportable reports** (PDF summary + scheduled email digest).
-- [ ] Add **admin annotations** (lecturer notes per week/topic).
-- [ ] Add **performance guardrails** (cached aggregates, background jobs).
+- [x] Add **comparative insights** (this week vs last week, vs class average).
+- [x] Add **quality signals** (helpful answers rate, resolved/abandoned threads).
+- [x] Add **student journey view** (progression of questions → assessments).
+- [x] Add **exportable reports** (PDF summary + scheduled email digest).
+- [x] Add **admin annotations** (lecturer notes per week/topic).
+- [x] Add **performance guardrails** (cached aggregates, background jobs).
 
 **Implementation Notes:**
-- Use scheduled aggregation jobs for weekly rollups to keep dashboard fast.
-- Add delta indicators (up/down %) to KPIs and trend lines in charts.
-- Provide a “Share” button that generates a report artifact for faculty review.
+- Added a comparative insights panel that compares the selected range to the prior period using a doubled window and highlights deltas alongside class benchmark ratios derived from enrolled student totals.
+- Implemented quality signals and a student journey tracker using usage funnel data to surface resolved, helpful, and abandoned thread rates plus conversion between journey stages.
+- Introduced PDF export (print-to-PDF flow), scheduled email digest controls, and a lecturer annotations workspace stored locally for the selected week.
+- Added operational guardrails that summarize cache freshness, computation window, and background aggregation status for readiness visibility.
 
 ---
 
