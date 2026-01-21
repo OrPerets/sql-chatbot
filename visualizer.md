@@ -21,22 +21,47 @@ Create an educational "Query Visualizer" for the AI assistant chat that animates
 **Objective:** Establish architecture, UX baseline, and core scaffolding.
 
 **Tasks**
-1. **Research & UX definition**
-   - Document visual patterns for tables, rows, joins, filters, aggregations, and projections.
-   - Define visual language (colors, icons, animations).
-   - Draft sample UX flows for simple SELECT and JOIN queries.
-2. **Architecture plan**
-   - Define component structure (e.g., VisualizerRoot, StepTimeline, TableView, JoinAnimator).
-   - Design data model for query steps (AST + execution steps + animation timeline).
-   - Decide on mock data generation strategy.
-3. **Scaffold**
-   - Add a `visualizer` module folder with placeholder components.
-   - Define TypeScript interfaces for `QueryStep`, `VisualizationNode`, and `AnimationStep`.
-   - Add a minimal UI shell that can render a static mocked step sequence.
+1. **Research & UX definition** ✅
+   - Documented visual patterns for tables, rows, joins, filters, aggregations, and projections.
+   - Defined visual language (colors, icons, animations).
+   - Drafted sample UX flow for simple SELECT + JOIN queries.
+2. **Architecture plan** ✅
+   - Defined component structure (VisualizerRoot, StepTimeline, TableView, JoinAnimator).
+   - Designed data model for query steps (execution steps + animation timeline).
+   - Chose static mock data for Sprint 1 demos.
+3. **Scaffold** ✅
+   - Added a `visualizer` module folder with placeholder components.
+   - Defined TypeScript interfaces for `QueryStep`, `VisualizationNode`, and `AnimationStep`.
+   - Added a minimal UI shell that renders a static mocked step sequence.
 
 **Deliverables**
 - UX spec and component plan.
 - Interfaces and base components wired into the app (hidden behind a feature flag).
+
+### Sprint 1 UX Spec (Draft)
+**Visual patterns**
+- **Tables**: Card with title, column headers, and scrollable rows. Use highlight pulse for focus steps.
+- **Rows**: Alternating row lines with emphasized matches during joins (paired row chips).
+- **Joins**: Side-by-side matching row badges with arrows; unmatched rows appear muted.
+- **Filters**: Faded rows with emphasis ring on retained rows.
+- **Aggregations**: Grouped row clusters with a summary “total” row badge.
+- **Projections**: Column highlight with non-selected columns muted.
+
+**Visual language**
+- Primary accent: Indigo for active steps and matching rows.
+- Neutral backgrounds for tables; cards on light slate background.
+- Animation cues: highlight (pulse), move (join pairing), fade (filters), pulse (results).
+
+**Sample UX flow**
+1. Show source tables side-by-side.
+2. Animate INNER JOIN pairing to form a join output node.
+3. Highlight projection to display final columns.
+
+**Implementation Notes**
+- Added a `/visualizer` route guarded by `NEXT_PUBLIC_QUERY_VISUALIZER=1`, returning 404 when disabled.
+- Implemented modular components (VisualizerRoot, StepTimeline, TableView, JoinAnimator) and core data types.
+- Included a mocked step sequence that demonstrates table loading, INNER JOIN pairing, and projection output.
+- Established an accessible UI shell with keyboard focus styles and ARIA labels for regions.
 
 ---
 
