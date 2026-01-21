@@ -116,13 +116,18 @@ No existing endpoint currently provides session duration. Two options:
 **Deliverable:** `/admin/weekly-analytics` route with KPI cards and basic tables.
 
 **Todo List:**
-- [ ] Create `app/admin/weekly-analytics/page.tsx`.
-- [ ] Use `AdminLayout` or `ModernAdminLayout` for consistent admin shell.
-- [ ] Fetch `chat-report` data for the last 7 days.
-- [ ] Render **KPI cards** using `StatsCard`.
-- [ ] Add **daily breakdown table** with sessions/messages/users.
-- [ ] Add **basic topics list** (top topics).
-- [ ] Add loading + error states (`SkeletonCard`, `ErrorBanner`).
+- [x] Create `app/admin/weekly-analytics/page.tsx`.
+- [x] Use `AdminLayout` or `ModernAdminLayout` for consistent admin shell.
+- [x] Fetch `chat-report` data for the last 7 days.
+- [x] Render **KPI cards** using `StatsCard`.
+- [x] Add **daily breakdown table** with sessions/messages/users.
+- [x] Add **basic topics list** (top topics).
+- [x] Add loading + error states (`SkeletonCard`, `ErrorBanner`).
+
+**Implementation Notes:**
+- The weekly analytics page is implemented under `/admin/weekly-analytics` with KPI cards, daily breakdown, and top topics pulled from the weekly chat report endpoint.
+- The sidebar now links directly to the new weekly analytics route for quick access from the admin navigation.
+- Sprint 1 focuses on usage metrics only; session-duration KPIs remain deferred until backend support is available.
 
 ### Sprint 2 — Topic Insights + Performance Summary
 **Deliverable:** Dashboard with topic insights and student analytics.
