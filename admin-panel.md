@@ -175,6 +175,45 @@ No existing endpoint currently provides session duration. Two options:
 - Added filter controls for time range, class, and semester; selections are now forwarded as query parameters to reporting endpoints and the weekly report respects the selected range.
 - Added a CSV export action to download the weekly summary, daily breakdown, and student analytics snapshot in one file.
 
+### Sprint 5 — Usage Comprehension & Actionable Analytics
+**Deliverable:** Make the dashboard more informative with usage comprehension, segmentation, and actionable takeaways.
+
+**Todo List:**
+- [ ] Add **usage funnel** (visit → first question → follow‑up → assignment completion).
+- [ ] Add **cohort/segment views** (new vs returning, course group, language).
+- [ ] Add **retention view** (D1/D7 repeat usage or weekly returning trend).
+- [ ] Add **message density + topic depth** metrics (avg thread length, follow‑up ratio).
+- [ ] Add **time‑of‑day & day‑of‑week heatmap** (peak usage windows).
+- [ ] Add **curriculum mapping** (topics mapped to course chapters/learning outcomes).
+- [ ] Add **action insights** section with “next best actions” (e.g., topics to review in class).
+- [ ] Add **metric validation rules** (cap impossible durations, exclude outliers, flag anomalies).
+- [ ] Add **at‑risk students definition** helper text (clear threshold + calculation source).
+
+**Implementation Notes:**
+- Extend the weekly analytics API to provide funnel counts and cohort flags per user/session.
+- Derive heatmap data from session timestamps; bucket by hour and weekday.
+- Add curriculum tags in topic extraction and surface “chapter hotspots” for lecturers.
+- Summaries should include a short narrative (auto‑generated) describing the week’s usage and anomalies.
+- Implement duration sanity checks (e.g., drop sessions with >8h idle gap, cap session length to 2h, and flag averages outside expected ranges).
+- Provide an inline tooltip explaining **"קורסים בסיכון"**: percentage of students with risk score ≥ threshold (e.g., 0.7) or grade below cutoff, computed from `/students/analytics`.
+- Refine main topics by merging near‑duplicates, grouping by SQL/RA concepts, and adding confidence scores + representative queries.
+
+### Sprint 6 — Advanced Features & Professional Refinements
+**Deliverable:** Advanced analysis for power users plus operational readiness.
+
+**Todo List:**
+- [ ] Add **comparative insights** (this week vs last week, vs class average).
+- [ ] Add **quality signals** (helpful answers rate, resolved/abandoned threads).
+- [ ] Add **student journey view** (progression of questions → assessments).
+- [ ] Add **exportable reports** (PDF summary + scheduled email digest).
+- [ ] Add **admin annotations** (lecturer notes per week/topic).
+- [ ] Add **performance guardrails** (cached aggregates, background jobs).
+
+**Implementation Notes:**
+- Use scheduled aggregation jobs for weekly rollups to keep dashboard fast.
+- Add delta indicators (up/down %) to KPIs and trend lines in charts.
+- Provide a “Share” button that generates a report artifact for faculty review.
+
 ---
 
 ## Suggested UI Structure (Component Layout)
