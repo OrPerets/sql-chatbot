@@ -60,6 +60,13 @@ const navigationItems: NavigationItem[] = [
         type: 'tab'
       },
       {
+        id: 'weekly-analytics',
+        label: 'אנליטיקה שבועית',
+        icon: BarChart3,
+        type: 'route',
+        route: '/admin/weekly-analytics'
+      },
+      {
         id: 'reports',
         label: 'דוחות',
         icon: FileText,

@@ -1,0 +1,197 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 32px;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.titleSection {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #101828;
+}
+
+.titleSection h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.titleSection p {
+  margin: 6px 0 0;
+  color: #475467;
+  font-size: 14px;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  color: #1d4ed8;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.refreshButton {
+  border: none;
+  border-radius: 10px;
+  background: #1d4ed8;
+  color: #fff;
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.refreshButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sectionHeader h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.sectionMeta {
+  font-size: 13px;
+  color: #667085;
+}
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.tableWrapper {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(16, 24, 40, 0.08);
+  overflow: hidden;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 14px 16px;
+  text-align: right;
+  border-bottom: 1px solid #eaecf0;
+  font-size: 14px;
+}
+
+.table th {
+  background: #f8fafc;
+  font-weight: 600;
+}
+
+.sectionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.sectionCard {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.topicList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.topicList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.topicName {
+  font-weight: 600;
+  color: #344054;
+}
+
+.topicCount {
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.statusCard {
+  display: grid;
+  gap: 16px;
+  font-size: 14px;
+}
+
+.statusLabel {
+  margin: 0;
+  color: #667085;
+}
+
+.statusValue {
+  margin: 6px 0 0;
+  font-weight: 600;
+  color: #101828;
+}
+
+.emptyState {
+  padding: 16px;
+  text-align: center;
+  color: #98a2b3;
+  font-size: 14px;
+}
+
+@media (max-width: 720px) {
+  .container {
+    padding: 20px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .refreshButton {
+    width: 100%;
+  }
+}
