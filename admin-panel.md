@@ -133,11 +133,16 @@ No existing endpoint currently provides session duration. Two options:
 **Deliverable:** Dashboard with topic insights and student analytics.
 
 **Todo List:**
-- [ ] Fetch `students/analytics` data alongside chat report.
-- [ ] Add **student performance summary** section (score + risk distributions).
-- [ ] Add **top challenges** list.
-- [ ] Add **sample questions** panel (with timestamp/user where available).
-- [ ] Create reusable sub-components (TopicList, PerformanceSummary).
+- [x] Fetch `students/analytics` data alongside chat report.
+- [x] Add **student performance summary** section (score + risk distributions).
+- [x] Add **top challenges** list.
+- [x] Add **sample questions** panel (with timestamp/user where available).
+- [x] Create reusable sub-components (TopicList, PerformanceSummary).
+
+**Implementation Notes:**
+- The weekly analytics page now fetches student analytics in parallel with the chat report, with dedicated loading/error handling for each data source.
+- Topic insights include both a reusable topic list and a sample questions panel that surfaces the user identifier and timestamp.
+- Student performance highlights averages, score/risk distributions, and a dedicated top-challenges list to round out Sprint 2.
 
 ### Sprint 3 — Average Time & Engagement Measures
 **Deliverable:** Time-based engagement metrics.
