@@ -179,24 +179,21 @@ No existing endpoint currently provides session duration. Two options:
 **Deliverable:** Make the dashboard more informative with usage comprehension, segmentation, and actionable takeaways.
 
 **Todo List:**
-- [ ] Add **usage funnel** (visit → first question → follow‑up → assignment completion).
-- [ ] Add **cohort/segment views** (new vs returning, course group, language).
-- [ ] Add **retention view** (D1/D7 repeat usage or weekly returning trend).
-- [ ] Add **message density + topic depth** metrics (avg thread length, follow‑up ratio).
-- [ ] Add **time‑of‑day & day‑of‑week heatmap** (peak usage windows).
-- [ ] Add **curriculum mapping** (topics mapped to course chapters/learning outcomes).
-- [ ] Add **action insights** section with “next best actions” (e.g., topics to review in class).
-- [ ] Add **metric validation rules** (cap impossible durations, exclude outliers, flag anomalies).
-- [ ] Add **at‑risk students definition** helper text (clear threshold + calculation source).
+- [x] Add **usage funnel** (visit → first question → follow‑up → assignment completion).
+- [x] Add **cohort/segment views** (new vs returning, course group, language).
+- [x] Add **retention view** (D1/D7 repeat usage or weekly returning trend).
+- [x] Add **message density + topic depth** metrics (avg thread length, follow‑up ratio).
+- [x] Add **time‑of‑day & day‑of‑week heatmap** (peak usage windows).
+- [x] Add **curriculum mapping** (topics mapped to course chapters/learning outcomes).
+- [x] Add **action insights** section with “next best actions” (e.g., topics to review in class).
+- [x] Add **metric validation rules** (cap impossible durations, exclude outliers, flag anomalies).
+- [x] Add **at‑risk students definition** helper text (clear threshold + calculation source).
 
 **Implementation Notes:**
-- Extend the weekly analytics API to provide funnel counts and cohort flags per user/session.
-- Derive heatmap data from session timestamps; bucket by hour and weekday.
-- Add curriculum tags in topic extraction and surface “chapter hotspots” for lecturers.
-- Summaries should include a short narrative (auto‑generated) describing the week’s usage and anomalies.
-- Implement duration sanity checks (e.g., drop sessions with >8h idle gap, cap session length to 2h, and flag averages outside expected ranges).
-- Provide an inline tooltip explaining **"קורסים בסיכון"**: percentage of students with risk score ≥ threshold (e.g., 0.7) or grade below cutoff, computed from `/students/analytics`.
-- Refine main topics by merging near‑duplicates, grouping by SQL/RA concepts, and adding confidence scores + representative queries.
+- The chat-report API now returns usage funnel metrics, cohort breakdowns (new vs returning + language), retention indicators, and message depth stats to support usage comprehension.
+- A time-of-day/day-of-week heatmap and curriculum chapter mapping are derived from message timestamps and topic extraction, highlighting peak windows and chapter hotspots.
+- Added validation rules that cap long sessions, exclude extreme outliers, and flag averages outside expected bounds for easier anomaly review.
+- The weekly analytics UI surfaces recommended actions, validation summaries, and an inline helper explaining the at-risk definition tied to students/analytics thresholds.
 
 ### Sprint 6 — Advanced Features & Professional Refinements
 **Deliverable:** Advanced analysis for power users plus operational readiness.
