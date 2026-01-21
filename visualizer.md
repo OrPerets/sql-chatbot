@@ -69,22 +69,28 @@ Create an educational "Query Visualizer" for the AI assistant chat that animates
 **Objective:** Convert SQL into structured steps for visualization.
 
 **Tasks**
-1. **SQL parsing**
-   - Integrate or wrap existing SQL parser library.
-   - Map AST nodes to visualization step types.
-2. **Step generator**
-   - Create a pipeline that generates steps: `Parse -> Normalize -> Step Sequence`.
-   - Implement minimal support for:
+1. **SQL parsing** ✅
+   - Integrated an alasql parser adapter for AST extraction.
+   - Normalized AST nodes into visualization-friendly structures.
+2. **Step generator** ✅
+   - Added a `Parse -> Normalize -> Step Sequence` pipeline.
+   - Implemented minimal support for:
      - SELECT, FROM, WHERE
      - INNER JOIN
      - ORDER BY, LIMIT
-3. **Mock data & schemas**
-   - Build mock schema registry (tables, columns, sample rows).
-   - Provide deterministic mock dataset for tests and demos.
+3. **Mock data & schemas** ✅
+   - Built a mock schema registry (tables, columns, sample rows).
+   - Added deterministic mock datasets for demos.
 
 **Deliverables**
 - SQL parser adapter + step generator producing a step list.
 - Mock data utilities.
+
+**Implementation Notes**
+- Added a SQL input panel and wired it to the step generator so edits immediately update the timeline.
+- Built a normalization layer that extracts SELECT/FROM/JOIN/WHERE/ORDER/LIMIT details from the parser output.
+- Created a mock schema registry (Students, Enrollments, Courses) and used it to render table and join steps.
+- Updated join animations to display dynamically generated row pairings derived from the join condition.
 
 ---
 

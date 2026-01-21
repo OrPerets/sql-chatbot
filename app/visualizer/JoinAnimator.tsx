@@ -9,29 +9,47 @@ type JoinAnimatorProps = {
 };
 
 const JoinAnimator = ({ node }: JoinAnimatorProps) => {
+  const pairs = node.pairs?.length
+    ? node.pairs
+    : [
+        {
+          id: 'pair-1',
+          left: 'Students.id = 1',
+          right: 'Enrollments.student_id = 1',
+          matched: true
+        },
+        {
+          id: 'pair-2',
+          left: 'Students.id = 2',
+          right: 'Enrollments.student_id = 2',
+          matched: true
+        },
+        {
+          id: 'pair-3',
+          left: 'Students.id = 3',
+          right: 'No matching row',
+          matched: false
+        }
+      ];
+
   return (
     <div className={styles.joinCard} role="region" aria-label="Join animation mock">
       <div className={styles.joinHeader}>
         <span className={styles.tableTitle}>{node.label}</span>
         <span className={styles.tableKind}>JOIN</span>
       </div>
-      <p className={styles.joinDetail}>{node.detail}</p>
+      {node.detail && <p className={styles.joinDetail}>{node.detail}</p>}
       <div className={styles.joinPairs}>
-        <div className={styles.joinPair}>
-          <span>Students.id = 1</span>
-          <span className={styles.joinArrow}>➜</span>
-          <span>Enrollments.student_id = 1</span>
-        </div>
-        <div className={styles.joinPair}>
-          <span>Students.id = 2</span>
-          <span className={styles.joinArrow}>➜</span>
-          <span>Enrollments.student_id = 2</span>
-        </div>
-        <div className={styles.joinPairMuted}>
-          <span>Students.id = 3</span>
-          <span className={styles.joinArrow}>✕</span>
-          <span>No matching row</span>
-        </div>
+        {pairs.map((pair) => (
+          <div
+            key={pair.id}
+            className={pair.matched ? styles.joinPair : styles.joinPairMuted}
+          >
+            <span>{pair.left}</span>
+            <span className={styles.joinArrow}>{pair.matched ? '➜' : '✕'}</span>
+            <span>{pair.right}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -10,6 +10,13 @@ export type VisualizationKind =
 
 export type AnimationStyle = 'highlight' | 'fade' | 'pulse' | 'move';
 
+export type JoinPair = {
+  id: string;
+  left: string;
+  right: string;
+  matched: boolean;
+};
+
 export type VisualizationNode = {
   id: string;
   label: string;
@@ -19,6 +26,7 @@ export type VisualizationNode = {
     rows: Array<Record<string, string | number>>;
   };
   detail?: string;
+  pairs?: JoinPair[];
 };
 
 export type AnimationStep = {
