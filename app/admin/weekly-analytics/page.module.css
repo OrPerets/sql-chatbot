@@ -52,9 +52,66 @@
   cursor: pointer;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.secondaryButton {
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: #fff;
+  color: #1d4ed8;
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.secondaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .refreshButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.filterBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px 20px;
+  box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 180px;
+  font-size: 13px;
+  color: #344054;
+}
+
+.filterGroup label {
+  font-weight: 600;
+  color: #475467;
+}
+
+.filterGroup select {
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #101828;
+  background: #f9fafb;
 }
 
 .section {
@@ -116,6 +173,12 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 20px;
+}
+
+.alertGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
 }
 
 .sectionCard {
@@ -320,6 +383,57 @@
   color: #101828;
 }
 
+.alertCard {
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid #e4e7ec;
+  box-shadow: 0 6px 16px rgba(16, 24, 40, 0.08);
+}
+
+.danger {
+  border-color: rgba(220, 38, 38, 0.3);
+  background: rgba(254, 226, 226, 0.5);
+}
+
+.warning {
+  border-color: rgba(217, 119, 6, 0.3);
+  background: rgba(254, 243, 199, 0.6);
+}
+
+.info {
+  border-color: rgba(59, 130, 246, 0.3);
+  background: rgba(219, 234, 254, 0.6);
+}
+
+.alertIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  color: #1d4ed8;
+  flex-shrink: 0;
+}
+
+.alertTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #101828;
+}
+
+.alertDescription {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #344054;
+}
+
 .emptyState {
   padding: 16px;
   text-align: center;
@@ -337,7 +451,18 @@
     align-items: flex-start;
   }
 
+  .headerActions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .refreshButton {
     width: 100%;
+  }
+
+  .secondaryButton {
+    width: 100%;
+    justify-content: center;
   }
 }

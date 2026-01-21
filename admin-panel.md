@@ -165,10 +165,15 @@ No existing endpoint currently provides session duration. Two options:
 **Deliverable:** Highlight risks/anomalies for lecturers.
 
 **Todo List:**
-- [ ] Add anomaly detection thresholds (e.g., high-risk share > 20%).
-- [ ] Add **alerts panel** (warning cards for lecturers).
-- [ ] Add export button for CSV/Excel (optional).
-- [ ] Add filters (week selector, class/semester filter).
+- [x] Add anomaly detection thresholds (e.g., high-risk share > 20%).
+- [x] Add **alerts panel** (warning cards for lecturers).
+- [x] Add export button for CSV/Excel (optional).
+- [x] Add filters (week selector, class/semester filter).
+
+**Implementation Notes:**
+- Added a lecturer alerts section that flags high-risk share, low engagement, low returning users, and short sessions using configured thresholds derived from weekly report + student analytics.
+- Added filter controls for time range, class, and semester; selections are now forwarded as query parameters to reporting endpoints and the weekly report respects the selected range.
+- Added a CSV export action to download the weekly summary, daily breakdown, and student analytics snapshot in one file.
 
 ---
 

@@ -3,13 +3,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  AlertTriangle,
   ArrowLeft,
   BarChart3,
   Clock,
+  Download,
   Layers,
   MessageCircle,
   MessageSquare,
   Repeat,
+  ShieldAlert,
   Timer,
   UserCheck,
   Users
@@ -213,13 +216,61 @@ const WeeklyAnalyticsPage: React.FC = () => {
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(true);
   const [reportError, setReportError] = useState<string | null>(null);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [selectedDays, setSelectedDays] = useState('7');
+  const [selectedClass, setSelectedClass] = useState('all');
+  const [selectedSemester, setSelectedSemester] = useState('all');
+
+  const filters = useMemo(
+    () => ({
+      days: selectedDays,
+      classId: selectedClass !== 'all' ? selectedClass : undefined,
+      semester: selectedSemester !== 'all' ? selectedSemester : undefined
+    }),
+    [selectedClass, selectedDays, selectedSemester]
+  );
+
+  const filterOptions = {
+    days: [
+      { value: '7', label: '7 ימים אחרונים' },
+      { value: '14', label: '14 ימים אחרונים' },
+      { value: '30', label: '30 ימים אחרונים' }
+    ],
+    classes: [
+      { value: 'all', label: 'כל הכיתות' },
+      { value: 'class-a', label: 'כיתה א׳' },
+      { value: 'class-b', label: 'כיתה ב׳' },
+      { value: 'class-c', label: 'כיתה ג׳' }
+    ],
+    semesters: [
+      { value: 'all', label: 'כל הסמסטרים' },
+      { value: 'fall-2024', label: 'סתיו 2024' },
+      { value: 'spring-2025', label: 'אביב 2025' }
+    ]
+  };
+
+  const buildQueryString = (params: Record<string, string | undefined>) => {
+    const searchParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value) {
+        searchParams.set(key, value);
+      }
+    });
+    return searchParams.toString();
+  };
 
   const fetchReport = async () => {
     setIsReportLoading(true);
     setReportError(null);
 
     try {
-      const response = await fetch('/api/admin/chat-report?days=7&format=json&includeDetails=true');
+      const query = buildQueryString({
+        days: filters.days,
+        format: 'json',
+        includeDetails: 'true',
+        classId: filters.classId,
+        semester: filters.semester
+      });
+      const response = await fetch(query ? `/api/admin/chat-report?${query}` : '/api/admin/chat-report');
       if (!response.ok) {
         throw new Error('לא ניתן לטעון את הדוח השבועי');
       }
@@ -243,7 +294,11 @@ const WeeklyAnalyticsPage: React.FC = () => {
     setAnalyticsError(null);
 
     try {
-      const response = await fetch('/api/admin/students/analytics');
+      const query = buildQueryString({
+        classId: filters.classId,
+        semester: filters.semester
+      });
+      const response = await fetch(query ? `/api/admin/students/analytics?${query}` : '/api/admin/students/analytics');
       if (!response.ok) {
         throw new Error('לא ניתן לטעון נתוני סטודנטים');
       }
@@ -269,7 +324,7 @@ const WeeklyAnalyticsPage: React.FC = () => {
 
   useEffect(() => {
     refreshData();
-  }, []);
+  }, [filters]);
 
   const formatNumber = (value: number) => value.toLocaleString('he-IL');
 
@@ -367,6 +422,110 @@ const WeeklyAnalyticsPage: React.FC = () => {
     ];
   }, [report]);
 
+  const alertItems = useMemo(() => {
+    if (!report || !analytics) return [];
+
+    const totalRisk = Object.values(analytics.riskDistribution).reduce((sum, value) => sum + value, 0);
+    const highRiskShare = totalRisk > 0 ? analytics.riskDistribution.high / totalRisk : 0;
+    const lowEngagement = analytics.averageEngagement < 65;
+    const lowReturning = report.summary.returningUsersPercentage < 25;
+    const shortSessions = report.summary.averageSessionDuration < 2 * 60 * 1000;
+
+    const alerts = [];
+
+    if (highRiskShare > 0.2) {
+      alerts.push({
+        tone: 'danger',
+        icon: ShieldAlert,
+        title: 'עלייה בסטודנטים בסיכון גבוה',
+        description: `שיעור סיכון גבוה עומד על ${formatPercentage(highRiskShare * 100)} — מומלץ לבדוק קורסים חלשים.`
+      });
+    }
+
+    if (lowEngagement) {
+      alerts.push({
+        tone: 'warning',
+        icon: AlertTriangle,
+        title: 'מעורבות סטודנטים נמוכה מהצפוי',
+        description: `ממוצע המעורבות עומד על ${analytics.averageEngagement.toFixed(1)} — כדאי לשקול פעילות חיזוק.`
+      });
+    }
+
+    if (lowReturning) {
+      alerts.push({
+        tone: 'warning',
+        icon: AlertTriangle,
+        title: 'שיעור משתמשים חוזרים נמוך',
+        description: `רק ${formatPercentage(report.summary.returningUsersPercentage)} חזרו השבוע. שלחו תזכורת או משימה נוספת.`
+      });
+    }
+
+    if (shortSessions) {
+      alerts.push({
+        tone: 'info',
+        icon: AlertTriangle,
+        title: 'סשנים קצרים במיוחד',
+        description: `משך סשן ממוצע של ${formatDuration(report.summary.averageSessionDuration)} — ייתכן שהסטודנטים מתקשים להתעמק.`
+      });
+    }
+
+    return alerts;
+  }, [analytics, report]);
+
+  const handleExportCsv = () => {
+    if (!report) return;
+    const rows: string[][] = [
+      ['Weekly Analytics Export'],
+      ['Period', `${report.period.startDate} - ${report.period.endDate}`],
+      ['Total users', report.summary.totalUsersWithSessions.toString()],
+      ['Total sessions', report.summary.totalSessions.toString()],
+      ['Total messages', report.summary.totalMessages.toString()],
+      ['Avg messages per user', report.summary.averageMessagesPerUser.toFixed(2)],
+      ['Avg messages per session', report.summary.averageMessagesPerSession.toFixed(2)],
+      ['Avg session duration (ms)', report.summary.averageSessionDuration.toString()],
+      ['Median session duration (ms)', report.summary.medianSessionDuration.toString()],
+      ['Avg user duration (ms)', report.summary.averageUserDuration.toString()],
+      ['Returning users %', report.summary.returningUsersPercentage.toFixed(1)],
+      [],
+      ['Daily breakdown'],
+      ['Date', 'Sessions', 'Messages', 'Unique users'],
+      ...report.dailyBreakdown.map((day) => [
+        day.date,
+        day.sessions.toString(),
+        day.messages.toString(),
+        day.uniqueUsers.toString()
+      ])
+    ];
+
+    if (analytics) {
+      rows.push([]);
+      rows.push(['Student analytics']);
+      rows.push(['Total students', analytics.totalStudents.toString()]);
+      rows.push(['Average grade', analytics.averageGrade.toFixed(1)]);
+      rows.push(['Average engagement', analytics.averageEngagement.toFixed(1)]);
+      rows.push(['Risk distribution - low', analytics.riskDistribution.low.toString()]);
+      rows.push(['Risk distribution - medium', analytics.riskDistribution.medium.toString()]);
+      rows.push(['Risk distribution - high', analytics.riskDistribution.high.toString()]);
+      rows.push(['Score distribution - good', analytics.scoreDistribution.good.toString()]);
+      rows.push(['Score distribution - needs attention', analytics.scoreDistribution.needs_attention.toString()]);
+      rows.push(['Score distribution - struggling', analytics.scoreDistribution.struggling.toString()]);
+      rows.push(['Score distribution - empty', analytics.scoreDistribution.empty.toString()]);
+      rows.push([]);
+      rows.push(['Top challenges', analytics.topChallenges.join(' | ') || '—']);
+    }
+
+    const csvContent = rows
+      .map((row) => row.map((value) => `"${value.replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `weekly-analytics-${report.period.endDate}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <AdminLayout
       activeTab="weekly-analytics"
@@ -387,14 +546,69 @@ const WeeklyAnalyticsPage: React.FC = () => {
               <p>סקירת שימוש, סשנים ונושאים מובילים לשבוע האחרון</p>
             </div>
           </div>
-          <button
-            className={styles.refreshButton}
-            onClick={refreshData}
-            disabled={isReportLoading || isAnalyticsLoading}
-          >
-            {isReportLoading || isAnalyticsLoading ? 'טוען נתונים...' : 'רענן נתונים'}
-          </button>
+          <div className={styles.headerActions}>
+            <button
+              className={styles.secondaryButton}
+              onClick={handleExportCsv}
+              disabled={!report}
+            >
+              <Download size={18} />
+              יצוא CSV
+            </button>
+            <button
+              className={styles.refreshButton}
+              onClick={refreshData}
+              disabled={isReportLoading || isAnalyticsLoading}
+            >
+              {isReportLoading || isAnalyticsLoading ? 'טוען נתונים...' : 'רענן נתונים'}
+            </button>
+          </div>
         </div>
+
+        <section className={styles.filterBar}>
+          <div className={styles.filterGroup}>
+            <label htmlFor="weekRange">טווח שבועי</label>
+            <select
+              id="weekRange"
+              value={selectedDays}
+              onChange={(event) => setSelectedDays(event.target.value)}
+            >
+              {filterOptions.days.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.filterGroup}>
+            <label htmlFor="classFilter">כיתה</label>
+            <select
+              id="classFilter"
+              value={selectedClass}
+              onChange={(event) => setSelectedClass(event.target.value)}
+            >
+              {filterOptions.classes.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.filterGroup}>
+            <label htmlFor="semesterFilter">סמסטר</label>
+            <select
+              id="semesterFilter"
+              value={selectedSemester}
+              onChange={(event) => setSelectedSemester(event.target.value)}
+            >
+              {filterOptions.semesters.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
 
         {reportError && (
           <ErrorBanner
@@ -585,6 +799,39 @@ const WeeklyAnalyticsPage: React.FC = () => {
                 <div className={styles.emptyState}>לא זוהו אתגרים מובילים לשבוע הנוכחי.</div>
               )}
             </div>
+          </div>
+        </section>
+
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h2>התראות ומסקנות למרצים</h2>
+            <span className={styles.sectionMeta}>איתור חריגות והמלצות לפעולה</span>
+          </div>
+          <div className={styles.alertGrid}>
+            {isAnalyticsLoading || isReportLoading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <SkeletonCard key={`alert-skeleton-${index}`} />
+              ))
+            ) : alertItems.length > 0 ? (
+              alertItems.map((alert) => {
+                const Icon = alert.icon;
+                return (
+                  <div key={alert.title} className={`${styles.alertCard} ${styles[alert.tone]}`}>
+                    <div className={styles.alertIcon}>
+                      <Icon size={20} />
+                    </div>
+                    <div>
+                      <p className={styles.alertTitle}>{alert.title}</p>
+                      <p className={styles.alertDescription}>{alert.description}</p>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className={styles.sectionCard}>
+                <div className={styles.emptyState}>לא זוהו חריגות משמעותיות השבוע.</div>
+              </div>
+            )}
           </div>
         </section>
 
