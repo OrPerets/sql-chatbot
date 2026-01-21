@@ -175,6 +175,29 @@ Create an educational "Query Visualizer" for the AI assistant chat that animates
 
 ---
 
+## Sprint 14: Interactive Playback & Step Navigation
+**Objective:** Add classroom-friendly playback controls, keyboard navigation, and clearer step context for the Query Visualizer.
+
+**Tasks**
+1. **Playback controls (Play/Pause/Next/Previous)** ✅
+   - Added a control bar for stepping through query execution with clear button states.
+   - Included step count and keyboard shortcut hints.
+2. **Keyboard navigation** ✅
+   - Implemented arrow key navigation for previous/next step.
+   - Spacebar toggles play/pause while ignoring inputs when the SQL editor is focused.
+3. **Timeline context improvements** ✅
+   - Added a header and helper copy in the step timeline to guide learners.
+
+**Deliverables**
+- Interactive playback controls with accessible states.
+- Keyboard-driven step navigation.
+- Timeline header text to set context.
+
+**Implementation Notes**
+- Playback uses a lightweight interval to advance steps and stops automatically at the end.
+- Controls reset to the first step when the SQL query changes.
+- Buttons and hint text are styled to match the existing visualizer design.
+
 ## Future Enhancements (Post MVP)
 - Query plan view (costs, indexes, join algorithms).
 - Dialect switching (Postgres, MySQL, SQLite, etc.).

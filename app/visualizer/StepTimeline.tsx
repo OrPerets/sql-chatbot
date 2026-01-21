@@ -13,6 +13,10 @@ type StepTimelineProps = {
 const StepTimeline = ({ steps, activeStepId, onSelect }: StepTimelineProps) => {
   return (
     <nav className={styles.timeline} aria-label="Query execution steps">
+      <div className={styles.timelineHeader}>
+        <h2 className={styles.timelineHeading}>Execution steps</h2>
+        <p className={styles.timelineSubheading}>Click a step to preview its animation.</p>
+      </div>
       <ol className={styles.timelineList}>
         {steps.map((step) => {
           const isActive = step.id === activeStepId;
