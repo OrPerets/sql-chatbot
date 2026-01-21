@@ -587,6 +587,220 @@
   font-size: 14px;
 }
 
+.deltaList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.deltaList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.deltaBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.deltaup {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+.deltadown {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+}
+
+.deltaneutral {
+  background: rgba(148, 163, 184, 0.2);
+  color: #475467;
+}
+
+.benchmarkGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.benchmarkCard {
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.qualityGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.qualityCard {
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.journeyList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.journeyList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.journeyStep {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.journeyConversion {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1d4ed8;
+}
+
+.digestForm {
+  display: grid;
+  gap: 12px;
+}
+
+.digestForm label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: #344054;
+}
+
+.digestForm input,
+.digestForm select,
+.annotationForm input,
+.annotationForm select,
+.annotationForm textarea {
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #101828;
+  background: #fff;
+}
+
+.digestRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.checkboxRow {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.primaryButton {
+  border: none;
+  border-radius: 10px;
+  background: #1d4ed8;
+  color: #fff;
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.statusMessage {
+  font-size: 13px;
+  color: #047857;
+  margin: 0;
+}
+
+.annotationForm {
+  display: grid;
+  gap: 12px;
+}
+
+.annotationForm label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: #344054;
+}
+
+.annotationList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.annotationList li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.annotationTopic {
+  margin: 0;
+  font-weight: 700;
+  color: #101828;
+}
+
+.annotationText {
+  margin: 6px 0;
+  font-size: 13px;
+  color: #344054;
+}
+
+.linkButton {
+  border: none;
+  background: transparent;
+  color: #1d4ed8;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.guardrailGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.guardrailCard {
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
 @media (max-width: 720px) {
   .container {
     padding: 20px;
