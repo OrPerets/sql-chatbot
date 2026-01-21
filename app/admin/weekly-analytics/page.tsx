@@ -5,9 +5,13 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   BarChart3,
+  Clock,
   Layers,
   MessageCircle,
   MessageSquare,
+  Repeat,
+  Timer,
+  UserCheck,
   Users
 } from 'lucide-react';
 import AdminLayout from '@/app/components/admin/AdminLayout';
@@ -28,6 +32,10 @@ interface WeeklyChatReport {
     totalMessages: number;
     averageMessagesPerUser: number;
     averageMessagesPerSession: number;
+    averageSessionDuration: number;
+    medianSessionDuration: number;
+    averageUserDuration: number;
+    returningUsersPercentage: number;
   };
   relationalAlgebra: {
     topTopics: Array<{
@@ -267,6 +275,23 @@ const WeeklyAnalyticsPage: React.FC = () => {
 
   const formatAverage = (value: number) => value.toFixed(1);
 
+  const formatDuration = (value: number) => {
+    if (!value || value <= 0) return '—';
+    const totalSeconds = Math.round(value / 1000);
+    const totalMinutes = Math.floor(totalSeconds / 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours > 0) {
+      return `${hours} ש׳ ${minutes} ד׳`;
+    }
+    if (minutes > 0) {
+      return `${minutes} ד׳`;
+    }
+    return `${totalSeconds} שנ׳`;
+  };
+
+  const formatPercentage = (value: number) => `${value.toFixed(1)}%`;
+
   const formatDate = (date: string) =>
     new Date(date).toLocaleDateString('he-IL', {
       weekday: 'short',
@@ -307,6 +332,37 @@ const WeeklyAnalyticsPage: React.FC = () => {
         title: 'הודעות לסשן',
         value: formatAverage(report.summary.averageMessagesPerSession),
         description: 'ממוצע לסשן'
+      }
+    ];
+  }, [report]);
+
+  const engagementCards = useMemo(() => {
+    if (!report) return [];
+
+    return [
+      {
+        icon: Clock,
+        title: 'משך סשן ממוצע',
+        value: formatDuration(report.summary.averageSessionDuration),
+        description: 'זמן שיחה ממוצע'
+      },
+      {
+        icon: Timer,
+        title: 'חציון משך סשן',
+        value: formatDuration(report.summary.medianSessionDuration),
+        description: 'משך סשן טיפוסי'
+      },
+      {
+        icon: UserCheck,
+        title: 'זמן משתמש ממוצע',
+        value: formatDuration(report.summary.averageUserDuration),
+        description: 'משך כולל למשתמש'
+      },
+      {
+        icon: Repeat,
+        title: 'משתמשים חוזרים',
+        value: formatPercentage(report.summary.returningUsersPercentage),
+        description: 'יחס משתמשים שחזרו'
       }
     ];
   }, [report]);
@@ -374,6 +430,29 @@ const WeeklyAnalyticsPage: React.FC = () => {
               ))}
             {!isReportLoading &&
               kpiCards.map((card) => (
+                <StatsCard
+                  key={card.title}
+                  icon={card.icon}
+                  title={card.title}
+                  value={card.value}
+                  description={card.description}
+                />
+              ))}
+          </div>
+        </section>
+
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h2>מדדי זמן ומעורבות</h2>
+            <span className={styles.sectionMeta}>ממוצעי זמן ושיעור משתמשים חוזרים</span>
+          </div>
+          <div className={styles.kpiGrid}>
+            {isReportLoading &&
+              Array.from({ length: 4 }).map((_, index) => (
+                <SkeletonCard key={`engagement-skeleton-${index}`} />
+              ))}
+            {!isReportLoading &&
+              engagementCards.map((card) => (
                 <StatsCard
                   key={card.title}
                   icon={card.icon}

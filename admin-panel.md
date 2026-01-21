@@ -148,13 +148,18 @@ No existing endpoint currently provides session duration. Two options:
 **Deliverable:** Time-based engagement metrics.
 
 **Todo List:**
-- [ ] Add aggregation in backend to calculate **session duration** (createdAt → lastMessageTimestamp).
-- [ ] Extend `chat-report` response with:
+- [x] Add aggregation in backend to calculate **session duration** (createdAt → lastMessageTimestamp).
+- [x] Extend `chat-report` response with:
   - `averageSessionDuration`
   - `medianSessionDuration`
   - `averageUserDuration`
-- [ ] Update UI to show time KPIs (Avg time per session/user).
-- [ ] Add “returning user %” if data can be derived from user activity history.
+- [x] Update UI to show time KPIs (Avg time per session/user).
+- [x] Add “returning user %” if data can be derived from user activity history.
+
+**Implementation Notes:**
+- The chat-report API now calculates per-session durations based on createdAt and lastMessageTimestamp, returning average/median session length plus average duration per user for the reporting window.
+- Returning user percentage is derived by checking whether weekly users had sessions created before the reporting period.
+- The weekly analytics UI includes a dedicated engagement section that surfaces the new time-based KPIs and returning user ratio alongside existing weekly metrics.
 
 ### Sprint 4 — Lecturer Insights + Alerts
 **Deliverable:** Highlight risks/anomalies for lecturers.

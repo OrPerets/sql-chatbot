@@ -16,6 +16,10 @@ interface WeeklyChatReport {
     totalMessages: number
     averageMessagesPerUser: number
     averageMessagesPerSession: number
+    averageSessionDuration: number
+    medianSessionDuration: number
+    averageUserDuration: number
+    returningUsersPercentage: number
   }
   relationalAlgebra: {
     usersAskingAboutRA: number
@@ -350,6 +354,55 @@ export async function GET(request: NextRequest) {
         ? totalMessages / totalSessions 
         : 0
 
+      const sessionDurations = sessions
+        .map(session => {
+          const createdAt = session.createdAt ? new Date(session.createdAt) : null
+          const lastMessageTimestamp = session.lastMessageTimestamp
+            ? new Date(session.lastMessageTimestamp)
+            : createdAt
+          if (!createdAt || !lastMessageTimestamp) return null
+          const durationMs = Math.max(0, lastMessageTimestamp.getTime() - createdAt.getTime())
+          return {
+            userId: String(session.userId),
+            durationMs
+          }
+        })
+        .filter((entry): entry is { userId: string; durationMs: number } => Boolean(entry))
+
+      const totalDurationMs = sessionDurations.reduce((sum, entry) => sum + entry.durationMs, 0)
+      const averageSessionDuration = totalSessions > 0 ? totalDurationMs / totalSessions : 0
+
+      const sortedDurations = sessionDurations
+        .map(entry => entry.durationMs)
+        .sort((a, b) => a - b)
+      const medianSessionDuration = sortedDurations.length === 0
+        ? 0
+        : sortedDurations.length % 2 === 1
+          ? sortedDurations[Math.floor(sortedDurations.length / 2)]
+          : (sortedDurations[sortedDurations.length / 2 - 1] + sortedDurations[sortedDurations.length / 2]) / 2
+
+      const userDurationMap = new Map<string, number>()
+      sessionDurations.forEach(entry => {
+        userDurationMap.set(entry.userId, (userDurationMap.get(entry.userId) || 0) + entry.durationMs)
+      })
+      const totalUserDuration = Array.from(userDurationMap.values()).reduce((sum, value) => sum + value, 0)
+      const averageUserDuration = totalUsersWithSessions > 0 ? totalUserDuration / totalUsersWithSessions : 0
+
+      const returningSessions = totalUsersWithSessions > 0
+        ? await db.collection(COLLECTIONS.CHAT_SESSIONS)
+            .find({
+              userId: { $in: userIds },
+              createdAt: { $lt: startDate }
+            })
+            .toArray()
+        : []
+      const returningUserIds = new Set(returningSessions.map(session => String(session.userId)))
+      const returningUsersCount = Array.from(new Set(userIds.map(id => String(id))))
+        .filter(userId => returningUserIds.has(userId)).length
+      const returningUsersPercentage = totalUsersWithSessions > 0
+        ? Math.round((returningUsersCount / totalUsersWithSessions) * 1000) / 10
+        : 0
+
       const reportData: WeeklyChatReport = {
         period: {
           startDate: startDate.toISOString(),
@@ -361,7 +414,11 @@ export async function GET(request: NextRequest) {
           totalSessions,
           totalMessages,
           averageMessagesPerUser: Math.round(averageMessagesPerUser * 100) / 100,
-          averageMessagesPerSession: Math.round(averageMessagesPerSession * 100) / 100
+          averageMessagesPerSession: Math.round(averageMessagesPerSession * 100) / 100,
+          averageSessionDuration: Math.round(averageSessionDuration),
+          medianSessionDuration: Math.round(medianSessionDuration),
+          averageUserDuration: Math.round(averageUserDuration),
+          returningUsersPercentage
         },
         relationalAlgebra: {
           usersAskingAboutRA: raUserIds.size,
@@ -412,4 +469,3 @@ export async function GET(request: NextRequest) {
     )
   }
 }
-
