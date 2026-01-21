@@ -1,15 +1,42 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import styles from './visualizer.module.css';
 import StepTimeline from './StepTimeline';
 import TableView from './TableView';
 import JoinAnimator from './JoinAnimator';
 import { mockSteps } from './mock-steps';
+import { generateStepsFromSql } from './step-generator';
+
+const defaultQuery = `SELECT Students.name, Enrollments.course
+FROM Students
+INNER JOIN Enrollments ON Students.id = Enrollments.student_id
+WHERE Enrollments.status = 'active'
+ORDER BY Students.name
+LIMIT 3;`;
 
 const VisualizerRoot = () => {
-  const steps = useMemo(() => mockSteps, []);
+  const [sqlQuery, setSqlQuery] = useState(defaultQuery);
+  const { steps, errorMessage } = useMemo(() => {
+    try {
+      return {
+        steps: generateStepsFromSql(sqlQuery),
+        errorMessage: ''
+      };
+    } catch (error) {
+      return {
+        steps: mockSteps,
+        errorMessage: error instanceof Error ? error.message : 'Unable to parse query.'
+      };
+    }
+  }, [sqlQuery]);
+
   const [activeStepId, setActiveStepId] = useState(steps[0]?.id ?? '');
+
+  useEffect(() => {
+    setActiveStepId(steps[0]?.id ?? '');
+  }, [steps]);
+
   const activeStep = steps.find((step) => step.id === activeStepId) ?? steps[0];
 
   return (
@@ -25,6 +52,21 @@ const VisualizerRoot = () => {
           Preview
         </div>
       </header>
+
+      <div className={styles.queryPanel}>
+        <label className={styles.queryLabel} htmlFor="visualizer-query">
+          SQL input
+        </label>
+        <textarea
+          id="visualizer-query"
+          className={styles.queryInput}
+          value={sqlQuery}
+          onChange={(event) => setSqlQuery(event.target.value)}
+          rows={6}
+          spellCheck={false}
+        />
+        {errorMessage && <p className={styles.queryError}>{errorMessage}</p>}
+      </div>
 
       <div className={styles.visualizerLayout}>
         <StepTimeline

@@ -36,6 +36,44 @@
   font-size: 14px;
 }
 
+.queryPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.queryLabel {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.queryInput {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 12px;
+  font-family: 'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  font-size: 14px;
+  color: #0f172a;
+  background: #f8fafc;
+  resize: vertical;
+}
+
+.queryInput:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.queryError {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
 .visualizerLayout {
   display: grid;
   grid-template-columns: 280px 1fr;
