@@ -121,19 +121,25 @@ Create an educational "Query Visualizer" for the AI assistant chat that animates
 **Objective:** Cover additional SQL keywords with minimal viable visuals.
 
 **Tasks**
-1. **Join variants**
+1. **Join variants** ✅
    - LEFT, RIGHT, FULL, CROSS joins.
-2. **Grouping & aggregation**
+2. **Grouping & aggregation** ✅
    - GROUP BY, HAVING, aggregate functions.
-3. **Set operations**
+3. **Set operations** ✅
    - UNION, INTERSECT, EXCEPT.
-4. **Subqueries & CTEs**
+4. **Subqueries & CTEs** ✅
    - WITH (CTE) and nested SELECT.
-5. **Data modification**
+5. **Data modification** ✅
    - INSERT, UPDATE, DELETE (show row changes).
 
 **Deliverables**
 - Visualizer supports a wide range of SQL keywords with simplified visuals.
+
+**Implementation Notes**
+- Expanded normalization to recognize join modes, group/having expressions, set operations, subqueries, and CTE-backed sources.
+- Added lightweight aggregation and set-operation pipelines so grouping, HAVING filters, and UNION/INTERSECT/EXCEPT can render compact result tables.
+- Implemented JOIN variants (LEFT/RIGHT/FULL/CROSS) with row-state cues for unmatched rows and updated join pairing summaries.
+- Added mutation previews for INSERT, UPDATE, and DELETE to highlight inserted/updated/deleted rows alongside before/after snapshots.
 
 ---
 

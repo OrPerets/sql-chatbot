@@ -44,6 +44,22 @@ const TableView = ({ node }: TableViewProps) => {
       return styles.tableRowMatched;
     }
 
+    if (rowState === 'unmatched') {
+      return styles.tableRowUnmatched;
+    }
+
+    if (rowState === 'inserted') {
+      return styles.tableRowInserted;
+    }
+
+    if (rowState === 'updated') {
+      return styles.tableRowUpdated;
+    }
+
+    if (rowState === 'deleted') {
+      return styles.tableRowDeleted;
+    }
+
     return undefined;
   };
 
