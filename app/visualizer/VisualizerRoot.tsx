@@ -325,20 +325,6 @@ const VisualizerRoot = () => {
             onSelect={setActiveStepId}
           />
 
-          {/* {activeStep.glossary && activeStep.glossary.length > 0 && (
-            <aside className={styles.sidebarGlossary} aria-label="מילון מושגים">
-              <h3 className={styles.sidebarGlossaryTitle}>מילון מושגים</h3>
-              <ul className={styles.sidebarGlossaryList}>
-                {activeStep.glossary.map((hint) => (
-                  <li key={hint.term} className={styles.sidebarGlossaryItem}>
-                    <strong>{hint.term}</strong>
-                    <span>{hint.definition}</span>
-                  </li>
-                ))}
-              </ul>
-            </aside>
-          )} */}
-
           {learningMode && activeStep.quiz && (
             <section className={styles.sidebarQuiz} aria-label="בדיקת הבנה">
               <h3 className={styles.sidebarQuizTitle}>בדוק את ההבנה שלך</h3>
@@ -402,7 +388,7 @@ const VisualizerRoot = () => {
                     <div className={styles.flowSeparator}>
                       <div className={styles.flowArrow}>⬇</div>
                       <div className={styles.flowStepLabel}>
-                        {step.stepIndex + 1}. {step.title}
+                        {step.title}
                       </div>
                     </div>
                   )}
