@@ -27,7 +27,7 @@ const VisualizerRoot = () => {
     } catch (error) {
       return {
         steps: mockSteps,
-        errorMessage: error instanceof Error ? error.message : 'Unable to parse query.'
+        errorMessage: error instanceof Error ? error.message : 'לא ניתן לנתח את השאילתה.'
       };
     }
   }, [sqlQuery]);
@@ -129,95 +129,82 @@ const VisualizerRoot = () => {
   }, [activeStepId, learningMode]);
 
   return (
-    <section className={styles.visualizer} aria-label="SQL Query Visualizer">
-      <header className={styles.visualizerHeader}>
-        <div>
-          <h1 className={styles.visualizerTitle}>Query Visualizer</h1>
-          <p className={styles.visualizerSubtitle}>
-            Walk through a query step-by-step with mock data and animations.
-          </p>
+    <section className={styles.visualizer} aria-label="מדמה שאילתות SQL">
+      <div className={styles.compactHeader}>
+        <h1 className={styles.compactTitle}>מדמה SQL</h1>
+        <div className={styles.featureBadge} aria-label="תכונה בפיתוח">
+          תצוגה מקדימה
         </div>
-        <div className={styles.featureBadge} aria-label="Feature flag: preview">
-          Preview
-        </div>
-      </header>
-
-      <div className={styles.queryPanel}>
-        <label className={styles.queryLabel} htmlFor="visualizer-query">
-          SQL input
-        </label>
-        <textarea
-          id="visualizer-query"
-          className={styles.queryInput}
-          value={sqlQuery}
-          onChange={(event) => setSqlQuery(event.target.value)}
-          rows={6}
-          spellCheck={false}
-        />
-        {errorMessage && (
-          <p className={styles.queryError} role="alert" aria-live="polite">
-            {errorMessage}
-          </p>
-        )}
       </div>
 
       <div className={styles.visualizerLayout}>
-        <StepTimeline
-          steps={steps}
-          activeStepId={activeStepId}
-          onSelect={setActiveStepId}
-        />
-
-        <div className={styles.stepPanel}>
-          <div className={styles.stepHeader}>
-            <h2 className={styles.stepTitle}>{activeStep.title}</h2>
-            <p className={styles.stepSummary}>{activeStep.summary}</p>
-            {activeStep.caption && (
-              <p className={styles.stepCaption} aria-live="polite">
-                {activeStep.caption}
+        <div className={styles.sidebar}>
+          <div className={styles.queryPanel}>
+            <label className={styles.queryLabel} htmlFor="visualizer-query">
+              שאילתת SQL
+            </label>
+            <textarea
+              id="visualizer-query"
+              className={styles.queryInput}
+              value={sqlQuery}
+              onChange={(event) => setSqlQuery(event.target.value)}
+              rows={3}
+              spellCheck={false}
+            />
+            {errorMessage && (
+              <p className={styles.queryError} role="alert" aria-live="polite">
+                {errorMessage}
               </p>
             )}
           </div>
 
-          <div className={styles.narrationCard} aria-live="polite">
-            <h3 className={styles.narrationTitle}>Narration</h3>
-            <p className={styles.narrationText}>{activeStep.narration ?? activeStep.summary}</p>
-          </div>
-
-          <div className={styles.stepControls} aria-label="Visualizer playback controls">
-            <div className={styles.controlGroup}>
+          <div className={styles.compactControls}>
+            <div className={styles.playbackRow}>
               <button
                 type="button"
-                className={styles.controlButton}
+                className={styles.miniButton}
                 onClick={handlePrevious}
                 disabled={activeStepIndex === 0}
+                title="קודם"
               >
-                Previous
+                ←
               </button>
               <button
                 type="button"
-                className={styles.controlButtonPrimary}
+                className={styles.playButton}
                 onClick={() => setIsPlaying((prev) => !prev)}
                 aria-pressed={isPlaying}
+                title={isPlaying ? 'השהה' : 'הפעל'}
               >
-                {isPlaying ? 'Pause' : 'Play'}
+                {isPlaying ? '⏸' : '▶'}
               </button>
               <button
                 type="button"
-                className={styles.controlButton}
+                className={styles.miniButton}
                 onClick={handleNext}
                 disabled={activeStepIndex === steps.length - 1}
+                title="הבא"
               >
-                Next
+                →
               </button>
+              <select
+                id="visualizer-speed"
+                className={styles.miniSelect}
+                value={playbackSpeed}
+                onChange={(event) => setPlaybackSpeed(Number(event.target.value))}
+                title="מהירות"
+              >
+                {[0.5, 0.75, 1, 1.25, 1.5, 2].map((speed) => (
+                  <option key={speed} value={speed}>
+                    {speed}x
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className={styles.controlScrubber}>
-              <label className={styles.controlLabel} htmlFor="visualizer-scrub">
-                Scrub timeline
-              </label>
+            <div className={styles.scrubberRow}>
               <input
                 id="visualizer-scrub"
-                className={styles.controlRange}
+                className={styles.compactRange}
                 type="range"
                 min={0}
                 max={Math.max(0, steps.length - 1)}
@@ -226,48 +213,35 @@ const VisualizerRoot = () => {
                   setIsPlaying(false);
                   selectStepByIndex(Number(event.target.value));
                 }}
-                aria-valuetext={`Step ${activeStepIndex + 1} of ${steps.length}`}
+                aria-valuetext={`שלב ${activeStepIndex + 1} מתוך ${steps.length}`}
+                title="ניווט בציר הזמן"
               />
-            </div>
-            <div className={styles.controlOptions}>
-              <label className={styles.controlLabel} htmlFor="visualizer-speed">
-                Speed
-              </label>
-              <select
-                id="visualizer-speed"
-                className={styles.controlSelect}
-                value={playbackSpeed}
-                onChange={(event) => setPlaybackSpeed(Number(event.target.value))}
-              >
-                {[0.5, 0.75, 1, 1.25, 1.5, 2].map((speed) => (
-                  <option key={speed} value={speed}>
-                    {speed}x
-                  </option>
-                ))}
-              </select>
-              <label className={styles.controlToggle}>
-                <input
-                  type="checkbox"
-                  checked={learningMode}
-                  onChange={(event) => setLearningMode(event.target.checked)}
-                />
-                <span>Learning mode</span>
-              </label>
-            </div>
-            <div className={styles.controlMeta}>
-              <span className={styles.controlStepCount}>
-                Step {activeStepIndex + 1} of {steps.length}
+              <span className={styles.stepIndicator}>
+                {activeStepIndex + 1}/{steps.length}
               </span>
-              <span className={styles.controlHint}>Use ← → to step, space to play.</span>
             </div>
+            <label className={styles.learningToggle}>
+              <input
+                type="checkbox"
+                checked={learningMode}
+                onChange={(event) => setLearningMode(event.target.checked)}
+              />
+              <span>מצב לימוד</span>
+            </label>
           </div>
 
+          <StepTimeline
+            steps={steps}
+            activeStepId={activeStepId}
+            onSelect={setActiveStepId}
+          />
+
           {activeStep.glossary && activeStep.glossary.length > 0 && (
-            <aside className={styles.glossaryCard} aria-label="Glossary hints">
-              <h3 className={styles.glossaryTitle}>Glossary hints</h3>
-              <ul className={styles.glossaryList}>
+            <aside className={styles.sidebarGlossary} aria-label="מילון מושגים">
+              <h3 className={styles.sidebarGlossaryTitle}>מילון מושגים</h3>
+              <ul className={styles.sidebarGlossaryList}>
                 {activeStep.glossary.map((hint) => (
-                  <li key={hint.term} className={styles.glossaryItem}>
+                  <li key={hint.term} className={styles.sidebarGlossaryItem}>
                     <strong>{hint.term}</strong>
                     <span>{hint.definition}</span>
                   </li>
@@ -277,21 +251,30 @@ const VisualizerRoot = () => {
           )}
 
           {learningMode && activeStep.quiz && (
-            <section className={styles.learningCard} aria-label="Learning mode prompt">
-              <h3 className={styles.learningTitle}>Check your understanding</h3>
-              <p className={styles.learningQuestion}>{activeStep.quiz.question}</p>
-              {activeStep.quiz.hint && <p className={styles.learningHint}>Hint: {activeStep.quiz.hint}</p>}
+            <section className={styles.sidebarQuiz} aria-label="בדיקת הבנה">
+              <h3 className={styles.sidebarQuizTitle}>בדוק את ההבנה שלך</h3>
+              <p className={styles.sidebarQuizQuestion}>{activeStep.quiz.question}</p>
+              {activeStep.quiz.hint && <p className={styles.sidebarQuizHint}>רמז: {activeStep.quiz.hint}</p>}
               <button
                 type="button"
-                className={styles.learningButton}
+                className={styles.sidebarQuizButton}
                 onClick={() => setRevealAnswer((prev) => !prev)}
                 aria-pressed={revealAnswer}
               >
-                {revealAnswer ? 'Hide answer' : 'Reveal answer'}
+                {revealAnswer ? 'הסתר תשובה' : 'הצג תשובה'}
               </button>
-              {revealAnswer && <p className={styles.learningAnswer}>{activeStep.quiz.answer}</p>}
+              {revealAnswer && <p className={styles.sidebarQuizAnswer}>{activeStep.quiz.answer}</p>}
             </section>
           )}
+        </div>
+
+        <div className={styles.mainVisualizerArea}>
+          <div className={styles.stepBanner}>
+            <div className={styles.stepBannerContent}>
+              <h2 className={styles.stepBannerTitle}>{activeStep.title}</h2>
+              <p className={styles.stepBannerSummary}>{activeStep.narration ?? activeStep.summary}</p>
+            </div>
+          </div>
 
           <div className={styles.nodeGrid}>
             {activeStep.nodes.map((node) => {
@@ -305,17 +288,6 @@ const VisualizerRoot = () => {
 
               return <TableView key={node.id} node={node} />;
             })}
-          </div>
-
-          <div className={styles.animationList}>
-            <h3 className={styles.animationTitle}>Animation cues</h3>
-            <ul>
-              {activeStep.animations.map((animation) => (
-                <li key={animation.id}>
-                  <strong>{animation.label}</strong> · {animation.style} · {animation.durationMs}ms
-                </li>
-              ))}
-            </ul>
           </div>
         </div>
       </div>

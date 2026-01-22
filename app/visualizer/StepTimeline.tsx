@@ -12,10 +12,10 @@ type StepTimelineProps = {
 
 const StepTimeline = ({ steps, activeStepId, onSelect }: StepTimelineProps) => {
   return (
-    <nav className={styles.timeline} aria-label="Query execution steps">
+    <nav className={styles.timeline} aria-label="שלבי ביצוע השאילתה">
       <div className={styles.timelineHeader}>
-        <h2 className={styles.timelineHeading}>Execution steps</h2>
-        <p className={styles.timelineSubheading}>Click a step to preview its animation.</p>
+        <h2 className={styles.timelineHeading}>שלבי ביצוע</h2>
+        <p className={styles.timelineSubheading}>לחץ על שלב כדי לצפות באנימציה שלו</p>
       </div>
       <ol className={styles.timelineList}>
         {steps.map((step) => {

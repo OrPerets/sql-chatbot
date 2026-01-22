@@ -33,10 +33,10 @@ const JoinAnimator = ({ node }: JoinAnimatorProps) => {
       ];
 
   return (
-    <div className={styles.joinCard} role="region" aria-label="Join animation mock">
+    <div className={styles.joinCard} role="region" aria-label="אנימציית חיבור">
       <div className={styles.joinHeader}>
         <span className={styles.tableTitle}>{node.label}</span>
-        <span className={styles.tableKind}>JOIN</span>
+        <span className={styles.tableKind} data-kind="join">חיבור</span>
       </div>
       {node.detail && <p className={styles.joinDetail}>{node.detail}</p>}
       <div className={styles.joinPairs}>
@@ -54,8 +54,8 @@ const JoinAnimator = ({ node }: JoinAnimatorProps) => {
       {node.data && (
         <div className={styles.joinOutput}>
           <div className={styles.joinOutputHeader}>
-            <span className={styles.tableTitle}>Join output</span>
-            <span className={styles.tableKind}>RESULT</span>
+            <span className={styles.tableTitle}>תוצאת החיבור</span>
+            <span className={styles.tableKind} data-kind="join">תוצאה</span>
           </div>
           <div className={styles.tableScroll} role="region" aria-label="Join output rows" tabIndex={0}>
             <table className={styles.table}>

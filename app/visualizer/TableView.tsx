@@ -13,7 +13,7 @@ const TableView = ({ node }: TableViewProps) => {
     return (
       <div className={styles.tablePlaceholder}>
         <span className={styles.tableTitle}>{node.label}</span>
-        <p className={styles.tableHint}>No rows loaded for this step.</p>
+        <p className={styles.tableHint}>אין שורות זמינות בשלב זה</p>
       </div>
     );
   }
@@ -63,11 +63,30 @@ const TableView = ({ node }: TableViewProps) => {
     return undefined;
   };
 
+  const getKindLabel = (kind: string) => {
+    const labels: Record<string, string> = {
+      table: 'טבלה',
+      filter: 'סינון',
+      sort: 'מיון',
+      limit: 'הגבלה',
+      projection: 'הקרנה',
+      join: 'חיבור',
+      aggregation: 'קיבוץ',
+      cte: 'CTE',
+      subquery: 'תת-שאילתה',
+      set: 'איחוד',
+      mutation: 'שינוי'
+    };
+    return labels[kind] || kind.toUpperCase();
+  };
+
   return (
     <div className={styles.tableCard}>
       <div className={styles.tableHeader}>
         <span className={styles.tableTitle}>{node.label}</span>
-        <span className={styles.tableKind}>{node.kind.toUpperCase()}</span>
+        <span className={styles.tableKind} data-kind={node.kind}>
+          {getKindLabel(node.kind)}
+        </span>
       </div>
       <div className={styles.tableScroll} role="region" aria-label={`${node.label} rows`} tabIndex={0}>
         <table className={styles.table}>

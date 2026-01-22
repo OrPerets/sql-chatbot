@@ -13,7 +13,7 @@ const PlaceholderCard = ({ node }: PlaceholderCardProps) => {
     <div className={styles.placeholderCard} role="region" aria-label={node.label}>
       <div className={styles.placeholderHeader}>
         <span className={styles.tableTitle}>{node.label}</span>
-        <span className={styles.placeholderBadge}>Placeholder</span>
+        <span className={styles.placeholderBadge}>מציין מקום</span>
       </div>
       {node.detail && <p className={styles.placeholderDetail}>{node.detail}</p>}
       {node.notes && node.notes.length > 0 ? (
@@ -25,7 +25,7 @@ const PlaceholderCard = ({ node }: PlaceholderCardProps) => {
           ))}
         </ul>
       ) : (
-        <p className={styles.tableHint}>No keyword gaps detected for this query.</p>
+        <p className={styles.tableHint}>לא נמצאו מילות מפתח חסרות בשאילתה זו</p>
       )}
     </div>
   );

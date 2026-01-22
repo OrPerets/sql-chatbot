@@ -923,9 +923,43 @@ const buildStepsForSelect = (
     const nodeId = `join-output-${index}`;
     const joinTerm = join.type === 'INNER' ? 'INNER JOIN' : `${join.type} JOIN`;
     const glossaryTerms = join.type === 'CROSS' ? [joinTerm] : [joinTerm, 'ON'];
+    
+    // Keep showing source tables with matched rows highlighted
+    const leftTableNode: VisualizationNode = {
+      id: `join-left-${index}`,
+      label: normalized.from.name,
+      kind: 'table',
+      data: {
+        columns: sourceNodes[0].data!.columns,
+        rows: sourceNodes[0].data!.rows,
+        rowStates: sourceNodes[0].data!.rows.map((_, rowIndex) => {
+          const hasMatch = joined.rowStates.some((state, joinIndex) => {
+            return state === 'matched' && Math.floor(joinIndex / right.rows.length) === rowIndex;
+          });
+          return hasMatch ? 'matched' : 'default';
+        })
+      }
+    };
+    
+    const rightTableNode: VisualizationNode = {
+      id: `join-right-${index}`,
+      label: join.table,
+      kind: 'table',
+      data: {
+        columns: sourceNodes[1 + index]?.data?.columns || right.columns.map(c => c.split('.')[1]),
+        rows: sourceNodes[1 + index]?.data?.rows || [],
+        rowStates: (sourceNodes[1 + index]?.data?.rows || []).map((_, rowIndex) => {
+          const hasMatch = joined.rowStates.some((state, joinIndex) => {
+            return state === 'matched' && joinIndex % right.rows.length === rowIndex;
+          });
+          return hasMatch ? 'matched' : 'default';
+        })
+      }
+    };
+    
     const joinNode: VisualizationNode = {
       id: nodeId,
-      label: `Join output ${index + 1}`,
+      label: `תוצאת חיבור ${index + 1}`,
       kind: 'join',
       detail: join.type === 'CROSS'
         ? 'Cartesian product of both tables.'
@@ -947,7 +981,7 @@ const buildStepsForSelect = (
         join.type === 'CROSS'
           ? 'Pair every row from each table.'
           : `Match rows on ${joinNode.detail}.`,
-        [joinNode],
+        [leftTableNode, rightTableNode, joinNode],
         'Animate join pairing',
         [nodeId],
         {
@@ -986,14 +1020,25 @@ const buildStepsForSelect = (
   if (normalized.where) {
     const filteredRows = applyFilter(current.rows, normalized.where);
     const rowStates = buildFilterStates(current.rows, normalized.where);
-    const filterNode: VisualizationNode = {
-      id: 'filtered-rows',
-      label: 'Filtered rows',
+    
+    const beforeFilterNode: VisualizationNode = {
+      id: 'before-filter',
+      label: 'לפני סינון',
       kind: 'filter',
       data: {
         columns: current.columns,
         rows: current.rows,
         rowStates
+      }
+    };
+    
+    const afterFilterNode: VisualizationNode = {
+      id: 'after-filter',
+      label: 'אחרי סינון',
+      kind: 'filter',
+      data: {
+        columns: current.columns,
+        rows: filteredRows
       }
     };
 
@@ -1004,9 +1049,9 @@ const buildStepsForSelect = (
         `Keep rows where ${getSelectItemLabel(normalized.where.left)} ${normalized.where.op} ${
           normalized.where.value
         }.`,
-        [filterNode],
+        [beforeFilterNode, afterFilterNode],
         'Highlight retained rows',
-        [filterNode.id],
+        [beforeFilterNode.id, afterFilterNode.id],
         {
           narration:
             'The WHERE clause checks each row against the condition and keeps only the rows that pass.',
@@ -1119,9 +1164,20 @@ const buildStepsForSelect = (
 
   if (normalized.orderBy) {
     const sortedRows = applyOrder(current.rows, normalized.orderBy);
-    const sortNode: VisualizationNode = {
-      id: 'sorted-rows',
-      label: 'Sorted rows',
+    
+    const beforeSortNode: VisualizationNode = {
+      id: 'before-sort',
+      label: 'לפני מיון',
+      kind: 'sort',
+      data: {
+        columns: current.columns,
+        rows: current.rows
+      }
+    };
+    
+    const afterSortNode: VisualizationNode = {
+      id: 'after-sort',
+      label: 'אחרי מיון',
       kind: 'sort',
       data: {
         columns: current.columns,
@@ -1134,9 +1190,9 @@ const buildStepsForSelect = (
         'step-order',
         `${steps.length + 1}. Apply ORDER BY`,
         `Order by ${normalized.orderBy.column.column} (${normalized.orderBy.direction}).`,
-        [sortNode],
+        [beforeSortNode, afterSortNode],
         'Highlight sorted rows',
-        [sortNode.id],
+        [afterSortNode.id],
         {
           narration: 'ORDER BY arranges the rows so the final output appears in a consistent sequence.',
           caption: 'Sort rows based on the ORDER BY clause.',
@@ -1159,9 +1215,22 @@ const buildStepsForSelect = (
 
   if (typeof normalized.limit === 'number') {
     const limitedRows = current.rows.slice(0, normalized.limit);
-    const limitNode: VisualizationNode = {
-      id: 'limited-rows',
-      label: 'Limited rows',
+    const rowStates = current.rows.map((_, index) => (index < normalized.limit ? 'kept' : 'filtered'));
+    
+    const beforeLimitNode: VisualizationNode = {
+      id: 'before-limit',
+      label: 'לפני הגבלה',
+      kind: 'limit',
+      data: {
+        columns: current.columns,
+        rows: current.rows,
+        rowStates
+      }
+    };
+    
+    const afterLimitNode: VisualizationNode = {
+      id: 'after-limit',
+      label: 'אחרי הגבלה',
       kind: 'limit',
       data: {
         columns: current.columns,
@@ -1174,9 +1243,9 @@ const buildStepsForSelect = (
         'step-limit',
         `${steps.length + 1}. Apply LIMIT`,
         `Keep the first ${normalized.limit} rows.`,
-        [limitNode],
+        [beforeLimitNode, afterLimitNode],
         'Highlight limited rows',
-        [limitNode.id],
+        [beforeLimitNode.id, afterLimitNode.id],
         {
           narration: 'LIMIT trims the result set down to the first N rows after sorting.',
           caption: 'Restrict the output to a fixed number of rows.',
