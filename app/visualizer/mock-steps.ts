@@ -5,6 +5,21 @@ export const mockSteps: QueryStep[] = [
     id: 'step-select',
     title: '1. Load source tables',
     summary: 'Start with Students and Enrollments tables.',
+    narration:
+      'We begin by loading the source tables into memory so we can reference them throughout the query.',
+    caption: 'Load the input tables that the query will read.',
+    glossary: [
+      {
+        term: 'FROM',
+        definition: 'Specifies the tables or sources that provide rows to the query.'
+      }
+    ],
+    quiz: {
+      id: 'quiz-select',
+      question: 'Which tables are we pulling rows from at the start?',
+      answer: 'Students and Enrollments are the two source tables loaded for this query.',
+      hint: 'Check the table names in the step title.'
+    },
     nodes: [
       {
         id: 'students',
@@ -47,6 +62,25 @@ export const mockSteps: QueryStep[] = [
     id: 'step-join',
     title: '2. Match rows (INNER JOIN)',
     summary: 'Pair rows where Students.id = Enrollments.student_id.',
+    narration:
+      'An INNER JOIN keeps only the rows where the join keys match, producing combined rows for matching students.',
+    caption: 'Match rows on the join keys and build combined rows.',
+    glossary: [
+      {
+        term: 'INNER JOIN',
+        definition: 'Keeps only rows where the join condition matches between two tables.'
+      },
+      {
+        term: 'ON',
+        definition: 'Defines the join condition that decides which rows match.'
+      }
+    ],
+    quiz: {
+      id: 'quiz-join',
+      question: 'What happens to rows that do not find a match in an INNER JOIN?',
+      answer: 'Unmatched rows are excluded from the result.',
+      hint: 'INNER joins only keep matches.'
+    },
     nodes: [
       {
         id: 'join-output',
@@ -82,6 +116,21 @@ export const mockSteps: QueryStep[] = [
     id: 'step-project',
     title: '3. Project columns',
     summary: 'Select the final columns for output.',
+    narration:
+      'Projection chooses which columns to keep, shaping the final output table for the user.',
+    caption: 'Keep only the columns requested in SELECT.',
+    glossary: [
+      {
+        term: 'SELECT',
+        definition: 'Lists the columns or expressions you want in the final output.'
+      }
+    ],
+    quiz: {
+      id: 'quiz-project',
+      question: 'Which columns make it into the final result?',
+      answer: 'Only name and course are included in the projection.',
+      hint: 'Look at the highlighted columns.'
+    },
     nodes: [
       {
         id: 'projection-output',

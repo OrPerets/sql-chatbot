@@ -1,6 +1,47 @@
 import { getMockTable } from './mock-schema';
 import { parseSql } from './sql-parser';
-import { JoinPair, QueryStep, VisualizationNode } from './types';
+import { GlossaryHint, JoinPair, LearningPrompt, QueryStep, VisualizationNode } from './types';
+
+const GLOSSARY: Record<string, string> = {
+  SELECT: 'Chooses which columns or expressions appear in the final result.',
+  FROM: 'Defines the source tables or subqueries used by the query.',
+  WHERE: 'Filters rows before grouping or projection.',
+  'INNER JOIN': 'Keeps only rows where the join condition matches.',
+  'LEFT JOIN': 'Keeps all rows from the left table and matching rows from the right table.',
+  'RIGHT JOIN': 'Keeps all rows from the right table and matching rows from the left table.',
+  'FULL JOIN': 'Keeps rows from both tables, matching when possible.',
+  'CROSS JOIN': 'Pairs every row from the left with every row from the right.',
+  ON: 'Specifies the join condition that matches rows between tables.',
+  'GROUP BY': 'Groups rows so aggregates can be computed per group.',
+  HAVING: 'Filters groups after aggregation.',
+  'ORDER BY': 'Sorts the result set by one or more columns.',
+  LIMIT: 'Restricts the number of rows returned.',
+  UNION: 'Combines results and removes duplicates.',
+  INTERSECT: 'Keeps only rows that appear in both result sets.',
+  EXCEPT: 'Keeps rows from the left result that are not in the right result.',
+  CTE: 'Common Table Expression; a named subquery defined with WITH.',
+  SUBQUERY: 'A nested query used as a data source.',
+  INSERT: 'Adds new rows to a table.',
+  UPDATE: 'Modifies existing rows in a table.',
+  DELETE: 'Removes rows from a table.',
+  AGGREGATE: 'Calculations like COUNT, SUM, or AVG over groups of rows.'
+};
+
+const buildGlossary = (terms: string[]): GlossaryHint[] => {
+  const seen = new Set<string>();
+  return terms
+    .filter((term) => {
+      if (seen.has(term)) {
+        return false;
+      }
+      seen.add(term);
+      return Boolean(GLOSSARY[term]);
+    })
+    .map((term) => ({
+      term,
+      definition: GLOSSARY[term]
+    }));
+};
 
 type ColumnRef = {
   kind: 'column';
@@ -711,22 +752,36 @@ const buildStep = (
   summary: string,
   nodes: VisualizationNode[],
   animationLabel: string,
-  animationTargets: string[]
-): QueryStep => ({
-  id,
-  title,
-  summary,
-  nodes,
-  animations: [
-    {
-      id: `${id}-animation`,
-      label: animationLabel,
-      style: 'highlight',
-      durationMs: 700,
-      targetNodeIds: animationTargets
-    }
-  ]
-});
+  animationTargets: string[],
+  options?: {
+    narration?: string;
+    caption?: string;
+    glossaryTerms?: string[];
+    quiz?: LearningPrompt;
+  }
+): QueryStep => {
+  const glossary = options?.glossaryTerms ? buildGlossary(options.glossaryTerms) : undefined;
+
+  return {
+    id,
+    title,
+    summary,
+    narration: options?.narration ?? summary,
+    caption: options?.caption,
+    glossary: glossary?.length ? glossary : undefined,
+    quiz: options?.quiz,
+    nodes,
+    animations: [
+      {
+        id: `${id}-animation`,
+        label: animationLabel,
+        style: 'highlight',
+        durationMs: 700,
+        targetNodeIds: animationTargets
+      }
+    ]
+  };
+};
 
 const buildStepsForSelect = (
   normalized: NormalizedQuery,
@@ -753,7 +808,18 @@ const buildStepsForSelect = (
         `Evaluate the nested SELECT to produce ${normalized.from.name}.`,
         [subqueryNode],
         'Highlight subquery output',
-        [subqueryNode.id]
+        [subqueryNode.id],
+        {
+          narration: `We run the nested query first so its output can act like a temporary table named ${normalized.from.name}.`,
+          caption: 'Resolve the nested SELECT before the outer query.',
+          glossaryTerms: ['SUBQUERY', 'SELECT'],
+          quiz: {
+            id: `quiz-subquery-${normalized.from.name}`,
+            question: 'Why does the subquery run before the outer query?',
+            answer: 'The outer query needs the subquery result set as its data source.',
+            hint: 'Subqueries behave like temporary tables.'
+          }
+        }
       )
     );
   }
@@ -798,7 +864,13 @@ const buildStepsForSelect = (
       `Load ${sourceNodes.map((node) => node.label).join(' and ')}.`,
       sourceNodes,
       'Highlight input tables',
-      sourceNodes.map((node) => node.id)
+      sourceNodes.map((node) => node.id),
+      {
+        narration:
+          'We bring the required tables into the visual workspace so each later step can reference their rows.',
+        caption: 'Load the tables referenced in FROM and JOIN clauses.',
+        glossaryTerms: ['FROM']
+      }
     )
   );
 
@@ -823,6 +895,8 @@ const buildStepsForSelect = (
     );
 
     const nodeId = `join-output-${index}`;
+    const joinTerm = join.type === 'INNER' ? 'INNER JOIN' : `${join.type} JOIN`;
+    const glossaryTerms = join.type === 'CROSS' ? [joinTerm] : [joinTerm, 'ON'];
     const joinNode: VisualizationNode = {
       id: nodeId,
       label: `Join output ${index + 1}`,
@@ -849,7 +923,31 @@ const buildStepsForSelect = (
           : `Match rows on ${joinNode.detail}.`,
         [joinNode],
         'Animate join pairing',
-        [nodeId]
+        [nodeId],
+        {
+          narration:
+            join.type === 'CROSS'
+              ? 'A CROSS JOIN pairs every row from the left table with every row from the right table.'
+              : `We compare join keys to combine rows from ${normalized.from.name} and ${join.table}.`,
+          caption: join.type === 'CROSS' ? 'Build all row combinations.' : 'Match rows on the join condition.',
+          glossaryTerms,
+          quiz: {
+            id: `quiz-join-${index + 1}`,
+            question:
+              join.type === 'CROSS'
+                ? 'How many row combinations does a CROSS JOIN produce?'
+                : 'What happens to rows that do not match the join condition?',
+            answer:
+              join.type === 'CROSS'
+                ? 'It produces every possible pairing of left and right rows.'
+                : join.type === 'LEFT' || join.type === 'FULL'
+                  ? 'Unmatched left rows still appear with empty placeholders.'
+                  : join.type === 'RIGHT'
+                    ? 'Unmatched right rows still appear with empty placeholders.'
+                    : 'Unmatched rows are excluded from the result.',
+            hint: 'Consider how the join type treats unmatched rows.'
+          }
+        }
       )
     );
 
@@ -882,7 +980,19 @@ const buildStepsForSelect = (
         }.`,
         [filterNode],
         'Highlight retained rows',
-        [filterNode.id]
+        [filterNode.id],
+        {
+          narration:
+            'The WHERE clause checks each row against the condition and keeps only the rows that pass.',
+          caption: 'Filter rows before grouping or projection.',
+          glossaryTerms: ['WHERE'],
+          quiz: {
+            id: 'quiz-where',
+            question: 'At what point does the WHERE clause filter rows?',
+            answer: 'It filters rows before grouping, ordering, or projection steps run.',
+            hint: 'WHERE happens early in the query pipeline.'
+          }
+        }
       )
     );
 
@@ -913,7 +1023,24 @@ const buildStepsForSelect = (
           : 'Aggregate rows into summary totals.',
         [aggregationNode],
         'Highlight grouped rows',
-        [aggregationNode.id]
+        [aggregationNode.id],
+        {
+          narration: groupColumns.length
+            ? 'GROUP BY collects rows with matching keys so aggregates can be calculated per group.'
+            : 'Aggregate functions summarize all rows into a single set of totals.',
+          caption: 'Group rows to compute aggregates.',
+          glossaryTerms: groupColumns.length ? ['GROUP BY', 'AGGREGATE'] : ['AGGREGATE'],
+          quiz: {
+            id: 'quiz-group',
+            question: groupColumns.length
+              ? 'What determines which rows are placed in the same group?'
+              : 'What does an aggregate without GROUP BY summarize?',
+            answer: groupColumns.length
+              ? 'Rows that share the same GROUP BY key values are grouped together.'
+              : 'It summarizes the entire result set as a single group.',
+            hint: 'Look at the columns listed in GROUP BY.'
+          }
+        }
       )
     );
 
@@ -942,7 +1069,18 @@ const buildStepsForSelect = (
           }.`,
           [havingNode],
           'Highlight qualifying groups',
-          [havingNode.id]
+          [havingNode.id],
+          {
+            narration: 'HAVING filters the grouped results after aggregation has already happened.',
+            caption: 'Filter groups after aggregation.',
+            glossaryTerms: ['HAVING'],
+            quiz: {
+              id: 'quiz-having',
+              question: 'How is HAVING different from WHERE?',
+              answer: 'HAVING filters grouped results, while WHERE filters individual rows first.',
+              hint: 'HAVING comes after GROUP BY.'
+            }
+          }
         )
       );
 
@@ -972,7 +1110,18 @@ const buildStepsForSelect = (
         `Order by ${normalized.orderBy.column.column} (${normalized.orderBy.direction}).`,
         [sortNode],
         'Highlight sorted rows',
-        [sortNode.id]
+        [sortNode.id],
+        {
+          narration: 'ORDER BY arranges the rows so the final output appears in a consistent sequence.',
+          caption: 'Sort rows based on the ORDER BY clause.',
+          glossaryTerms: ['ORDER BY'],
+          quiz: {
+            id: 'quiz-order',
+            question: 'Does ORDER BY change which rows appear in the result?',
+            answer: 'No, it only changes the order of the rows that are already selected.',
+            hint: 'Sorting does not filter.'
+          }
+        }
       )
     );
 
@@ -1001,7 +1150,18 @@ const buildStepsForSelect = (
         `Keep the first ${normalized.limit} rows.`,
         [limitNode],
         'Highlight limited rows',
-        [limitNode.id]
+        [limitNode.id],
+        {
+          narration: 'LIMIT trims the result set down to the first N rows after sorting.',
+          caption: 'Restrict the output to a fixed number of rows.',
+          glossaryTerms: ['LIMIT'],
+          quiz: {
+            id: 'quiz-limit',
+            question: 'When does LIMIT usually apply in the query flow?',
+            answer: 'After other steps like filtering and ordering are complete.',
+            hint: 'LIMIT typically comes at the end of the pipeline.'
+          }
+        }
       )
     );
 
@@ -1036,7 +1196,12 @@ const buildStepsForSelect = (
       'Select the output columns for the final result set.',
       [projectionSourceNode, projectionNode],
       'Reveal projected columns',
-      [projectionSourceNode.id, projectionNode.id]
+      [projectionSourceNode.id, projectionNode.id],
+      {
+        narration: 'Projection chooses which columns to keep so the result matches the SELECT list.',
+        caption: 'Keep only the requested output columns.',
+        glossaryTerms: ['SELECT']
+      }
     )
   );
 
@@ -1082,7 +1247,23 @@ const buildStepsForQuery = (
     `Merge the two result sets using ${normalized.setOperation.type}.`,
     [setNodeLeft, setNodeRight, setNodeOutput],
     'Highlight set operation output',
-    [setNodeOutput.id]
+    [setNodeOutput.id],
+    {
+      narration: 'Set operations compare two result sets to combine or filter rows.',
+      caption: `Apply ${normalized.setOperation.type} to both result sets.`,
+      glossaryTerms: [normalized.setOperation.type],
+      quiz: {
+        id: 'quiz-set',
+        question: `What does ${normalized.setOperation.type} do to the two result sets?`,
+        answer:
+          normalized.setOperation.type === 'UNION'
+            ? 'It combines both results and removes duplicates.'
+            : normalized.setOperation.type === 'INTERSECT'
+              ? 'It keeps only rows that appear in both results.'
+              : 'It keeps rows from the left result that are not in the right result.',
+        hint: 'Each set operator compares rows across both result sets.'
+      }
+    }
   );
 
   return {
@@ -1127,7 +1308,18 @@ const buildStepsForInsert = (statement: Record<string, unknown>): QueryStep[] =>
       `Add ${rowsToInsert.length} row(s) to ${tableName}.`,
       [insertNode],
       'Highlight inserted rows',
-      [insertNode.id]
+      [insertNode.id],
+      {
+        narration: 'INSERT adds new rows to the table based on the provided values.',
+        caption: 'Add new rows to the target table.',
+        glossaryTerms: ['INSERT'],
+        quiz: {
+          id: 'quiz-insert',
+          question: 'What does an INSERT statement change?',
+          answer: 'It adds new rows to a table.',
+          hint: 'Think of adding data.'
+        }
+      }
     )
   ];
 };
@@ -1194,7 +1386,18 @@ const buildStepsForUpdate = (statement: Record<string, unknown>): QueryStep[] =>
       `Modify matching rows in ${tableName}.`,
       [beforeNode, afterNode],
       'Highlight updated rows',
-      [beforeNode.id, afterNode.id]
+      [beforeNode.id, afterNode.id],
+      {
+        narration: 'UPDATE changes the values of matching rows while keeping the row count the same.',
+        caption: 'Modify existing rows that match the condition.',
+        glossaryTerms: ['UPDATE', 'WHERE'],
+        quiz: {
+          id: 'quiz-update',
+          question: 'Does UPDATE add or remove rows?',
+          answer: 'No, it edits values in existing rows.',
+          hint: 'UPDATE modifies data in place.'
+        }
+      }
     )
   ];
 };
@@ -1244,7 +1447,18 @@ const buildStepsForDelete = (statement: Record<string, unknown>): QueryStep[] =>
       `Remove matching rows from ${tableName}.`,
       [beforeNode, afterNode],
       'Highlight deleted rows',
-      [beforeNode.id, afterNode.id]
+      [beforeNode.id, afterNode.id],
+      {
+        narration: 'DELETE removes rows that meet the condition from the table.',
+        caption: 'Remove rows that match the delete condition.',
+        glossaryTerms: ['DELETE', 'WHERE'],
+        quiz: {
+          id: 'quiz-delete',
+          question: 'What happens to rows that match the DELETE condition?',
+          answer: 'They are removed from the table.',
+          hint: 'DELETE reduces the number of rows.'
+        }
+      }
     )
   ];
 };
@@ -1293,7 +1507,18 @@ export const generateStepsFromSql = (sql: string): QueryStep[] => {
         `Generate ${cteName} for reuse in the main query.`,
         [cteNode],
         'Highlight CTE output',
-        [cteNode.id]
+        [cteNode.id],
+        {
+          narration: `We compute ${cteName} once and store it as a named result set for later steps.`,
+          caption: 'Build the CTE before running the main query.',
+          glossaryTerms: ['CTE', 'SELECT'],
+          quiz: {
+            id: `quiz-cte-${cteName}`,
+            question: 'Why use a CTE in a query?',
+            answer: 'It creates a named, reusable subquery that can simplify complex SQL.',
+            hint: 'CTEs act like temporary named tables.'
+          }
+        }
       )
     );
   });

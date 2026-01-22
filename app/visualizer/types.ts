@@ -53,10 +53,26 @@ export type AnimationStep = {
   targetNodeIds: string[];
 };
 
+export type GlossaryHint = {
+  term: string;
+  definition: string;
+};
+
+export type LearningPrompt = {
+  id: string;
+  question: string;
+  answer: string;
+  hint?: string;
+};
+
 export type QueryStep = {
   id: string;
   title: string;
   summary: string;
+  narration?: string;
+  caption?: string;
+  glossary?: GlossaryHint[];
+  quiz?: LearningPrompt;
   nodes: VisualizationNode[];
   animations: AnimationStep[];
 };
