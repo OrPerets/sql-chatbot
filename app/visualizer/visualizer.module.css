@@ -3,8 +3,8 @@
   flex-direction: column;
   gap: 0;
   padding: 0;
-  color: #1a1f36;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+  color: #0f172a;
+  background: #f8fafc;
   min-height: 100vh;
   direction: rtl;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
@@ -15,8 +15,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  box-shadow: 0 3px 12px rgba(102, 126, 234, 0.25);
+  background: #1e3a8a;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.18);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -33,13 +33,13 @@
 .featureBadge {
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.18);
   color: #ffffff;
   font-weight: 700;
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 .queryPanel {
@@ -50,12 +50,12 @@
   border-radius: 12px;
   background: #ffffff;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
-  border: 1px solid rgba(102, 126, 234, 0.1);
+  border: 1px solid #e2e8f0;
 }
 
 .queryLabel {
   font-weight: 700;
-  color: #1a1f36;
+  color: #0f172a;
   font-size: 11px;
   letter-spacing: 0.3px;
   text-transform: uppercase;
@@ -63,12 +63,12 @@
 
 .queryInput {
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   padding: 8px 10px;
   font-family: 'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
     'Courier New', monospace;
   font-size: 11px;
-  color: #1a1f36;
+  color: #0f172a;
   background: #f8fafc;
   resize: vertical;
   transition: all 0.3s ease;
@@ -79,9 +79,9 @@
 
 .queryInput:focus-visible {
   outline: none;
-  border-color: #667eea;
+  border-color: #1e3a8a;
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.12);
 }
 
 .queryError {
@@ -107,7 +107,7 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  background: linear-gradient(180deg, #fafbfc 0%, #f5f7fa 100%);
+  background: #f8fafc;
   overflow-y: auto;
   padding: 0;
 }
@@ -133,11 +133,11 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  background: #f1f5f9;
   padding: 16px 14px;
   height: 100%;
   overflow-y: auto;
-  border-left: 1px solid rgba(102, 126, 234, 0.1);
+  border-left: 1px solid #e2e8f0;
 }
 
 .sidebar::-webkit-scrollbar {
@@ -158,14 +158,13 @@
 }
 
 .stepBanner {
-  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  background: #ffffff;
   padding: 20px 28px;
-  border-bottom: 2px solid rgba(102, 126, 234, 0.2);
+  border-bottom: 1px solid #e2e8f0;
   position: sticky;
   top: 0;
   z-index: 10;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
 }
 
 .stepBannerContent {
@@ -188,11 +187,11 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  background: #f8fafc;
   padding: 16px 18px;
   border-radius: 12px;
-  border: 2px solid rgba(102, 126, 234, 0.3);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  border: 1px solid #e2e8f0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
   position: relative;
 }
 
@@ -207,7 +206,7 @@
 .stepBannerQueryLabel {
   font-size: 11px;
   font-weight: 800;
-  color: #4338ca;
+  color: #1e3a8a;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   display: flex;
@@ -216,18 +215,18 @@
 }
 
 .stepBannerQueryLabel::before {
-  content: '⚡';
-  font-size: 14px;
-  color: #667eea;
+  content: '●';
+  font-size: 10px;
+  color: #1e3a8a;
 }
 
 .queryEditButton {
   width: 28px;
   height: 28px;
   border-radius: 6px;
-  border: 1px solid rgba(102, 126, 234, 0.3);
-  background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #1e3a8a;
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -237,19 +236,19 @@
 }
 
 .queryEditButton:hover {
-  background: rgba(102, 126, 234, 0.2);
-  border-color: rgba(102, 126, 234, 0.5);
-  transform: scale(1.05);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  background: #e2e8f0;
+  border-color: #1e3a8a;
+  transform: scale(1.02);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
 }
 
 .stepBannerQueryCode {
   margin: 0;
   padding: 12px 14px;
   font-family: 'SFMono-Regular', ui-monospace, monospace;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.7;
-  color: #1e293b;
+  color: #0f172a;
   direction: ltr;
   text-align: left;
   max-height: 140px;
@@ -259,8 +258,8 @@
   white-space: pre-wrap;
   background: #ffffff;
   border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  box-shadow: inset 0 2px 4px rgba(15, 23, 42, 0.05);
+  border: 1px solid #e2e8f0;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .stepBannerQueryCode::-webkit-scrollbar {
@@ -273,12 +272,12 @@
 }
 
 .stepBannerQueryCode::-webkit-scrollbar-thumb {
-  background: rgba(102, 126, 234, 0.3);
+  background: rgba(30, 58, 138, 0.3);
   border-radius: 3px;
 }
 
 .stepBannerQueryCode::-webkit-scrollbar-thumb:hover {
-  background: rgba(102, 126, 234, 0.5);
+  background: rgba(30, 58, 138, 0.5);
 }
 
 .stepBannerQueryCode code {
@@ -288,16 +287,16 @@
 }
 
 .queryErrorPanel {
-  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  background: #fef2f2;
   border-radius: 12px;
   padding: 12px;
-  border: 2px solid #dc2626;
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
+  border: 1px solid #fecaca;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
 }
 
 .queryError {
   margin: 0;
-  color: #7f1d1d;
+  color: #991b1b;
   font-size: 12px;
   font-weight: 700;
   line-height: 1.5;
@@ -322,39 +321,39 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1e3a8a;
   color: #ffffff;
   font-weight: 900;
   font-size: 14px;
-  box-shadow: 0 3px 8px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.2);
   flex-shrink: 0;
 }
 
 .stepType {
   font-size: 10px;
   font-weight: 800;
-  color: #667eea;
+  color: #1e3a8a;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  background: rgba(102, 126, 234, 0.1);
+  background: rgba(30, 58, 138, 0.08);
   padding: 4px 10px;
   border-radius: 6px;
-  border: 1px solid rgba(102, 126, 234, 0.2);
+  border: 1px solid rgba(30, 58, 138, 0.2);
 }
 
 .stepBannerTitle {
   margin: 0;
   font-size: 19px;
   font-weight: 800;
-  color: #4338ca;
+  color: #0f172a;
   letter-spacing: -0.3px;
   line-height: 1.3;
 }
 
 .stepBannerSummary {
   margin: 0;
-  color: #4338ca;
-  font-size: 14px;
+  color: #475569;
+  font-size: 13px;
   line-height: 1.6;
   font-weight: 500;
   padding-right: 44px;
@@ -371,16 +370,16 @@
   background: #ffffff;
   border-radius: 12px;
   padding: 14px;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-  border: 1px solid rgba(102, 126, 234, 0.1);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  border: 1px solid #e2e8f0;
 }
 
 .compactControls {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  background: #ffffff;
   border-radius: 12px;
   padding: 10px 12px;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
-  border: 1px solid rgba(102, 126, 234, 0.15);
+  border: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -410,9 +409,9 @@
 }
 
 .miniButton:hover:not(:disabled) {
-  background: #667eea;
+  background: #1e3a8a;
   color: #ffffff;
-  border-color: #667eea;
+  border-color: #1e3a8a;
   transform: scale(1.05);
 }
 
@@ -426,7 +425,7 @@
   height: 40px;
   border-radius: 50%;
   border: none;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1e3a8a;
   color: #ffffff;
   font-size: 16px;
   cursor: pointer;
@@ -434,12 +433,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
 }
 
 .playButton:hover {
   transform: scale(1.1);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.3);
 }
 
 .miniSelect {
@@ -455,7 +454,7 @@
 }
 
 .miniSelect:hover {
-  border-color: #667eea;
+  border-color: #1e3a8a;
   background: #f8fafc;
 }
 
@@ -468,7 +467,7 @@
 .compactRange {
   flex: 1;
   height: 4px;
-  accent-color: #667eea;
+  accent-color: #1e3a8a;
   cursor: pointer;
 }
 
@@ -476,9 +475,9 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1e3a8a;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
 }
 
 .stepIndicator {
@@ -497,21 +496,21 @@
   gap: 6px;
   font-size: 11px;
   font-weight: 700;
-  color: #1a1f36;
+  color: #0f172a;
   cursor: pointer;
   padding: 6px 10px;
   border-radius: 8px;
-  background: rgba(102, 126, 234, 0.08);
+  background: rgba(30, 58, 138, 0.08);
   transition: all 0.2s ease;
   margin-top: 2px;
 }
 
 .learningToggle:hover {
-  background: rgba(102, 126, 234, 0.15);
+  background: rgba(30, 58, 138, 0.16);
 }
 
 .learningToggle input {
-  accent-color: #667eea;
+  accent-color: #1e3a8a;
   cursor: pointer;
   width: 16px;
   height: 16px;
@@ -522,7 +521,7 @@
   border-radius: 12px;
   padding: 12px;
   box-shadow: 0 3px 8px rgba(15, 23, 42, 0.06);
-  border: 1px solid rgba(102, 126, 234, 0.1);
+  border: 1px solid #e2e8f0;
 }
 
 .sidebarGlossaryTitle {
@@ -555,7 +554,7 @@
 }
 
 .sidebarGlossaryItem strong {
-  color: #4338ca;
+  color: #1e3a8a;
   font-weight: 700;
   font-size: 11px;
 }
@@ -565,10 +564,10 @@
 }
 
 .sidebarQuiz {
-  background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
+  background: #ffffff;
   border-radius: 12px;
   padding: 12px;
-  border: 2px solid #fdba74;
+  border: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -578,13 +577,13 @@
   margin: 0;
   font-size: 11px;
   font-weight: 800;
-  color: #9a3412;
+  color: #1e3a8a;
   text-transform: uppercase;
 }
 
 .sidebarQuizQuestion {
   margin: 0;
-  color: #7c2d12;
+  color: #334155;
   font-size: 11px;
   font-weight: 600;
   line-height: 1.4;
@@ -593,19 +592,19 @@
 .sidebarQuizHint {
   margin: 0;
   font-size: 10px;
-  color: #c2410c;
+  color: #475569;
   padding: 6px 8px;
-  background: rgba(255, 255, 255, 0.5);
+  background: #f8fafc;
   border-radius: 6px;
-  border-right: 2px solid #f97316;
+  border-right: 2px solid #1e3a8a;
 }
 
 .sidebarQuizButton {
   align-self: flex-start;
   border-radius: 999px;
-  border: 2px solid #f97316;
+  border: 1px solid #1e3a8a;
   background: #ffffff;
-  color: #9a3412;
+  color: #1e3a8a;
   padding: 6px 12px;
   font-weight: 700;
   font-size: 10px;
@@ -614,21 +613,21 @@
 }
 
 .sidebarQuizButton:hover {
-  background: #f97316;
+  background: #1e3a8a;
   color: #ffffff;
   transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(249, 115, 22, 0.3);
+  box-shadow: 0 3px 8px rgba(30, 58, 138, 0.25);
 }
 
 .sidebarQuizAnswer {
   margin: 0;
-  color: #7c2d12;
+  color: #1e293b;
   font-weight: 700;
   font-size: 11px;
   padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.7);
+  background: #f8fafc;
   border-radius: 8px;
-  border-right: 2px solid #22c55e;
+  border-right: 2px solid #1e3a8a;
   line-height: 1.4;
 }
 
@@ -638,7 +637,7 @@
   gap: 4px;
   margin-bottom: 12px;
   padding-bottom: 12px;
-  border-bottom: 2px solid rgba(102, 126, 234, 0.1);
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .timelineHeading {
@@ -715,17 +714,17 @@
 }
 
 .timelineButton:hover {
-  background: #eef2ff;
-  border-color: rgba(102, 126, 234, 0.3);
-  transform: translateX(-3px);
-  box-shadow: 0 3px 8px rgba(102, 126, 234, 0.12);
+  background: #f1f5f9;
+  border-color: rgba(30, 58, 138, 0.3);
+  transform: translateX(-2px);
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.08);
 }
 
 .timelineButtonActive {
-  border-color: #667eea;
-  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
-  transform: translateX(-3px);
+  border-color: #1e3a8a;
+  background: #e2e8f6;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+  transform: translateX(-2px);
 }
 
 .timelineButtonActive::before {
@@ -735,12 +734,12 @@
   top: 0;
   bottom: 0;
   width: 3px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1e3a8a;
 }
 
 .timelineButton:focus-visible,
 .timelineButtonActive:focus-visible {
-  outline: 2px solid rgba(102, 126, 234, 0.3);
+  outline: 2px solid rgba(30, 58, 138, 0.4);
   outline-offset: 2px;
 }
 
@@ -760,7 +759,7 @@
 
 
 .stepHeader {
-  border-bottom: 2px solid rgba(102, 126, 234, 0.1);
+  border-bottom: 1px solid #e2e8f0;
   padding-bottom: 20px;
 }
 
@@ -781,11 +780,11 @@
 
 .stepCaption {
   margin: 12px 0 0;
-  color: #667eea;
+  color: #1e3a8a;
   font-weight: 700;
   font-size: 15px;
   padding: 8px 16px;
-  background: rgba(102, 126, 234, 0.1);
+  background: rgba(30, 58, 138, 0.08);
   border-radius: 10px;
   display: inline-block;
 }
@@ -793,24 +792,24 @@
 .narrationCard {
   border-radius: 16px;
   padding: 20px 24px;
-  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
-  border: 2px solid rgba(102, 126, 234, 0.2);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
 }
 
 .narrationTitle {
   margin: 0 0 12px;
   font-size: 17px;
   font-weight: 800;
-  color: #4338ca;
+  color: #1e3a8a;
   letter-spacing: 0.3px;
   text-transform: uppercase;
 }
 
 .narrationText {
   margin: 0;
-  color: #4338ca;
-  font-size: 15px;
+  color: #334155;
+  font-size: 14px;
   line-height: 1.7;
 }
 
@@ -834,16 +833,16 @@
   justify-content: center;
   padding: 20px;
   gap: 12px;
-  background: linear-gradient(180deg, transparent 0%, rgba(102, 126, 234, 0.05) 50%, transparent 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(30, 58, 138, 0.05) 50%, transparent 100%);
   position: relative;
 }
 
 .flowArrow {
   font-size: 32px;
-  color: #667eea;
+  color: #1e3a8a;
   font-weight: 900;
   animation: flowArrowBounce 2s ease-in-out infinite;
-  text-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  text-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
 }
 
 @keyframes flowArrowBounce {
@@ -860,12 +859,12 @@
 .flowStepLabel {
   font-size: 14px;
   font-weight: 800;
-  color: #4338ca;
-  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  color: #1e3a8a;
+  background: #e2e8f6;
   padding: 8px 20px;
   border-radius: 999px;
-  border: 2px solid #667eea;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+  border: 1px solid #1e3a8a;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
   letter-spacing: -0.2px;
 }
 
@@ -880,6 +879,7 @@
   width: 100%;
   grid-auto-rows: minmax(200px, auto);
   transition: all 0.3s ease;
+  border-top: 1px solid #e2e8f0;
 }
 
 /* Ensure join cards take full width when they're the only item or need space */
@@ -891,8 +891,8 @@
 /* Style for previous steps - slightly faded to show they're historical */
 .nodeGridPrevious {
   opacity: 0.7;
-  filter: grayscale(0.2);
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  filter: grayscale(0.1);
+  background: #f8fafc;
   border-radius: 12px;
   position: relative;
 }
@@ -904,11 +904,11 @@
   left: 12px;
   font-size: 11px;
   font-weight: 800;
-  color: #10b981;
-  background: rgba(16, 185, 129, 0.1);
+  color: #475569;
+  background: #f1f5f9;
   padding: 4px 10px;
   border-radius: 6px;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  border: 1px solid #cbd5e1;
   z-index: 5;
 }
 
@@ -930,22 +930,22 @@
   left: 12px;
   font-size: 11px;
   font-weight: 800;
-  color: #667eea;
-  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  color: #1e3a8a;
+  background: #e2e8f6;
   padding: 4px 10px;
   border-radius: 6px;
-  border: 2px solid #667eea;
-  box-shadow: 0 3px 8px rgba(102, 126, 234, 0.25);
+  border: 1px solid #1e3a8a;
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.15);
   z-index: 5;
   animation: currentBadgePulse 2s ease-in-out infinite;
 }
 
 @keyframes currentStepPulse {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(102, 126, 234, 0);
+    box-shadow: 0 0 0 0 rgba(30, 58, 138, 0);
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 8px rgba(30, 58, 138, 0.12);
   }
 }
 
@@ -1004,10 +1004,10 @@
 .joinCard,
 .tablePlaceholder {
   border-radius: 14px;
-  border: 2px solid rgba(102, 126, 234, 0.2);
+  border: 1px solid #e2e8f0;
   padding: 16px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08), 0 3px 8px rgba(102, 126, 234, 0.08);
+  background: #ffffff;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   min-height: 200px;
   min-width: 0;
@@ -1055,9 +1055,9 @@
 
 .tableCard:hover,
 .joinCard:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(102, 126, 234, 0.15);
-  border-color: rgba(102, 126, 234, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+  border-color: rgba(30, 58, 138, 0.3);
 }
 
 .joinCard {
@@ -1078,29 +1078,29 @@
 /* Visual indicator for before/after states */
 .tableCard[data-state="before"] {
   opacity: 0.85;
-  border-color: rgba(148, 163, 184, 0.3);
+  border-color: rgba(148, 163, 184, 0.4);
 }
 
 .tableCard[data-state="after"] {
-  border-color: rgba(34, 197, 94, 0.4);
-  box-shadow: 0 8px 20px rgba(34, 197, 94, 0.15);
+  border-color: rgba(30, 58, 138, 0.4);
+  box-shadow: 0 8px 20px rgba(30, 58, 138, 0.15);
 }
 
 .placeholderCard {
   border-radius: 14px;
-  border: 2px solid rgba(102, 126, 234, 0.25);
+  border: 1px solid #e2e8f0;
   padding: 16px;
-  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  background: #f8fafc;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.12);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .placeholderCard:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 24px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
 }
 
 .placeholderHeader {
@@ -1113,18 +1113,18 @@
 .placeholderBadge {
   font-size: 9px;
   text-transform: uppercase;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1e3a8a;
   color: #ffffff;
   padding: 4px 10px;
   border-radius: 999px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  box-shadow: 0 3px 8px rgba(102, 126, 234, 0.25);
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.2);
 }
 
 .placeholderDetail {
   margin: 0;
-  color: #4338ca;
+  color: #334155;
   font-size: 11px;
   line-height: 1.5;
   font-weight: 600;
@@ -1140,18 +1140,18 @@
 
 .placeholderItem {
   background: #ffffff;
-  border: 1px solid rgba(102, 126, 234, 0.2);
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 11px;
-  color: #4338ca;
+  color: #334155;
   font-weight: 600;
   transition: all 0.3s ease;
 }
 
 .placeholderItem:hover {
-  border-color: #667eea;
-  box-shadow: 0 3px 8px rgba(102, 126, 234, 0.15);
+  border-color: #1e3a8a;
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.1);
   transform: translateX(-3px);
 }
 
@@ -1170,79 +1170,81 @@
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  background: #f8fafc;
   border-radius: 8px;
   margin-bottom: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  border: 1px solid #e2e8f0;
   flex-shrink: 0;
 }
 
 .tableStat {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  color: #10b981;
+  color: #1e3a8a;
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
 .tableStatFiltered {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  color: #ef4444;
+  color: #1e3a8a;
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  background: rgba(239, 68, 68, 0.1);
+  background: #f1f5f9;
   border-radius: 6px;
+  border: 1px dashed rgba(30, 58, 138, 0.4);
 }
 
 .tableTitle {
   font-weight: 800;
   font-size: 14px;
-  color: #1a1f36;
+  color: #0f172a;
   letter-spacing: -0.2px;
 }
 
 .tableKind {
   font-size: 9px;
   text-transform: uppercase;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #ffffff;
+  background: #e2e8f6;
+  color: #1e3a8a;
   padding: 4px 10px;
   border-radius: 999px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  box-shadow: 0 3px 8px rgba(102, 126, 234, 0.25);
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.08);
   white-space: nowrap;
+  border: 1px solid rgba(30, 58, 138, 0.3);
 }
 
 /* Different badge colors for different states */
 .tableKind[data-kind="table"] {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: #e2e8f6;
 }
 
 .tableKind[data-kind="filter"],
 .tableKind[data-kind="sort"],
 .tableKind[data-kind="limit"] {
-  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  background: #e2e8f6;
 }
 
 .tableKind[data-kind="join"] {
-  background: linear-gradient(135deg, #06b6d4 0%, #0ea5e9 100%);
+  background: #e2e8f6;
 }
 
 .tableKind[data-kind="projection"] {
-  background: linear-gradient(135deg, #10b981 0%, #22c55e 100%);
+  background: #e2e8f6;
 }
 
 .tableScroll {
   max-height: 400px;
   overflow: auto;
   border-radius: 10px;
-  border: 1px solid rgba(102, 126, 234, 0.15);
-  box-shadow: inset 0 2px 6px rgba(15, 23, 42, 0.04);
+  border: 1px solid #e2e8f0;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
   flex: 1;
   min-height: 0;
 }
@@ -1269,12 +1271,12 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 11px;
   direction: ltr;
 }
 
 .table thead {
-  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  background: #f1f5f9;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -1283,8 +1285,8 @@
 .table th,
 .table td {
   text-align: left;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  padding: 6px 8px;
+  border-bottom: 1px solid #e2e8f0;
   max-width: 250px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1297,20 +1299,20 @@
   white-space: normal;
   z-index: 10;
   background: #ffffff;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
 }
 
 .table th {
   font-weight: 800;
-  color: #4338ca;
-  font-size: 11px;
+  color: #1e3a8a;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
 }
 
 .columnHighlighted {
-  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
-  color: #4338ca;
+  background: #e2e8f6;
+  color: #1e3a8a;
   font-weight: 700;
 }
 
@@ -1320,22 +1322,22 @@
 }
 
 .tableRowKept {
-  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
-  border-right: 4px solid #667eea;
+  background: #e2e8f6;
+  border-right: 3px solid #1e3a8a;
   animation: rowSlideIn 0.6s ease-out;
 }
 
 .tableRowFiltered {
   opacity: 0.35;
   text-decoration: line-through;
-  background: #f8fafc;
+  background: #f1f5f9;
   animation: rowFadeOut 0.6s ease-out;
 }
 
 .tableRowMatched {
-  background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%);
+  background: #eef2ff;
   animation: rowPulse 2.4s ease-in-out infinite;
-  border-right: 4px solid #06b6d4;
+  border-right: 3px solid #1e3a8a;
   position: relative;
 }
 
@@ -1345,7 +1347,7 @@
   left: 8px;
   top: 50%;
   transform: translateY(-50%);
-  color: #06b6d4;
+  color: #1e3a8a;
   font-weight: 900;
   font-size: 16px;
 }
@@ -1358,29 +1360,29 @@
 }
 
 .tableRowInserted {
-  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-  border-right: 4px solid #10b981;
+  background: #eef2ff;
+  border-right: 3px solid #1e3a8a;
   animation: rowSlideIn 0.6s ease-out;
 }
 
 .tableRowUpdated {
-  background: linear-gradient(135deg, #fef9c3 0%, #fde68a 100%);
-  border-right: 4px solid #f59e0b;
+  background: #f8fafc;
+  border-right: 3px dashed #1e3a8a;
   animation: rowPulse 1.6s ease-in-out infinite;
 }
 
 .tableRowDeleted {
   opacity: 0.35;
-  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  background: #f1f5f9;
   text-decoration: line-through;
   animation: rowFadeOut 0.6s ease-out;
-  border-right: 4px solid #ef4444;
+  border-right: 3px solid #94a3b8;
 }
 
 .tableHint {
   color: #94a3b8;
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   font-style: italic;
 }
 
@@ -1424,8 +1426,8 @@
   gap: 8px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 2px solid rgba(102, 126, 234, 0.2);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   transition: all 0.3s ease;
   font-weight: 600;
   font-size: 11px;
@@ -1440,20 +1442,20 @@
 
 .joinPair {
   animation: joinPairPulse 2.4s ease-in-out infinite;
-  border-color: #667eea;
-  box-shadow: 0 3px 8px rgba(102, 126, 234, 0.12);
+  border-color: #1e3a8a;
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.12);
 }
 
 .joinPair:hover {
   transform: scale(1.02);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.16);
 }
 
 .joinArrow {
   font-weight: 900;
-  color: #667eea;
+  color: #1e3a8a;
   font-size: 14px;
-  text-shadow: 0 2px 6px rgba(102, 126, 234, 0.25);
+  text-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
 }
 
 .joinOutput {
@@ -1462,7 +1464,7 @@
   flex-direction: column;
   gap: 12px;
   padding-top: 14px;
-  border-top: 2px solid rgba(102, 126, 234, 0.15);
+  border-top: 1px solid #e2e8f0;
   animation: joinOutputSlide 0.5s ease-out 0.3s both;
 }
 
@@ -1487,8 +1489,8 @@
 .glossaryCard {
   border-radius: 16px;
   padding: 20px 24px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border: 2px solid rgba(102, 126, 234, 0.15);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
 }
 
@@ -1514,7 +1516,7 @@
   flex-direction: column;
   gap: 6px;
   background: #ffffff;
-  border: 2px solid rgba(102, 126, 234, 0.15);
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 14px 16px;
   font-size: 13px;
@@ -1524,8 +1526,8 @@
 }
 
 .glossaryItem:hover {
-  border-color: #667eea;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  border-color: #1e3a8a;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
   transform: translateX(-4px);
 }
 
@@ -1538,71 +1540,71 @@
 .learningCard {
   border-radius: 16px;
   padding: 20px 24px;
-  background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
-  border: 2px solid #fdba74;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  box-shadow: 0 8px 20px rgba(251, 146, 60, 0.2);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
 }
 
 .learningTitle {
   margin: 0;
   font-size: 17px;
   font-weight: 800;
-  color: #9a3412;
+  color: #1e3a8a;
   letter-spacing: 0.3px;
   text-transform: uppercase;
 }
 
 .learningQuestion {
   margin: 0;
-  color: #7c2d12;
-  font-size: 15px;
+  color: #334155;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.6;
 }
 
 .learningHint {
   margin: 0;
-  font-size: 13px;
-  color: #c2410c;
+  font-size: 12px;
+  color: #475569;
   padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.5);
+  background: #f8fafc;
   border-radius: 10px;
-  border-right: 3px solid #f97316;
+  border-right: 3px solid #1e3a8a;
   font-weight: 600;
 }
 
 .learningButton {
   align-self: flex-start;
   border-radius: 999px;
-  border: 2px solid #f97316;
+  border: 1px solid #1e3a8a;
   background: #ffffff;
-  color: #9a3412;
+  color: #1e3a8a;
   padding: 10px 20px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
 }
 
 .learningButton:hover {
-  background: #f97316;
+  background: #1e3a8a;
   color: #ffffff;
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(249, 115, 22, 0.35);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.2);
 }
 
 .learningAnswer {
   margin: 0;
-  color: #7c2d12;
+  color: #1e293b;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 14px;
   padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.7);
+  background: #f8fafc;
   border-radius: 12px;
-  border-right: 4px solid #22c55e;
+  border-right: 4px solid #1e3a8a;
   line-height: 1.6;
 }
 
@@ -1626,7 +1628,7 @@
 
   .sidebar {
     border-left: none;
-    border-bottom: 2px solid rgba(102, 126, 234, 0.1);
+    border-bottom: 1px solid #e2e8f0;
     height: auto;
     max-height: none;
     flex-direction: row;
@@ -1739,25 +1741,25 @@
 /* Animations */
 @keyframes rowPulse {
   0% {
-    box-shadow: 0 0 0 rgba(99, 102, 241, 0.3);
+    box-shadow: 0 0 0 rgba(30, 58, 138, 0.25);
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(99, 102, 241, 0.2);
+    box-shadow: 0 0 0 8px rgba(30, 58, 138, 0.18);
   }
   100% {
-    box-shadow: 0 0 0 rgba(99, 102, 241, 0.3);
+    box-shadow: 0 0 0 rgba(30, 58, 138, 0.25);
   }
 }
 
 @keyframes joinPairPulse {
   0% {
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
   }
   50% {
-    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
   }
   100% {
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
   }
 }
 
@@ -1784,10 +1786,10 @@
 /* Enhanced Join Animator Styles */
 .joinAnimatorContainer {
   border-radius: 16px;
-  border: 2px solid rgba(6, 182, 212, 0.3);
+  border: 1px solid #e2e8f0;
   padding: 20px;
-  background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%);
-  box-shadow: 0 8px 24px rgba(6, 182, 212, 0.12);
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1813,16 +1815,16 @@
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%);
+  background: #f8fafc;
   border-radius: 10px;
-  border: 2px solid #06b6d4;
-  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.15);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
 }
 
 .joinConditionLabel {
   font-weight: 800;
   font-size: 12px;
-  color: #0e7490;
+  color: #1e3a8a;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -1831,12 +1833,12 @@
   font-family: 'SFMono-Regular', ui-monospace, monospace;
   font-size: 13px;
   font-weight: 700;
-  color: #0e7490;
-  background: rgba(255, 255, 255, 0.7);
+  color: #1e293b;
+  background: #ffffff;
   padding: 4px 10px;
   border-radius: 6px;
   direction: ltr;
-  border: 1px solid rgba(6, 182, 212, 0.2);
+  border: 1px solid #e2e8f0;
 }
 
 .joinControls {
@@ -1845,9 +1847,9 @@
   justify-content: center;
   gap: 10px;
   padding: 12px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  background: #f8fafc;
   border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  border: 1px solid #e2e8f0;
 }
 
 .joinControlBtn {
@@ -1856,7 +1858,7 @@
   border-radius: 8px;
   border: 1px solid #e2e8f0;
   background: #ffffff;
-  color: #06b6d4;
+  color: #1e3a8a;
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
@@ -1867,11 +1869,11 @@
 }
 
 .joinControlBtn:hover:not(:disabled) {
-  background: #06b6d4;
+  background: #1e3a8a;
   color: #ffffff;
-  border-color: #06b6d4;
+  border-color: #1e3a8a;
   transform: scale(1.08);
-  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
 }
 
 .joinControlBtn:disabled {
@@ -1882,10 +1884,10 @@
 .joinMatchCounter {
   font-size: 12px;
   font-weight: 700;
-  color: #0e7490;
+  color: #1e3a8a;
   margin-right: 8px;
   padding: 6px 12px;
-  background: rgba(6, 182, 212, 0.1);
+  background: #eef2ff;
   border-radius: 6px;
 }
 
@@ -1894,9 +1896,9 @@
   align-items: center;
   gap: 12px;
   padding: 14px 18px;
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  background: #f8fafc;
   border-radius: 10px;
-  border-right: 4px solid #f59e0b;
+  border-right: 4px solid #1e3a8a;
   animation: explanationSlideIn 0.4s ease-out;
 }
 
@@ -1920,7 +1922,7 @@
   margin: 0;
   font-size: 13px;
   font-weight: 600;
-  color: #92400e;
+  color: #334155;
   line-height: 1.5;
   direction: rtl;
 }
@@ -1931,9 +1933,9 @@
   gap: 16px;
   align-items: start;
   padding: 16px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  background: #f8fafc;
   border-radius: 12px;
-  border: 2px solid rgba(148, 163, 184, 0.15);
+  border: 1px solid #e2e8f0;
 }
 
 @media (max-width: 900px) {
@@ -1950,14 +1952,14 @@
   background: #ffffff;
   border-radius: 10px;
   padding: 12px;
-  border: 2px solid rgba(102, 126, 234, 0.2);
+  border: 1px solid #e2e8f0;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
   min-width: 0;
   transition: all 0.3s ease;
 }
 
 .joinTablePanel:hover {
-  border-color: rgba(102, 126, 234, 0.4);
+  border-color: rgba(30, 58, 138, 0.4);
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
 }
 
@@ -1967,30 +1969,30 @@
   justify-content: space-between;
   gap: 8px;
   padding-bottom: 8px;
-  border-bottom: 2px solid rgba(102, 126, 234, 0.1);
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .joinTablePanelTitle {
   font-weight: 800;
   font-size: 13px;
-  color: #1a1f36;
+  color: #0f172a;
   letter-spacing: -0.1px;
 }
 
 .joinTablePanelKey {
   font-size: 11px;
   font-weight: 700;
-  color: #f59e0b;
-  background: rgba(245, 158, 11, 0.1);
+  color: #1e3a8a;
+  background: rgba(30, 58, 138, 0.08);
   padding: 3px 8px;
   border-radius: 6px;
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  border: 1px solid rgba(30, 58, 138, 0.3);
   direction: ltr;
 }
 
 .joinKeyColumn {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%) !important;
-  color: #92400e !important;
+  background: #e2e8f6 !important;
+  color: #1e3a8a !important;
   font-weight: 800 !important;
   position: relative;
 }
@@ -2005,9 +2007,9 @@
 }
 
 .joinRowActive {
-  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%) !important;
-  border-right: 4px solid #22c55e !important;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+  background: #e2e8f6 !important;
+  border-right: 4px solid #1e3a8a !important;
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.2);
   animation: rowPulseActive 1.5s ease-in-out infinite;
   position: relative;
 }
@@ -2033,19 +2035,19 @@
 
 @keyframes rowPulseActive {
   0% {
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.2);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.3);
+    box-shadow: 0 0 0 6px rgba(30, 58, 138, 0.3);
   }
   100% {
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.2);
   }
 }
 
 .joinRowMatched {
-  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
-  border-right: 3px solid #0ea5e9;
+  background: #eef2ff;
+  border-right: 3px solid #1e3a8a;
 }
 
 .joinRowUnmatched {
@@ -2074,9 +2076,9 @@
 
 .joinConnectorIcon {
   font-size: 32px;
-  color: #06b6d4;
+  color: #1e3a8a;
   font-weight: 900;
-  text-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
+  text-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
   animation: connectorPulse 2s ease-in-out infinite;
 }
 
@@ -2094,10 +2096,10 @@
 .joinConnectorLabel {
   font-size: 11px;
   font-weight: 800;
-  color: #0e7490;
+  color: #1e3a8a;
   text-align: center;
   padding: 6px 10px;
-  background: rgba(6, 182, 212, 0.1);
+  background: #eef2ff;
   border-radius: 6px;
   white-space: nowrap;
 }
@@ -2108,9 +2110,9 @@
   justify-content: space-around;
   gap: 16px;
   padding: 16px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  background: #f8fafc;
   border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  border: 1px solid #e2e8f0;
 }
 
 .joinStat {
@@ -2123,7 +2125,7 @@
 .joinStatValue {
   font-size: 24px;
   font-weight: 900;
-  color: #06b6d4;
+  color: #1e3a8a;
   line-height: 1;
 }
 
@@ -2140,10 +2142,10 @@
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  background: #f8fafc;
   border-radius: 12px;
-  border: 2px solid #10b981;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
 }
 
 .joinResultHeader {
@@ -2156,11 +2158,11 @@
 .joinResultBadge {
   font-size: 11px;
   font-weight: 800;
-  color: #065f46;
-  background: rgba(16, 185, 129, 0.2);
+  color: #1e3a8a;
+  background: #e2e8f6;
   padding: 4px 10px;
   border-radius: 6px;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  border: 1px solid rgba(30, 58, 138, 0.3);
 }
 
 /* Better responsive handling for join animator */
@@ -2233,7 +2235,7 @@
     flex-direction: row;
     justify-content: space-between;
     padding: 8px 12px;
-    background: rgba(6, 182, 212, 0.05);
+    background: #eef2ff;
     border-radius: 6px;
   }
 }
@@ -2249,30 +2251,33 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+  background: #e2e8f6;
+  color: #1e3a8a;
+  border: 1px solid rgba(30, 58, 138, 0.3);
 }
 
 .operationBadge.filter {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  color: #92400e;
-  border: 2px solid #f59e0b;
+  background: #e2e8f6;
+  color: #1e3a8a;
+  border: 1px solid rgba(30, 58, 138, 0.3);
 }
 
 .operationBadge.join {
-  background: linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%);
-  color: #0e7490;
-  border: 2px solid #06b6d4;
+  background: #e2e8f6;
+  color: #1e3a8a;
+  border: 1px solid rgba(30, 58, 138, 0.3);
 }
 
 .operationBadge.sort {
-  background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%);
-  color: #5b21b6;
-  border: 2px solid #8b5cf6;
+  background: #e2e8f6;
+  color: #1e3a8a;
+  border: 1px solid rgba(30, 58, 138, 0.3);
 }
 
 .operationBadge.projection {
-  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-  color: #065f46;
-  border: 2px solid #10b981;
+  background: #e2e8f6;
+  color: #1e3a8a;
+  border: 1px solid rgba(30, 58, 138, 0.3);
 }
 
 /* Enhance table card hover with subtle lift */
@@ -2312,14 +2317,14 @@
 }
 
 .visualizer :global(*:focus-visible) {
-  outline: 2px solid #667eea;
+  outline: 2px solid #1e3a8a;
   outline-offset: 2px;
   border-radius: 4px;
 }
 
 .visualizer :global(::selection) {
-  background: rgba(102, 126, 234, 0.3);
-  color: #1a1f36;
+  background: rgba(30, 58, 138, 0.25);
+  color: #0f172a;
 }
 
 /* Add subtle pulse to active elements */
@@ -2345,7 +2350,7 @@
 .sqlEditorOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(15, 23, 42, 0.65);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -2364,11 +2369,11 @@
 }
 
 .sqlEditorModal {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  background: #ffffff;
   border-radius: 16px;
   box-shadow: 
     0 25px 50px -12px rgba(0, 0, 0, 0.25),
-    0 0 0 1px rgba(102, 126, 234, 0.1);
+    0 0 0 1px rgba(30, 58, 138, 0.15);
   width: 90%;
   max-width: 700px;
   max-height: 85vh;
@@ -2394,7 +2399,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1e3a8a;
   border-radius: 16px 16px 0 0;
 }
 
@@ -2467,8 +2472,8 @@
 
 .sqlEditorTextarea:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+  border-color: #1e3a8a;
+  box-shadow: 0 0 0 4px rgba(30, 58, 138, 0.15);
 }
 
 .sqlEditorTextarea::placeholder {
@@ -2480,11 +2485,11 @@
   align-items: center;
   gap: 8px;
   padding: 12px 16px;
-  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  background: #f1f5f9;
   border-radius: 10px;
   font-size: 13px;
-  color: #4338ca;
-  border: 1px solid rgba(102, 126, 234, 0.2);
+  color: #334155;
+  border: 1px solid #e2e8f0;
 }
 
 .sqlEditorHintIcon {
@@ -2524,18 +2529,18 @@
   padding: 10px 24px;
   border-radius: 10px;
   border: none;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1e3a8a;
   color: #ffffff;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
 }
 
 .sqlEditorSaveButton:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.25);
 }
 
 .sqlEditorSaveButton:disabled {
