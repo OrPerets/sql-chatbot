@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { 
   Activity, 
   AlertTriangle, 
@@ -63,7 +63,7 @@ export default function MonitoringDashboard() {
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [selectedTimeRange, setSelectedTimeRange] = useState('24')
 
-  const fetchReport = async () => {
+  const fetchReport = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch(`/api/admin/monitoring?hours=${selectedTimeRange}`)
@@ -80,18 +80,18 @@ export default function MonitoringDashboard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedTimeRange])
 
   useEffect(() => {
     fetchReport()
-  }, [selectedTimeRange])
+  }, [fetchReport])
 
   useEffect(() => {
     if (!autoRefresh) return
 
     const interval = setInterval(fetchReport, 30000) // Refresh every 30 seconds
     return () => clearInterval(interval)
-  }, [autoRefresh, selectedTimeRange])
+  }, [autoRefresh, fetchReport])
 
   const handleAcknowledgeAlert = async (alertId: string) => {
     try {

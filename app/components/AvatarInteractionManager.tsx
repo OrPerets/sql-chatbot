@@ -235,7 +235,7 @@ const AvatarInteractionManager: React.FC<AvatarInteractionManagerProps> = ({
     };
 
     handleInteraction(context, gesture);
-  }, [handleInteraction, touchStartTime, enableHapticFeedback]);
+  }, [handleInteraction, touchStartTime]);
 
   // Hover handlers
   const handleMouseEnter = useCallback(() => {

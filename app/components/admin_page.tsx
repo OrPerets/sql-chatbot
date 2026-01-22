@@ -350,7 +350,7 @@ const AdminPage: React.FC = () => {
                </div>
                {uploadResult.summary && (
                  <div className={styles.uploadSummary}>
-                   <div>סה\"כ רשומות: {uploadResult.summary.totalRecords}</div>
+                  <div>סה&quot;כ רשומות: {uploadResult.summary.totalRecords}</div>
                    <div>נוספו: {uploadResult.summary.inserted}</div>
                    <div>עודכנו: {uploadResult.summary.updated}</div>
                    <div>שגיאות: {uploadResult.summary.errors}</div>

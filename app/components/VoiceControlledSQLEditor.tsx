@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { enhancedTTS } from '@/app/utils/enhanced-tts';
 import { contextAwareVoice } from '@/app/utils/context-aware-voice';
 import styles from './VoiceControlledSQLEditor.module.css';
@@ -38,8 +38,72 @@ export const VoiceControlledSQLEditor: React.FC<VoiceControlledSQLEditorProps> =
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const commandHistoryRef = useRef<string[]>([]);
 
+  // Speak feedback
+  const speakFeedback = useCallback(async (text: string) => {
+    try {
+      const context = contextAwareVoice.analyzeContext(text);
+      const { processedText, voiceParameters } = contextAwareVoice.processTextForVoice(text, context);
+      
+      await enhancedTTS.speak(processedText, {
+        speed: voiceParameters.speed,
+        pitch: voiceParameters.pitch,
+        emotion: voiceParameters.emotion as any,
+        contentType: context.contentType as any,
+        characterStyle: 'university_ta'
+      });
+    } catch (error) {
+      console.error('Error speaking feedback:', error);
+    }
+  }, []);
+
+  // Explain query
+  const explainQuery = useCallback(async (sqlQuery: string) => {
+    try {
+      setIsProcessing(true);
+      
+      // Basic query explanation logic
+      let explanation = '';
+      
+      if (sqlQuery.toLowerCase().includes('select')) {
+        explanation += 'This is a SELECT query that retrieves data. ';
+      }
+      if (sqlQuery.toLowerCase().includes('from')) {
+        const fromMatch = sqlQuery.match(/from\s+(\w+)/i);
+        if (fromMatch) {
+          explanation += `It retrieves data from the ${fromMatch[1]} table. `;
+        }
+      }
+      if (sqlQuery.toLowerCase().includes('where')) {
+        explanation += 'It includes a WHERE clause to filter the results. ';
+      }
+      if (sqlQuery.toLowerCase().includes('join')) {
+        explanation += 'It uses a JOIN to combine data from multiple tables. ';
+      }
+      if (sqlQuery.toLowerCase().includes('order by')) {
+        explanation += 'The results are ordered by a specific column. ';
+      }
+      if (sqlQuery.toLowerCase().includes('group by')) {
+        explanation += 'The results are grouped by specific columns. ';
+      }
+      
+      if (!explanation) {
+        explanation = 'This appears to be a SQL query. ';
+      }
+      
+      explanation += 'Would you like me to execute this query?';
+      
+      setLastCommand('Query explanation provided');
+      speakFeedback(explanation);
+    } catch (error) {
+      console.error('Error explaining query:', error);
+      speakFeedback('Sorry, I could not explain this query');
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [speakFeedback]);
+
   // Voice commands configuration
-  const voiceCommands: VoiceCommand[] = [
+  const voiceCommands: VoiceCommand[] = useMemo(() => [
     {
       command: 'select_all',
       pattern: /select\s+all\s+from\s+(\w+)/gi,
@@ -273,7 +337,39 @@ export const VoiceControlledSQLEditor: React.FC<VoiceControlledSQLEditorProps> =
       },
       description: 'Describe [table] - Creates query to show table structure'
     }
-  ];
+  ], [explainQuery, onExecute, query, speakFeedback]);
+
+  // Process voice command
+  const processVoiceCommand = useCallback((transcript: string) => {
+    console.log('Processing voice command:', transcript);
+    setVoiceFeedback(`Processing: "${transcript}"`);
+
+    let commandMatched = false;
+
+    for (const voiceCommand of voiceCommands) {
+      const match = transcript.match(voiceCommand.pattern);
+      if (match) {
+        commandMatched = true;
+        commandHistoryRef.current.push(transcript);
+        setIsProcessing(true);
+
+        try {
+          voiceCommand.handler(match, editorRef.current);
+        } catch (error) {
+          console.error('Error executing voice command:', error);
+          speakFeedback('Sorry, I encountered an error processing that command');
+        } finally {
+          setIsProcessing(false);
+        }
+        break;
+      }
+    }
+
+    if (!commandMatched) {
+      setVoiceFeedback(`Command not recognized: "${transcript}"`);
+      speakFeedback('Sorry, I did not understand that command. Try saying "help" for available commands.');
+    }
+  }, [speakFeedback, voiceCommands]);
 
   // Initialize speech recognition
   useEffect(() => {
@@ -321,103 +417,7 @@ export const VoiceControlledSQLEditor: React.FC<VoiceControlledSQLEditorProps> =
         recognitionRef.current.stop();
       }
     };
-  }, [isVoiceEnabled]);
-
-  // Process voice command
-  const processVoiceCommand = useCallback((transcript: string) => {
-    console.log('Processing voice command:', transcript);
-    setVoiceFeedback(`Processing: "${transcript}"`);
-
-    let commandMatched = false;
-
-    for (const voiceCommand of voiceCommands) {
-      const match = transcript.match(voiceCommand.pattern);
-      if (match) {
-        commandMatched = true;
-        commandHistoryRef.current.push(transcript);
-        setIsProcessing(true);
-        
-        try {
-          voiceCommand.handler(match, editorRef.current);
-        } catch (error) {
-          console.error('Error executing voice command:', error);
-          speakFeedback('Sorry, I encountered an error processing that command');
-        } finally {
-          setIsProcessing(false);
-        }
-        break;
-      }
-    }
-
-    if (!commandMatched) {
-      setVoiceFeedback(`Command not recognized: "${transcript}"`);
-      speakFeedback('Sorry, I did not understand that command. Try saying "help" for available commands.');
-    }
-  }, []);
-
-  // Speak feedback
-  const speakFeedback = useCallback(async (text: string) => {
-    try {
-      const context = contextAwareVoice.analyzeContext(text);
-      const { processedText, voiceParameters } = contextAwareVoice.processTextForVoice(text, context);
-      
-      await enhancedTTS.speak(processedText, {
-        speed: voiceParameters.speed,
-        pitch: voiceParameters.pitch,
-        emotion: voiceParameters.emotion as any,
-        contentType: context.contentType as any,
-        characterStyle: 'university_ta'
-      });
-    } catch (error) {
-      console.error('Error speaking feedback:', error);
-    }
-  }, []);
-
-  // Explain query
-  const explainQuery = useCallback(async (sqlQuery: string) => {
-    try {
-      setIsProcessing(true);
-      
-      // Basic query explanation logic
-      let explanation = '';
-      
-      if (sqlQuery.toLowerCase().includes('select')) {
-        explanation += 'This is a SELECT query that retrieves data. ';
-      }
-      if (sqlQuery.toLowerCase().includes('from')) {
-        const fromMatch = sqlQuery.match(/from\s+(\w+)/i);
-        if (fromMatch) {
-          explanation += `It retrieves data from the ${fromMatch[1]} table. `;
-        }
-      }
-      if (sqlQuery.toLowerCase().includes('where')) {
-        explanation += 'It includes a WHERE clause to filter the results. ';
-      }
-      if (sqlQuery.toLowerCase().includes('join')) {
-        explanation += 'It uses a JOIN to combine data from multiple tables. ';
-      }
-      if (sqlQuery.toLowerCase().includes('order by')) {
-        explanation += 'The results are ordered by a specific column. ';
-      }
-      if (sqlQuery.toLowerCase().includes('group by')) {
-        explanation += 'The results are grouped by specific columns. ';
-      }
-      
-      if (!explanation) {
-        explanation = 'This appears to be a SQL query. ';
-      }
-      
-      explanation += 'Would you like me to execute this query?';
-      
-      setLastCommand('Query explanation provided');
-      speakFeedback(explanation);
-    } catch (error) {
-      console.error('Error explaining query:', error);
-      speakFeedback('Sorry, I could not explain this query');
-    } finally {
-      setIsProcessing(false);
-    }
-  }, []);
+  }, [isVoiceEnabled, processVoiceCommand]);
 
   // Start/stop listening
   const toggleListening = useCallback(() => {
@@ -457,7 +457,7 @@ export const VoiceControlledSQLEditor: React.FC<VoiceControlledSQLEditorProps> =
   // Get available commands help
   const getAvailableCommands = useCallback(() => {
     return voiceCommands.map(cmd => cmd.description).join('. ');
-  }, []);
+  }, [voiceCommands]);
 
   // Show help
   const showHelp = useCallback(() => {

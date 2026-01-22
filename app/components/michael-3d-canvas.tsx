@@ -15,93 +15,87 @@ interface AvatarModelProps {
 const AvatarModel: React.FC<AvatarModelProps> = ({ avatarUrl, avatarState, scale }) => {
   const group = useRef<THREE.Group>(null);
   
-  try {
-    console.log('🎭 Loading avatar from:', avatarUrl);
-    const { scene, animations } = useGLTF(avatarUrl);
-    
-    if (!scene) {
-      console.error('❌ Scene is null from useGLTF');
-      return null;
-    }
-    
-    console.log('✅ Avatar loaded successfully!', scene);
-    const { actions } = useAnimations(animations || [], group);
+  console.log('🎭 Loading avatar from:', avatarUrl);
+  const { scene, animations } = useGLTF(avatarUrl);
 
-    // Animation state management
-    useEffect(() => {
-      if (!actions) return;
-      
-      // Stop all animations first
-      Object.values(actions).forEach((action: any) => {
-        if (action && typeof action.stop === 'function') {
-          action.stop();
-        }
-      });
+  console.log('✅ Avatar loaded successfully!', scene);
+  const { actions } = useAnimations(animations || [], group);
 
-      // Play animation based on state
-      switch (avatarState) {
-        case 'speaking':
-          if (actions['Talking'] || actions['talking']) {
-            const talkAction = actions['Talking'] || actions['talking'];
-            if (talkAction && typeof talkAction.reset === 'function' && typeof talkAction.play === 'function') {
-              talkAction.reset().play();
-            }
-          }
-          break;
-        case 'thinking':
-          if (actions['Thinking'] || actions['thinking'] || actions['Idle']) {
-            const thinkAction = actions['Thinking'] || actions['thinking'] || actions['Idle'];
-            if (thinkAction && typeof thinkAction.reset === 'function' && typeof thinkAction.play === 'function') {
-              thinkAction.reset().play();
-            }
-          }
-          break;
-        case 'listening':
-          if (actions['Listening'] || actions['listening'] || actions['Idle']) {
-            const listenAction = actions['Listening'] || actions['listening'] || actions['Idle'];
-            if (listenAction && typeof listenAction.reset === 'function' && typeof listenAction.play === 'function') {
-              listenAction.reset().play();
-            }
-          }
-          break;
-        default:
-          if (actions['Idle'] || actions['idle']) {
-            const idleAction = actions['Idle'] || actions['idle'];
-            if (idleAction && typeof idleAction.reset === 'function' && typeof idleAction.play === 'function') {
-              idleAction.reset().play();
-            }
-          }
-          break;
-      }
-    }, [avatarState, actions]);
+  // Animation state management
+  useEffect(() => {
+    if (!actions) return;
 
-    // Simple animation frame loop
-    useFrame((state) => {
-      if (!group.current) return;
-
-      const time = state.clock.getElapsedTime();
-      
-      // Gentle floating motion
-      group.current.position.y = Math.sin(time * 0.5) * 0.02;
-      
-      // Rotation based on state
-      if (avatarState === 'speaking') {
-        group.current.rotation.y = Math.sin(time * 2) * 0.02;
-      } else {
-        group.current.rotation.y = Math.sin(time * 0.3) * 0.05;
+    // Stop all animations first
+    Object.values(actions).forEach((action: any) => {
+      if (action && typeof action.stop === 'function') {
+        action.stop();
       }
     });
 
-    return (
-      <group ref={group} scale={scale}>
-        <primitive object={scene} />
-      </group>
-    );
-  } catch (error) {
-    console.error('❌ Failed to load avatar model:', error);
-    console.error('Avatar URL was:', avatarUrl);
+    // Play animation based on state
+    switch (avatarState) {
+      case 'speaking':
+        if (actions['Talking'] || actions['talking']) {
+          const talkAction = actions['Talking'] || actions['talking'];
+          if (talkAction && typeof talkAction.reset === 'function' && typeof talkAction.play === 'function') {
+            talkAction.reset().play();
+          }
+        }
+        break;
+      case 'thinking':
+        if (actions['Thinking'] || actions['thinking'] || actions['Idle']) {
+          const thinkAction = actions['Thinking'] || actions['thinking'] || actions['Idle'];
+          if (thinkAction && typeof thinkAction.reset === 'function' && typeof thinkAction.play === 'function') {
+            thinkAction.reset().play();
+          }
+        }
+        break;
+      case 'listening':
+        if (actions['Listening'] || actions['listening'] || actions['Idle']) {
+          const listenAction = actions['Listening'] || actions['listening'] || actions['Idle'];
+          if (listenAction && typeof listenAction.reset === 'function' && typeof listenAction.play === 'function') {
+            listenAction.reset().play();
+          }
+        }
+        break;
+      default:
+        if (actions['Idle'] || actions['idle']) {
+          const idleAction = actions['Idle'] || actions['idle'];
+          if (idleAction && typeof idleAction.reset === 'function' && typeof idleAction.play === 'function') {
+            idleAction.reset().play();
+          }
+        }
+        break;
+    }
+  }, [avatarState, actions]);
+
+  // Simple animation frame loop
+  useFrame((state) => {
+    if (!group.current || !scene) return;
+
+    const time = state.clock.getElapsedTime();
+
+    // Gentle floating motion
+    group.current.position.y = Math.sin(time * 0.5) * 0.02;
+
+    // Rotation based on state
+    if (avatarState === 'speaking') {
+      group.current.rotation.y = Math.sin(time * 2) * 0.02;
+    } else {
+      group.current.rotation.y = Math.sin(time * 0.3) * 0.05;
+    }
+  });
+
+  if (!scene) {
+    console.error('❌ Scene is null from useGLTF');
     return null;
   }
+
+  return (
+    <group ref={group} scale={scale}>
+      <primitive object={scene} />
+    </group>
+  );
 };
 
 interface Michael3DCanvasProps {

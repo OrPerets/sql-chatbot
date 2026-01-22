@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styles from './simple-speech-avatar.module.css';
 
 interface SimpleSpeechAvatarProps {
@@ -47,7 +47,7 @@ const SimpleSpeechAvatar: React.FC<SimpleSpeechAvatarProps> = ({
   };
 
   // Handle speech synthesis
-  const speak = async (textToSpeak: string) => {
+  const speak = useCallback(async (textToSpeak: string) => {
     try {
       console.log('🎤 Starting speech:', textToSpeak.substring(0, 50) + '...');
       
@@ -190,7 +190,7 @@ const SimpleSpeechAvatar: React.FC<SimpleSpeechAvatarProps> = ({
       console.error('🎤 Speech setup failed:', error);
       setIsSpeaking(false);
     }
-  };
+  }, [isSpeaking, onSpeechEnd, onSpeechStart]);
 
   // Handle text changes for auto-speech
   useEffect(() => {
@@ -217,7 +217,7 @@ const SimpleSpeechAvatar: React.FC<SimpleSpeechAvatarProps> = ({
       const timer = setTimeout(handleAutoSpeech, 150);
       return () => clearTimeout(timer);
     }
-  }, [text, autoPlay, audioEnabled, lastSpokenText, isSpeaking]);
+  }, [text, autoPlay, audioEnabled, lastSpokenText, isSpeaking, speak]);
 
   // Cleanup on unmount
   useEffect(() => {

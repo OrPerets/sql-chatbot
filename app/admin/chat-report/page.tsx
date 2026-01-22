@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Download, BarChart3, Users, MessageSquare, TrendingUp, FileText } from 'lucide-react';
 import AdminLayout from '@/app/components/admin/AdminLayout';
@@ -59,7 +59,7 @@ const ChatReportPage: React.FC = () => {
   const [days, setDays] = useState(7);
   const [includeDetails, setIncludeDetails] = useState(true);
 
-  const fetchReport = async () => {
+  const fetchReport = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -81,11 +81,11 @@ const ChatReportPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [days, includeDetails]);
 
   useEffect(() => {
     fetchReport();
-  }, [days, includeDetails]);
+  }, [fetchReport]);
 
   const downloadReport = () => {
     if (!report) return;
@@ -361,4 +361,3 @@ const ChatReportPage: React.FC = () => {
 };
 
 export default ChatReportPage;
-

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { AnalysisResult } from '@/lib/ai-analysis';
 
 interface ImprovementDashboardProps {
@@ -38,11 +38,7 @@ export default function ImprovementDashboard({ studentId, homeworkSetId }: Impro
   const [error, setError] = useState<string | null>(null);
   const [selectedHomeworkSet, setSelectedHomeworkSet] = useState<string | null>(homeworkSetId || null);
 
-  useEffect(() => {
-    fetchProgressData();
-  }, [studentId, homeworkSetId]);
-
-  const fetchProgressData = async () => {
+  const fetchProgressData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -69,7 +65,11 @@ export default function ImprovementDashboard({ studentId, homeworkSetId }: Impro
     } finally {
       setLoading(false);
     }
-  };
+  }, [homeworkSetId, selectedHomeworkSet, studentId]);
+
+  useEffect(() => {
+    fetchProgressData();
+  }, [fetchProgressData]);
 
   if (loading) {
     return (

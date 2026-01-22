@@ -468,7 +468,17 @@ const ChatEnglish = ({
       textLength: lastAssistantMessage?.length || 0
     });
     return currentState;
-  }, [isThinking, isRecording, shouldSpeak, isAssistantMessageComplete, isUserTyping, lastAssistantMessage?.length, enableAvatar, enableVoice]);
+  }, [
+    isThinking,
+    isRecording,
+    shouldSpeak,
+    autoPlaySpeech,
+    isAssistantMessageComplete,
+    isUserTyping,
+    lastAssistantMessage?.length,
+    enableAvatar,
+    enableVoice
+  ]);
 
   const router = useRouter();
 
@@ -634,6 +644,45 @@ const ChatEnglish = ({
     scrollToBottom();
   }, [messages]);
 
+  const triggerConversationAnalysis = useCallback(async (sessionId) => {
+    try {
+      const userId = JSON.parse(localStorage.getItem("currentUser"))?.email;
+      if (!userId || !sessionId) return;
+
+      // Check if analysis already exists for this session
+      const checkResponse = await fetch(`/api/conversation-summary/student/${userId}?limit=50`);
+      const checkData = await checkResponse.json();
+      
+      if (checkData.success) {
+        const existingAnalysis = checkData.data.summaries.find(summary => summary.sessionId === sessionId);
+        if (existingAnalysis) {
+          console.log('Conversation analysis already exists for session:', sessionId);
+          return;
+        }
+      }
+
+      // Trigger analysis
+      const response = await fetch(`/api/chat/sessions/${sessionId}/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userId,
+          sessionTitle: 'Chat Session'
+        }),
+      });
+
+      if (response.ok) {
+        console.log('✅ Conversation analysis triggered for session:', sessionId);
+      } else {
+        console.error('❌ Failed to trigger conversation analysis:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error triggering conversation analysis:', error);
+    }
+  }, []);
+
 
   useEffect(() => {
     let cUser = JSON.parse(localStorage.getItem("currentUser"));
@@ -738,7 +787,7 @@ const updateUserBalance = async (value) => {
         triggerConversationAnalysis(currentChatId);
       }
     };
-  }, [currentChatId]);
+  }, [currentChatId, triggerConversationAnalysis]);
 
   // Modified useEffect for progressive speech
   useEffect(() => {
@@ -785,7 +834,17 @@ const updateUserBalance = async (value) => {
       setShouldSpeak(false);
     }
 
-  }, [lastAssistantMessage, isDone, autoPlaySpeech, shouldSpeak, lastSpokenMessageId, hasStartedSpeaking, isManualSpeech]);
+  }, [
+    currentAssistantMessageId,
+    lastAssistantMessage,
+    isDone,
+    autoPlaySpeech,
+    shouldSpeak,
+    lastSpokenMessageId,
+    hasStartedSpeaking,
+    isManualSpeech,
+    streamingText?.length
+  ]);
 
   // Avatar interaction handlers
   const handleAvatarInteraction = useCallback((gesture: string, context: any) => {
@@ -795,7 +854,7 @@ const updateUserBalance = async (value) => {
     // AVATAR DISABLED: if (enableAnalytics && currentUser) {
     //   avatarAnalytics.trackGesture(gesture, context.type, currentUser);
     // }
-  }, [enableAnalytics, currentUser]);
+  }, []);
 
   const handleInteractionAnalytics = useCallback((analytics: any) => {
     if (enableAnalytics) {
@@ -946,46 +1005,6 @@ const updateUserBalance = async (value) => {
         return true; // Keep the first instance
       }
     });
-  };
-
-  // Function to trigger conversation analysis
-  const triggerConversationAnalysis = async (sessionId) => {
-    try {
-      const userId = JSON.parse(localStorage.getItem("currentUser"))?.email;
-      if (!userId || !sessionId) return;
-
-      // Check if analysis already exists for this session
-      const checkResponse = await fetch(`/api/conversation-summary/student/${userId}?limit=50`);
-      const checkData = await checkResponse.json();
-      
-      if (checkData.success) {
-        const existingAnalysis = checkData.data.summaries.find(summary => summary.sessionId === sessionId);
-        if (existingAnalysis) {
-          console.log('Conversation analysis already exists for session:', sessionId);
-          return;
-        }
-      }
-
-      // Trigger analysis
-      const response = await fetch(`/api/chat/sessions/${sessionId}/analyze`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: userId,
-          sessionTitle: 'Chat Session'
-        }),
-      });
-
-      if (response.ok) {
-        console.log('✅ Conversation analysis triggered for session:', sessionId);
-      } else {
-        console.error('❌ Failed to trigger conversation analysis:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Error triggering conversation analysis:', error);
-    }
   };
 
   // Add a function to load messages for a specific chat
@@ -1147,6 +1166,10 @@ const loadChatMessages = (chatId: string) => {
 
    // New function to handle message changes
    const handleMessagesChange = useCallback(() => {
+    if (!currentChatId) {
+      return;
+    }
+
     let msgs = messages.filter(msg => msg.role === "assistant")
     if (msgs.length > 0) {
         // Save the message to the server
@@ -1163,7 +1186,7 @@ const loadChatMessages = (chatId: string) => {
           }),
         }); 
     }
-  }, [isDone]);
+  }, [currentChatId, messages]);
 
    // Use effect to watch for changes in messages
    useEffect(() => {
