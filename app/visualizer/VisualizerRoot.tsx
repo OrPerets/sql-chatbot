@@ -33,6 +33,9 @@ const VisualizerRoot = () => {
 
   const [activeStepId, setActiveStepId] = useState(steps[0]?.id ?? '');
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [learningMode, setLearningMode] = useState(false);
+  const [revealAnswer, setRevealAnswer] = useState(false);
 
   useEffect(() => {
     setActiveStepId(steps[0]?.id ?? '');
@@ -62,6 +65,8 @@ const VisualizerRoot = () => {
     selectStepByIndex(Math.min(steps.length - 1, activeStepIndex + 1));
   }, [activeStepIndex, selectStepByIndex, steps.length]);
 
+  const playbackIntervalMs = useMemo(() => 1600 / playbackSpeed, [playbackSpeed]);
+
   useEffect(() => {
     if (!isPlaying) {
       return;
@@ -79,10 +84,10 @@ const VisualizerRoot = () => {
 
         return steps[nextIndex]?.id ?? currentStepId;
       });
-    }, 1600);
+    }, playbackIntervalMs);
 
     return () => window.clearInterval(timer);
-  }, [isPlaying, steps]);
+  }, [isPlaying, playbackIntervalMs, steps]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -114,6 +119,10 @@ const VisualizerRoot = () => {
   }, [handleNext, handlePrevious]);
 
   const activeStep = steps.find((step) => step.id === activeStepId) ?? steps[0];
+
+  useEffect(() => {
+    setRevealAnswer(false);
+  }, [activeStepId, learningMode]);
 
   return (
     <section className={styles.visualizer} aria-label="SQL Query Visualizer">
@@ -155,6 +164,16 @@ const VisualizerRoot = () => {
           <div className={styles.stepHeader}>
             <h2 className={styles.stepTitle}>{activeStep.title}</h2>
             <p className={styles.stepSummary}>{activeStep.summary}</p>
+            {activeStep.caption && (
+              <p className={styles.stepCaption} aria-live="polite">
+                {activeStep.caption}
+              </p>
+            )}
+          </div>
+
+          <div className={styles.narrationCard} aria-live="polite">
+            <h3 className={styles.narrationTitle}>Narration</h3>
+            <p className={styles.narrationText}>{activeStep.narration ?? activeStep.summary}</p>
           </div>
 
           <div className={styles.stepControls} aria-label="Visualizer playback controls">
@@ -184,6 +203,49 @@ const VisualizerRoot = () => {
                 Next
               </button>
             </div>
+            <div className={styles.controlScrubber}>
+              <label className={styles.controlLabel} htmlFor="visualizer-scrub">
+                Scrub timeline
+              </label>
+              <input
+                id="visualizer-scrub"
+                className={styles.controlRange}
+                type="range"
+                min={0}
+                max={Math.max(0, steps.length - 1)}
+                value={activeStepIndex}
+                onChange={(event) => {
+                  setIsPlaying(false);
+                  selectStepByIndex(Number(event.target.value));
+                }}
+                aria-valuetext={`Step ${activeStepIndex + 1} of ${steps.length}`}
+              />
+            </div>
+            <div className={styles.controlOptions}>
+              <label className={styles.controlLabel} htmlFor="visualizer-speed">
+                Speed
+              </label>
+              <select
+                id="visualizer-speed"
+                className={styles.controlSelect}
+                value={playbackSpeed}
+                onChange={(event) => setPlaybackSpeed(Number(event.target.value))}
+              >
+                {[0.5, 0.75, 1, 1.25, 1.5, 2].map((speed) => (
+                  <option key={speed} value={speed}>
+                    {speed}x
+                  </option>
+                ))}
+              </select>
+              <label className={styles.controlToggle}>
+                <input
+                  type="checkbox"
+                  checked={learningMode}
+                  onChange={(event) => setLearningMode(event.target.checked)}
+                />
+                <span>Learning mode</span>
+              </label>
+            </div>
             <div className={styles.controlMeta}>
               <span className={styles.controlStepCount}>
                 Step {activeStepIndex + 1} of {steps.length}
@@ -191,6 +253,37 @@ const VisualizerRoot = () => {
               <span className={styles.controlHint}>Use ← → to step, space to play.</span>
             </div>
           </div>
+
+          {activeStep.glossary && activeStep.glossary.length > 0 && (
+            <aside className={styles.glossaryCard} aria-label="Glossary hints">
+              <h3 className={styles.glossaryTitle}>Glossary hints</h3>
+              <ul className={styles.glossaryList}>
+                {activeStep.glossary.map((hint) => (
+                  <li key={hint.term} className={styles.glossaryItem}>
+                    <strong>{hint.term}</strong>
+                    <span>{hint.definition}</span>
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          )}
+
+          {learningMode && activeStep.quiz && (
+            <section className={styles.learningCard} aria-label="Learning mode prompt">
+              <h3 className={styles.learningTitle}>Check your understanding</h3>
+              <p className={styles.learningQuestion}>{activeStep.quiz.question}</p>
+              {activeStep.quiz.hint && <p className={styles.learningHint}>Hint: {activeStep.quiz.hint}</p>}
+              <button
+                type="button"
+                className={styles.learningButton}
+                onClick={() => setRevealAnswer((prev) => !prev)}
+                aria-pressed={revealAnswer}
+              >
+                {revealAnswer ? 'Hide answer' : 'Reveal answer'}
+              </button>
+              {revealAnswer && <p className={styles.learningAnswer}>{activeStep.quiz.answer}</p>}
+            </section>
+          )}
 
           <div className={styles.nodeGrid}>
             {activeStep.nodes.map((node) => {

@@ -147,17 +147,22 @@ Create an educational "Query Visualizer" for the AI assistant chat that animates
 **Objective:** Make the visualizer engaging and classroom-ready.
 
 **Tasks**
-1. **Narration & captions**
+1. **Narration & captions** ✅
    - Step-by-step explanations.
    - Glossary hints for keywords.
-2. **Interactive controls**
+2. **Interactive controls** ✅
    - Play, pause, step, scrub timeline.
    - Speed control.
-3. **Learning mode**
+3. **Learning mode** ✅
    - Interactive quizzes or prompts (optional).
 
 **Deliverables**
 - Polished experience with narration and controls.
+
+**Implementation Notes**
+- Added narration and caption fields to each step, plus glossary hints mapped to SQL keywords for quick reference.
+- Enhanced playback with a scrubber slider, speed control, and a learning mode toggle in the control bar.
+- Introduced optional learning prompts per step, including hints and revealable answers for classroom check-ins.
 
 ---
 
