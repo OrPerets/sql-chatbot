@@ -132,7 +132,7 @@ const LoginPage = () => {
       }
       if (password === user.password) {
         storeUserInfo(user);
-        router.push('/admin');
+        router.push('/landing');
       } else {
         setError('סיסמת מנהל שגויה');
         setTimeout(() => setError(''), 3000);
@@ -152,7 +152,7 @@ const LoginPage = () => {
       if (password === user.password) {
         getCoinsBalance(user.email);
         storeUserInfo(user);
-        router.push('/entities/basic-chat');
+        router.push('/landing');
       } else {
         setError('Wrong Password or Email');
         setTimeout(() => setError(''), 3000);
@@ -198,9 +198,9 @@ const LoginPage = () => {
         storeUserInfo(user);
         // Redirect based on login mode
         if (loginMode === 'admin') {
-          router.push('/admin');
+          router.push('/landing');
         } else {
-          router.push('/entities/questionnaire');
+          router.push('/landing');
         }
       } else {
         setError('Failed to update password. Please try again.');

@@ -48,6 +48,13 @@ const navigationItems: NavigationItem[] = [
     type: 'tab'
   },
   {
+    id: 'weekly-analytics',
+    label: 'אנליטיקה שבועית',
+    icon: BarChart3,
+    type: 'route',
+    route: '/admin/weekly-analytics'
+  },
+  {
     id: 'overview',
     label: 'סקירה כללית',
     icon: BarChart3,
@@ -58,13 +65,6 @@ const navigationItems: NavigationItem[] = [
         label: 'ניתוח נתונים',
         icon: BarChart3,
         type: 'tab'
-      },
-      {
-        id: 'weekly-analytics',
-        label: 'אנליטיקה שבועית',
-        icon: BarChart3,
-        type: 'route',
-        route: '/admin/weekly-analytics'
       },
       {
         id: 'reports',
@@ -168,7 +168,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const router = useRouter();
   const pathname = usePathname();
-  const [expandedSections, setExpandedSections] = useState<string[]>(['content', 'system']);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['content', 'system', 'overview']);
 
   const handleItemClick = (item: NavigationItem) => {
     if (item.type === 'route' && item.route) {

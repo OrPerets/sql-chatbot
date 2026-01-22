@@ -1096,50 +1096,7 @@ const WeeklyAnalyticsPage: React.FC = () => {
           </div>
         </div>
 
-        <section className={styles.filterBar}>
-          <div className={styles.filterGroup}>
-            <label htmlFor="weekRange">טווח שבועי</label>
-            <select
-              id="weekRange"
-              value={selectedDays}
-              onChange={(event) => setSelectedDays(event.target.value)}
-            >
-              {filterOptions.days.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className={styles.filterGroup}>
-            <label htmlFor="classFilter">כיתה</label>
-            <select
-              id="classFilter"
-              value={selectedClass}
-              onChange={(event) => setSelectedClass(event.target.value)}
-            >
-              {filterOptions.classes.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className={styles.filterGroup}>
-            <label htmlFor="semesterFilter">סמסטר</label>
-            <select
-              id="semesterFilter"
-              value={selectedSemester}
-              onChange={(event) => setSelectedSemester(event.target.value)}
-            >
-              {filterOptions.semesters.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </section>
+       
 
         {reportError && (
           <ErrorBanner
@@ -1377,46 +1334,48 @@ const WeeklyAnalyticsPage: React.FC = () => {
                 </div>
               )}
               {!isReportLoading && (
-                <ul className={styles.questionList}>
-                  {report?.sessionTopics.sampleQuestions.map((question, index) => {
-                    const questionId = `${question.sessionId}-${index}`;
-                    const isExpanded = expandedQuestions.has(questionId);
-                    const shouldTruncate = question.message.length > 150;
-                    const displayText = shouldTruncate && !isExpanded
-                      ? question.message.substring(0, 150) + '...'
-                      : question.message;
+                <div className={styles.questionListWrapper}>
+                  <ul className={styles.questionList}>
+                    {report?.sessionTopics.sampleQuestions.map((question, index) => {
+                      const questionId = `${question.sessionId}-${index}`;
+                      const isExpanded = expandedQuestions.has(questionId);
+                      const shouldTruncate = question.message.length > 150;
+                      const displayText = shouldTruncate && !isExpanded
+                        ? question.message.substring(0, 150) + '...'
+                        : question.message;
 
-                    return (
-                      <li key={questionId}>
-                        <div className={styles.questionHeader}>
-                          <span>{question.userEmail || question.userId}</span>
-                          <span>{new Date(question.timestamp).toLocaleString('he-IL')}</span>
-                        </div>
-                        <p className={isExpanded ? styles.questionTextExpanded : styles.questionText}>
-                          {displayText}
-                        </p>
-                        {shouldTruncate && (
-                          <button
-                            className={styles.expandButton}
-                            onClick={() => {
-                              setExpandedQuestions((prev) => {
-                                const next = new Set(prev);
-                                if (isExpanded) {
-                                  next.delete(questionId);
-                                } else {
-                                  next.add(questionId);
-                                }
-                                return next;
-                              });
-                            }}
-                          >
-                            {isExpanded ? 'הצג פחות' : 'הצג עוד'}
-                          </button>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
+                      return (
+                        <li key={questionId}>
+                          <div className={styles.questionHeader}>
+                            <span>{question.userEmail || question.userId}</span>
+                            <span>{new Date(question.timestamp).toLocaleString('he-IL')}</span>
+                          </div>
+                          <p className={isExpanded ? styles.questionTextExpanded : styles.questionText}>
+                            {displayText}
+                          </p>
+                          {shouldTruncate && (
+                            <button
+                              className={styles.expandButton}
+                              onClick={() => {
+                                setExpandedQuestions((prev) => {
+                                  const next = new Set(prev);
+                                  if (isExpanded) {
+                                    next.delete(questionId);
+                                  } else {
+                                    next.add(questionId);
+                                  }
+                                  return next;
+                                });
+                              }}
+                            >
+                              {isExpanded ? 'הצג פחות' : 'הצג עוד'}
+                            </button>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               )}
               {!isReportLoading && report?.sessionTopics.sampleQuestions.length === 0 && (
                 <div className={styles.emptyState}>אין שאלות לדוגמה לשבוע הנוכחי.</div>

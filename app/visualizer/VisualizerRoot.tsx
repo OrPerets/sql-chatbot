@@ -76,6 +76,8 @@ const formatSqlQuery = (query: string): string => {
 
 const VisualizerRoot = () => {
   const [sqlQuery, setSqlQuery] = useState(defaultQuery);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editedQuery, setEditedQuery] = useState('');
   const { steps, errorMessage } = useMemo(() => {
     try {
       return {
@@ -95,6 +97,23 @@ const VisualizerRoot = () => {
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [learningMode, setLearningMode] = useState(false);
   const [revealAnswer, setRevealAnswer] = useState(false);
+
+  const openEditModal = useCallback(() => {
+    setEditedQuery(sqlQuery);
+    setIsEditModalOpen(true);
+  }, [sqlQuery]);
+
+  const closeEditModal = useCallback(() => {
+    setIsEditModalOpen(false);
+    setEditedQuery('');
+  }, []);
+
+  const handleSaveQuery = useCallback(() => {
+    if (editedQuery.trim()) {
+      setSqlQuery(editedQuery);
+    }
+    closeEditModal();
+  }, [editedQuery, closeEditModal]);
 
   const stepIndexMap = useMemo(
     () => new Map(steps.map((step, index) => [step.id, index])),
@@ -153,6 +172,20 @@ const VisualizerRoot = () => {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Handle Escape key to close modal
+      if (event.key === 'Escape' && isEditModalOpen) {
+        event.preventDefault();
+        closeEditModal();
+        return;
+      }
+
+      // Handle Ctrl/Cmd + Enter to save in modal
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && isEditModalOpen) {
+        event.preventDefault();
+        handleSaveQuery();
+        return;
+      }
+
       const target = event.target as HTMLElement | null;
       const tagName = target?.tagName?.toLowerCase();
 
@@ -178,7 +211,7 @@ const VisualizerRoot = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleNext, handlePrevious]);
+  }, [handleNext, handlePrevious, isEditModalOpen, closeEditModal, handleSaveQuery]);
 
   const activeStep = stepMap.get(activeStepId) ?? steps[0];
 
@@ -344,12 +377,7 @@ const VisualizerRoot = () => {
                   <button
                     type="button"
                     className={styles.queryEditButton}
-                    onClick={() => {
-                      const newQuery = window.prompt('ערוך שאילתת SQL:', sqlQuery);
-                      if (newQuery !== null && newQuery.trim()) {
-                        setSqlQuery(newQuery);
-                      }
-                    }}
+                    onClick={openEditModal}
                     title="ערוך שאילתה"
                   >
                     ✏️
@@ -404,6 +432,75 @@ const VisualizerRoot = () => {
           </div>
         </div>
       </div>
+
+      {/* SQL Editor Modal */}
+      {isEditModalOpen && (
+        <div className={styles.sqlEditorOverlay} onClick={closeEditModal}>
+          <div 
+            className={styles.sqlEditorModal} 
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sql-editor-title"
+          >
+            <div className={styles.sqlEditorHeader}>
+              <h2 id="sql-editor-title" className={styles.sqlEditorTitle}>
+                <span className={styles.sqlEditorIcon}>✏️</span>
+                עריכת שאילתת SQL
+              </h2>
+              <button
+                type="button"
+                className={styles.sqlEditorCloseButton}
+                onClick={closeEditModal}
+                aria-label="סגור"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className={styles.sqlEditorBody}>
+              <label htmlFor="sql-editor-textarea" className={styles.sqlEditorLabel}>
+                הכנס את שאילתת ה-SQL שלך:
+              </label>
+              <textarea
+                id="sql-editor-textarea"
+                className={styles.sqlEditorTextarea}
+                value={editedQuery}
+                onChange={(e) => setEditedQuery(e.target.value)}
+                placeholder="SELECT * FROM table_name..."
+                autoFocus
+                spellCheck={false}
+                dir="ltr"
+              />
+              <div className={styles.sqlEditorHint}>
+                <span className={styles.sqlEditorHintIcon}>💡</span>
+                טיפ: ניתן לכתוב שאילתות מרובות שורות עם JOIN, WHERE, ORDER BY ועוד
+              </div>
+            </div>
+
+            <div className={styles.sqlEditorFooter}>
+              <button
+                type="button"
+                className={styles.sqlEditorCancelButton}
+                onClick={closeEditModal}
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                className={styles.sqlEditorSaveButton}
+                onClick={handleSaveQuery}
+                disabled={!editedQuery.trim()}
+              >
+                שמור והפעל
+              </button>
+              <span className={styles.sqlEditorShortcut}>
+                Ctrl+Enter לשמירה מהירה
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };

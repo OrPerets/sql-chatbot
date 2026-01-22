@@ -123,25 +123,7 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
       </div>
 
 
-      {/* Main KPI Cards */}
-      <div className={styles.statsGrid}>
-        <ModernStatsCard
-          icon={Users}
-          title="משתמשים פעילים"
-          value={dashboardStats.activeUsers}
-          description="משתמשים פעילים"
-          trend={{
-            value: 12,
-            label: "",
-            direction: "up"
-          }}
-          color="primary"
-          onClick={() => onNavigate('users')}
-          loading={loading}
-          sparklineData={generateSparklineData('up')}
-        />
-      </div>
-
+    
   
       {/* System Tools Section */}
       <div className={styles.quickActionsSection}>
@@ -204,72 +186,6 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
               <h4>📝 תבניות שאלות</h4>
               <p>צור שאלות דינמיות עם משתנים לכל תלמיד</p>
               <span className={styles.actionBadge}>חדש</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Content Management Section */}
-      <div className={styles.quickActionsSection}>
-        <h3 className={styles.sectionTitle}>📚 ניהול תוכן</h3>
-        <p className={styles.sectionDescription}>
-          יצירה וניהול של תוכן לימודי, מטלות, שאלות ומערכי שיעור
-        </p>
-        
-        <div className={styles.quickActionsGrid}>
-          <div 
-            className={styles.quickAction}
-            onClick={() => window.open('/admin/homework', '_blank')}
-          >
-            <div className={styles.quickActionIcon}>
-              <BookOpen size={24} />
-            </div>
-            <div className={styles.quickActionContent}>
-              <h4>📋 מטלות ובחינות</h4>
-              <p>צור מטלות חדשות, ערוך שאלות וקבע לוחות זמנים</p>
-              <span className={styles.actionBadge}>לימודים</span>
-            </div>
-          </div>
-
-          <div 
-            className={styles.quickAction}
-            onClick={() => window.open('/admin/questions', '_blank')}
-          >
-            <div className={styles.quickActionIcon}>
-              <Target size={24} />
-            </div>
-            <div className={styles.quickActionContent}>
-              <h4>❓ מאגר שאלות</h4>
-              <p>נהל שאלות SQL, ערוך רמות קושי ובדוק תשובות</p>
-              <span className={styles.actionBadge}>תוכן</span>
-            </div>
-          </div>
-
-          <div 
-            className={styles.quickAction}
-            onClick={() => window.open('/admin/databases', '_blank')}
-          >
-            <div className={styles.quickActionIcon}>
-              <Database size={24} />
-            </div>
-            <div className={styles.quickActionContent}>
-              <h4>🗄️ מסדי נתונים</h4>
-              <p>צור מסדי נתונים חדשים, הוסף טבלאות ונתונים</p>
-              <span className={styles.actionBadge}>נתונים</span>
-            </div>
-          </div>
-
-          <div 
-            className={styles.quickAction}
-            onClick={() => window.open('/admin/research-analytics', '_blank')}
-          >
-            <div className={styles.quickActionIcon}>
-              <BarChart3 size={24} />
-            </div>
-            <div className={styles.quickActionContent}>
-              <h4>📈 מחקר ואנליטיקה</h4>
-              <p>ניתוח ביצועי תלמידים, דוחות מתקדמים ומחקר</p>
-              <span className={styles.actionBadge}>מחקר</span>
             </div>
           </div>
         </div>

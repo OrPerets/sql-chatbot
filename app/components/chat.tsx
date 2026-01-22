@@ -17,10 +17,10 @@ import SQLQueryEditorComponent from "./query-vizualizer";
 import ImageUpload from "./image-upload";
 import { fileToBase64 } from "../utils/parseImage";
 // import AudioRecorder from "./audio-recorder"; // Clean version: hide audio recorder button
-// AVATAR TEMPORARILY DISABLED - Commented out to prevent crashes
-// import MichaelAvatarDirect from "./MichaelAvatarDirect";
-// import VoiceModeCircle from "./VoiceModeCircle";
-// import StaticLogoMode from "./StaticLogoMode";
+// AVATAR RE-ENABLED
+import MichaelAvatarDirect from "./MichaelAvatarDirect";
+import VoiceModeCircle from "./VoiceModeCircle";
+import StaticLogoMode from "./StaticLogoMode";
 // import { AvatarIcon, MicIcon } from "./AvatarToggleIcons";
 // import Avatar3DErrorBoundary from "./michael-3d-visual-wrapper";
 // import { enhancedTTS } from "@/app/utils/enhanced-tts";
@@ -1856,8 +1856,110 @@ return (
   </div>
 )} */}
     
-    {/* AVATAR TEMPORARILY DISABLED - Commented out to prevent crashes */}
-    {/* Avatar section completely removed to fix build errors */}
+    {/* Right Column - Avatar Section */}
+    {!hideAvatar && !minimalMode && (
+      <div className={styles.rightColumn}>
+        {!isHydrated ? (
+          <div 
+            className={styles.avatarHydrationPlaceholder}
+            role="status"
+            aria-label="טוען אווטאר"
+            aria-live="polite"
+          ></div>
+        ) : (
+          <div className={styles.avatarSection}>
+            {displayMode === 'avatar' && enableAvatar ? (
+              <>
+                {avatarMode === 'avatar' ? (
+                  <MichaelAvatarDirect
+                    text={lastAssistantMessage}
+                    state={avatarState}
+                    size="medium"
+                    progressiveMode={enableVoice && !isDone}
+                    isStreaming={enableVoice && !isDone}
+                    onSpeakingStart={() => {
+                      console.log('🎤 Michael started speaking');
+                      if (enableVoice) setShouldSpeak(true);
+                    }}
+                    onSpeakingEnd={() => {
+                      console.log('🎤 Michael finished speaking');
+                      if (enableVoice) setShouldSpeak(false);
+                      setIsAssistantMessageComplete(false);
+                      setHasStartedSpeaking(false);
+                      setIsManualSpeech(false);
+                    }}
+                  />
+                ) : (
+                  <VoiceModeCircle
+                    state={avatarState}
+                    size="medium"
+                    text={lastAssistantMessage}
+                    onSpeakingStart={() => {
+                      console.log('🎤 Voice circle started speaking');
+                      if (enableVoice) setShouldSpeak(true);
+                    }}
+                    onSpeakingEnd={() => {
+                      console.log('🎤 Voice circle finished speaking');
+                      if (enableVoice) setShouldSpeak(false);
+                      setIsAssistantMessageComplete(false);
+                      setHasStartedSpeaking(false);
+                      setIsManualSpeech(false);
+                    }}
+                  />
+                )}
+              </>
+            ) : (
+              <StaticLogoMode
+                size="medium"
+                state={avatarState}
+                userName={currentUser}
+              />
+            )}
+            
+            {/* Toggle Buttons Container */}
+            <div className={styles.toggleButtonsContainer}>
+              {/* Display Mode Toggle Button */}
+              <div className={styles.displayModeToggle}>
+                <button 
+                  className={`${styles.displayToggleButton} ${displayMode === 'logo' ? styles.logoModeActive : styles.avatarModeActive}`}
+                  onClick={() => setDisplayMode(displayMode === 'avatar' ? 'logo' : 'avatar')}
+                  title={displayMode === 'avatar' ? 'עבור למצב לוגו' : 'עבור למצב אווטאר'}
+                  aria-label={displayMode === 'avatar' ? 'Switch to logo mode' : 'Switch to avatar mode'}
+                >
+                  {displayMode === 'avatar' ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                      <circle cx="8.5" cy="8.5" r="1.5"/>
+                      <path d="M21 15l-5-5L5 21"/>
+                    </svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+            
+            {/* User info below the avatar */}
+            <div className={styles.userInfo}>
+              <div className={styles.nickname}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                  <span>היי {currentUser}</span>
+                </div>
+                {isTokenBalanceVisible && (
+                  <div>
+                    יתרה נוכחית: ₪{currentBalance}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )}
+
     {/* Exercise Modal */}
     <Modal isOpen={showExerciseModal} onClose={() => {
       setShowExerciseModal(false);
