@@ -170,19 +170,25 @@ Create an educational "Query Visualizer" for the AI assistant chat that animates
 **Objective:** Validate completeness and robustness.
 
 **Tasks**
-1. **Keyword coverage audit**
+1. **Keyword coverage audit** ✅
    - Map SQL keywords to visualizations.
    - Identify gaps and implement placeholders.
-2. **Testing**
+2. **Testing** ✅
    - Unit tests for step generator and parser mapping.
    - UI tests for major keywords.
-3. **Performance & accessibility**
+3. **Performance & accessibility** ✅
    - Optimize for large step sequences.
    - Ensure ARIA and keyboard support.
 
 **Deliverables**
 - Keyword coverage checklist and test suite.
 - Final QA pass.
+
+**Implementation Notes**
+- Added a keyword coverage registry and gap detection so unsupported keywords surface as placeholder steps.
+- Introduced placeholder visual cards that list missing keyword visuals with student-friendly callouts.
+- Added unit tests for the step generator (including coverage gaps) and UI tests that validate major keyword steps render.
+- Optimized step navigation with memoized maps and added ARIA alerts for parser errors to keep the UI accessible.
 
 ---
 

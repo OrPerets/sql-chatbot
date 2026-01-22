@@ -85,4 +85,4 @@ const JoinAnimator = ({ node }: JoinAnimatorProps) => {
   );
 };
 
-export default JoinAnimator;
+export default React.memo(JoinAnimator);

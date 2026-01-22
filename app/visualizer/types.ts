@@ -43,6 +43,7 @@ export type VisualizationNode = {
   };
   detail?: string;
   pairs?: JoinPair[];
+  notes?: string[];
 };
 
 export type AnimationStep = {
