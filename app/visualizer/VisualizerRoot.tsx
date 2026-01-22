@@ -8,6 +8,7 @@ import JoinAnimator from './JoinAnimator';
 import PlaceholderCard from './PlaceholderCard';
 import { mockSteps } from './mock-steps';
 import { generateStepsFromSql } from './step-generator';
+import type { VisualizationNode } from './types';
 
 const defaultQuery = `SELECT Students.name, Enrollments.course
 FROM Students
@@ -15,6 +16,63 @@ INNER JOIN Enrollments ON Students.id = Enrollments.student_id
 WHERE Enrollments.status = 'active'
 ORDER BY Students.name
 LIMIT 3;`;
+
+const getStepTypeLabel = (step: { nodes: Array<{ kind: string }> }) => {
+  const kinds = step.nodes.map(n => n.kind);
+  if (kinds.includes('join')) return 'חיבור';
+  if (kinds.includes('filter')) return 'סינון';
+  if (kinds.includes('sort')) return 'מיון';
+  if (kinds.includes('limit')) return 'הגבלה';
+  if (kinds.includes('projection')) return 'הקרנה';
+  if (kinds.includes('aggregation')) return 'קיבוץ';
+  if (kinds.includes('table')) return 'טבלה';
+  return 'פעולה';
+};
+
+const formatSqlQuery = (query: string): string => {
+  // Split by lines and process
+  const lines = query.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  const formatted: string[] = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const upperLine = line.toUpperCase();
+    
+    // Check if this is a FROM line
+    if (upperLine.startsWith('FROM ')) {
+      let combinedLine = line;
+      
+      // Look ahead for JOIN clauses and combine them
+      let j = i + 1;
+      while (j < lines.length) {
+        const nextLine = lines[j];
+        const upperNext = nextLine.toUpperCase();
+        
+        // Check if next line is a JOIN clause
+        if (
+          upperNext.startsWith('INNER JOIN ') ||
+          upperNext.startsWith('LEFT JOIN ') ||
+          upperNext.startsWith('RIGHT JOIN ') ||
+          upperNext.startsWith('FULL JOIN ') ||
+          upperNext.startsWith('CROSS JOIN ') ||
+          upperNext.startsWith('JOIN ')
+        ) {
+          combinedLine += ' ' + nextLine;
+          j++;
+        } else {
+          break;
+        }
+      }
+      
+      formatted.push(combinedLine);
+      i = j - 1; // Skip the JOIN lines we've already processed
+    } else {
+      formatted.push(line);
+    }
+  }
+  
+  return formatted.join('\n');
+};
 
 const VisualizerRoot = () => {
   const [sqlQuery, setSqlQuery] = useState(defaultQuery);
@@ -124,6 +182,15 @@ const VisualizerRoot = () => {
 
   const activeStep = stepMap.get(activeStepId) ?? steps[0];
 
+  // Collect all steps up to and including the current step
+  const cumulativeSteps = useMemo(() => {
+    return steps.slice(0, activeStepIndex + 1).map((step, index) => ({
+      ...step,
+      stepIndex: index,
+      isCurrentStep: index === activeStepIndex
+    }));
+  }, [steps, activeStepIndex]);
+
   useEffect(() => {
     setRevealAnswer(false);
   }, [activeStepId, learningMode]);
@@ -139,24 +206,13 @@ const VisualizerRoot = () => {
 
       <div className={styles.visualizerLayout}>
         <div className={styles.sidebar}>
-          <div className={styles.queryPanel}>
-            <label className={styles.queryLabel} htmlFor="visualizer-query">
-              שאילתת SQL
-            </label>
-            <textarea
-              id="visualizer-query"
-              className={styles.queryInput}
-              value={sqlQuery}
-              onChange={(event) => setSqlQuery(event.target.value)}
-              rows={3}
-              spellCheck={false}
-            />
-            {errorMessage && (
+          {errorMessage && (
+            <div className={styles.queryErrorPanel}>
               <p className={styles.queryError} role="alert" aria-live="polite">
                 {errorMessage}
               </p>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className={styles.compactControls}>
             <div className={styles.playbackRow}>
@@ -236,7 +292,7 @@ const VisualizerRoot = () => {
             onSelect={setActiveStepId}
           />
 
-          {activeStep.glossary && activeStep.glossary.length > 0 && (
+          {/* {activeStep.glossary && activeStep.glossary.length > 0 && (
             <aside className={styles.sidebarGlossary} aria-label="מילון מושגים">
               <h3 className={styles.sidebarGlossaryTitle}>מילון מושגים</h3>
               <ul className={styles.sidebarGlossaryList}>
@@ -248,7 +304,7 @@ const VisualizerRoot = () => {
                 ))}
               </ul>
             </aside>
-          )}
+          )} */}
 
           {learningMode && activeStep.quiz && (
             <section className={styles.sidebarQuiz} aria-label="בדיקת הבנה">
@@ -271,22 +327,79 @@ const VisualizerRoot = () => {
         <div className={styles.mainVisualizerArea}>
           <div className={styles.stepBanner}>
             <div className={styles.stepBannerContent}>
-              <h2 className={styles.stepBannerTitle}>{activeStep.title}</h2>
-              <p className={styles.stepBannerSummary}>{activeStep.narration ?? activeStep.summary}</p>
+              {/* Left side - Step Explanation */}
+              <div className={styles.stepBannerExplanation}>
+                <div className={styles.stepProgress}>
+                  <span className={styles.stepNumber}>{activeStepIndex + 1}</span>
+                  <span className={styles.stepType}>{getStepTypeLabel(activeStep)}</span>
+                </div>
+                <h2 className={styles.stepBannerTitle}>{activeStep.title}</h2>
+                <p className={styles.stepBannerSummary}>{activeStep.narration ?? activeStep.summary}</p>
+              </div>
+
+              {/* Right side - SQL Query */}
+              <div className={styles.stepBannerQuery}>
+                <div className={styles.stepBannerQueryHeader}>
+                  <span className={styles.stepBannerQueryLabel}>שאילתת SQL</span>
+                  <button
+                    type="button"
+                    className={styles.queryEditButton}
+                    onClick={() => {
+                      const newQuery = window.prompt('ערוך שאילתת SQL:', sqlQuery);
+                      if (newQuery !== null && newQuery.trim()) {
+                        setSqlQuery(newQuery);
+                      }
+                    }}
+                    title="ערוך שאילתה"
+                  >
+                    ✏️
+                  </button>
+                </div>
+                <pre className={styles.stepBannerQueryCode}>
+                  <code>{formatSqlQuery(sqlQuery)}</code>
+                </pre>
+              </div>
             </div>
           </div>
 
-          <div className={styles.nodeGrid}>
-            {activeStep.nodes.map((node) => {
-              if (node.kind === 'join') {
-                return <JoinAnimator key={node.id} node={node} />;
-              }
+          <div className={styles.flowContainer}>
+            {cumulativeSteps.map((step, stepIdx) => {
+              const isCurrentStep = step.isCurrentStep;
+              const isPreviousStep = !isCurrentStep;
+              
+              return (
+                <div key={`step-${step.id}`} className={styles.flowSection}>
+                  {/* Show step separator between steps */}
+                  {stepIdx > 0 && (
+                    <div className={styles.flowSeparator}>
+                      <div className={styles.flowArrow}>⬇</div>
+                      <div className={styles.flowStepLabel}>
+                        {step.stepIndex + 1}. {step.title}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div 
+                    className={`${styles.nodeGrid} ${
+                      isPreviousStep ? styles.nodeGridPrevious : ''
+                    } ${
+                      isCurrentStep ? styles.nodeGridCurrent : ''
+                    }`}
+                  >
+                    {step.nodes.map((node) => {
+                      if (node.kind === 'join') {
+                        return <JoinAnimator key={node.id} node={node} />;
+                      }
 
-              if (node.kind === 'placeholder') {
-                return <PlaceholderCard key={node.id} node={node} />;
-              }
+                      if (node.kind === 'placeholder') {
+                        return <PlaceholderCard key={node.id} node={node} />;
+                      }
 
-              return <TableView key={node.id} node={node} />;
+                      return <TableView key={node.id} node={node} />;
+                    })}
+                  </div>
+                </div>
+              );
             })}
           </div>
         </div>

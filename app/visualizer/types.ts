@@ -19,6 +19,17 @@ export type JoinPair = {
   left: string;
   right: string;
   matched: boolean;
+  leftRowIndex?: number;
+  rightRowIndex?: number;
+  explanation?: string;
+};
+
+export type JoinSourceTable = {
+  tableName: string;
+  columns: string[];
+  rows: Array<Record<string, string | number>>;
+  matchedRowIndices?: number[];
+  joinColumn?: string;
 };
 
 export type RowState =
@@ -44,6 +55,10 @@ export type VisualizationNode = {
   detail?: string;
   pairs?: JoinPair[];
   notes?: string[];
+  joinType?: 'INNER' | 'LEFT' | 'RIGHT' | 'FULL' | 'CROSS';
+  joinCondition?: string;
+  leftSource?: JoinSourceTable;
+  rightSource?: JoinSourceTable;
 };
 
 export type AnimationStep = {

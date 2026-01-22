@@ -7,7 +7,7 @@ describe('VisualizerRoot', () => {
   it('renders timeline steps for grouped queries', async () => {
     render(<VisualizerRoot />);
 
-    const textarea = screen.getByLabelText('SQL input');
+    const textarea = screen.getByLabelText('שאילתת SQL');
     fireEvent.change(textarea, {
       target: {
         value: `
@@ -33,7 +33,7 @@ describe('VisualizerRoot', () => {
   it('surfaces placeholder coverage details when needed', async () => {
     render(<VisualizerRoot />);
 
-    const textarea = screen.getByLabelText('SQL input');
+    const textarea = screen.getByLabelText('שאילתת SQL');
     fireEvent.change(textarea, {
       target: {
         value: 'SELECT DISTINCT name FROM Students;'

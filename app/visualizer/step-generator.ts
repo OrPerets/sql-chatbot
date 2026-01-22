@@ -503,7 +503,10 @@ const buildJoinPairs = (
         id: `pair-${index}`,
         left: `${leftTable} row ${index + 1}`,
         right: rightRows.length ? `${rightTable} row ${rightIndex + 1}` : 'No rows',
-        matched: true
+        matched: true,
+        leftRowIndex: index,
+        rightRowIndex: rightIndex,
+        explanation: `CROSS JOIN: מתאים כל שורה מ-${leftTable} עם כל שורה מ-${rightTable}`
       };
     });
   }
@@ -522,19 +525,25 @@ const buildJoinPairs = (
     if (matchIndex >= 0) {
       const rightRow = rightRows[matchIndex];
       const rightKey = resolveColumnKey(rightRow, join.on!.right);
+      const rightValue = rightRow[rightKey];
       rightMatched.add(matchIndex);
       pairs.push({
         id: `pair-${index}`,
         left: `${leftTable}.${join.on!.left.column} = ${leftValue}`,
-        right: `${rightTable}.${join.on!.right.column} = ${rightRow[rightKey]}`,
-        matched: true
+        right: `${rightTable}.${join.on!.right.column} = ${rightValue}`,
+        matched: true,
+        leftRowIndex: index,
+        rightRowIndex: matchIndex,
+        explanation: `מתאים שורה ${index + 1} מ-${leftTable} (${join.on!.left.column}=${leftValue}) עם שורה ${matchIndex + 1} מ-${rightTable} (${join.on!.right.column}=${rightValue})`
       });
     } else {
       pairs.push({
         id: `pair-${index}`,
         left: `${leftTable}.${join.on!.left.column} = ${leftValue}`,
-        right: 'No match',
-        matched: false
+        right: 'אין התאמה',
+        matched: false,
+        leftRowIndex: index,
+        explanation: `שורה ${index + 1} מ-${leftTable} (${join.on!.left.column}=${leftValue}) אין לה התאמה ב-${rightTable}${join.type === 'INNER' ? ' - נשמטת מהתוצאה' : ''}`
       });
     }
   });
@@ -543,11 +552,14 @@ const buildJoinPairs = (
     rightRows.forEach((rightRow, index) => {
       if (!rightMatched.has(index)) {
         const rightKey = resolveColumnKey(rightRow, join.on!.right);
+        const rightValue = rightRow[rightKey];
         pairs.push({
           id: `pair-right-${index}`,
-          left: 'No match',
-          right: `${rightTable}.${join.on!.right.column} = ${rightRow[rightKey]}`,
-          matched: false
+          left: 'אין התאמה',
+          right: `${rightTable}.${join.on!.right.column} = ${rightValue}`,
+          matched: false,
+          rightRowIndex: index,
+          explanation: `שורה ${index + 1} מ-${rightTable} (${join.on!.right.column}=${rightValue}) אין לה התאמה ב-${leftTable}`
         });
       }
     });
@@ -796,15 +808,15 @@ const buildCoverageStep = (stepNumber: number, gaps: KeywordCoverageEntry[]): Qu
 
   return buildStep(
     'step-coverage',
-    `${stepNumber}. Coverage check`,
-    'Flag keywords that still use placeholder visuals.',
+    `${stepNumber}. בדיקת כיסוי`,
+    'סימון מילות מפתח שעדיין משתמשות בויזואליזציה זמנית.',
     [placeholderNode],
-    'Highlight keyword gaps',
+    'הדגשת פערי מילות מפתח',
     [placeholderNode.id],
     {
       narration:
-        'We audit the query for keywords that are not fully visualized yet and flag them for follow-up.',
-      caption: 'Placeholder visuals are used for the keywords listed here.'
+        'אנחנו בודקים את השאילתה עבור מילות מפתח שעדיין לא מוויזואליזציות לחלוטין ומסמנים אותן למעקב.',
+      caption: 'ויזואליזציות זמניות משמשות למילות המפתח המפורטות כאן.'
     }
   );
 };
@@ -830,20 +842,20 @@ const buildStepsForSelect = (
     steps.push(
       buildStep(
         'step-subquery',
-        `${steps.length + 1}. Resolve subquery`,
-        `Evaluate the nested SELECT to produce ${normalized.from.name}.`,
+        `${steps.length + 1}. פתרון תת-שאילתה`,
+        `הערכת SELECT מקונן כדי לייצר ${normalized.from.name}.`,
         [subqueryNode],
-        'Highlight subquery output',
+        'הדגשת פלט תת-שאילתה',
         [subqueryNode.id],
         {
-          narration: `We run the nested query first so its output can act like a temporary table named ${normalized.from.name}.`,
-          caption: 'Resolve the nested SELECT before the outer query.',
+          narration: `אנחנו מריצים את השאילתה המקוננת תחילה כך שהפלט שלה יכול לפעול כמו טבלה זמנית בשם ${normalized.from.name}.`,
+          caption: 'פתרון SELECT מקונן לפני השאילתה החיצונית.',
           glossaryTerms: ['SUBQUERY', 'SELECT'],
           quiz: {
             id: `quiz-subquery-${normalized.from.name}`,
-            question: 'Why does the subquery run before the outer query?',
-            answer: 'The outer query needs the subquery result set as its data source.',
-            hint: 'Subqueries behave like temporary tables.'
+            question: 'למה תת-השאילתה רצה לפני השאילתה החיצונית?',
+            answer: 'השאילתה החיצונית צריכה את קבוצת התוצאות של תת-השאילתה כמקור נתונים שלה.',
+            hint: 'תת-שאילתות מתנהגות כמו טבלאות זמניות.'
           }
         }
       )
@@ -886,15 +898,15 @@ const buildStepsForSelect = (
   steps.push(
     buildStep(
       'step-sources',
-      `${steps.length + 1}. Load source tables`,
-      `Load ${sourceNodes.map((node) => node.label).join(' and ')}.`,
+      `${steps.length + 1}. טעינת טבלאות המקור`,
+      `טוענים את הטבלאות ${sourceNodes.map((node) => node.label).join(' ו-')}.`,
       sourceNodes,
-      'Highlight input tables',
+      'הדגשת טבלאות קלט',
       sourceNodes.map((node) => node.id),
       {
         narration:
-          'We bring the required tables into the visual workspace so each later step can reference their rows.',
-        caption: 'Load the tables referenced in FROM and JOIN clauses.',
+          'אנחנו מביאים את הטבלאות הנדרשות לסביבת העבודה כך שכל שלב הבא יוכל להתייחס לשורות שלהן.',
+        caption: 'טעינת הטבלאות המוזכרות ב-FROM וב-JOIN.',
         glossaryTerms: ['FROM']
       }
     )
@@ -957,15 +969,47 @@ const buildStepsForSelect = (
       }
     };
     
+    const joinCondition = join.type === 'CROSS'
+      ? 'CROSS JOIN - כל שורה מוצלבת עם כל שורה'
+      : `${join.on?.left.table ?? normalized.from.name}.${join.on?.left.column} = ${
+          join.on?.right.table ?? join.table
+        }.${join.on?.right.column}`;
+    
+    // Extract matched row indices for highlighting
+    const leftMatchedIndices = new Set<number>();
+    const rightMatchedIndices = new Set<number>();
+    pairs.forEach(pair => {
+      if (pair.matched && pair.leftRowIndex !== undefined) {
+        leftMatchedIndices.add(pair.leftRowIndex);
+      }
+      if (pair.matched && pair.rightRowIndex !== undefined) {
+        rightMatchedIndices.add(pair.rightRowIndex);
+      }
+    });
+    
     const joinNode: VisualizationNode = {
       id: nodeId,
       label: `תוצאת חיבור ${index + 1}`,
       kind: 'join',
       detail: join.type === 'CROSS'
-        ? 'Cartesian product of both tables.'
-        : `${join.on?.left.table ?? normalized.from.name}.${join.on?.left.column} = ${
-            join.on?.right.table ?? join.table
-          }.${join.on?.right.column}`,
+        ? 'מכפלה קרטזית של שתי הטבלאות.'
+        : `מתאימים שורות לפי תנאי החיבור`,
+      joinType: join.type,
+      joinCondition,
+      leftSource: {
+        tableName: normalized.from.name,
+        columns: sourceNodes[0].data?.columns || current.columns.map(c => c.split('.')[1] || c),
+        rows: sourceNodes[0].data?.rows || [],
+        matchedRowIndices: Array.from(leftMatchedIndices),
+        joinColumn: join.on?.left.column
+      },
+      rightSource: {
+        tableName: join.table,
+        columns: sourceNodes[1 + index]?.data?.columns || right.columns.map(c => c.split('.')[1] || c),
+        rows: sourceNodes[1 + index]?.data?.rows || [],
+        matchedRowIndices: Array.from(rightMatchedIndices),
+        joinColumn: join.on?.right.column
+      },
       data: {
         columns: [...current.columns, ...right.columns],
         rows: joined.rows,
@@ -977,35 +1021,35 @@ const buildStepsForSelect = (
     steps.push(
       buildStep(
         `step-join-${index + 1}`,
-        `${steps.length + 1}. Match rows (${join.type} JOIN)`,
+        `${steps.length + 1}. חיבור שורות (${join.type} JOIN)`,
         join.type === 'CROSS'
-          ? 'Pair every row from each table.'
-          : `Match rows on ${joinNode.detail}.`,
+          ? 'חיבור כל שורה מכל טבלה.'
+          : `חיבור שורות לפי ${joinNode.detail}.`,
         [leftTableNode, rightTableNode, joinNode],
-        'Animate join pairing',
+        'הנפשת זיווג חיבור',
         [nodeId],
         {
           narration:
             join.type === 'CROSS'
-              ? 'A CROSS JOIN pairs every row from the left table with every row from the right table.'
-              : `We compare join keys to combine rows from ${normalized.from.name} and ${join.table}.`,
-          caption: join.type === 'CROSS' ? 'Build all row combinations.' : 'Match rows on the join condition.',
+              ? 'CROSS JOIN מזווג כל שורה מהטבלה השמאלית עם כל שורה מהטבלה הימנית.'
+              : `אנחנו משווים מפתחות חיבור כדי לשלב שורות מ-${normalized.from.name} ו-${join.table}.`,
+          caption: join.type === 'CROSS' ? 'בניית כל צירופי השורות.' : 'חיבור שורות לפי תנאי החיבור.',
           glossaryTerms,
           quiz: {
             id: `quiz-join-${index + 1}`,
             question:
               join.type === 'CROSS'
-                ? 'How many row combinations does a CROSS JOIN produce?'
-                : 'What happens to rows that do not match the join condition?',
+                ? 'כמה צירופי שורות מייצר CROSS JOIN?'
+                : 'מה קורה לשורות שלא עומדות בתנאי החיבור?',
             answer:
               join.type === 'CROSS'
-                ? 'It produces every possible pairing of left and right rows.'
+                ? 'הוא מייצר כל זיווג אפשרי של שורות שמאל וימין.'
                 : join.type === 'LEFT' || join.type === 'FULL'
-                  ? 'Unmatched left rows still appear with empty placeholders.'
+                  ? 'שורות שמאל לא מזווגות עדיין מופיעות עם ערכים ריקים.'
                   : join.type === 'RIGHT'
-                    ? 'Unmatched right rows still appear with empty placeholders.'
-                    : 'Unmatched rows are excluded from the result.',
-            hint: 'Consider how the join type treats unmatched rows.'
+                    ? 'שורות ימין לא מזווגות עדיין מופיעות עם ערכים ריקים.'
+                    : 'שורות לא מזווגות לא נכללות בתוצאה.',
+            hint: 'חשוב על האופן שבו סוג החיבור מטפל בשורות לא מזווגות.'
           }
         }
       )
@@ -1045,17 +1089,17 @@ const buildStepsForSelect = (
     steps.push(
       buildStep(
         'step-filter',
-        `${steps.length + 1}. Apply WHERE`,
-        `Keep rows where ${getSelectItemLabel(normalized.where.left)} ${normalized.where.op} ${
+        `${steps.length + 1}. החלת WHERE`,
+        `שמירת שורות שבהן ${getSelectItemLabel(normalized.where.left)} ${normalized.where.op} ${
           normalized.where.value
         }.`,
         [beforeFilterNode, afterFilterNode],
-        'Highlight retained rows',
+        'הדגשת שורות שנשמרו',
         [beforeFilterNode.id, afterFilterNode.id],
         {
           narration:
-            'The WHERE clause checks each row against the condition and keeps only the rows that pass.',
-          caption: 'Filter rows before grouping or projection.',
+            'סעיף WHERE בודק כל שורה מול התנאי ושומר רק את השורות שעומדות בו.',
+          caption: 'סינון שורות לפני קיבוץ או הקרנה.',
           glossaryTerms: ['WHERE'],
           quiz: {
             id: 'quiz-where',
@@ -1088,28 +1132,28 @@ const buildStepsForSelect = (
     steps.push(
       buildStep(
         'step-group',
-        `${steps.length + 1}. Apply GROUP BY`,
+        `${steps.length + 1}. החלת GROUP BY`,
         groupColumns.length
-          ? `Group rows by ${groupColumns.map(getSelectItemLabel).join(', ')}.`
-          : 'Aggregate rows into summary totals.',
+          ? `קיבוץ שורות לפי ${groupColumns.map(getSelectItemLabel).join(', ')}.`
+          : 'צבירת שורות לסיכומים.',
         [aggregationNode],
-        'Highlight grouped rows',
+        'הדגשת שורות מקובצות',
         [aggregationNode.id],
         {
           narration: groupColumns.length
-            ? 'GROUP BY collects rows with matching keys so aggregates can be calculated per group.'
-            : 'Aggregate functions summarize all rows into a single set of totals.',
-          caption: 'Group rows to compute aggregates.',
+            ? 'GROUP BY אוסף שורות עם מפתחות תואמים כך שניתן לחשב צבירות לכל קבוצה.'
+            : 'פונקציות צבירה מסכמות את כל השורות לקבוצה אחת של סיכומים.',
+          caption: 'קיבוץ שורות לחישוב צבירות.',
           glossaryTerms: groupColumns.length ? ['GROUP BY', 'AGGREGATE'] : ['AGGREGATE'],
           quiz: {
             id: 'quiz-group',
             question: groupColumns.length
-              ? 'What determines which rows are placed in the same group?'
-              : 'What does an aggregate without GROUP BY summarize?',
+              ? 'מה קובע אילו שורות ממוקמות באותה קבוצה?'
+              : 'מה מסכמת צבירה ללא GROUP BY?',
             answer: groupColumns.length
-              ? 'Rows that share the same GROUP BY key values are grouped together.'
-              : 'It summarizes the entire result set as a single group.',
-            hint: 'Look at the columns listed in GROUP BY.'
+              ? 'שורות שחולקות את אותם ערכי מפתח GROUP BY מקובצות יחד.'
+              : 'היא מסכמת את כל קבוצת התוצאות כקבוצה אחת.',
+            hint: 'הסתכל על העמודות המפורטות ב-GROUP BY.'
           }
         }
       )
@@ -1134,16 +1178,16 @@ const buildStepsForSelect = (
       steps.push(
         buildStep(
           'step-having',
-          `${steps.length + 1}. Apply HAVING`,
-          `Keep groups where ${getSelectItemLabel(normalized.having.left)} ${normalized.having.op} ${
+          `${steps.length + 1}. החלת HAVING`,
+          `שמירת קבוצות שבהן ${getSelectItemLabel(normalized.having.left)} ${normalized.having.op} ${
             normalized.having.value
           }.`,
           [havingNode],
-          'Highlight qualifying groups',
+          'הדגשת קבוצות מתאימות',
           [havingNode.id],
           {
-            narration: 'HAVING filters the grouped results after aggregation has already happened.',
-            caption: 'Filter groups after aggregation.',
+            narration: 'HAVING מסנן את התוצאות המקובצות לאחר שהצבירה כבר התבצעה.',
+            caption: 'סינון קבוצות לאחר צבירה.',
             glossaryTerms: ['HAVING'],
             quiz: {
               id: 'quiz-having',
@@ -1188,14 +1232,14 @@ const buildStepsForSelect = (
     steps.push(
       buildStep(
         'step-order',
-        `${steps.length + 1}. Apply ORDER BY`,
-        `Order by ${normalized.orderBy.column.column} (${normalized.orderBy.direction}).`,
+        `${steps.length + 1}. החלת ORDER BY`,
+        `מיון לפי ${normalized.orderBy.column.column} (${normalized.orderBy.direction}).`,
         [beforeSortNode, afterSortNode],
-        'Highlight sorted rows',
+        'הדגשת שורות ממוינות',
         [afterSortNode.id],
         {
-          narration: 'ORDER BY arranges the rows so the final output appears in a consistent sequence.',
-          caption: 'Sort rows based on the ORDER BY clause.',
+          narration: 'ORDER BY מסדר את השורות כך שהתוצאה הסופית תופיע ברצף עקבי.',
+          caption: 'מיון שורות לפי סעיף ORDER BY.',
           glossaryTerms: ['ORDER BY'],
           quiz: {
             id: 'quiz-order',
@@ -1241,14 +1285,14 @@ const buildStepsForSelect = (
     steps.push(
       buildStep(
         'step-limit',
-        `${steps.length + 1}. Apply LIMIT`,
-        `Keep the first ${normalized.limit} rows.`,
+        `${steps.length + 1}. החלת LIMIT`,
+        `שמירת ${normalized.limit} השורות הראשונות.`,
         [beforeLimitNode, afterLimitNode],
-        'Highlight limited rows',
+        'הדגשת שורות מוגבלות',
         [beforeLimitNode.id, afterLimitNode.id],
         {
-          narration: 'LIMIT trims the result set down to the first N rows after sorting.',
-          caption: 'Restrict the output to a fixed number of rows.',
+          narration: 'LIMIT מגביל את קבוצת התוצאות ל-N השורות הראשונות לאחר המיון.',
+          caption: 'הגבלת הפלט למספר קבוע של שורות.',
           glossaryTerms: ['LIMIT'],
           quiz: {
             id: 'quiz-limit',
@@ -1287,14 +1331,14 @@ const buildStepsForSelect = (
   steps.push(
     buildStep(
       'step-projection',
-      `${steps.length + 1}. Project columns`,
-      'Select the output columns for the final result set.',
+      `${steps.length + 1}. הקרנת עמודות`,
+      'בחירת עמודות הפלט עבור קבוצת התוצאות הסופית.',
       [projectionSourceNode, projectionNode],
-      'Reveal projected columns',
+      'חשיפת עמודות מוקרנות',
       [projectionSourceNode.id, projectionNode.id],
       {
-        narration: 'Projection chooses which columns to keep so the result matches the SELECT list.',
-        caption: 'Keep only the requested output columns.',
+        narration: 'הקרנה בוחרת אילו עמודות לשמור כך שהתוצאה תתאים לרשימת SELECT.',
+        caption: 'שמירת העמודות המבוקשות בלבד.',
         glossaryTerms: ['SELECT']
       }
     )
@@ -1338,25 +1382,25 @@ const buildStepsForQuery = (
 
   const setStep = buildStep(
     'step-set',
-    `${baseResult.steps.length + 1}. Combine results (${normalized.setOperation.type})`,
-    `Merge the two result sets using ${normalized.setOperation.type}.`,
+    `${baseResult.steps.length + 1}. שילוב תוצאות (${normalized.setOperation.type})`,
+    `מיזוג שתי קבוצות התוצאות באמצעות ${normalized.setOperation.type}.`,
     [setNodeLeft, setNodeRight, setNodeOutput],
-    'Highlight set operation output',
+    'הדגשת פלט פעולת קבוצות',
     [setNodeOutput.id],
     {
-      narration: 'Set operations compare two result sets to combine or filter rows.',
-      caption: `Apply ${normalized.setOperation.type} to both result sets.`,
+      narration: 'פעולות קבוצות משוות שתי קבוצות תוצאות כדי לשלב או לסנן שורות.',
+      caption: `החלת ${normalized.setOperation.type} על שתי קבוצות התוצאות.`,
       glossaryTerms: [normalized.setOperation.type],
       quiz: {
         id: 'quiz-set',
-        question: `What does ${normalized.setOperation.type} do to the two result sets?`,
+        question: `מה עושה ${normalized.setOperation.type} לשתי קבוצות התוצאות?`,
         answer:
           normalized.setOperation.type === 'UNION'
-            ? 'It combines both results and removes duplicates.'
+            ? 'היא משלבת את שתי התוצאות ומסירה כפילויות.'
             : normalized.setOperation.type === 'INTERSECT'
-              ? 'It keeps only rows that appear in both results.'
-              : 'It keeps rows from the left result that are not in the right result.',
-        hint: 'Each set operator compares rows across both result sets.'
+              ? 'היא שומרת רק שורות שמופיעות בשתי התוצאות.'
+              : 'היא שומרת שורות מהתוצאה השמאלית שלא נמצאות בתוצאה הימנית.',
+        hint: 'כל אופרטור קבוצות משווה שורות על פני שתי קבוצות התוצאות.'
       }
     }
   );

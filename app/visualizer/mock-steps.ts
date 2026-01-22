@@ -84,9 +84,61 @@ export const mockSteps: QueryStep[] = [
     nodes: [
       {
         id: 'join-output',
-        label: 'Joined rows',
+        label: 'חיבור טבלאות',
         kind: 'join',
-        detail: 'Match students with their courses.',
+        detail: 'מתאימים סטודנטים עם הקורסים שלהם לפי מפתח החיבור.',
+        joinType: 'INNER',
+        joinCondition: 'Students.id = Enrollments.student_id',
+        leftSource: {
+          tableName: 'Students',
+          columns: ['id', 'name'],
+          rows: [
+            { id: 1, name: 'Ada' },
+            { id: 2, name: 'Linus' },
+            { id: 3, name: 'Grace' }
+          ],
+          matchedRowIndices: [0, 1],
+          joinColumn: 'id'
+        },
+        rightSource: {
+          tableName: 'Enrollments',
+          columns: ['student_id', 'course'],
+          rows: [
+            { student_id: 1, course: 'SQL 101' },
+            { student_id: 2, course: 'Databases' },
+            { student_id: 4, course: 'Intro to CS' }
+          ],
+          matchedRowIndices: [0, 1],
+          joinColumn: 'student_id'
+        },
+        pairs: [
+          {
+            id: 'pair-1',
+            left: 'Students[0]: id=1',
+            right: 'Enrollments[0]: student_id=1',
+            matched: true,
+            leftRowIndex: 0,
+            rightRowIndex: 0,
+            explanation: 'מתאים Ada (id=1) עם הקורס SQL 101 (student_id=1)'
+          },
+          {
+            id: 'pair-2',
+            left: 'Students[1]: id=2',
+            right: 'Enrollments[1]: student_id=2',
+            matched: true,
+            leftRowIndex: 1,
+            rightRowIndex: 1,
+            explanation: 'מתאים Linus (id=2) עם הקורס Databases (student_id=2)'
+          },
+          {
+            id: 'pair-3',
+            left: 'Students[2]: id=3',
+            right: 'אין התאמה',
+            matched: false,
+            leftRowIndex: 2,
+            explanation: 'Grace (id=3) אין רישום בטבלת Enrollments - נשמט מהתוצאה'
+          }
+        ],
         data: {
           columns: ['Students.id', 'Students.name', 'Enrollments.student_id', 'Enrollments.course'],
           rows: [

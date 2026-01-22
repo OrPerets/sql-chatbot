@@ -80,6 +80,10 @@ const TableView = ({ node }: TableViewProps) => {
     return labels[kind] || kind.toUpperCase();
   };
 
+  const rowCount = rows.length;
+  const filteredCount = rowStates?.filter(s => s === 'filtered' || s === 'deleted').length || 0;
+  const keptCount = rowCount - filteredCount;
+
   return (
     <div className={styles.tableCard}>
       <div className={styles.tableHeader}>
@@ -88,6 +92,18 @@ const TableView = ({ node }: TableViewProps) => {
           {getKindLabel(node.kind)}
         </span>
       </div>
+      {(filteredCount > 0 || node.kind === 'filter' || node.kind === 'limit') && (
+        <div className={styles.tableStats}>
+          <span className={styles.tableStat}>
+            ✓ {keptCount} {keptCount === 1 ? 'שורה' : 'שורות'}
+          </span>
+          {filteredCount > 0 && (
+            <span className={styles.tableStatFiltered}>
+              ✕ {filteredCount} סוננו
+            </span>
+          )}
+        </div>
+      )}
       <div className={styles.tableScroll} role="region" aria-label={`${node.label} rows`} tabIndex={0}>
         <table className={styles.table}>
           <thead>
