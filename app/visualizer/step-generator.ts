@@ -617,7 +617,10 @@ const applySetOperation = (left: TableData, right: TableData, type: SetOperation
   const rightSet = new Map(rightRows.map((row) => [serialize(row), row]));
 
   if (type === 'UNION') {
-    const combined = new Map([...leftSet, ...rightSet]);
+    const combined = new Map(leftSet);
+    rightSet.forEach((row, key) => {
+      combined.set(key, row);
+    });
     return { columns: left.columns, rows: Array.from(combined.values()) };
   }
 
