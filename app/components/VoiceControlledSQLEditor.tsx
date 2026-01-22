@@ -56,6 +56,52 @@ export const VoiceControlledSQLEditor: React.FC<VoiceControlledSQLEditorProps> =
     }
   }, []);
 
+  // Explain query
+  const explainQuery = useCallback(async (sqlQuery: string) => {
+    try {
+      setIsProcessing(true);
+      
+      // Basic query explanation logic
+      let explanation = '';
+      
+      if (sqlQuery.toLowerCase().includes('select')) {
+        explanation += 'This is a SELECT query that retrieves data. ';
+      }
+      if (sqlQuery.toLowerCase().includes('from')) {
+        const fromMatch = sqlQuery.match(/from\s+(\w+)/i);
+        if (fromMatch) {
+          explanation += `It retrieves data from the ${fromMatch[1]} table. `;
+        }
+      }
+      if (sqlQuery.toLowerCase().includes('where')) {
+        explanation += 'It includes a WHERE clause to filter the results. ';
+      }
+      if (sqlQuery.toLowerCase().includes('join')) {
+        explanation += 'It uses a JOIN to combine data from multiple tables. ';
+      }
+      if (sqlQuery.toLowerCase().includes('order by')) {
+        explanation += 'The results are ordered by a specific column. ';
+      }
+      if (sqlQuery.toLowerCase().includes('group by')) {
+        explanation += 'The results are grouped by specific columns. ';
+      }
+      
+      if (!explanation) {
+        explanation = 'This appears to be a SQL query. ';
+      }
+      
+      explanation += 'Would you like me to execute this query?';
+      
+      setLastCommand('Query explanation provided');
+      speakFeedback(explanation);
+    } catch (error) {
+      console.error('Error explaining query:', error);
+      speakFeedback('Sorry, I could not explain this query');
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [speakFeedback]);
+
   // Voice commands configuration
   const voiceCommands: VoiceCommand[] = useMemo(() => [
     {
@@ -372,52 +418,6 @@ export const VoiceControlledSQLEditor: React.FC<VoiceControlledSQLEditorProps> =
       }
     };
   }, [isVoiceEnabled, processVoiceCommand]);
-
-  // Explain query
-  const explainQuery = useCallback(async (sqlQuery: string) => {
-    try {
-      setIsProcessing(true);
-      
-      // Basic query explanation logic
-      let explanation = '';
-      
-      if (sqlQuery.toLowerCase().includes('select')) {
-        explanation += 'This is a SELECT query that retrieves data. ';
-      }
-      if (sqlQuery.toLowerCase().includes('from')) {
-        const fromMatch = sqlQuery.match(/from\s+(\w+)/i);
-        if (fromMatch) {
-          explanation += `It retrieves data from the ${fromMatch[1]} table. `;
-        }
-      }
-      if (sqlQuery.toLowerCase().includes('where')) {
-        explanation += 'It includes a WHERE clause to filter the results. ';
-      }
-      if (sqlQuery.toLowerCase().includes('join')) {
-        explanation += 'It uses a JOIN to combine data from multiple tables. ';
-      }
-      if (sqlQuery.toLowerCase().includes('order by')) {
-        explanation += 'The results are ordered by a specific column. ';
-      }
-      if (sqlQuery.toLowerCase().includes('group by')) {
-        explanation += 'The results are grouped by specific columns. ';
-      }
-      
-      if (!explanation) {
-        explanation = 'This appears to be a SQL query. ';
-      }
-      
-      explanation += 'Would you like me to execute this query?';
-      
-      setLastCommand('Query explanation provided');
-      speakFeedback(explanation);
-    } catch (error) {
-      console.error('Error explaining query:', error);
-      speakFeedback('Sorry, I could not explain this query');
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [speakFeedback]);
 
   // Start/stop listening
   const toggleListening = useCallback(() => {
