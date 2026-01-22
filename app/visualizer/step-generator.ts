@@ -191,7 +191,7 @@ const normalizeStatement = (statement: Record<string, unknown>): NormalizedQuery
   const intersect = baseStatement.intersect as Record<string, unknown> | undefined;
   const except = baseStatement.except as Record<string, unknown> | undefined;
 
-  const setOperation = union
+  const setOperation: SetOperation | undefined = union
     ? { type: 'UNION', right: normalizeStatement(union) }
     : intersect
       ? { type: 'INTERSECT', right: normalizeStatement(intersect) }
