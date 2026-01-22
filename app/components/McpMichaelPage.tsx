@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, Save, Check, AlertCircle, Settings, RefreshCw } from 'lucide-react';
 import styles from './McpMichaelPage.module.css';
 
@@ -66,24 +66,7 @@ const McpMichaelPage: React.FC = () => {
     return Math.max(1, Math.min(14, weekNumber));
   };
 
-  // Load data on component mount
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // Update date ranges when semester start date changes
-  useEffect(() => {
-    if (semesterStart) {
-      const updatedContent = weeklyContent.map(week => ({
-        ...week,
-        dateRange: calculateDateRange(week.week, semesterStart)
-      }));
-      setWeeklyContent(updatedContent);
-      setCurrentWeek(calculateCurrentWeek(semesterStart));
-    }
-  }, [semesterStart]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -119,13 +102,6 @@ const McpMichaelPage: React.FC = () => {
         });
         
         setWeeklyContent(initializedContent);
-        // Update date ranges now that we have semester start
-        if (semesterStart) {
-          setWeeklyContent(prev => prev.map(week => ({
-            ...week,
-            dateRange: calculateDateRange(week.week, semesterStart)
-          })));
-        }
       } else {
         // Initialize with empty content if API fails
         setWeeklyContent(initializeWeeklyContent());
@@ -137,7 +113,25 @@ const McpMichaelPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Load data on component mount
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Update date ranges when semester start date changes
+  useEffect(() => {
+    if (semesterStart) {
+      setWeeklyContent((prevContent) =>
+        prevContent.map((week) => ({
+          ...week,
+          dateRange: calculateDateRange(week.week, semesterStart)
+        }))
+      );
+      setCurrentWeek(calculateCurrentWeek(semesterStart));
+    }
+  }, [semesterStart]);
 
   const saveSemesterStart = async (newStartDate: string) => {
     try {

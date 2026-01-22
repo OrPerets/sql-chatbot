@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Volume2, VolumeX, Settings } from 'lucide-react';
 import styles from './talking-avatar.module.css';
 
@@ -27,7 +27,15 @@ const TalkingAvatar: React.FC<TalkingAvatarProps> = ({
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const isPlayingRef = useRef(false);
 
-  const speak = (textToSpeak: string) => {
+  const stopSpeech = useCallback(() => {
+    if (speechSynthesis.speaking) {
+      speechSynthesis.cancel();
+    }
+    setIsTalking(false);
+    isPlayingRef.current = false;
+  }, []);
+
+  const speak = useCallback((textToSpeak: string) => {
     if (!isSpeechEnabled || !textToSpeak.trim()) {
       console.log('Speech not enabled or empty text:', { isSpeechEnabled, textToSpeak });
       return;
@@ -152,15 +160,7 @@ const TalkingAvatar: React.FC<TalkingAvatarProps> = ({
     } catch (error) {
       console.error('Error starting speech:', error);
     }
-  };
-
-  const stopSpeech = () => {
-    if (speechSynthesis.speaking) {
-      speechSynthesis.cancel();
-    }
-    setIsTalking(false);
-    isPlayingRef.current = false;
-  };
+  }, [isSpeechEnabled, speechRate, onSpeechEnd, onSpeechStart, stopSpeech, isTalking]);
 
   const toggleSpeech = () => {
     if (isTalking) {
@@ -193,7 +193,7 @@ const TalkingAvatar: React.FC<TalkingAvatarProps> = ({
       
       return () => clearTimeout(timer);
     }
-  }, [text, autoPlay, isSpeechEnabled]);
+  }, [text, autoPlay, isSpeechEnabled, speak]);
 
   // Load voices when available
   useEffect(() => {
@@ -209,7 +209,7 @@ const TalkingAvatar: React.FC<TalkingAvatarProps> = ({
     return () => {
       stopSpeech();
     };
-  }, []);
+  }, [stopSpeech]);
 
   return (
     <div className={styles.talkingAvatar}>

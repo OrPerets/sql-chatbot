@@ -726,7 +726,7 @@ const AnimatedMichael: React.FC<AnimatedMichaelProps> = ({
         isPlayingRef.current = false;
       }
     }, 50); // Small delay to ensure speechSynthesis.cancel() is processed
-  }, [isSpeechEnabled, speechRate, isTalking, onSpeechStart, onSpeechEnd, voicesLoaded]);
+  }, [isSpeechEnabled, speechRate, onSpeechStart, onSpeechEnd]);
 
   const stopSpeech = useCallback(() => {
     if (speechSynthesis.speaking) {

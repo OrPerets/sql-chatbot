@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
@@ -249,7 +249,7 @@ const PerformanceSummary: React.FC<PerformanceSummaryProps> = ({ analytics }) =>
           <p className={styles.metricValue}>{analytics.averageEngagement.toFixed(1)}</p>
         </div>
         <div className={styles.metricCard}>
-          <p className={styles.metricLabel}>סה"כ סטודנטים</p>
+          <p className={styles.metricLabel}>סה&quot;כ סטודנטים</p>
           <p className={styles.metricValue}>{analytics.totalStudents.toLocaleString('he-IL')}</p>
         </div>
       </div>
@@ -383,7 +383,7 @@ const WeeklyAnalyticsPage: React.FC = () => {
     );
   }, [digestDay, digestEmail, digestEnabled, digestTime]);
 
-  const buildQueryString = (params: Record<string, string | undefined>) => {
+  const buildQueryString = useCallback((params: Record<string, string | undefined>) => {
     const searchParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
       if (value) {
@@ -391,9 +391,9 @@ const WeeklyAnalyticsPage: React.FC = () => {
       }
     });
     return searchParams.toString();
-  };
+  }, []);
 
-  const fetchReport = async () => {
+  const fetchReport = useCallback(async () => {
     setIsReportLoading(true);
     setReportError(null);
 
@@ -422,9 +422,9 @@ const WeeklyAnalyticsPage: React.FC = () => {
     } finally {
       setIsReportLoading(false);
     }
-  };
+  }, [buildQueryString, filters]);
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     setIsAnalyticsLoading(true);
     setAnalyticsError(null);
 
@@ -450,9 +450,9 @@ const WeeklyAnalyticsPage: React.FC = () => {
     } finally {
       setIsAnalyticsLoading(false);
     }
-  };
+  }, [buildQueryString, filters]);
 
-  const fetchComparisonReport = async () => {
+  const fetchComparisonReport = useCallback(async () => {
     setIsComparisonLoading(true);
     setComparisonError(null);
 
@@ -482,17 +482,17 @@ const WeeklyAnalyticsPage: React.FC = () => {
     } finally {
       setIsComparisonLoading(false);
     }
-  };
+  }, [buildQueryString, filters, selectedDays]);
 
-  const refreshData = () => {
+  const refreshData = useCallback(() => {
     fetchReport();
     fetchAnalytics();
     fetchComparisonReport();
-  };
+  }, [fetchAnalytics, fetchComparisonReport, fetchReport]);
 
   useEffect(() => {
     refreshData();
-  }, [filters]);
+  }, [refreshData]);
 
   const formatNumber = (value: number) => value.toLocaleString('he-IL');
 

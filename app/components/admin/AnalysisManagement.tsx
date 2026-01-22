@@ -288,7 +288,7 @@ const AnalysisManagement: React.FC<AnalysisManagementProps> = ({ onClose }) => {
             </div>
             <div className={styles.statContent}>
               <div className={styles.statNumber}>{systemInsights.totalAnalyses}</div>
-              <div className={styles.statLabel}>סה"כ ניתוחים</div>
+              <div className={styles.statLabel}>סה&quot;כ ניתוחים</div>
             </div>
           </div>
 

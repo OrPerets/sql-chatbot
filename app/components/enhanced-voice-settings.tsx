@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Settings, Volume2, Play, Pause, RotateCcw, Mic, Headphones } from 'lucide-react';
 import { enhancedTTS, AVAILABLE_VOICES, TTSOptions, TTSVoice } from '../utils/enhanced-tts';
 import styles from './enhanced-voice-settings.module.css';
@@ -58,7 +58,7 @@ const EnhancedVoiceSettings: React.FC<EnhancedVoiceSettingsProps> = ({
   const [previewDebounceTimer, setPreviewDebounceTimer] = useState<NodeJS.Timeout | null>(null);
   
   // Voice personalities
-  const voicePersonalities: VoicePersonality[] = [
+  const voicePersonalities: VoicePersonality[] = useMemo(() => [
     {
       id: 'friendly',
       name: 'חברותי',
@@ -111,7 +111,7 @@ const EnhancedVoiceSettings: React.FC<EnhancedVoiceSettingsProps> = ({
       },
       previewText: 'וואו! אני מייקל ואני כל כך נרגש ללמד אתכם SQL! זה יהיה מדהים!'
     }
-  ];
+  ], []);
   
   // Voice presets
   const voicePresets: VoicePreset[] = [
@@ -329,7 +329,7 @@ const EnhancedVoiceSettings: React.FC<EnhancedVoiceSettingsProps> = ({
         <div className={styles.header}>
           <div className={styles.title}>
             <Settings size={20} />
-            <span>Michael's Voice Settings</span>
+            <span>Michael&apos;s Voice Settings</span>
           </div>
           <button className={styles.closeButton} onClick={onClose}>×</button>
         </div>
