@@ -951,7 +951,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
         isPending: aiGradingMutation.isPending,
       });
     }
-  }, []);
+  }, [aiGradingMutation.isPending, aiGradingMutation.mutate, aiGradingMutation.mutateAsync]);
 
   // Test AI mutation
   const testAIMutation = useMutation({
@@ -2036,7 +2036,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
               return (
                 <>
                   <div className={styles.analyticsMetric}>
-                    <span className={styles.metricLabel}>סה"כ סטודנטים:</span>
+                    <span className={styles.metricLabel}>סה&quot;כ סטודנטים:</span>
                     <span className={styles.metricValue}>{totalStudents}</span>
                   </div>
                   <div className={styles.analyticsMetric}>
@@ -2311,7 +2311,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                   ) : (
                     <>
                       <div className={styles.testAIResultsSummary}>
-                        סה"כ {testAIResults.results.length} תשובות נבדקו
+                        סה&quot;כ {testAIResults.results.length} תשובות נבדקו
                       </div>
                       <div className={styles.testAIResultsList}>
                         {testAIResults.results.map((result, index) => (

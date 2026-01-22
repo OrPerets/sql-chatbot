@@ -80,22 +80,8 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
   onGestureStarted,
   onGestureCompleted,
 }, ref) => {
-  // AVATAR DISABLED: Early return to prevent any execution
-  // Return null immediately to prevent any avatar code from running
-  if (typeof window === 'undefined' || process.env.NEXT_PUBLIC_AVATAR_ENABLED !== '1') {
-    // Set up a minimal ref interface to prevent errors
-    useImperativeHandle(ref, () => ({
-      setMood: () => {},
-      playGesture: () => {},
-      queueGesture: () => {},
-      clearGestureQueue: () => {},
-      getGestureQueue: () => [],
-      lookAt: () => {},
-      lookAtCamera: () => {},
-      setState: () => {},
-    }), []);
-    return null;
-  }
+  const isAvatarEnabled =
+    typeof window !== 'undefined' && process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1';
   const avatarRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -131,7 +117,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
     return sizes[size];
   };
 
-  const initializeAvatar = async () => {
+  const initializeAvatar = useCallback(async () => {
     const avatarFeature = typeof window !== 'undefined' && (process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1' || process.env.NODE_ENV === 'development');
     if (!avatarFeature) {
       console.log('⚠️ Avatar feature disabled via flag');
@@ -361,7 +347,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
       setIsLoading(false);
       onError?.(errorMessage);
     }
-  };
+  }, [onAvatarLoaded, onReady, onError]);
 
   const loadAvatarWithFallbacks = async (head: any) => {
     const strategies = [
@@ -462,7 +448,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
     throw new Error(`All avatar loading strategies failed. Last error: ${lastError?.message}`);
   };
 
-  const speak = async (text: string) => {
+  const speak = useCallback(async (text: string) => {
     console.log('🎯 speak() called with text:', text?.substring(0, 100) + '...');
     console.log('🎯 Progressive mode:', progressiveMode, 'Is streaming:', isStreaming);
     
@@ -565,9 +551,17 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
       setCurrentlySpeakingText('');
       onError?.(errorMessage);
     }
-  };
+  }, [
+    audioUnlocked,
+    isSpeaking,
+    isStreaming,
+    onError,
+    onSpeakingEnd,
+    onSpeakingStart,
+    progressiveMode
+  ]);
 
-  const updateAvatarState = (newState: string) => {
+  const updateAvatarState = useCallback((newState: string) => {
     console.log(`🎭 updateAvatarState called with: ${newState}`, {
       isInitialized,
       hasHeadRef: !!headRef.current,
@@ -1484,7 +1478,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
     } catch (err) {
       console.error('💥 Failed to update avatar state:', err);
     }
-  };
+  }, [isInitialized, isSpeaking, isThinking, state]);
 
   // Initialize on mount
   useEffect(() => {
@@ -1532,7 +1526,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
       }
       headRef.current = null;
     };
-  }, []);
+  }, [initializeAvatar]);
 
   // Update state when props change
   useEffect(() => {
@@ -1588,7 +1582,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
         console.log('🔔 IMPORTANT: Audio control is handled by the main chat interface');
       }
     }
-  }, [state, isInitialized, audioUnlocked, isSpeaking]);
+  }, [state, isInitialized, audioUnlocked, isSpeaking, updateAvatarState]);
 
   // Track when text actually changes to reset spoken text tracking
   useEffect(() => {
@@ -1656,7 +1650,17 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
       console.log('✅ Transitioning to speaking state with new text - starting speech');
       speak(text);
     }
-  }, [text, state, isInitialized, audioUnlocked, progressiveMode, isStreaming, currentlySpeakingText]);
+  }, [
+    text,
+    state,
+    isInitialized,
+    audioUnlocked,
+    progressiveMode,
+    isStreaming,
+    currentlySpeakingText,
+    isSpeaking,
+    speak
+  ]);
 
   const retryInitialization = () => {
     setError(null);
@@ -1786,7 +1790,21 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
   }, [gestureQueue, isPlayingGesture, processGestureQueue]);
 
   // Expose methods through ref
-  useImperativeHandle(ref, () => ({
+  useImperativeHandle(ref, () => {
+    if (!isAvatarEnabled) {
+      return {
+        setMood: () => {},
+        playGesture: () => {},
+        queueGesture: () => {},
+        clearGestureQueue: () => {},
+        getGestureQueue: () => [],
+        lookAt: () => {},
+        lookAtCamera: () => {},
+        setState: () => {},
+      };
+    }
+
+    return ({
     setMood: (mood: string) => {
       console.log(`🎭 External setMood call: ${mood}`);
       if (headRef.current && isInitialized) {
@@ -1913,7 +1931,8 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
         console.warn('⚠️ Avatar not initialized, cannot execute external setState');
       }
     }
-  }), [isInitialized, addToGestureQueue, clearGestureQueue]);
+    });
+  }, [addToGestureQueue, clearGestureQueue, isAvatarEnabled, isInitialized, updateAvatarState]);
 
   // Cleanup gesture queue timeout on unmount
   useEffect(() => {
@@ -1923,6 +1942,10 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
       }
     };
   }, []);
+
+  if (!isAvatarEnabled) {
+    return null;
+  }
 
   return (
     <div 

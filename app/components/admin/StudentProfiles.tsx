@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Users,
   Search,
@@ -114,7 +114,7 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
   // Show all students (including those with "ריק" scores)
   const filteredProfiles = profiles;
 
-  const fetchProfiles = async () => {
+  const fetchProfiles = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -144,7 +144,7 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, searchTerm, selectedRisk, selectedScore]);
 
   const fetchAnalytics = async () => {
     try {
@@ -163,7 +163,7 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
 
   useEffect(() => {
     fetchProfiles();
-  }, [currentPage, searchTerm, selectedScore, selectedRisk]);
+  }, [fetchProfiles]);
 
   useEffect(() => {
     fetchAnalytics();
@@ -426,7 +426,7 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
             <div className={studentStyles.statCard}>
               <Users className={studentStyles.statIcon} />
               {analytics.totalStudents}
-              <div className={studentStyles.statLabel}>סה"כ תלמידים</div>
+              <div className={studentStyles.statLabel}>סה&quot;כ תלמידים</div>
             </div>
 
             <div className={studentStyles.statCard}>
@@ -632,7 +632,7 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
                           </div>
                           <div className={studentStyles.metricRow}>
                             <span className={studentStyles.metricLabel}>ממוצע זמן:</span>
-                            <span className={studentStyles.metricValue}>{profile.engagementMetrics.averageSessionDuration.toFixed(1)} דק'</span>
+                            <span className={studentStyles.metricValue}>{profile.engagementMetrics.averageSessionDuration.toFixed(1)} דק&apos;</span>
                           </div>
                         </div>
                       </td>
@@ -832,7 +832,7 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="bg-gray-50 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-gray-900">{selectedStudentIssues.totalIssues}</div>
-                  <div className="text-sm text-gray-600">סה"כ בעיות</div>
+                  <div className="text-sm text-gray-600">סה&quot;כ בעיות</div>
                 </div>
                 <div className="bg-red-50 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-red-600">{selectedStudentIssues.unresolvedIssues}</div>

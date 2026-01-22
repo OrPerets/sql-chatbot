@@ -134,6 +134,15 @@ const VoiceAccessibilityEnhancer: React.FC<VoiceAccessibilityEnhancerProps> = ({
   }, [focusedElement]);
 
   // Handle keyboard navigation
+  const announceToScreenReader = useCallback((message: string) => {
+    if (!enableScreenReader) return;
+    
+    setScreenReaderText(message);
+    
+    // Clear after announcement
+    setTimeout(() => setScreenReaderText(''), 1000);
+  }, [enableScreenReader]);
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!enableKeyboardNavigation) return;
 
@@ -173,17 +182,7 @@ const VoiceAccessibilityEnhancer: React.FC<VoiceAccessibilityEnhancerProps> = ({
         e.preventDefault();
       }
     }
-  }, [enableKeyboardNavigation, enableScreenReader]);
-
-  // Announce state changes to screen reader
-  const announceToScreenReader = useCallback((message: string) => {
-    if (!enableScreenReader) return;
-    
-    setScreenReaderText(message);
-    
-    // Clear after announcement
-    setTimeout(() => setScreenReaderText(''), 1000);
-  }, [enableScreenReader]);
+  }, [announceToScreenReader, enableKeyboardNavigation, enableScreenReader]);
 
   // Monitor voice state changes
   useEffect(() => {

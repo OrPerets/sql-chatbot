@@ -20,7 +20,7 @@ const WeatherWidget = ({
       <div className={`${styles.weatherWidget} ${styles.weatherEmptyState}`}>
         <div className={styles.weatherWidgetData}>
           <p>Enter a city to see local weather</p>
-          <p>try: what's the weather like in Berkeley?</p>
+          <p>try: what&apos;s the weather like in Berkeley?</p>
         </div>
       </div>
     );
