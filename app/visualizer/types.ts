@@ -6,6 +6,10 @@ export type VisualizationKind =
   | 'aggregation'
   | 'sort'
   | 'limit'
+  | 'set'
+  | 'cte'
+  | 'subquery'
+  | 'mutation'
   | 'placeholder';
 
 export type AnimationStyle = 'highlight' | 'fade' | 'pulse' | 'move';
@@ -17,7 +21,15 @@ export type JoinPair = {
   matched: boolean;
 };
 
-export type RowState = 'default' | 'kept' | 'filtered' | 'matched';
+export type RowState =
+  | 'default'
+  | 'kept'
+  | 'filtered'
+  | 'matched'
+  | 'unmatched'
+  | 'inserted'
+  | 'updated'
+  | 'deleted';
 
 export type VisualizationNode = {
   id: string;

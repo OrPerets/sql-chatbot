@@ -335,6 +335,28 @@
   animation: rowPulse 2.4s ease-in-out infinite;
 }
 
+.tableRowUnmatched {
+  opacity: 0.55;
+  background: #f8fafc;
+  text-decoration: line-through;
+}
+
+.tableRowInserted {
+  background: #ecfdf3;
+  border-left: 3px solid #22c55e;
+}
+
+.tableRowUpdated {
+  background: #fef9c3;
+  border-left: 3px solid #f59e0b;
+}
+
+.tableRowDeleted {
+  opacity: 0.45;
+  background: #fee2e2;
+  text-decoration: line-through;
+}
+
 .tableHint {
   color: #94a3b8;
   margin: 0;
