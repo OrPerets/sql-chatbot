@@ -97,4 +97,4 @@ const TableView = ({ node }: TableViewProps) => {
   );
 };
 
-export default TableView;
+export default React.memo(TableView);

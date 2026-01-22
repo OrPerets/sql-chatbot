@@ -5,6 +5,7 @@ import styles from './visualizer.module.css';
 import StepTimeline from './StepTimeline';
 import TableView from './TableView';
 import JoinAnimator from './JoinAnimator';
+import PlaceholderCard from './PlaceholderCard';
 import { mockSteps } from './mock-steps';
 import { generateStepsFromSql } from './step-generator';
 
@@ -37,15 +38,18 @@ const VisualizerRoot = () => {
   const [learningMode, setLearningMode] = useState(false);
   const [revealAnswer, setRevealAnswer] = useState(false);
 
+  const stepIndexMap = useMemo(
+    () => new Map(steps.map((step, index) => [step.id, index])),
+    [steps]
+  );
+  const stepMap = useMemo(() => new Map(steps.map((step) => [step.id, step])), [steps]);
+
   useEffect(() => {
     setActiveStepId(steps[0]?.id ?? '');
     setIsPlaying(false);
   }, [steps]);
 
-  const activeStepIndex = useMemo(
-    () => Math.max(0, steps.findIndex((step) => step.id === activeStepId)),
-    [steps, activeStepId]
-  );
+  const activeStepIndex = Math.max(0, stepIndexMap.get(activeStepId) ?? 0);
 
   const selectStepByIndex = useCallback(
     (index: number) => {
@@ -74,7 +78,7 @@ const VisualizerRoot = () => {
 
     const timer = window.setInterval(() => {
       setActiveStepId((currentStepId) => {
-        const currentIndex = steps.findIndex((step) => step.id === currentStepId);
+        const currentIndex = stepIndexMap.get(currentStepId) ?? 0;
         const nextIndex = currentIndex + 1;
 
         if (nextIndex >= steps.length) {
@@ -87,7 +91,7 @@ const VisualizerRoot = () => {
     }, playbackIntervalMs);
 
     return () => window.clearInterval(timer);
-  }, [isPlaying, playbackIntervalMs, steps]);
+  }, [isPlaying, playbackIntervalMs, steps, stepIndexMap]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -118,7 +122,7 @@ const VisualizerRoot = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleNext, handlePrevious]);
 
-  const activeStep = steps.find((step) => step.id === activeStepId) ?? steps[0];
+  const activeStep = stepMap.get(activeStepId) ?? steps[0];
 
   useEffect(() => {
     setRevealAnswer(false);
@@ -150,7 +154,11 @@ const VisualizerRoot = () => {
           rows={6}
           spellCheck={false}
         />
-        {errorMessage && <p className={styles.queryError}>{errorMessage}</p>}
+        {errorMessage && (
+          <p className={styles.queryError} role="alert" aria-live="polite">
+            {errorMessage}
+          </p>
+        )}
       </div>
 
       <div className={styles.visualizerLayout}>
@@ -289,6 +297,10 @@ const VisualizerRoot = () => {
             {activeStep.nodes.map((node) => {
               if (node.kind === 'join') {
                 return <JoinAnimator key={node.id} node={node} />;
+              }
+
+              if (node.kind === 'placeholder') {
+                return <PlaceholderCard key={node.id} node={node} />;
               }
 
               return <TableView key={node.id} node={node} />;

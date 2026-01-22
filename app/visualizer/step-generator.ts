@@ -1,4 +1,5 @@
 import { getMockTable } from './mock-schema';
+import { findCoverageGaps, KeywordCoverageEntry } from './keyword-coverage';
 import { parseSql } from './sql-parser';
 import { GlossaryHint, JoinPair, LearningPrompt, QueryStep, VisualizationNode } from './types';
 
@@ -783,6 +784,31 @@ const buildStep = (
   };
 };
 
+const buildCoverageStep = (stepNumber: number, gaps: KeywordCoverageEntry[]): QueryStep => {
+  const notes = gaps.map((gap) => `${gap.keyword} — ${gap.visualization}`);
+  const placeholderNode: VisualizationNode = {
+    id: 'keyword-coverage',
+    label: 'Keyword coverage gaps',
+    kind: 'placeholder',
+    detail: 'These SQL keywords are recognized, but their visuals are currently placeholders.',
+    notes
+  };
+
+  return buildStep(
+    'step-coverage',
+    `${stepNumber}. Coverage check`,
+    'Flag keywords that still use placeholder visuals.',
+    [placeholderNode],
+    'Highlight keyword gaps',
+    [placeholderNode.id],
+    {
+      narration:
+        'We audit the query for keywords that are not fully visualized yet and flag them for follow-up.',
+      caption: 'Placeholder visuals are used for the keywords listed here.'
+    }
+  );
+};
+
 const buildStepsForSelect = (
   normalized: NormalizedQuery,
   cteRegistry: Map<string, TableData>
@@ -1464,18 +1490,22 @@ const buildStepsForDelete = (statement: Record<string, unknown>): QueryStep[] =>
 };
 
 export const generateStepsFromSql = (sql: string): QueryStep[] => {
+  const coverageGaps = findCoverageGaps(sql);
   const statement = parseSql(sql);
 
   if ('into' in statement) {
-    return buildStepsForInsert(statement);
+    const steps = buildStepsForInsert(statement);
+    return coverageGaps.length ? [...steps, buildCoverageStep(steps.length + 1, coverageGaps)] : steps;
   }
 
   if ('table' in statement && 'columns' in statement && !('from' in statement)) {
-    return buildStepsForUpdate(statement);
+    const steps = buildStepsForUpdate(statement);
+    return coverageGaps.length ? [...steps, buildCoverageStep(steps.length + 1, coverageGaps)] : steps;
   }
 
   if ('table' in statement && !('columns' in statement) && !('from' in statement)) {
-    return buildStepsForDelete(statement);
+    const steps = buildStepsForDelete(statement);
+    return coverageGaps.length ? [...steps, buildCoverageStep(steps.length + 1, coverageGaps)] : steps;
   }
 
   const cteRegistry = new Map<string, TableData>();
@@ -1529,5 +1559,11 @@ export const generateStepsFromSql = (sql: string): QueryStep[] => {
   }
 
   const result = buildStepsForQuery(normalized, cteRegistry);
-  return [...steps, ...result.steps];
+  const combinedSteps = [...steps, ...result.steps];
+
+  if (coverageGaps.length) {
+    combinedSteps.push(buildCoverageStep(combinedSteps.length + 1, coverageGaps));
+  }
+
+  return combinedSteps;
 };

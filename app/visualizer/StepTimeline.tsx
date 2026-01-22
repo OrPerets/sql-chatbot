@@ -39,4 +39,4 @@ const StepTimeline = ({ steps, activeStepId, onSelect }: StepTimelineProps) => {
   );
 };
 
-export default StepTimeline;
+export default React.memo(StepTimeline);
