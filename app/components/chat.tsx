@@ -350,6 +350,7 @@ const Chat = ({
   const [isThinking, setIsThinking] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imageProcessing, setImageProcessing] = useState(false);
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [threadId, setThreadId] = useState("");
   const [user, setUser] = useState(null);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
@@ -383,6 +384,7 @@ const Chat = ({
 
   // Add hydration state to prevent layout shift
   const [isHydrated, setIsHydrated] = useState(false);
+  const actionMenuRef = useRef<HTMLDivElement | null>(null);
   
   // Debug logging for production
   useEffect(() => {
@@ -394,6 +396,23 @@ const Chat = ({
       isHydrated
     });
   }, [enableAvatar, enableVoice, isHydrated]);
+
+  useEffect(() => {
+    if (!isActionMenuOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(event.target as Node)) {
+        setIsActionMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isActionMenuOpen]);
   
   // Add display mode state for avatar/logo toggle
   const [displayMode, setDisplayMode] = useState<'avatar' | 'logo'>('avatar');
@@ -1744,7 +1763,7 @@ return (
 
             {/* Action Buttons Row */}
             {!minimalMode && (
-            <div className={styles.actionButtons}>
+            <div className={styles.actionButtons} ref={actionMenuRef}>
               {/* Audio Recorder - hidden for clean version */}
               {/* {enableVoice && (
                 <AudioRecorder
@@ -1754,79 +1773,80 @@ return (
                 />
               )} */}
 
-
-              {/* Exercise Button */}
               <button
                 type="button"
-                className={`${styles.actionButton} ${styles.exerciseActionButton} ${isExerciseMode ? styles.actionButtonActive : ''}`}
-                onClick={startExercise}
-                disabled={inputDisabled}
-                title="קבל תרגול SQL חדש"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                </svg>
-                {/* <span className={styles.actionButtonText}>תרגול</span> */}
-              </button>
-
-              {/* Attachment Button */}
-              <button
-                type="button"
-                className={styles.actionButton}
-                onClick={() => document.getElementById('imageInput')?.click()}
+                className={`${styles.actionButton} ${styles.actionMenuButton} ${isActionMenuOpen ? styles.actionButtonActive : ''}`}
+                onClick={() => setIsActionMenuOpen((prev) => !prev)}
                 disabled={inputDisabled || imageProcessing}
-                title="Attach image"
+                title="פתח אפשרויות"
+                aria-haspopup="true"
+                aria-expanded={isActionMenuOpen}
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.49"/>
-                </svg>
+                <span className={styles.actionMenuIcon}>➕️</span>
                 {selectedImage && <span className={styles.attachmentDot}></span>}
               </button>
 
-              {/* SQL Query Builder Button */}
-              <button
-                type="button"
-                className={styles.actionButton}
-                onClick={() => setSqlBuilderOpen(true)}
-                title="בנה שאילתת SQL"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M4 7h16M4 12h16M4 17h16"/>
-                  <path d="M2 3h20v18H2z"/>
-                </svg>
-                <span className={styles.actionButtonText}>SQL</span>
-              </button>
+              {isActionMenuOpen && (
+                <div className={styles.actionMenu} role="menu">
+                  <button
+                    type="button"
+                    className={styles.actionMenuItem}
+                    onClick={() => {
+                      setIsActionMenuOpen(false);
+                      startExercise();
+                    }}
+                    disabled={inputDisabled}
+                    title="קבל תרגול SQL חדש"
+                    role="menuitem"
+                  >
+                    <span className={styles.actionMenuItemIcon}>⭐️</span>
+                    <span className={styles.actionMenuItemText}>תרגול SQL</span>
+                  </button>
 
+                  <button
+                    type="button"
+                    className={styles.actionMenuItem}
+                    onClick={() => {
+                      setIsActionMenuOpen(false);
+                      document.getElementById('imageInput')?.click();
+                    }}
+                    disabled={inputDisabled || imageProcessing}
+                    title="Attach image"
+                    role="menuitem"
+                  >
+                    <span className={styles.actionMenuItemIcon}>📎</span>
+                    <span className={styles.actionMenuItemText}>הוספת תמונה</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={styles.actionMenuItem}
+                    onClick={() => {
+                      setIsActionMenuOpen(false);
+                      setSqlBuilderOpen(true);
+                    }}
+                    title="בנה שאילתת SQL"
+                    role="menuitem"
+                  >
+                    <span className={styles.actionMenuItemIcon}>🧩</span>
+                    <span className={styles.actionMenuItemText}>בונה SQL</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={styles.actionMenuItem}
+                    onClick={() => {
+                      setIsActionMenuOpen(false);
+                      router.push('/visualizer');
+                    }}
+                    title="המחשת שאילתה"
+                    role="menuitem"
+                  >
+                    <span className={styles.actionMenuItemIcon}>📊</span>
+                    <span className={styles.actionMenuItemText}>המחשת שאילתה</span>
+                  </button>
+                </div>
+              )}
             </div>
             )}
 

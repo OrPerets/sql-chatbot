@@ -1929,6 +1929,8 @@
   padding-top: 8px;
   border-top: 1px solid #f3f4f6;
   margin-top: 8px;
+  position: relative;
+  align-items: center;
 }
 
 .actionButton {
@@ -1971,6 +1973,67 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
+}
+
+.actionMenuButton {
+  padding: 6px 10px;
+}
+
+.actionMenuIcon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.actionMenu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+  z-index: 20;
+}
+
+.actionMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  text-align: right;
+}
+
+.actionMenuItem:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.actionMenuItem:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.actionMenuItemIcon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.actionMenuItemText {
+  font-weight: 600;
+  letter-spacing: 0.2px;
 }
 
 /* Attachment Indicator Dot */
