@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { LEARNING_PDFS } from '@/lib/learning-content';
 import { getAllowedConceptsForWeek, SQL_CURRICULUM_MAP } from '@/lib/sql-curriculum';
@@ -8,6 +8,7 @@ import { getAllowedConceptsForWeek, SQL_CURRICULUM_MAP } from '@/lib/sql-curricu
 import styles from './interactive-learning.module.css';
 
 type ViewMode = 'list' | 'topic';
+type NoteStatus = 'idle' | 'loading' | 'saving' | 'saved' | 'error';
 
 const VIEW_MODE_STORAGE_KEY = 'interactive-learning-view';
 
@@ -37,6 +38,10 @@ const InteractiveLearningRoot = () => {
   );
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedWeek, setSelectedWeek] = useState<number | null>(weeks[0]?.week ?? null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [noteContent, setNoteContent] = useState('');
+  const [noteStatus, setNoteStatus] = useState<NoteStatus>('idle');
+  const [lastSavedContent, setLastSavedContent] = useState('');
 
   useEffect(() => {
     const storedView = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
@@ -48,6 +53,23 @@ const InteractiveLearningRoot = () => {
   useEffect(() => {
     window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
   }, [viewMode]);
+
+  useEffect(() => {
+    const storedUser = window.localStorage.getItem('currentUser');
+    if (!storedUser) {
+      return;
+    }
+
+    try {
+      const parsedUser = JSON.parse(storedUser);
+      const resolvedId = parsedUser.id || parsedUser._id || parsedUser.email;
+      if (resolvedId) {
+        setUserId(String(resolvedId));
+      }
+    } catch (error) {
+      console.error('Failed to parse currentUser for notes:', error);
+    }
+  }, []);
 
   const selectedAsset = useMemo(
     () => LEARNING_PDFS.find((asset) => asset.id === selectedId) ?? null,
@@ -64,6 +86,26 @@ const InteractiveLearningRoot = () => {
     () => (selectedWeekData ? selectedWeekData.assets : []),
     [selectedWeekData]
   );
+
+  const noteTarget = useMemo(() => {
+    if (viewMode === 'topic' && selectedWeekData) {
+      return {
+        type: 'topic' as const,
+        id: `week-${selectedWeekData.week}`,
+        label: `שבוע ${selectedWeekData.week}`,
+      };
+    }
+
+    if (selectedAsset) {
+      return {
+        type: 'pdf' as const,
+        id: selectedAsset.id,
+        label: selectedAsset.label,
+      };
+    }
+
+    return null;
+  }, [selectedAsset, selectedWeekData, viewMode]);
 
   useEffect(() => {
     if (viewMode !== 'topic') {
@@ -91,6 +133,104 @@ const InteractiveLearningRoot = () => {
   const pdfUrl = selectedAsset
     ? `/api/learning/pdfs/${encodeURIComponent(selectedAsset.filename)}`
     : null;
+
+  useEffect(() => {
+    if (!userId || !noteTarget) {
+      setNoteContent('');
+      setLastSavedContent('');
+      setNoteStatus('idle');
+      return;
+    }
+
+    let isActive = true;
+    setNoteStatus('loading');
+
+    const loadNote = async () => {
+      try {
+        const response = await fetch(
+          `/api/learning/notes?userId=${encodeURIComponent(userId)}&targetType=${noteTarget.type}&targetId=${encodeURIComponent(noteTarget.id)}`
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to load note');
+        }
+
+        const data = await response.json();
+        const content = data?.note?.content ?? '';
+        if (isActive) {
+          setNoteContent(content);
+          setLastSavedContent(content);
+          setNoteStatus('idle');
+        }
+      } catch (error) {
+        if (isActive) {
+          console.error('Failed to load note:', error);
+          setNoteStatus('error');
+        }
+      }
+    };
+
+    loadNote();
+
+    return () => {
+      isActive = false;
+    };
+  }, [noteTarget, userId]);
+
+  const handleSaveNote = useCallback(
+    async (content: string) => {
+      if (!userId || !noteTarget || content === lastSavedContent) {
+        return;
+      }
+
+      setNoteStatus('saving');
+
+      try {
+        const response = await fetch('/api/learning/notes', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            targetType: noteTarget.type,
+            targetId: noteTarget.id,
+            content,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save note');
+        }
+
+        setLastSavedContent(content);
+        setNoteStatus('saved');
+      } catch (error) {
+        console.error('Failed to save note:', error);
+        setNoteStatus('error');
+      }
+    },
+    [lastSavedContent, noteTarget, userId]
+  );
+
+  const noteStatusLabel = useMemo(() => {
+    if (!userId) {
+      return 'התחברו כדי לשמור הערות.';
+    }
+
+    switch (noteStatus) {
+      case 'loading':
+        return 'טוען הערות...';
+      case 'saving':
+        return 'שומר...';
+      case 'saved':
+        return 'נשמר';
+      case 'error':
+        return 'אירעה שגיאה בשמירת ההערות.';
+      default:
+        return 'הערות נשמרות לחשבון שלכם.';
+    }
+  }, [noteStatus, userId]);
+
+  const isNoteDirty = noteContent !== lastSavedContent;
 
   return (
     <div className={styles.interactiveLearning}>
@@ -289,6 +429,44 @@ const InteractiveLearningRoot = () => {
               <div className={styles.placeholder}>בחרו מסמך כדי להתחיל</div>
             )}
           </div>
+
+          <section className={styles.notesCard} aria-label="הערות ללמידה">
+            <div className={styles.notesHeader}>
+              <div>
+                <p className={styles.notesEyebrow}>הערות</p>
+                <h3 className={styles.notesTitle}>
+                  {noteTarget
+                    ? `הערות עבור ${noteTarget.label}`
+                    : 'בחרו מסמך או נושא כדי להוסיף הערות'}
+                </h3>
+              </div>
+              <div className={styles.notesActions}>
+                <button
+                  type="button"
+                  className={styles.saveButton}
+                  onClick={() => handleSaveNote(noteContent)}
+                  disabled={!userId || !noteTarget || noteStatus === 'saving' || !isNoteDirty}
+                >
+                  שמור
+                </button>
+                <span className={styles.saveStatus} role="status" aria-live="polite">
+                  {noteStatusLabel}
+                </span>
+              </div>
+            </div>
+            <textarea
+              className={styles.notesInput}
+              value={noteContent}
+              placeholder={
+                userId
+                  ? 'כתבו כאן את ההערות שלכם...'
+                  : 'התחברו כדי לשמור הערות אישיות.'
+              }
+              onChange={(event) => setNoteContent(event.target.value)}
+              onBlur={() => handleSaveNote(noteContent)}
+              disabled={!userId || !noteTarget || noteStatus === 'loading'}
+            />
+          </section>
         </main>
       </div>
     </div>

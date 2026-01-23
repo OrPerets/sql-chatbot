@@ -197,17 +197,23 @@ The Interactive Learning page should match the **visual and interaction patterns
 
 #### Todo
 
-- [ ] **3.1** Add `COLLECTIONS.STUDENT_NOTES` and a schema in `lib/database.ts` (or a `lib/learning-notes.ts`). Implement `getNote(userId, targetType, targetId)` and `upsertNote(userId, targetType, targetId, content)`.
-- [ ] **3.2** Create `GET /api/learning/notes` (query: `userId`, `targetType`, `targetId`) and `PUT /api/learning/notes` (body: same + `content`). Auth: require `userId` to match the authenticated user (or server-side session).
-- [ ] **3.3** In the main area, add a **notes panel** (collapsible or always visible): “הערות” with a textarea or simple rich editor. `targetType=pdf`, `targetId=lecture03` (or the chosen PDF id from the manifest). Load on PDF select; save on blur or explicit “שמור” (and/or debounced on change).
-- [ ] **3.4** For “לפי נושא” view: when a week is selected, allow `targetType=topic`, `targetId=week-5`. One note per week; same UI pattern as PDF notes.
-- [ ] **3.5** Indicate save state: “נשמר”, “שומר…” or “שגיאה” with `aria-live` for accessibility.
+- [x] **3.1** Add `COLLECTIONS.STUDENT_NOTES` and a schema in `lib/database.ts` (or a `lib/learning-notes.ts`). Implement `getNote(userId, targetType, targetId)` and `upsertNote(userId, targetType, targetId, content)`.
+- [x] **3.2** Create `GET /api/learning/notes` (query: `userId`, `targetType`, `targetId`) and `PUT /api/learning/notes` (body: same + `content`). Auth: require `userId` to match the authenticated user (or server-side session).
+- [x] **3.3** In the main area, add a **notes panel** (collapsible or always visible): “הערות” with a textarea or simple rich editor. `targetType=pdf`, `targetId=lecture03` (or the chosen PDF id from the manifest). Load on PDF select; save on blur or explicit “שמור” (and/or debounced on change).
+- [x] **3.4** For “לפי נושא” view: when a week is selected, allow `targetType=topic`, `targetId=week-5`. One note per week; same UI pattern as PDF notes.
+- [x] **3.5** Indicate save state: “נשמר”, “שומר…” or “שגיאה” with `aria-live` for accessibility.
 - [ ] **3.6** (Optional) Basic Markdown in notes (e.g. `**bold**`, `-` list) and a minimal preview toggle; otherwise treat as plain text with `\n` for newlines.
 
 **Deliverables**
 
 - Notes per PDF and per topic (week), stored in MongoDB and editable in the UI.
 - Save feedback and basic accessibility.
+
+**Implementation Notes**
+
+- Added `student_notes` collection plus `getLearningNote`/`upsertLearningNote` helpers, with upserted timestamps.
+- Introduced `/api/learning/notes` GET/PUT for loading and saving notes per PDF or week.
+- Added an always-visible notes panel with “שמור” and live status feedback that swaps between PDF and topic targets.
 
 ---
 
