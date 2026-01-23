@@ -10,6 +10,7 @@ import styles from './interactive-learning.module.css';
 type ViewMode = 'list' | 'topic';
 type NoteStatus = 'idle' | 'loading' | 'saving' | 'saved' | 'error';
 type SummaryStatus = 'idle' | 'loading' | 'ready' | 'error';
+type PdfStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 type ConversationSummary = {
   sessionId: string;
@@ -63,6 +64,7 @@ const InteractiveLearningRoot = () => {
   const [summaries, setSummaries] = useState<ConversationSummary[]>([]);
   const [insights, setInsights] = useState<ConversationInsights | null>(null);
   const [summaryStatus, setSummaryStatus] = useState<SummaryStatus>('idle');
+  const [pdfStatus, setPdfStatus] = useState<PdfStatus>('idle');
 
   useEffect(() => {
     const storedView = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
@@ -171,7 +173,7 @@ const InteractiveLearningRoot = () => {
     return query ? `/entities/basic-chat?${query}` : '/entities/basic-chat';
   }, [selectedAsset, selectedWeekData]);
 
-  useEffect(() => {
+  const loadNote = useCallback(async () => {
     if (!userId || !noteTarget) {
       setNoteContent('');
       setLastSavedContent('');
@@ -179,42 +181,42 @@ const InteractiveLearningRoot = () => {
       return;
     }
 
-    let isActive = true;
     setNoteStatus('loading');
 
-    const loadNote = async () => {
-      try {
-        const response = await fetch(
-          `/api/learning/notes?userId=${encodeURIComponent(userId)}&targetType=${noteTarget.type}&targetId=${encodeURIComponent(noteTarget.id)}`
-        );
+    try {
+      const response = await fetch(
+        `/api/learning/notes?userId=${encodeURIComponent(userId)}&targetType=${noteTarget.type}&targetId=${encodeURIComponent(noteTarget.id)}`
+      );
 
-        if (!response.ok) {
-          throw new Error('Failed to load note');
-        }
-
-        const data = await response.json();
-        const content = data?.note?.content ?? '';
-        if (isActive) {
-          setNoteContent(content);
-          setLastSavedContent(content);
-          setNoteStatus('idle');
-        }
-      } catch (error) {
-        if (isActive) {
-          console.error('Failed to load note:', error);
-          setNoteStatus('error');
-        }
+      if (!response.ok) {
+        throw new Error('Failed to load note');
       }
-    };
 
-    loadNote();
+      const data = await response.json();
+      const content = data?.note?.content ?? '';
+      setNoteContent(content);
+      setLastSavedContent(content);
+      setNoteStatus('idle');
+    } catch (error) {
+      console.error('Failed to load note:', error);
+      setNoteStatus('error');
+    }
+  }, [noteTarget, userId]);
+
+  useEffect(() => {
+    let isActive = true;
+    loadNote().catch(() => {
+      if (isActive) {
+        setNoteStatus('error');
+      }
+    });
 
     return () => {
       isActive = false;
     };
-  }, [noteTarget, userId]);
+  }, [loadNote]);
 
-  useEffect(() => {
+  const loadSummaries = useCallback(async () => {
     if (!userId) {
       setSummaries([]);
       setInsights(null);
@@ -222,42 +224,51 @@ const InteractiveLearningRoot = () => {
       return;
     }
 
-    let isActive = true;
     setSummaryStatus('loading');
 
-    const loadSummaries = async () => {
-      try {
-        const response = await fetch(
-          `/api/conversation-summary/student/${encodeURIComponent(userId)}?limit=10&insights=true`
-        );
+    try {
+      const response = await fetch(
+        `/api/conversation-summary/student/${encodeURIComponent(userId)}?limit=10&insights=true`
+      );
 
-        if (!response.ok) {
-          throw new Error('Failed to load conversation summaries');
-        }
-
-        const data = await response.json();
-        const fetchedSummaries = data?.data?.summaries ?? [];
-        const fetchedInsights = data?.data?.insights ?? null;
-
-        if (isActive) {
-          setSummaries(fetchedSummaries);
-          setInsights(fetchedInsights);
-          setSummaryStatus('ready');
-        }
-      } catch (error) {
-        if (isActive) {
-          console.error('Failed to load conversation summaries:', error);
-          setSummaryStatus('error');
-        }
+      if (!response.ok) {
+        throw new Error('Failed to load conversation summaries');
       }
-    };
 
-    loadSummaries();
+      const data = await response.json();
+      const fetchedSummaries = data?.data?.summaries ?? [];
+      const fetchedInsights = data?.data?.insights ?? null;
+
+      setSummaries(fetchedSummaries);
+      setInsights(fetchedInsights);
+      setSummaryStatus('ready');
+    } catch (error) {
+      console.error('Failed to load conversation summaries:', error);
+      setSummaryStatus('error');
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    let isActive = true;
+    loadSummaries().catch(() => {
+      if (isActive) {
+        setSummaryStatus('error');
+      }
+    });
 
     return () => {
       isActive = false;
     };
-  }, [userId]);
+  }, [loadSummaries]);
+
+  useEffect(() => {
+    if (!pdfUrl) {
+      setPdfStatus('idle');
+      return;
+    }
+
+    setPdfStatus('loading');
+  }, [pdfUrl]);
 
   const handleSaveNote = useCallback(
     async (content: string) => {
@@ -404,11 +415,23 @@ const InteractiveLearningRoot = () => {
             </div>
           )}
 
-          <div className={styles.sidebarSection}>
+          <div
+            className={styles.sidebarSection}
+            aria-busy={summaryStatus === 'loading'}
+            aria-live="polite"
+          >
             <div className={styles.sectionHeaderRow}>
               <h2 className={styles.sectionTitle}>סיכומי שיחות עם מייקל</h2>
               <span className={styles.sectionMeta}>{summaryStatusLabel}</span>
             </div>
+
+            {summaryStatus === 'loading' && (
+              <div className={styles.summaryList}>
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={`summary-skeleton-${index}`} className={styles.skeletonCard} />
+                ))}
+              </div>
+            )}
 
             {summaryStatus === 'ready' && summaries.length > 0 && (
               <div className={styles.summaryList} aria-live="polite">
@@ -446,9 +469,14 @@ const InteractiveLearningRoot = () => {
             )}
 
             {summaryStatus === 'error' && (
-              <p className={styles.errorText} role="alert">
-                לא הצלחנו לטעון את הסיכומים. נסו שוב מאוחר יותר.
-              </p>
+              <div className={styles.errorBanner} role="alert">
+                <p className={styles.errorText}>
+                  לא הצלחנו לטעון את הסיכומים. נסו שוב מאוחר יותר.
+                </p>
+                <button type="button" className={styles.secondaryButton} onClick={loadSummaries}>
+                  נסו שוב
+                </button>
+              </div>
             )}
           </div>
 
@@ -621,19 +649,57 @@ const InteractiveLearningRoot = () => {
             )}
           </div>
 
-          <div className={styles.viewerCard}>
+          <div className={styles.viewerCard} aria-busy={pdfStatus === 'loading'}>
             {pdfUrl ? (
-              <iframe
-                className={styles.viewerFrame}
-                src={pdfUrl}
-                title={selectedAsset?.label ?? 'PDF'}
-              />
+              <>
+                <iframe
+                  className={
+                    pdfStatus === 'ready'
+                      ? `${styles.viewerFrame} ${styles.viewerFrameReady}`
+                      : styles.viewerFrame
+                  }
+                  src={pdfUrl}
+                  title={selectedAsset?.label ?? 'PDF'}
+                  onLoad={() => setPdfStatus('ready')}
+                  onError={() => setPdfStatus('error')}
+                />
+                {pdfStatus === 'loading' && (
+                  <div className={styles.viewerOverlay} aria-live="polite">
+                    <div className={styles.spinner} aria-hidden="true" />
+                    <p className={styles.viewerMessage}>טוען את ה-PDF...</p>
+                  </div>
+                )}
+                {pdfStatus === 'error' && (
+                  <div className={styles.viewerOverlay} role="alert">
+                    <p className={styles.errorText}>
+                      לא הצלחנו לטעון את הקובץ. אפשר לפתוח או להוריד אותו ישירות.
+                    </p>
+                    <div className={styles.viewerActions}>
+                      <a
+                        className={styles.actionLink}
+                        href={pdfUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        פתיחה בחלון חדש
+                      </a>
+                      <a className={styles.actionLink} href={pdfUrl} download>
+                        הורדה
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className={styles.placeholder}>בחרו מסמך כדי להתחיל</div>
             )}
           </div>
 
-          <section className={styles.notesCard} aria-label="הערות ללמידה">
+          <section
+            className={styles.notesCard}
+            aria-label="הערות ללמידה"
+            aria-busy={noteStatus === 'loading' || noteStatus === 'saving'}
+          >
             <div className={styles.notesHeader}>
               <div>
                 <p className={styles.notesEyebrow}>הערות</p>
@@ -652,6 +718,16 @@ const InteractiveLearningRoot = () => {
                 >
                   שמור
                 </button>
+                {noteStatus === 'error' && (
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={loadNote}
+                    disabled={!userId || !noteTarget}
+                  >
+                    נסו שוב
+                  </button>
+                )}
                 <span className={styles.saveStatus} role="status" aria-live="polite">
                   {noteStatusLabel}
                 </span>
@@ -669,6 +745,9 @@ const InteractiveLearningRoot = () => {
               onBlur={() => handleSaveNote(noteContent)}
               disabled={!userId || !noteTarget || noteStatus === 'loading'}
             />
+            {noteStatus === 'loading' && (
+              <div className={styles.skeletonBlock} aria-hidden="true" />
+            )}
           </section>
         </main>
       </div>

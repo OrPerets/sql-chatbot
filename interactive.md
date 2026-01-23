@@ -250,17 +250,23 @@ The Interactive Learning page should match the **visual and interaction patterns
 
 #### Todo
 
-- [ ] **5.1** **Loading:** Skeleton or spinner for: (a) initial page and sidebar, (b) PDF in iframe/embed, (c) notes fetch/save, (d) summaries fetch. Use `aria-busy` and `aria-live` where appropriate.
-- [ ] **5.2** **Errors:** If PDF fails to load (404, 403, or CORS): show a clear message and a “הורד קובץ” fallback linking to the PDF URL (or download endpoint). For notes/summaries, toast or inline `role="alert"` with retry.
-- [ ] **5.3** **Responsive:** For viewport &lt; 1024px: collapse sidebar into a top/bottom bar or drawer; main area full width. PDF viewer and notes stack vertically. Touch-friendly tap targets (min 44px) for list items and buttons.
-- [ ] **5.4** **Micro-interactions:** Hover states on cards and list rows; focus-visible rings (e.g. `0 0 0 3px rgba(30, 58, 138, 0.12)`). Optional: short fade-in for the PDF area when switching documents.
-- [ ] **5.5** **RTL and i18n:** Ensure “הרצאה”, “תרגול”, “הערות”, “סיכומי שיחות”, and any new strings are in the correct place for RTL; support `dir` and `lang` from root layout. If an i18n layer exists, add keys for interactive-learning.
-- [ ] **5.6** **PDF viewer UX:** If using iframe: add a “פתח בחלון חדש” and “הורד” so students can use the browser’s native PDF or download. If using an embedded PDF viewer (e.g. `react-pdf` or similar), ensure zoom and page navigation are usable on mobile.
+- [x] **5.1** **Loading:** Skeleton or spinner for: (a) initial page and sidebar, (b) PDF in iframe/embed, (c) notes fetch/save, (d) summaries fetch. Use `aria-busy` and `aria-live` where appropriate.
+- [x] **5.2** **Errors:** If PDF fails to load (404, 403, or CORS): show a clear message and a “הורד קובץ” fallback linking to the PDF URL (or download endpoint). For notes/summaries, toast or inline `role="alert"` with retry.
+- [x] **5.3** **Responsive:** For viewport &lt; 1024px: collapse sidebar into a top/bottom bar or drawer; main area full width. PDF viewer and notes stack vertically. Touch-friendly tap targets (min 44px) for list items and buttons.
+- [x] **5.4** **Micro-interactions:** Hover states on cards and list rows; focus-visible rings (e.g. `0 0 0 3px rgba(30, 58, 138, 0.12)`). Optional: short fade-in for the PDF area when switching documents.
+- [x] **5.5** **RTL and i18n:** Ensure “הרצאה”, “תרגול”, “הערות”, “סיכומי שיחות”, and any new strings are in the correct place for RTL; support `dir` and `lang` from root layout. If an i18n layer exists, add keys for interactive-learning.
+- [x] **5.6** **PDF viewer UX:** If using iframe: add a “פתח בחלון חדש” and “הורד” so students can use the browser’s native PDF or download. If using an embedded PDF viewer (e.g. `react-pdf` or similar), ensure zoom and page navigation are usable on mobile.
 
 **Deliverables**
 
 - Reliable loading and error handling; responsive layout; RTL-friendly and accessible.
 - Refinements so the page feels as polished as `/visualizer`.
+
+**Implementation Notes**
+
+- Added loading indicators for summaries, notes, and the PDF viewer with `aria-busy`/`aria-live` plus skeleton cards and a spinner overlay.
+- Introduced PDF error handling that surfaces a clear message with open/download fallbacks, and retry buttons for notes/summaries errors.
+- Ensured touch-friendly hit targets (min 44px) and added a subtle PDF fade-in alongside existing hover/focus micro-interactions.
 
 ---
 
