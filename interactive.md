@@ -142,14 +142,13 @@ The Interactive Learning page should match the **visual and interaction patterns
 
 #### Todo
 
-- [ ] **1.1** Add route `app/interactive-learning/page.tsx` and, if used, `layout.tsx` (or inherit root layout). Guard with `NEXT_PUBLIC_INTERACTIVE_LEARNING=1`; `notFound()` when disabled.
-- [ ] **1.2** Create `app/interactive-learning/interactive-learning.module.css` with base layout: `compactHeader`, main grid (sidebar + main), RTL, and color/radius variables aligned with visualizer.
-- [ ] **1.3** Implement PDF asset strategy:
-  - [ ] **1.3a** Copy `docs/pdfs/*` to `public/learning/pdfs/` (or add build step) **OR**
-  - [ ] **1.3b** Create `app/api/learning/pdfs/[filename]/route.ts` to serve from `docs/pdfs` with auth and `Content-Type: application/pdf`.
-- [ ] **1.4** Add a static manifest or config (e.g. `lib/learning-content.ts` or JSON) listing all PDFs with: `id`, `filename`, `type` (lecture|practice), `week`, `label` (e.g. “הרצאה 3”, “תרגול 5”). Include `lecture10 [war].pdf` and `tergul05B`, `tergul06B`.
-- [ ] **1.5** Build `InteractiveLearningRoot` (or similar) client component: header “למידה אינטראקטיבית”, sidebar with two lists: “הרצאות” and “תרגולים”, main area that shows a placeholder or an iframe/embed for the selected PDF. Use the manifest to build the lists and PDF URL (public path or `/api/learning/pdfs/…`).
-- [ ] **1.6** Wire navigation from `/landing`: ensure the **"למידה אינטראקטיבית"** button/card navigates to `/interactive-learning` on click. In `app/landing/page.tsx`, replace or repurpose the current disabled “סביבת למידה אינטראקטיבית” / “יגיע בהמשך” card so it is active, uses the label “למידה אינטראקטיבית” (per §1.4), and calls `router.push('/interactive-learning')`.
+- [x] **1.1** Add route `app/interactive-learning/page.tsx` and, if used, `layout.tsx` (or inherit root layout). Guard with `NEXT_PUBLIC_INTERACTIVE_LEARNING=1`; `notFound()` when disabled.
+- [x] **1.2** Create `app/interactive-learning/interactive-learning.module.css` with base layout: `compactHeader`, main grid (sidebar + main), RTL, and color/radius variables aligned with visualizer.
+- [x] **1.3** Implement PDF asset strategy:
+  - [x] **1.3b** Create `app/api/learning/pdfs/[filename]/route.ts` to serve from `docs/pdfs` with auth and `Content-Type: application/pdf`.
+- [x] **1.4** Add a static manifest or config (e.g. `lib/learning-content.ts` or JSON) listing all PDFs with: `id`, `filename`, `type` (lecture|practice), `week`, `label` (e.g. “הרצאה 3”, “תרגול 5”). Include `lecture10 [war].pdf` and `tergul05B`, `tergul06B`.
+- [x] **1.5** Build `InteractiveLearningRoot` (or similar) client component: header “למידה אינטראקטיבית”, sidebar with two lists: “הרצאות” and “תרגולים”, main area that shows a placeholder or an iframe/embed for the selected PDF. Use the manifest to build the lists and PDF URL (public path or `/api/learning/pdfs/…`).
+- [x] **1.6** Wire navigation from `/landing`: ensure the **"למידה אינטראקטיבית"** button/card navigates to `/interactive-learning` on click. In `app/landing/page.tsx`, replace or repurpose the current disabled “סביבת למידה אינטראקטיבית” / “יגיע בהמשך” card so it is active, uses the label “למידה אינטראקטיבית” (per §1.4), and calls `router.push('/interactive-learning')`.
 
 **Deliverables**
 
@@ -157,6 +156,13 @@ The Interactive Learning page should match the **visual and interaction patterns
 - On `/landing`, the **"למידה אינטראקטיבית"** button/card navigates to `/interactive-learning` (§1.4).
 - PDFs viewable (and optionally downloadable) from the app.
 - Content manifest used for listing.
+
+**Implementation Notes**
+
+- `/interactive-learning` is guarded by `NEXT_PUBLIC_INTERACTIVE_LEARNING=1` and renders the new shell UI with a sidebar and PDF viewer in an iframe.
+- PDFs are served via `app/api/learning/pdfs/[filename]` from `docs/pdfs` using an allowlist sourced from `lib/learning-content.ts`.
+- The landing card now routes to `/interactive-learning` and uses the updated copy.
+- `lecture10 [war].pdf` was not present in `docs/pdfs`, so the manifest currently references `lecture10.pdf` only.
 
 ---
 

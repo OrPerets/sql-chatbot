@@ -93,19 +93,17 @@ const LandingPage = () => {
             </p>
           </div>
 
-          {/* סביבת למידה אינטרנטיקית */}
+          {/* למידה אינטראקטיבית */}
           <div
-            className={`${styles.optionCard} ${styles.optionCardDisabled}`}
-            onClick={() => {
-              // Placeholder - does nothing for now
-            }}
+            className={styles.optionCard}
+            onClick={() => handleNavigation('/interactive-learning')}
           >
             <div className={styles.cardIcon}>
               <BookOpen size={48} />
             </div>
-            <h2 className={styles.cardTitle}>סביבת למידה אינטרנטיקית</h2>
+            <h2 className={styles.cardTitle}>למידה אינטראקטיבית</h2>
             <p className={styles.cardDescription}>
-              יגיע בהמשך
+              הרצאות, תרגולים וסיכומי למידה במקום אחד
             </p>
           </div>
 
