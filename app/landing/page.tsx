@@ -35,56 +35,68 @@ const LandingPage = () => {
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>ברוכים הבאים</h1>
-        <p className={styles.subtitle}>בחרו את הסביבה הרצויה</p>
-      </div>
-
-      <div className={styles.optionsGrid}>
-        {/* מייקל - The Chat */}
-        <div 
-          className={styles.optionCard}
-          onClick={() => handleNavigation('/entities/basic-chat')}
-        >
-          <div className={styles.cardIcon}>
-            <MessageCircle size={48} />
+      <header className={styles.topBar}>
+        <div className={styles.brand}>
+          <img className={styles.logoImage} src="/logo.png" alt="Michael logo" />
+          <div className={styles.brandText}>
+            <span className={styles.brandTitle}>MICHAEL</span>
+            <span className={styles.brandSubtitle}>SQL AI Assistant</span>
           </div>
-          <h2 className={styles.cardTitle}>מייקל</h2>
-          <p className={styles.cardDescription}>
-            עוזר AI חכם ללמידת SQL
-          </p>
+        </div>
+      </header>
+
+      <main className={styles.content}>
+        <div className={styles.header}>
+          <h1 className={styles.title}>ברוכים הבאים</h1>
+          <p className={styles.subtitle}>בחרו את הסביבה הרצויה</p>
         </div>
 
-        {/* המחשה ויזואלית של SQL */}
-        <div 
-          className={styles.optionCard}
-          onClick={() => handleNavigation('/visualizer')}
-        >
-          <div className={styles.cardIcon}>
-            <Database size={48} />
+        <div className={styles.optionsGrid}>
+          {/* מייקל - The Chat */}
+          <div
+            className={styles.optionCard}
+            onClick={() => handleNavigation('/entities/basic-chat')}
+          >
+            <div className={styles.cardIcon}>
+              <MessageCircle size={48} />
+            </div>
+            <h2 className={styles.cardTitle}>מייקל</h2>
+            <p className={styles.cardDescription}>
+              עוזר AI חכם ללמידת SQL
+            </p>
           </div>
-          <h2 className={styles.cardTitle}>המחשה ויזואלית של SQL</h2>
-          <p className={styles.cardDescription}>
-            כלי ויזואלי להבנת שאילתות SQL
-          </p>
-        </div>
 
-        {/* סביבת למידה אינטרנטיקית */}
-        <div 
-          className={`${styles.optionCard} ${styles.optionCardDisabled}`}
-          onClick={() => {
-            // Placeholder - does nothing for now
-          }}
-        >
-          <div className={styles.cardIcon}>
-            <BookOpen size={48} />
+          {/* המחשה ויזואלית של SQL */}
+          <div
+            className={styles.optionCard}
+            onClick={() => handleNavigation('/visualizer')}
+          >
+            <div className={styles.cardIcon}>
+              <Database size={48} />
+            </div>
+            <h2 className={styles.cardTitle}>המחשה ויזואלית של SQL</h2>
+            <p className={styles.cardDescription}>
+              כלי ויזואלי להבנת שאילתות SQL
+            </p>
           </div>
-          <h2 className={styles.cardTitle}>סביבת למידה אינטרנטיקית</h2>
-          <p className={styles.cardDescription}>
-            יגיע בהמשך
-          </p>
+
+          {/* סביבת למידה אינטרנטיקית */}
+          <div
+            className={`${styles.optionCard} ${styles.optionCardDisabled}`}
+            onClick={() => {
+              // Placeholder - does nothing for now
+            }}
+          >
+            <div className={styles.cardIcon}>
+              <BookOpen size={48} />
+            </div>
+            <h2 className={styles.cardTitle}>סביבת למידה אינטרנטיקית</h2>
+            <p className={styles.cardDescription}>
+              יגיע בהמשך
+            </p>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
