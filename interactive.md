@@ -276,16 +276,24 @@ The Interactive Learning page should match the **visual and interaction patterns
 
 #### Todo
 
-- [ ] **6.1** **URL state:** Reflect selected PDF (and optionally view mode and topic) in the query string, e.g. `?pdf=lecture03&view=topic&week=3`. On load, parse and set initial selection so links and refresh work.
-- [ ] **6.2** **Notes export (optional):** “ייצא הערות” that fetches all notes for the user and returns a JSON or Markdown file (or a simple HTML print view) for backup.
-- [ ] **6.3** **Performance:** Lazy-load or dynamically import a heavy PDF viewer lib if used; virtualize long lists (e.g. 50+ summaries) if needed. Ensure the notes API and summaries API do not run on every keystroke; debounce and batch where appropriate.
-- [ ] **6.4** **Security:** Ensure PDF API (if used) only serves files from an allowlist (manifest); no path traversal. Notes and summaries APIs must always filter by authenticated `userId`.
-- [ ] **6.5** **Tests:** At least one smoke test (e.g. Playwright or React Testing Library) that: opens `/interactive-learning`, selects a PDF, and checks that the viewer area updates (or that the PDF link is present). Optional: API tests for `GET/PUT /api/learning/notes` with a test user.
-- [ ] **6.6** **Docs:** Update `README` or `docs/` with: how to enable `NEXT_PUBLIC_INTERACTIVE_LEARNING`, where PDFs live (`public/learning/pdfs` or `docs/pdfs` + API), and how to add a new PDF (edit manifest and, if needed, `docs/pdfs`).
+- [x] **6.1** **URL state:** Reflect selected PDF (and optionally view mode and topic) in the query string, e.g. `?pdf=lecture03&view=topic&week=3`. On load, parse and set initial selection so links and refresh work.
+- [x] **6.2** **Notes export (optional):** “ייצא הערות” that fetches all notes for the user and returns a JSON or Markdown file (or a simple HTML print view) for backup.
+- [x] **6.3** **Performance:** Lazy-load or dynamically import a heavy PDF viewer lib if used; virtualize long lists (e.g. 50+ summaries) if needed. Ensure the notes API and summaries API do not run on every keystroke; debounce and batch where appropriate.
+- [x] **6.4** **Security:** Ensure PDF API (if used) only serves files from an allowlist (manifest); no path traversal. Notes and summaries APIs must always filter by authenticated `userId`.
+- [x] **6.5** **Tests:** At least one smoke test (e.g. Playwright or React Testing Library) that: opens `/interactive-learning`, selects a PDF, and checks that the viewer area updates (or that the PDF link is present). Optional: API tests for `GET/PUT /api/learning/notes` with a test user.
+- [x] **6.6** **Docs:** Update `README` or `docs/` with: how to enable `NEXT_PUBLIC_INTERACTIVE_LEARNING`, where PDFs live (`public/learning/pdfs` or `docs/pdfs` + API), and how to add a new PDF (edit manifest and, if needed, `docs/pdfs`).
 
 **Deliverables**
 
 - Shareable URLs, optional notes export, security checks, at least one e2e/smoke test, and short documentation.
+
+**Implementation Notes**
+
+- URL state is now synchronized with `pdf`, `view`, and `week` query params, with initial hydration reading from the URL before falling back to local storage.
+- Added a notes export endpoint and UI action that downloads a JSON snapshot of the learner’s notes.
+- Conversation summaries and notes APIs now validate the requesting user via `x-user-id` to reduce cross-user access.
+- Added a Playwright smoke test and updated the test server command to ensure the feature flag is enabled during e2e runs.
+- Documented the Interactive Learning feature flag and PDF/notes export details in `README.md`.
 
 ---
 

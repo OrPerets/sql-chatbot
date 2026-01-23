@@ -664,6 +664,20 @@
   gap: 6px;
 }
 
+.notesActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.notesStatusRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
 .saveButton {
   border: 1px solid #1e3a8a;
   background: #1e3a8a;
@@ -690,6 +704,11 @@
 .saveStatus {
   font-size: 11px;
   color: #64748b;
+}
+
+.exportStatus {
+  font-size: 11px;
+  color: #475569;
 }
 
 .secondaryButton {
@@ -794,6 +813,14 @@
   }
 
   .notesActions {
+    align-items: flex-start;
+  }
+
+  .notesActionRow {
+    justify-content: flex-start;
+  }
+
+  .notesStatusRow {
     align-items: flex-start;
   }
 

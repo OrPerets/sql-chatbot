@@ -69,3 +69,13 @@ export async function upsertLearningNote(
 
   return note;
 }
+
+export async function getLearningNotesForUser(userId: string): Promise<LearningNote[]> {
+  return executeWithRetry(async (db) =>
+    db
+      .collection<LearningNote>(COLLECTIONS.STUDENT_NOTES)
+      .find({ userId })
+      .sort({ updatedAt: -1 })
+      .toArray()
+  );
+}

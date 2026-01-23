@@ -152,6 +152,29 @@ For detailed documentation on specific features, see the `docs/` directory:
 - [Conversation Summary System](./docs/conversation-summary-system.md) - AI conversation analysis
 - [Admin Panel Enhancement](./docs/admin-panel-enhancement.md) - Admin dashboard features
 
+## Interactive Learning
+
+The Interactive Learning experience lives at `/interactive-learning` and is behind a feature flag.
+
+### Enable the feature
+
+Set the following in your `.env.local`:
+
+```bash
+NEXT_PUBLIC_INTERACTIVE_LEARNING=1
+```
+
+### PDF source and manifest
+
+- PDFs live under `docs/pdfs/` and are served via `/api/learning/pdfs/[filename]`.
+- The manifest that maps PDFs to weeks/concepts is defined in `lib/learning-content.ts`.
+- To add a new PDF, place it in `docs/pdfs/` and add an entry to `BASE_LEARNING_PDFS`.
+
+### Notes export
+
+Students can export their notes from the Interactive Learning page. The export endpoint is
+`GET /api/learning/notes/export?userId=...`, returning a JSON file with all notes for the user.
+
 ## Troubleshooting
 
 ### Database Connection Issues

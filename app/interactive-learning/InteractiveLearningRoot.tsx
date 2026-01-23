@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { LEARNING_PDFS } from '@/lib/learning-content';
 import { getAllowedConceptsForWeek, SQL_CURRICULUM_MAP } from '@/lib/sql-curriculum';
@@ -65,13 +66,47 @@ const InteractiveLearningRoot = () => {
   const [insights, setInsights] = useState<ConversationInsights | null>(null);
   const [summaryStatus, setSummaryStatus] = useState<SummaryStatus>('idle');
   const [pdfStatus, setPdfStatus] = useState<PdfStatus>('idle');
+  const [exportStatus, setExportStatus] = useState<'idle' | 'loading' | 'error' | 'ready'>(
+    'idle'
+  );
+  const [exportMessage, setExportMessage] = useState<string>('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportReadyUrl, setExportReadyUrl] = useState<string | null>(null);
+
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
+    if (hasInitialized.current) {
+      return;
+    }
+
+    const queryView = searchParams.get('view');
+    const queryPdf = searchParams.get('pdf');
+    const queryWeek = searchParams.get('week');
     const storedView = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
-    if (storedView === 'list' || storedView === 'topic') {
+
+    if (queryView === 'list' || queryView === 'topic') {
+      setViewMode(queryView);
+    } else if (storedView === 'list' || storedView === 'topic') {
       setViewMode(storedView);
     }
-  }, []);
+
+    if (queryPdf && LEARNING_PDFS.some((asset) => asset.id === queryPdf)) {
+      setSelectedId(queryPdf);
+    }
+
+    if (queryWeek) {
+      const weekValue = Number(queryWeek);
+      if (!Number.isNaN(weekValue) && weeks.some((week) => week.week === weekValue)) {
+        setSelectedWeek(weekValue);
+      }
+    }
+
+    hasInitialized.current = true;
+  }, [searchParams, weeks]);
 
   useEffect(() => {
     window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
@@ -157,6 +192,35 @@ const InteractiveLearningRoot = () => {
     ? `/api/learning/pdfs/${encodeURIComponent(selectedAsset.filename)}`
     : null;
 
+  useEffect(() => {
+    if (!hasInitialized.current) {
+      return;
+    }
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+
+    if (selectedId) {
+      nextParams.set('pdf', selectedId);
+    } else {
+      nextParams.delete('pdf');
+    }
+
+    nextParams.set('view', viewMode);
+
+    if (viewMode === 'topic' && selectedWeek) {
+      nextParams.set('week', String(selectedWeek));
+    } else {
+      nextParams.delete('week');
+    }
+
+    const nextQuery = nextParams.toString();
+    const currentQuery = searchParams.toString();
+    if (nextQuery !== currentQuery) {
+      const url = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+      router.replace(url, { scroll: false });
+    }
+  }, [pathname, router, searchParams, selectedId, selectedWeek, viewMode]);
+
   const michaelUrl = useMemo(() => {
     const params = new URLSearchParams();
     params.set('context', 'interactive-learning');
@@ -185,7 +249,10 @@ const InteractiveLearningRoot = () => {
 
     try {
       const response = await fetch(
-        `/api/learning/notes?userId=${encodeURIComponent(userId)}&targetType=${noteTarget.type}&targetId=${encodeURIComponent(noteTarget.id)}`
+        `/api/learning/notes?userId=${encodeURIComponent(userId)}&targetType=${noteTarget.type}&targetId=${encodeURIComponent(noteTarget.id)}`,
+        {
+          headers: { 'x-user-id': userId },
+        }
       );
 
       if (!response.ok) {
@@ -228,7 +295,10 @@ const InteractiveLearningRoot = () => {
 
     try {
       const response = await fetch(
-        `/api/conversation-summary/student/${encodeURIComponent(userId)}?limit=10&insights=true`
+        `/api/conversation-summary/student/${encodeURIComponent(userId)}?limit=10&insights=true`,
+        {
+          headers: { 'x-user-id': userId },
+        }
       );
 
       if (!response.ok) {
@@ -281,7 +351,7 @@ const InteractiveLearningRoot = () => {
       try {
         const response = await fetch('/api/learning/notes', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
           body: JSON.stringify({
             userId,
             targetType: noteTarget.type,
@@ -304,6 +374,61 @@ const InteractiveLearningRoot = () => {
     [lastSavedContent, noteTarget, userId]
   );
 
+  const handleExportNotes = useCallback(async () => {
+    if (!userId || isExporting) {
+      return;
+    }
+
+    setIsExporting(true);
+    setExportStatus('loading');
+    setExportMessage('');
+
+    try {
+      if (exportReadyUrl) {
+        window.URL.revokeObjectURL(exportReadyUrl);
+        setExportReadyUrl(null);
+      }
+
+      const response = await fetch(
+        `/api/learning/notes/export?userId=${encodeURIComponent(userId)}`,
+        {
+          headers: { 'x-user-id': userId },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to export notes');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = downloadUrl;
+      anchor.download = `interactive-learning-notes-${userId}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+
+      setExportReadyUrl(downloadUrl);
+      setExportStatus('ready');
+      setExportMessage('הקובץ מוכן להורדה.');
+    } catch (error) {
+      console.error('Failed to export notes:', error);
+      setExportStatus('error');
+      setExportMessage('אירעה שגיאה בייצוא ההערות.');
+    } finally {
+      setIsExporting(false);
+    }
+  }, [exportReadyUrl, isExporting, userId]);
+
+  useEffect(() => {
+    return () => {
+      if (exportReadyUrl) {
+        window.URL.revokeObjectURL(exportReadyUrl);
+      }
+    };
+  }, [exportReadyUrl]);
+
   const noteStatusLabel = useMemo(() => {
     if (!userId) {
       return 'התחברו כדי לשמור הערות.';
@@ -322,6 +447,23 @@ const InteractiveLearningRoot = () => {
         return 'הערות נשמרות לחשבון שלכם.';
     }
   }, [noteStatus, userId]);
+
+  const exportStatusLabel = useMemo(() => {
+    if (!userId) {
+      return 'ייצוא זמין למשתמשים מחוברים בלבד.';
+    }
+
+    switch (exportStatus) {
+      case 'loading':
+        return 'מכינים את הקובץ...';
+      case 'error':
+        return exportMessage || 'אירעה שגיאה בייצוא.';
+      case 'ready':
+        return exportMessage || 'הקובץ מוכן.';
+      default:
+        return 'ייצוא כל ההערות לקובץ JSON.';
+    }
+  }, [exportMessage, exportStatus, userId]);
 
   const summaryStatusLabel = useMemo(() => {
     if (!userId) {
@@ -710,27 +852,42 @@ const InteractiveLearningRoot = () => {
                 </h3>
               </div>
               <div className={styles.notesActions}>
-                <button
-                  type="button"
-                  className={styles.saveButton}
-                  onClick={() => handleSaveNote(noteContent)}
-                  disabled={!userId || !noteTarget || noteStatus === 'saving' || !isNoteDirty}
-                >
-                  שמור
-                </button>
-                {noteStatus === 'error' && (
+                <div className={styles.notesActionRow}>
+                  <button
+                    type="button"
+                    className={styles.saveButton}
+                    onClick={() => handleSaveNote(noteContent)}
+                    disabled={!userId || !noteTarget || noteStatus === 'saving' || !isNoteDirty}
+                  >
+                    שמור
+                  </button>
                   <button
                     type="button"
                     className={styles.secondaryButton}
-                    onClick={loadNote}
-                    disabled={!userId || !noteTarget}
+                    onClick={handleExportNotes}
+                    disabled={!userId || isExporting}
                   >
-                    נסו שוב
+                    ייצא הערות
                   </button>
-                )}
-                <span className={styles.saveStatus} role="status" aria-live="polite">
-                  {noteStatusLabel}
-                </span>
+                  {noteStatus === 'error' && (
+                    <button
+                      type="button"
+                      className={styles.secondaryButton}
+                      onClick={loadNote}
+                      disabled={!userId || !noteTarget}
+                    >
+                      נסו שוב
+                    </button>
+                  )}
+                </div>
+                <div className={styles.notesStatusRow}>
+                  <span className={styles.saveStatus} role="status" aria-live="polite">
+                    {noteStatusLabel}
+                  </span>
+                  <span className={styles.exportStatus} role="status" aria-live="polite">
+                    {exportStatusLabel}
+                  </span>
+                </div>
               </div>
             </div>
             <textarea

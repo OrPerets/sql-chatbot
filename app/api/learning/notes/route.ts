@@ -32,6 +32,15 @@ const getQuery = (request: NextRequest): NotesQuery | null => {
   };
 };
 
+const ensureAuthorizedUser = (request: NextRequest, userId: string) => {
+  const headerUserId = request.headers.get('x-user-id')?.trim();
+  if (!headerUserId || headerUserId !== userId) {
+    return false;
+  }
+
+  return true;
+};
+
 export async function GET(request: NextRequest) {
   try {
     const query = getQuery(request);
@@ -41,6 +50,10 @@ export async function GET(request: NextRequest) {
         { error: 'userId, targetType, and targetId are required' },
         { status: 400 }
       );
+    }
+
+    if (!ensureAuthorizedUser(request, query.userId)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
     const note = await getLearningNote(query.userId, query.targetType, query.targetId);
@@ -67,6 +80,10 @@ export async function PUT(request: NextRequest) {
         { error: 'userId, targetType, and targetId are required' },
         { status: 400 }
       );
+    }
+
+    if (!ensureAuthorizedUser(request, userId)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
     const note = await upsertLearningNote(userId, targetType, targetId, content);
