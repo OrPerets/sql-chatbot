@@ -480,7 +480,7 @@ const InteractiveLearningRoot = () => {
 
     const loadPdf = async () => {
       try {
-        const pdfjsLib = await import('pdfjs-dist/build/pdf');
+        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf');
         const version = (pdfjsLib as { version?: string }).version ?? '4.2.67';
         pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
 
