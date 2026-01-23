@@ -759,7 +759,11 @@ const Chat = ({
       if (!userId || !sessionId) return;
 
       // Check if analysis already exists for this session
-      const checkResponse = await fetch(`/api/conversation-summary/student/${userId}?limit=50`);
+      const checkResponse = await fetch(`/api/conversation-summary/student/${userId}?limit=50`, {
+        headers: {
+          'x-user-id': userId,
+        },
+      });
       const checkData = await checkResponse.json();
       
       if (checkData.success) {

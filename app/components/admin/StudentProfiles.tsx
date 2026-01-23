@@ -258,7 +258,11 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
 
   const fetchConversationSummaries = async (userId: string) => {
     try {
-      const response = await fetch(`/api/conversation-summary/student/${userId}?insights=true`);
+      const response = await fetch(`/api/conversation-summary/student/${userId}?insights=true`, {
+        headers: {
+          'x-user-id': userId,
+        },
+      });
       const data = await response.json();
 
       if (data.success) {

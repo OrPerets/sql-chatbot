@@ -10,11 +10,19 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '20')
     const includeInsights = searchParams.get('insights') === 'true'
+    const headerUserId = request.headers.get('x-user-id')?.trim()
 
     if (!userId) {
       return NextResponse.json(
         { success: false, error: 'User ID is required' },
         { status: 400 }
+      )
+    }
+
+    if (!headerUserId || headerUserId !== userId) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 403 }
       )
     }
 
