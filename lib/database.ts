@@ -286,6 +286,7 @@ export const COLLECTIONS = {
   STUDENT_ACTIVITIES: 'student_activities',
   CONVERSATION_SUMMARIES: 'conversation_summaries',
   STUDENT_NOTES: 'student_notes',
+  LEARNING_SUMMARIES: 'learning_summaries',
   // Security collections
   RATE_LIMITS: 'rate_limits',
   IP_RATE_LIMITS: 'ip_rate_limits',

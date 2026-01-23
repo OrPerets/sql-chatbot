@@ -304,20 +304,20 @@ The Interactive Learning page should match the **visual and interaction patterns
 
 #### Todo
 
-- [ ] **7.1** Add a **“סיכום עם מייקל”** action near the PDF viewer with two options:
+- [x] **7.1** Add a **“סיכום עם מייקל”** action near the PDF viewer with two options:
   - **“סיכום מלא”** (full summary)
   - **“Highlights”** (main bullets from the file)
   Persist the last choice in `localStorage` (e.g. `interactive-learning-summary-mode`).
-- [ ] **7.2** Introduce an API endpoint (e.g. `POST /api/learning/summarize`) that accepts:
+- [x] **7.2** Introduce an API endpoint (e.g. `POST /api/learning/summarize`) that accepts:
   - `userId`, `pdfId`, `summaryMode: 'full' | 'highlights'`
   - Optionally `pageRange` for partial summarization
   The endpoint should load the PDF (from `docs/pdfs` or `public/learning/pdfs`) and send it to Michael’s summarization flow (Assistants API or existing summarize pipeline).
-- [ ] **7.3** Add a **summary output panel** below the viewer:
+- [x] **7.3** Add a **summary output panel** below the viewer:
   - Render returned summary text (Markdown OK)
   - Provide “העתק”, “שמור להערות”, and “שאל את מייקל על הסיכום”
   - Store the latest summary per PDF + mode in `student_notes` or a new collection (e.g. `learning_summaries`).
-- [ ] **7.4** Add UI states: loading spinner, error display with retry, and `aria-live` updates.
-- [ ] **7.5** Update `interactive.md` acceptance criteria + docs to include the new summary flow (and mention PDF size limits if any).
+- [x] **7.4** Add UI states: loading spinner, error display with retry, and `aria-live` updates.
+- [x] **7.5** Update `interactive.md` acceptance criteria + docs to include the new summary flow (and mention PDF size limits if any).
 
 **Deliverables**
 
@@ -326,8 +326,9 @@ The Interactive Learning page should match the **visual and interaction patterns
 
 **Implementation Notes**
 
-- Prefer reusing existing assistant threads for the user; include context like PDF name, week, and summary mode in the system prompt.
-- If PDF text extraction is needed, add a small server-side extractor (or reuse an existing utility) with caching to avoid reprocessing.
+- Added a summary toolbar with “סיכום מלא”/“Highlights” options persisted in `interactive-learning-summary-mode`, plus a summary panel with copy/save-to-notes and Michael follow-up actions.
+- Implemented `POST /api/learning/summarize` with PDF text extraction and storage in a new `learning_summaries` collection, and added `GET /api/learning/summaries` for loading cached summaries.
+- Summaries are capped to the first 12k characters of extracted text for performance; the UI discloses when truncation is applied and provides loading/error states.
 
 ---
 
@@ -391,7 +392,7 @@ The Interactive Learning page should match the **visual and interaction patterns
 - [ ] Notes can be written and saved per PDF and per topic (week); they persist across sessions.
 - [ ] “שאל את מייקל” (or similar) takes the student to Michael, with optional context.
 - [ ] Conversation summaries (and insights when available) are visible in the Interactive Learning UI.
-- [ ] Students can request **PDF summaries** (full or highlights) from Michael and view results in-page.
+- [x] Students can request **PDF summaries** (full or highlights) from Michael and view results in-page.
 - [ ] Students can **annotate PDFs** (draw/highlight) and see their annotations persist across sessions.
 - [ ] Layout, colors, and responsiveness are aligned with `/visualizer` and support RTL.
 - [ ] The feature can be toggled via `NEXT_PUBLIC_INTERACTIVE_LEARNING` and is documented.

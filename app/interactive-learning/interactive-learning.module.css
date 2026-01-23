@@ -543,6 +543,93 @@
   gap: 10px;
 }
 
+.summaryToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 18px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.summaryEyebrow {
+  margin: 0 0 6px 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.summaryControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.summaryToggle {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.summaryModeButton {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 8px 12px;
+  min-height: 44px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.summaryModeButton:hover {
+  border-color: #cbd5e1;
+}
+
+.summaryModeButton:focus-visible {
+  outline: none;
+  border-color: #1e3a8a;
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.12);
+}
+
+.summaryModeButtonActive {
+  background: #1e3a8a;
+  border-color: #1e3a8a;
+  color: #ffffff;
+}
+
+.primaryButton {
+  border: 1px solid #1e3a8a;
+  background: #1e3a8a;
+  color: #ffffff;
+  padding: 8px 18px;
+  min-height: 44px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s ease, box-shadow 0.2s ease;
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.primaryButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.12);
+}
+
 .actionLink {
   display: inline-flex;
   align-items: center;
@@ -621,6 +708,88 @@
   border: 3px solid #cbd5e1;
   border-top-color: #1e3a8a;
   animation: spin 0.9s linear infinite;
+}
+
+.summaryCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.summaryHeaderRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.summaryPanelTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.summaryUpdatedAt {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.summaryPanelActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.summaryBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.summaryLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.summaryContent {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.summaryContent :global(p) {
+  margin: 0 0 10px;
+}
+
+.summaryContent :global(ul) {
+  margin: 0;
+  padding: 0 18px 0 0;
+}
+
+.summaryFooter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summaryStatusText {
+  font-size: 11px;
+  color: #64748b;
 }
 
 .notesCard {
@@ -805,6 +974,20 @@
   .contentHeader {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .summaryToolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .summaryHeaderRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .summaryPanelActions {
+    justify-content: flex-start;
   }
 
   .notesHeader {

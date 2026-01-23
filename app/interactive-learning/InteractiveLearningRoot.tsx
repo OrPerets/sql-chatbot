@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Markdown from 'react-markdown';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { LEARNING_PDFS } from '@/lib/learning-content';
@@ -10,8 +11,10 @@ import styles from './interactive-learning.module.css';
 
 type ViewMode = 'list' | 'topic';
 type NoteStatus = 'idle' | 'loading' | 'saving' | 'saved' | 'error';
-type SummaryStatus = 'idle' | 'loading' | 'ready' | 'error';
+type ConversationSummaryStatus = 'idle' | 'loading' | 'ready' | 'error';
 type PdfStatus = 'idle' | 'checking' | 'loading' | 'ready' | 'error';
+type PdfSummaryMode = 'full' | 'highlights';
+type PdfSummaryStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 type ConversationSummary = {
   sessionId: string;
@@ -31,6 +34,7 @@ type ConversationInsights = {
 };
 
 const VIEW_MODE_STORAGE_KEY = 'interactive-learning-view';
+const SUMMARY_MODE_STORAGE_KEY = 'interactive-learning-summary-mode';
 
 const InteractiveLearningRoot = () => {
   const lectures = useMemo(
@@ -64,9 +68,20 @@ const InteractiveLearningRoot = () => {
   const [lastSavedContent, setLastSavedContent] = useState('');
   const [summaries, setSummaries] = useState<ConversationSummary[]>([]);
   const [insights, setInsights] = useState<ConversationInsights | null>(null);
-  const [summaryStatus, setSummaryStatus] = useState<SummaryStatus>('idle');
+  const [conversationSummaryStatus, setConversationSummaryStatus] =
+    useState<ConversationSummaryStatus>('idle');
   const [pdfStatus, setPdfStatus] = useState<PdfStatus>('idle');
   const [pdfAvailable, setPdfAvailable] = useState(false);
+  const [summaryMode, setSummaryMode] = useState<PdfSummaryMode>('full');
+  const [pdfSummaryStatus, setPdfSummaryStatus] = useState<PdfSummaryStatus>('idle');
+  const [pdfSummary, setPdfSummary] = useState('');
+  const [pdfSummaryUpdatedAt, setPdfSummaryUpdatedAt] = useState<string | null>(null);
+  const [pdfSummaryMeta, setPdfSummaryMeta] = useState<{
+    truncated: boolean;
+    maxChars: number;
+  } | null>(null);
+  const [pdfSummaryError, setPdfSummaryError] = useState<string | null>(null);
+  const [pdfSummaryFeedback, setPdfSummaryFeedback] = useState<string | null>(null);
   const [exportStatus, setExportStatus] = useState<'idle' | 'loading' | 'error' | 'ready'>(
     'idle'
   );
@@ -88,6 +103,7 @@ const InteractiveLearningRoot = () => {
     const queryPdf = searchParams.get('pdf');
     const queryWeek = searchParams.get('week');
     const storedView = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+    const storedSummaryMode = window.localStorage.getItem(SUMMARY_MODE_STORAGE_KEY);
 
     if (queryView === 'list' || queryView === 'topic') {
       setViewMode(queryView);
@@ -106,12 +122,20 @@ const InteractiveLearningRoot = () => {
       }
     }
 
+    if (storedSummaryMode === 'full' || storedSummaryMode === 'highlights') {
+      setSummaryMode(storedSummaryMode);
+    }
+
     hasInitialized.current = true;
   }, [searchParams, weeks]);
 
   useEffect(() => {
     window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
   }, [viewMode]);
+
+  useEffect(() => {
+    window.localStorage.setItem(SUMMARY_MODE_STORAGE_KEY, summaryMode);
+  }, [summaryMode]);
 
   useEffect(() => {
     const storedUser = window.localStorage.getItem('currentUser');
@@ -238,6 +262,20 @@ const InteractiveLearningRoot = () => {
     return query ? `/entities/basic-chat?${query}` : '/entities/basic-chat';
   }, [selectedAsset, selectedWeekData]);
 
+  const summaryMichaelUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set('context', 'interactive-learning-summary');
+
+    if (selectedAsset) {
+      params.set('source', selectedAsset.id);
+    }
+
+    params.set('summaryMode', summaryMode);
+
+    const query = params.toString();
+    return query ? `/entities/basic-chat?${query}` : '/entities/basic-chat';
+  }, [selectedAsset, summaryMode]);
+
   const loadNote = useCallback(async () => {
     if (!userId || !noteTarget) {
       setNoteContent('');
@@ -289,11 +327,11 @@ const InteractiveLearningRoot = () => {
     if (!userId) {
       setSummaries([]);
       setInsights(null);
-      setSummaryStatus('idle');
+      setConversationSummaryStatus('idle');
       return;
     }
 
-    setSummaryStatus('loading');
+    setConversationSummaryStatus('loading');
 
     try {
       const response = await fetch(
@@ -314,10 +352,10 @@ const InteractiveLearningRoot = () => {
 
       setSummaries(fetchedSummaries);
       setInsights(fetchedInsights);
-      setSummaryStatus('ready');
+      setConversationSummaryStatus('ready');
     } catch (error) {
       console.error('Failed to load conversation summaries:', error);
-      setSummaryStatus('error');
+      setConversationSummaryStatus('error');
     }
   }, [userId]);
 
@@ -325,7 +363,7 @@ const InteractiveLearningRoot = () => {
     let isActive = true;
     loadSummaries().catch(() => {
       if (isActive) {
-        setSummaryStatus('error');
+        setConversationSummaryStatus('error');
       }
     });
 
@@ -333,6 +371,64 @@ const InteractiveLearningRoot = () => {
       isActive = false;
     };
   }, [loadSummaries]);
+
+  const loadPdfSummary = useCallback(async () => {
+    if (!userId || !selectedAsset) {
+      setPdfSummary('');
+      setPdfSummaryUpdatedAt(null);
+      setPdfSummaryStatus('idle');
+      setPdfSummaryMeta(null);
+      setPdfSummaryError(null);
+      setPdfSummaryFeedback(null);
+      return;
+    }
+
+    setPdfSummaryStatus('loading');
+    setPdfSummaryError(null);
+    setPdfSummaryFeedback(null);
+
+    try {
+      const response = await fetch(
+        `/api/learning/summaries?userId=${encodeURIComponent(userId)}&pdfId=${encodeURIComponent(
+          selectedAsset.id
+        )}&summaryMode=${summaryMode}`,
+        {
+          headers: { 'x-user-id': userId },
+          credentials: 'same-origin',
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to load PDF summary');
+      }
+
+      const data = await response.json();
+      const summary = data?.summary?.content ?? '';
+      const updatedAt = data?.summary?.updatedAt ?? null;
+
+      setPdfSummary(summary);
+      setPdfSummaryUpdatedAt(updatedAt);
+      setPdfSummaryStatus(summary ? 'ready' : 'idle');
+      setPdfSummaryMeta(null);
+    } catch (error) {
+      console.error('Failed to load PDF summary:', error);
+      setPdfSummaryStatus('error');
+      setPdfSummaryError('לא הצלחנו לטעון את הסיכום. נסו שוב.');
+    }
+  }, [selectedAsset, summaryMode, userId]);
+
+  useEffect(() => {
+    let isActive = true;
+    loadPdfSummary().catch(() => {
+      if (isActive) {
+        setPdfSummaryStatus('error');
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [loadPdfSummary]);
 
   useEffect(() => {
     if (!pdfUrl) {
@@ -455,6 +551,84 @@ const InteractiveLearningRoot = () => {
     }
   }, [exportReadyUrl, isExporting, userId]);
 
+  const handleGenerateSummary = useCallback(async () => {
+    if (!userId || !selectedAsset || pdfSummaryStatus === 'loading') {
+      return;
+    }
+
+    setPdfSummaryStatus('loading');
+    setPdfSummaryError(null);
+    setPdfSummaryFeedback(null);
+
+    try {
+      const response = await fetch('/api/learning/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          userId,
+          pdfId: selectedAsset.id,
+          summaryMode,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate summary');
+      }
+
+      const data = await response.json();
+      const summaryText = data?.summary?.content ?? '';
+
+      if (!summaryText) {
+        throw new Error('No summary returned');
+      }
+
+      setPdfSummary(summaryText);
+      setPdfSummaryUpdatedAt(data?.summary?.updatedAt ?? new Date().toISOString());
+      setPdfSummaryMeta(data?.meta ?? null);
+      setPdfSummaryStatus('ready');
+      setPdfSummaryFeedback('הסיכום מוכן.');
+    } catch (error) {
+      console.error('Failed to generate summary:', error);
+      setPdfSummaryStatus('error');
+      setPdfSummaryError('לא הצלחנו ליצור סיכום. נסו שוב.');
+    }
+  }, [pdfSummaryStatus, selectedAsset, summaryMode, userId]);
+
+  const handleCopySummary = useCallback(async () => {
+    if (!pdfSummary) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(pdfSummary);
+      setPdfSummaryFeedback('הסיכום הועתק ללוח.');
+    } catch (error) {
+      console.error('Failed to copy summary:', error);
+      setPdfSummaryError('לא הצלחנו להעתיק ללוח.');
+    }
+  }, [pdfSummary]);
+
+  const handleSaveSummaryToNotes = useCallback(() => {
+    if (!pdfSummary || !noteTarget) {
+      return;
+    }
+
+    const modeLabel = summaryMode === 'full' ? 'סיכום מלא' : 'Highlights';
+    const timestamp = new Date().toLocaleDateString('he-IL');
+    const nextContent = [
+      noteContent.trim(),
+      `${modeLabel} (${timestamp})`,
+      pdfSummary.trim(),
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+
+    setNoteContent(nextContent);
+    handleSaveNote(nextContent);
+    setPdfSummaryFeedback('הסיכום נשמר בהערות.');
+  }, [handleSaveNote, noteContent, noteTarget, pdfSummary, summaryMode]);
+
   useEffect(() => {
     return () => {
       if (exportReadyUrl) {
@@ -504,7 +678,7 @@ const InteractiveLearningRoot = () => {
       return 'התחברו כדי לראות סיכומים.';
     }
 
-    switch (summaryStatus) {
+    switch (conversationSummaryStatus) {
       case 'loading':
         return 'טוען סיכומים...';
       case 'error':
@@ -514,7 +688,26 @@ const InteractiveLearningRoot = () => {
           ? 'אין עדיין סיכומים זמינים.'
           : `נמצאו ${summaries.length} סיכומים אחרונים.`;
     }
-  }, [summaries.length, summaryStatus, userId]);
+  }, [conversationSummaryStatus, summaries.length, userId]);
+
+  const pdfSummaryStatusLabel = useMemo(() => {
+    if (!userId) {
+      return 'התחברו כדי לסכם עם מייקל.';
+    }
+
+    switch (pdfSummaryStatus) {
+      case 'loading':
+        return 'מייקל עובד על הסיכום...';
+      case 'error':
+        return pdfSummaryError ?? 'אירעה שגיאה בסיכום.';
+      case 'ready':
+        return pdfSummaryMeta?.truncated
+          ? `הסיכום נוצר מתוך ${pdfSummaryMeta.maxChars} תווים ראשונים של הקובץ.`
+          : 'הסיכום מוכן.';
+      default:
+        return 'בחרו מצב סיכום ולחצו על יצירה.';
+    }
+  }, [pdfSummaryError, pdfSummaryMeta?.maxChars, pdfSummaryMeta?.truncated, pdfSummaryStatus, userId]);
 
   const isNoteDirty = noteContent !== lastSavedContent;
 
@@ -593,7 +786,7 @@ const InteractiveLearningRoot = () => {
 
           <div
             className={styles.sidebarSection}
-            aria-busy={summaryStatus === 'loading'}
+            aria-busy={conversationSummaryStatus === 'loading'}
             aria-live="polite"
           >
             <div className={styles.sectionHeaderRow}>
@@ -601,7 +794,7 @@ const InteractiveLearningRoot = () => {
               <span className={styles.sectionMeta}>{summaryStatusLabel}</span>
             </div>
 
-            {summaryStatus === 'loading' && (
+            {conversationSummaryStatus === 'loading' && (
               <div className={styles.summaryList}>
                 {Array.from({ length: 3 }).map((_, index) => (
                   <div key={`summary-skeleton-${index}`} className={styles.skeletonCard} />
@@ -609,7 +802,7 @@ const InteractiveLearningRoot = () => {
               </div>
             )}
 
-            {summaryStatus === 'ready' && summaries.length > 0 && (
+            {conversationSummaryStatus === 'ready' && summaries.length > 0 && (
               <div className={styles.summaryList} aria-live="polite">
                 {summaries.map((summary) => (
                   <div key={summary.sessionId} className={styles.summaryCard}>
@@ -640,11 +833,11 @@ const InteractiveLearningRoot = () => {
               </div>
             )}
 
-            {summaryStatus === 'ready' && summaries.length === 0 && (
+            {conversationSummaryStatus === 'ready' && summaries.length === 0 && (
               <p className={styles.helperText}>אין עדיין סיכומים עבור החשבון שלכם.</p>
             )}
 
-            {summaryStatus === 'error' && (
+            {conversationSummaryStatus === 'error' && (
               <div className={styles.errorBanner} role="alert">
                 <p className={styles.errorText}>
                   לא הצלחנו לטעון את הסיכומים. נסו שוב מאוחר יותר.
@@ -656,7 +849,7 @@ const InteractiveLearningRoot = () => {
             )}
           </div>
 
-          {insights && summaryStatus === 'ready' && (
+          {insights && conversationSummaryStatus === 'ready' && (
             <div className={styles.sidebarSection}>
               <h2 className={styles.sectionTitle}>תובנות למידה</h2>
               <div className={styles.insightCard}>
@@ -825,6 +1018,49 @@ const InteractiveLearningRoot = () => {
             )}
           </div>
 
+          <section className={styles.summaryToolbar} aria-label="סיכום עם מייקל">
+            <div>
+              <p className={styles.summaryEyebrow}>סיכום עם מייקל</p>
+              <h3 className={styles.summaryTitle}>בחרו מצב סיכום</h3>
+            </div>
+            <div className={styles.summaryControls}>
+              <div className={styles.summaryToggle} role="group" aria-label="מצב סיכום">
+                <button
+                  type="button"
+                  className={
+                    summaryMode === 'full'
+                      ? `${styles.summaryModeButton} ${styles.summaryModeButtonActive}`
+                      : styles.summaryModeButton
+                  }
+                  onClick={() => setSummaryMode('full')}
+                  aria-pressed={summaryMode === 'full'}
+                >
+                  סיכום מלא
+                </button>
+                <button
+                  type="button"
+                  className={
+                    summaryMode === 'highlights'
+                      ? `${styles.summaryModeButton} ${styles.summaryModeButtonActive}`
+                      : styles.summaryModeButton
+                  }
+                  onClick={() => setSummaryMode('highlights')}
+                  aria-pressed={summaryMode === 'highlights'}
+                >
+                  Highlights
+                </button>
+              </div>
+              <button
+                type="button"
+                className={styles.primaryButton}
+                onClick={handleGenerateSummary}
+                disabled={!userId || !selectedAsset || pdfSummaryStatus === 'loading'}
+              >
+                צור סיכום
+              </button>
+            </div>
+          </section>
+
           <div
             className={styles.viewerCard}
             aria-busy={pdfStatus === 'loading' || pdfStatus === 'checking'}
@@ -877,6 +1113,90 @@ const InteractiveLearningRoot = () => {
               <div className={styles.placeholder}>בחרו מסמך כדי להתחיל</div>
             )}
           </div>
+
+          <section
+            className={styles.summaryCard}
+            aria-label="סיכום PDF"
+            aria-busy={pdfSummaryStatus === 'loading'}
+          >
+            <div className={styles.summaryHeaderRow}>
+              <div>
+                <p className={styles.summaryEyebrow}>סיכום מייקל</p>
+                <h3 className={styles.summaryPanelTitle}>
+                  {selectedAsset
+                    ? `סיכום עבור ${selectedAsset.label}`
+                    : 'בחרו מסמך כדי לסכם'}
+                </h3>
+                {pdfSummaryUpdatedAt && (
+                  <p className={styles.summaryUpdatedAt}>
+                    עודכן: {new Date(pdfSummaryUpdatedAt).toLocaleString('he-IL')}
+                  </p>
+                )}
+              </div>
+              <div className={styles.summaryPanelActions}>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={handleCopySummary}
+                  disabled={!pdfSummary}
+                >
+                  העתק
+                </button>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={handleSaveSummaryToNotes}
+                  disabled={!pdfSummary || !noteTarget}
+                >
+                  שמור להערות
+                </button>
+                <a className={styles.secondaryButton} href={summaryMichaelUrl}>
+                  שאל את מייקל על הסיכום
+                </a>
+              </div>
+            </div>
+
+            <div className={styles.summaryBody} aria-live="polite">
+              {pdfSummaryStatus === 'loading' && (
+                <div className={styles.summaryLoading}>
+                  <div className={styles.spinner} aria-hidden="true" />
+                  <p className={styles.viewerMessage}>מכינים סיכום...</p>
+                </div>
+              )}
+              {pdfSummaryStatus === 'error' && (
+                <div className={styles.errorBanner} role="alert">
+                  <p className={styles.errorText}>{pdfSummaryError}</p>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={handleGenerateSummary}
+                    disabled={!userId || !selectedAsset}
+                  >
+                    נסו שוב
+                  </button>
+                </div>
+              )}
+              {pdfSummaryStatus === 'ready' && pdfSummary && (
+                <div className={styles.summaryContent}>
+                  <Markdown>{pdfSummary}</Markdown>
+                </div>
+              )}
+              {pdfSummaryStatus === 'idle' && (
+                <p className={styles.helperText}>
+                  {userId
+                    ? 'בחרו מצב סיכום ולחצו על צור סיכום.'
+                    : 'התחברו כדי ליצור סיכום.'}
+                </p>
+              )}
+            </div>
+
+            <div className={styles.summaryFooter} aria-live="polite">
+              <span className={styles.summaryStatusText}>{pdfSummaryStatusLabel}</span>
+              {pdfSummaryFeedback && (
+                <span className={styles.summaryStatusText}>{pdfSummaryFeedback}</span>
+              )}
+            </div>
+          </section>
 
           <section
             className={styles.notesCard}

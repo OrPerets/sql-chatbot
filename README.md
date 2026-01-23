@@ -175,6 +175,16 @@ NEXT_PUBLIC_INTERACTIVE_LEARNING=1
 Students can export their notes from the Interactive Learning page. The export endpoint is
 `GET /api/learning/notes/export?userId=...`, returning a JSON file with all notes for the user.
 
+### PDF summaries with Michael
+
+Students can generate PDF summaries (full or highlights) directly from Interactive Learning:
+
+- `POST /api/learning/summarize` with `{ userId, pdfId, summaryMode }` to generate and persist a summary.
+- `GET /api/learning/summaries?userId=...&pdfId=...&summaryMode=...` to load the latest stored summary.
+
+For performance, the summarization flow limits input to the first 12k characters of extracted PDF
+text and reports when truncation is applied.
+
 ## Troubleshooting
 
 ### Database Connection Issues
