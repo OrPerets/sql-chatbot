@@ -145,6 +145,7 @@ async function resendEmailsToAllSubmissionsWithFeedback() {
           questions,
           homework: homeworkSet,
           studentName: user.name,
+          studentEmail: user.email,
         })
         console.log(`   ✅ PDF generated (${pdfBuffer.length} bytes)`)
 

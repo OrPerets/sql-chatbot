@@ -25,6 +25,7 @@ interface PdfOptions {
   questions: Question[];
   homework: HomeworkSet;
   studentName?: string;
+  studentEmail?: string;
 }
 
 /**
@@ -227,12 +228,36 @@ function generateHtml(options: PdfOptions): string {
 }
 
 function generateHtmlWithFeedback(options: PdfOptions): string {
-  const { submission, questions, studentName } = options;
+  const { submission, questions, studentName, studentEmail } = options;
 
-  const displayName = studentName || submission.studentId || "סטודנט";
+  // Build title with name and email
+  let displayTitle = "סטודנט";
+  if (studentName && studentEmail) {
+    displayTitle = `${studentName} / ${studentEmail}`;
+  } else if (studentName) {
+    displayTitle = studentName;
+  } else if (studentEmail) {
+    displayTitle = studentEmail;
+  } else if (submission.studentId) {
+    displayTitle = submission.studentId;
+  }
+
   const submissionDate = submission.submittedAt
     ? formatDate(new Date(submission.submittedAt))
     : formatDate(new Date());
+
+  // Calculate total grade
+  let totalScore = 0;
+  let totalMaxPoints = 0;
+  questions.forEach((question) => {
+    const answer = submission.answers?.[question.id];
+    const feedback = answer?.feedback;
+    const score = typeof feedback?.score === "number" ? feedback.score : 0;
+    const maxPoints = typeof question.points === "number" ? question.points : 0;
+    totalScore += score;
+    totalMaxPoints += maxPoints;
+  });
+  const totalGradeText = totalMaxPoints > 0 ? `${totalScore}/${totalMaxPoints}` : `${totalScore}`;
 
   const tableRows = questions
     .map((question) => {
@@ -244,15 +269,9 @@ function generateHtmlWithFeedback(options: PdfOptions): string {
       const scoreText =
         score !== null && maxPoints !== null ? `${score}/${maxPoints}` : score !== null ? `${score}` : "-";
       const instructorNotes = feedback?.instructorNotes?.trim();
-      const autoNotes = feedback?.autoNotes?.trim();
-      const notesHtml = [
-        instructorNotes
-          ? `<div class="notes"><strong>הערות:</strong> ${escapeHtml(instructorNotes)}</div>`
-          : "",
-        autoNotes ? `<div class="notes"><strong>הערות אוטומטיות:</strong> ${escapeHtml(autoNotes)}</div>` : "",
-      ]
-        .filter(Boolean)
-        .join("");
+      const notesHtml = instructorNotes
+        ? `<div class="notes"><strong>הערות:</strong> ${escapeHtml(instructorNotes)}</div>`
+        : "";
 
       return `
       <tr>
@@ -288,49 +307,49 @@ function generateHtmlWithFeedback(options: PdfOptions): string {
     
     body {
       font-family: 'Heebo', Arial, sans-serif;
-      font-size: 12px;
-      line-height: 1.5;
+      font-size: 10px;
+      line-height: 1.4;
       color: #1f2937;
-      padding: 25px;
+      padding: 15px;
       direction: rtl;
     }
     
     .header {
       text-align: center;
-      margin-bottom: 30px;
-      padding-bottom: 20px;
+      margin-bottom: 15px;
+      padding-bottom: 12px;
       border-bottom: 2px solid #e5e7eb;
     }
     
     .title {
-      font-size: 24px;
+      font-size: 20px;
       font-weight: 700;
       color: #1e3a5f;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     
     .date {
-      font-size: 14px;
+      font-size: 11px;
       color: #6b7280;
     }
     
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
+      margin-top: 10px;
     }
     
     th {
       background-color: #1e3a5f;
       color: white;
       font-weight: 600;
-      padding: 12px 16px;
+      padding: 8px 10px;
       text-align: right;
-      font-size: 14px;
+      font-size: 11px;
     }
 
     th:first-child {
-      width: 45%;
+      width: 25%;
       border-radius: 0 8px 0 0;
     }
 
@@ -339,12 +358,12 @@ function generateHtmlWithFeedback(options: PdfOptions): string {
     }
     
     th:last-child {
-      width: 20%;
+      width: 40%;
       border-radius: 8px 0 0 0;
     }
     
     td {
-      padding: 12px 14px;
+      padding: 8px 10px;
       border-bottom: 1px solid #e5e7eb;
       vertical-align: top;
     }
@@ -366,16 +385,18 @@ function generateHtmlWithFeedback(options: PdfOptions): string {
     }
     
     .question-text {
-      font-size: 11px;
+      font-size: 9px;
       color: #374151;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
+      line-height: 1.3;
     }
     
     .instructions {
-      font-size: 10px;
+      font-size: 8px;
       color: #6b7280;
-      padding-top: 6px;
+      padding-top: 4px;
       border-top: 1px dashed #d1d5db;
+      line-height: 1.3;
     }
     
     .answer-cell {
@@ -385,14 +406,15 @@ function generateHtmlWithFeedback(options: PdfOptions): string {
     
     .sql-code {
       font-family: 'Courier New', monospace;
-      font-size: 11px;
+      font-size: 9px;
       background-color: #f1f5f9;
-      padding: 10px 12px;
-      border-radius: 6px;
+      padding: 6px 8px;
+      border-radius: 4px;
       white-space: pre-wrap;
       word-break: break-word;
       margin: 0;
       color: #1e293b;
+      line-height: 1.3;
     }
     
     .no-answer {
@@ -408,24 +430,38 @@ function generateHtmlWithFeedback(options: PdfOptions): string {
     .score-line {
       font-weight: 600;
       color: #1e3a5f;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
+      font-size: 10px;
     }
 
     .notes {
-      font-size: 11px;
+      font-size: 9px;
       color: #374151;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
+      line-height: 1.3;
     }
 
     .no-feedback {
       color: #9ca3af;
       font-style: italic;
     }
+
+    .total-grade {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1e3a5f;
+      margin-bottom: 8px;
+      padding: 6px;
+      background-color: #f0f4f8;
+      border-radius: 4px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
   <div class="header">
-    <div class="title">${escapeHtml(displayName)}</div>
+    <div class="title">${escapeHtml(displayTitle)}</div>
+    <div class="total-grade">ציון סופי: ${escapeHtml(totalGradeText)}</div>
     <div class="date">${submissionDate}</div>
   </div>
   
@@ -559,8 +595,9 @@ export async function generateSubmissionPdfWithFeedback({
   questions,
   homework,
   studentName,
+  studentEmail,
 }: PdfOptions): Promise<Buffer> {
-  const html = generateHtmlWithFeedback({ submission, questions, homework, studentName });
+  const html = generateHtmlWithFeedback({ submission, questions, homework, studentName, studentEmail });
 
   // Configure browser launch options based on environment
   const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
