@@ -64,8 +64,8 @@ const loadPdfParser = async () => {
     return cachedPdfParser;
   }
 
-  const module = await import('pdf-parse/lib/pdf-parse.js');
-  cachedPdfParser = module.default;
+  const pdfModule = await import('pdf-parse/lib/pdf-parse.js');
+  cachedPdfParser = pdfModule.default;
   return cachedPdfParser;
 };
 
