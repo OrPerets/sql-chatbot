@@ -172,16 +172,22 @@ The Interactive Learning page should match the **visual and interaction patterns
 
 #### Todo
 
-- [ ] **2.1** In `lib/learning-content.ts` (or equivalent), map each PDF to `week` using `SQL_CURRICULUM_MAP` and, where useful, `getAllowedConceptsForWeek(week)`. Add `concepts: string[]` for display.
-- [ ] **2.2** Add a “לפי נושא” (by topic) mode in the sidebar: list of weeks 1–13 (and 14 if desired) with concepts per week. Clicking a week shows only PDFs for that week in the main area or in a sub-list.
-- [ ] **2.3** Topic card (or row): week number, `concepts` as tags or short list, and links to `lecture0N` and `tergul0N` (and B variants). Reuse visualizer-like card styles (white bg, border, radius, light shadow).
-- [ ] **2.4** Persist “view mode” in `localStorage` (e.g. `interactive-learning-view: 'list' | 'topic'`) so returning users keep their choice.
+- [x] **2.1** In `lib/learning-content.ts` (or equivalent), map each PDF to `week` using `SQL_CURRICULUM_MAP` and, where useful, `getAllowedConceptsForWeek(week)`. Add `concepts: string[]` for display.
+- [x] **2.2** Add a “לפי נושא” (by topic) mode in the sidebar: list of weeks 1–13 (and 14 if desired) with concepts per week. Clicking a week shows only PDFs for that week in the main area or in a sub-list.
+- [x] **2.3** Topic card (or row): week number, `concepts` as tags or short list, and links to `lecture0N` and `tergul0N` (and B variants). Reuse visualizer-like card styles (white bg, border, radius, light shadow).
+- [x] **2.4** Persist “view mode” in `localStorage` (e.g. `interactive-learning-view: 'list' | 'topic'`) so returning users keep their choice.
 - [ ] **2.5** (Optional) “השבוע הנוכחי” link that uses `getCurrentWeekContextNormalized` or `/api/mcp-michael/current-week` to highlight and scroll to the current week’s topic.
 
 **Deliverables**
 
 - Sidebar: “לפי רשימה” (list) and “לפי נושא” (topic) with week-based browsing and concept tags.
 - PDFs openable from the topic view; view-mode preference persisted.
+
+**Implementation Notes**
+
+- Added `concepts` to each learning asset using `SQL_CURRICULUM_MAP` (with `getAllowedConceptsForWeek` fallback) and reused this mapping for topic tags.
+- Introduced a view toggle with `interactive-learning-view` persisted in `localStorage`, defaulting to list view.
+- Topic mode now lists weeks in the sidebar and surfaces a week card with concept tags plus quick links to that week’s lectures/תרגולים.
 
 ---
 
