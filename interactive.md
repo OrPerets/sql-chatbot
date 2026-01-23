@@ -223,18 +223,24 @@ The Interactive Learning page should match the **visual and interaction patterns
 
 #### Todo
 
-- [ ] **4.1** In the header or sidebar, add “שאל את מייקל” or “לפתוח עם מייקל” that:
+- [x] **4.1** In the header or sidebar, add “שאל את מייקל” or “לפתוח עם מייקל” that:
   - Navigates to `/entities/basic-chat` (or the main chat route) with optional query or context, e.g. `?context=interactive&source=lecture05`; **or**
   - Opens an embedded chat drawer/panel (if a reusable chat component can be embedded) with the same assistant and a system hint like “The student is viewing Interactive Learning, lecture 5”.
-- [ ] **4.2** Fetch summaries: in `InteractiveLearningRoot`, call `GET /api/conversation-summary/student/[userId]?limit=10&insights=true`. Parse `data.summaries` and `data.insights`.
-- [ ] **4.3** Add a “סיכומי שיחות עם מייקל” (or “תובנות למידה”) block in the sidebar or a tab in the main area. For each summary: `sessionTitle`, `summaryPoints` (bullets), `keyTopics` (tags), and `createdAt`. Reuse card/panel styles from the visualizer.
+- [x] **4.2** Fetch summaries: in `InteractiveLearningRoot`, call `GET /api/conversation-summary/student/[userId]?limit=10&insights=true`. Parse `data.summaries` and `data.insights`.
+- [x] **4.3** Add a “סיכומי שיחות עם מייקל” (or “תובנות למידה”) block in the sidebar or a tab in the main area. For each summary: `sessionTitle`, `summaryPoints` (bullets), `keyTopics` (tags), and `createdAt`. Reuse card/panel styles from the visualizer.
 - [ ] **4.4** (Optional) “צור סיכום” for a given thread/session: call `POST /api/conversation-summary/analyze` (or the existing analyze endpoint) with `sessionId` and messages; then refetch and append to the list. If the analyze API does not support on-demand for arbitrary threads, document the gap and add a stub/“בקרוב” for a later sprint.
-- [ ] **4.5** If `data.insights` exists, show a compact “תובנות” card: e.g. `challengeAreas`, `recommendedActions`, or a short AI insight string. Style consistently with the rest of the page.
+- [x] **4.5** If `data.insights` exists, show a compact “תובנות” card: e.g. `challengeAreas`, `recommendedActions`, or a short AI insight string. Style consistently with the rest of the page.
 
 **Deliverables**
 
 - One-click (or one-tap) access to Michael with optional context (e.g. current PDF/week).
 - “סיכומי שיחות עם מייקל” (and insights if available) visible in the Interactive Learning page.
+
+**Implementation Notes**
+
+- Added a “שאל את מייקל” action in the sidebar that links to `/entities/basic-chat` with context query params for the selected PDF and week.
+- Integrated summaries fetch from `/api/conversation-summary/student/[userId]?limit=10&insights=true` and rendered summary cards with bullets, topic tags, and created date.
+- Added a compact insights card in the sidebar showing totals, trends, engagement, top topics, and challenges when data is available.
 
 ---
 
