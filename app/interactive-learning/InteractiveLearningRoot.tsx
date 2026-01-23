@@ -11,7 +11,7 @@ import styles from './interactive-learning.module.css';
 type ViewMode = 'list' | 'topic';
 type NoteStatus = 'idle' | 'loading' | 'saving' | 'saved' | 'error';
 type SummaryStatus = 'idle' | 'loading' | 'ready' | 'error';
-type PdfStatus = 'idle' | 'loading' | 'ready' | 'error';
+type PdfStatus = 'idle' | 'checking' | 'loading' | 'ready' | 'error';
 
 type ConversationSummary = {
   sessionId: string;
@@ -66,6 +66,7 @@ const InteractiveLearningRoot = () => {
   const [insights, setInsights] = useState<ConversationInsights | null>(null);
   const [summaryStatus, setSummaryStatus] = useState<SummaryStatus>('idle');
   const [pdfStatus, setPdfStatus] = useState<PdfStatus>('idle');
+  const [pdfAvailable, setPdfAvailable] = useState(false);
   const [exportStatus, setExportStatus] = useState<'idle' | 'loading' | 'error' | 'ready'>(
     'idle'
   );
@@ -252,6 +253,7 @@ const InteractiveLearningRoot = () => {
         `/api/learning/notes?userId=${encodeURIComponent(userId)}&targetType=${noteTarget.type}&targetId=${encodeURIComponent(noteTarget.id)}`,
         {
           headers: { 'x-user-id': userId },
+          credentials: 'same-origin',
         }
       );
 
@@ -298,6 +300,7 @@ const InteractiveLearningRoot = () => {
         `/api/conversation-summary/student/${encodeURIComponent(userId)}?limit=10&insights=true`,
         {
           headers: { 'x-user-id': userId },
+          credentials: 'same-origin',
         }
       );
 
@@ -334,10 +337,39 @@ const InteractiveLearningRoot = () => {
   useEffect(() => {
     if (!pdfUrl) {
       setPdfStatus('idle');
+      setPdfAvailable(false);
       return;
     }
 
-    setPdfStatus('loading');
+    let isActive = true;
+    setPdfStatus('checking');
+    setPdfAvailable(false);
+
+    fetch(pdfUrl, { method: 'HEAD', credentials: 'same-origin' })
+      .then((response) => {
+        if (!isActive) {
+          return;
+        }
+        if (!response.ok) {
+          setPdfStatus('error');
+          setPdfAvailable(false);
+          return;
+        }
+        setPdfAvailable(true);
+        setPdfStatus('loading');
+      })
+      .catch((error) => {
+        if (!isActive) {
+          return;
+        }
+        console.error('Failed to check PDF availability:', error);
+        setPdfStatus('error');
+        setPdfAvailable(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
   }, [pdfUrl]);
 
   const handleSaveNote = useCallback(
@@ -352,6 +384,7 @@ const InteractiveLearningRoot = () => {
         const response = await fetch('/api/learning/notes', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
+          credentials: 'same-origin',
           body: JSON.stringify({
             userId,
             targetType: noteTarget.type,
@@ -393,6 +426,7 @@ const InteractiveLearningRoot = () => {
         `/api/learning/notes/export?userId=${encodeURIComponent(userId)}`,
         {
           headers: { 'x-user-id': userId },
+          credentials: 'same-origin',
         }
       );
 
@@ -627,7 +661,7 @@ const InteractiveLearningRoot = () => {
               <h2 className={styles.sectionTitle}>תובנות למידה</h2>
               <div className={styles.insightCard}>
                 <div className={styles.insightRow}>
-                  <span className={styles.insightLabel}>סה"כ מפגשים</span>
+                  <span className={styles.insightLabel}>סה״כ מפגשים</span>
                   <span className={styles.insightValue}>{insights.totalSessions}</span>
                 </div>
                 <div className={styles.insightRow}>
@@ -791,24 +825,31 @@ const InteractiveLearningRoot = () => {
             )}
           </div>
 
-          <div className={styles.viewerCard} aria-busy={pdfStatus === 'loading'}>
+          <div
+            className={styles.viewerCard}
+            aria-busy={pdfStatus === 'loading' || pdfStatus === 'checking'}
+          >
             {pdfUrl ? (
               <>
-                <iframe
-                  className={
-                    pdfStatus === 'ready'
-                      ? `${styles.viewerFrame} ${styles.viewerFrameReady}`
-                      : styles.viewerFrame
-                  }
-                  src={pdfUrl}
-                  title={selectedAsset?.label ?? 'PDF'}
-                  onLoad={() => setPdfStatus('ready')}
-                  onError={() => setPdfStatus('error')}
-                />
-                {pdfStatus === 'loading' && (
+                {pdfAvailable && (
+                  <iframe
+                    className={
+                      pdfStatus === 'ready'
+                        ? `${styles.viewerFrame} ${styles.viewerFrameReady}`
+                        : styles.viewerFrame
+                    }
+                    src={pdfUrl}
+                    title={selectedAsset?.label ?? 'PDF'}
+                    onLoad={() => setPdfStatus('ready')}
+                    onError={() => setPdfStatus('error')}
+                  />
+                )}
+                {(pdfStatus === 'loading' || pdfStatus === 'checking') && (
                   <div className={styles.viewerOverlay} aria-live="polite">
                     <div className={styles.spinner} aria-hidden="true" />
-                    <p className={styles.viewerMessage}>טוען את ה-PDF...</p>
+                    <p className={styles.viewerMessage}>
+                      {pdfStatus === 'checking' ? 'בודקים את הקובץ...' : 'טוען את ה-PDF...'}
+                    </p>
                   </div>
                 )}
                 {pdfStatus === 'error' && (

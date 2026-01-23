@@ -5,6 +5,7 @@ import {
   LearningNoteTargetType,
   upsertLearningNote,
 } from '@/lib/learning-notes';
+import { requireAuthenticatedUser } from '@/lib/request-auth';
 
 type NotesQuery = {
   userId: string;
@@ -32,15 +33,6 @@ const getQuery = (request: NextRequest): NotesQuery | null => {
   };
 };
 
-const ensureAuthorizedUser = (request: NextRequest, userId: string) => {
-  const headerUserId = request.headers.get('x-user-id')?.trim();
-  if (!headerUserId || headerUserId !== userId) {
-    return false;
-  }
-
-  return true;
-};
-
 export async function GET(request: NextRequest) {
   try {
     const query = getQuery(request);
@@ -52,8 +44,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!ensureAuthorizedUser(request, query.userId)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    const authResult = await requireAuthenticatedUser(request, query.userId);
+    if (authResult.ok === false) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
     const note = await getLearningNote(query.userId, query.targetType, query.targetId);
@@ -82,8 +75,9 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    if (!ensureAuthorizedUser(request, userId)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    const authResult = await requireAuthenticatedUser(request, userId);
+    if (authResult.ok === false) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
     const note = await upsertLearningNote(userId, targetType, targetId, content);

@@ -99,8 +99,9 @@ const LoginPage = () => {
 
   const storeUserInfo = (user) => {
     localStorage.setItem("currentUser", JSON.stringify({
+      id: user.id,
       email: user.email,
-      name: user.firstName
+      name: user.name || user.firstName
     }));
   };
 
@@ -119,43 +120,59 @@ const LoginPage = () => {
         setIsLoading(false);
         return;
       }
-      if (!user) {
-        setError('User not found');
-        setIsLoading(false);
-        setTimeout(() => setError(''), 3000);
-        return;
-      }
       if (password === 'shenkar') {
         setChangePassword(true);
         setIsLoading(false);
         return;
       }
-      if (password === user.password) {
-        storeUserInfo(user);
-        router.push('/landing');
-      } else {
-        setError('סיסמת מנהל שגויה');
-        setTimeout(() => setError(''), 3000);
+      try {
+        const response = await fetch('/api/users/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          setError(data.error || 'סיסמת מנהל שגויה');
+          setTimeout(() => setError(''), 3000);
+        } else {
+          storeUserInfo(data);
+          router.push('/landing');
+        }
+      } catch (error) {
+        console.error('Error during admin login:', error);
+        setError('שגיאה בהתחברות, נסו שוב');
       }
     } else {
-      if (!user) {
-        setError('User not found');
-        setIsLoading(false);
-        setTimeout(() => setError(''), 3000);
-        return;
-      }
       if (password === 'shenkar') {
         setChangePassword(true);
         setIsLoading(false);
         return;
       }
-      if (password === user.password) {
-        getCoinsBalance(user.email);
-        storeUserInfo(user);
-        router.push('/landing');
-      } else {
-        setError('Wrong Password or Email');
-        setTimeout(() => setError(''), 3000);
+      try {
+        const response = await fetch('/api/users/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          setError(data.error || 'Wrong Password or Email');
+          setTimeout(() => setError(''), 3000);
+        } else {
+          getCoinsBalance(data.email);
+          storeUserInfo(data);
+          router.push('/landing');
+        }
+      } catch (error) {
+        console.error('Error during login:', error);
+        setError('שגיאה בהתחברות, נסו שוב');
       }
     }
 
