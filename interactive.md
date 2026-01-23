@@ -338,21 +338,21 @@ The Interactive Learning page should match the **visual and interaction patterns
 
 #### Todo
 
-- [ ] **8.1** Choose and integrate a PDF annotation layer:
+- [x] **8.1** Choose and integrate a PDF annotation layer:
   - Option A: `pdf.js` viewer + custom annotation overlay (canvas/SVG).
   - Option B: lightweight annotation lib that works with `react-pdf`.
   - Ensure RTL-safe toolbar labels and keyboard shortcuts.
-- [ ] **8.2** Add annotation tools to the viewer UI:
+- [x] **8.2** Add annotation tools to the viewer UI:
   - **Draw**, **Highlight**, **Eraser**, **Undo/Redo**
   - Color + thickness presets
   - Toggle “Annotations” on/off for readability.
-- [ ] **8.3** Persist annotations:
+- [x] **8.3** Persist annotations:
   - New collection: `learning_annotations`
   - Schema: `userId`, `pdfId`, `page`, `type`, `data`, `createdAt`, `updatedAt`
   - API routes: `GET /api/learning/annotations?pdfId=` and `PUT /api/learning/annotations`
   - Load on PDF open and sync changes on save/debounce.
-- [ ] **8.4** Add “Export annotations” (JSON) and “Clear annotations” with confirmation.
-- [ ] **8.5** Allow Michael to access annotations:
+- [x] **8.4** Add “Export annotations” (JSON) and “Clear annotations” with confirmation.
+- [x] **8.5** Allow Michael to access annotations:
   - Provide a “שאל את מייקל על ההערות” action that passes recent annotations as context (summarized client-side or server-side).
 
 **Deliverables**
@@ -362,8 +362,11 @@ The Interactive Learning page should match the **visual and interaction patterns
 
 **Implementation Notes**
 
-- Keep annotation payloads compact (vector paths or normalized coordinates).
-- Use page scaling metadata so annotations render correctly at different zoom levels.
+- Integrated a `pdf.js`-based renderer with per-page canvases and an annotation overlay for draw/highlight tools.
+- Added annotation tools (draw, highlight, eraser), color/thickness controls, undo/redo, visibility toggle, export, and clear actions.
+- Persisted annotations in `learning_annotations` via new GET/PUT APIs with debounce saving and compact normalized coordinates per page.
+- Added a “שאל את מייקל על ההערות” action that forwards a concise recent-annotations summary in the query string.
+- Stored annotations with normalized coordinates per page so strokes re-render accurately at different zoom scales.
 
 ## 6. File Checklist (Summary)
 
@@ -393,7 +396,7 @@ The Interactive Learning page should match the **visual and interaction patterns
 - [ ] “שאל את מייקל” (or similar) takes the student to Michael, with optional context.
 - [ ] Conversation summaries (and insights when available) are visible in the Interactive Learning UI.
 - [x] Students can request **PDF summaries** (full or highlights) from Michael and view results in-page.
-- [ ] Students can **annotate PDFs** (draw/highlight) and see their annotations persist across sessions.
+- [x] Students can **annotate PDFs** (draw/highlight) and see their annotations persist across sessions.
 - [ ] Layout, colors, and responsiveness are aligned with `/visualizer` and support RTL.
 - [ ] The feature can be toggled via `NEXT_PUBLIC_INTERACTIVE_LEARNING` and is documented.
 

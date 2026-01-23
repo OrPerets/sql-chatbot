@@ -555,6 +555,103 @@
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
 }
 
+.annotationToolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 18px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  flex-wrap: wrap;
+}
+
+.annotationControls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.annotationTools {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.annotationButton {
+  border: 1px solid #cbd5f5;
+  background: #eef2ff;
+  color: #1e3a8a;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.annotationButton:hover {
+  background: #e0e7ff;
+}
+
+.annotationButtonActive {
+  background: #1e3a8a;
+  border-color: #1e3a8a;
+  color: #ffffff;
+}
+
+.annotationOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.annotationLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #1f2937;
+}
+
+.colorPicker {
+  border: none;
+  width: 34px;
+  height: 28px;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.thicknessSlider {
+  accent-color: #1e3a8a;
+}
+
+.annotationActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.annotationStatus {
+  display: flex;
+  justify-content: flex-end;
+  color: #475569;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.annotationStatusText {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+
 .summaryEyebrow {
   margin: 0 0 6px 0;
   font-size: 11px;
@@ -662,17 +759,51 @@
   min-height: 420px;
 }
 
-.viewerFrame {
-  width: 100%;
-  height: 100%;
-  min-height: 600px;
-  border: 0;
-  opacity: 0;
-  transition: opacity 0.25s ease;
+.pdfPages {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px;
 }
 
-.viewerFrameReady {
-  opacity: 1;
+.pdfPage {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.pdfCanvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.annotationCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.annotationHidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pageNumber {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(30, 58, 138, 0.9);
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
 }
 
 .viewerOverlay {
@@ -981,6 +1112,11 @@
     align-items: flex-start;
   }
 
+  .annotationToolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .summaryHeaderRow {
     flex-direction: column;
     align-items: flex-start;
@@ -1009,9 +1145,5 @@
 
   .mainArea {
     padding: 20px;
-  }
-
-  .viewerFrame {
-    min-height: 360px;
   }
 }

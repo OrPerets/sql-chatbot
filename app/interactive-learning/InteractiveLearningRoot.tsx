@@ -12,9 +12,26 @@ import styles from './interactive-learning.module.css';
 type ViewMode = 'list' | 'topic';
 type NoteStatus = 'idle' | 'loading' | 'saving' | 'saved' | 'error';
 type ConversationSummaryStatus = 'idle' | 'loading' | 'ready' | 'error';
-type PdfStatus = 'idle' | 'checking' | 'loading' | 'ready' | 'error';
+type PdfStatus = 'idle' | 'loading' | 'ready' | 'error';
 type PdfSummaryMode = 'full' | 'highlights';
 type PdfSummaryStatus = 'idle' | 'loading' | 'ready' | 'error';
+type AnnotationTool = 'draw' | 'highlight' | 'eraser';
+type AnnotationStatus = 'idle' | 'loading' | 'saving' | 'saved' | 'error';
+
+type LearningAnnotationPoint = {
+  x: number;
+  y: number;
+};
+
+type LearningAnnotation = {
+  id: string;
+  page: number;
+  type: 'draw' | 'highlight';
+  color: string;
+  thickness: number;
+  points: LearningAnnotationPoint[];
+  createdAt: string;
+};
 
 type ConversationSummary = {
   sessionId: string;
@@ -88,11 +105,29 @@ const InteractiveLearningRoot = () => {
   const [exportMessage, setExportMessage] = useState<string>('');
   const [isExporting, setIsExporting] = useState(false);
   const [exportReadyUrl, setExportReadyUrl] = useState<string | null>(null);
+  const [annotationTool, setAnnotationTool] = useState<AnnotationTool>('draw');
+  const [annotationColor, setAnnotationColor] = useState('#1e3a8a');
+  const [annotationThickness, setAnnotationThickness] = useState(4);
+  const [showAnnotations, setShowAnnotations] = useState(true);
+  const [annotations, setAnnotations] = useState<LearningAnnotation[]>([]);
+  const [annotationStatus, setAnnotationStatus] = useState<AnnotationStatus>('idle');
+  const [annotationMessage, setAnnotationMessage] = useState<string>('');
+  const [annotationPages, setAnnotationPages] = useState<
+    Array<{ pageNumber: number; width: number; height: number; page: any }>
+  >([]);
+  const [annotationUndoStack, setAnnotationUndoStack] = useState<LearningAnnotation[][]>(
+    []
+  );
+  const [annotationRedoStack, setAnnotationRedoStack] = useState<LearningAnnotation[][]>(
+    []
+  );
 
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const hasInitialized = useRef(false);
+  const annotationSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedAnnotations = useRef<string>('');
 
   useEffect(() => {
     if (hasInitialized.current) {
@@ -434,34 +469,54 @@ const InteractiveLearningRoot = () => {
     if (!pdfUrl) {
       setPdfStatus('idle');
       setPdfAvailable(false);
+      setAnnotationPages([]);
       return;
     }
 
     let isActive = true;
-    setPdfStatus('checking');
+    setPdfStatus('loading');
     setPdfAvailable(false);
+    setAnnotationPages([]);
 
-    fetch(pdfUrl, { method: 'HEAD', credentials: 'same-origin' })
-      .then((response) => {
+    const loadPdf = async () => {
+      try {
+        const pdfjsLib = await import('pdfjs-dist/build/pdf');
+        const version = (pdfjsLib as { version?: string }).version ?? '4.2.67';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
+
+        const loadingTask = pdfjsLib.getDocument({ url: pdfUrl, withCredentials: true });
+        const pdf = await loadingTask.promise;
+
+        const pages = [];
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+          const page = await pdf.getPage(pageNumber);
+          const viewport = page.getViewport({ scale: 1 });
+          pages.push({
+            pageNumber,
+            width: viewport.width,
+            height: viewport.height,
+            page,
+          });
+        }
+
         if (!isActive) {
           return;
         }
-        if (!response.ok) {
-          setPdfStatus('error');
-          setPdfAvailable(false);
-          return;
-        }
+
+        setAnnotationPages(pages);
         setPdfAvailable(true);
-        setPdfStatus('loading');
-      })
-      .catch((error) => {
+        setPdfStatus('ready');
+      } catch (error) {
         if (!isActive) {
           return;
         }
-        console.error('Failed to check PDF availability:', error);
+        console.error('Failed to load PDF for annotations:', error);
         setPdfStatus('error');
         setPdfAvailable(false);
-      });
+      }
+    };
+
+    loadPdf();
 
     return () => {
       isActive = false;
@@ -502,6 +557,105 @@ const InteractiveLearningRoot = () => {
     },
     [lastSavedContent, noteTarget, userId]
   );
+
+  const loadAnnotations = useCallback(async () => {
+    if (!userId || !selectedAsset) {
+      setAnnotations([]);
+      setAnnotationStatus('idle');
+      return;
+    }
+
+    setAnnotationStatus('loading');
+    setAnnotationMessage('');
+
+    try {
+      const response = await fetch(
+        `/api/learning/annotations?userId=${encodeURIComponent(userId)}&pdfId=${encodeURIComponent(
+          selectedAsset.id
+        )}`,
+        {
+          headers: { 'x-user-id': userId },
+          credentials: 'same-origin',
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to load annotations');
+      }
+
+      const data = await response.json();
+      const fetchedAnnotations = Array.isArray(data?.annotations) ? data.annotations : [];
+      setAnnotations(fetchedAnnotations);
+      lastSavedAnnotations.current = JSON.stringify(fetchedAnnotations);
+      setAnnotationStatus('idle');
+    } catch (error) {
+      console.error('Failed to load annotations:', error);
+      setAnnotationStatus('error');
+      setAnnotationMessage('לא הצלחנו לטעון את ההערות על גבי ה-PDF.');
+    }
+  }, [selectedAsset, userId]);
+
+  useEffect(() => {
+    let isActive = true;
+    loadAnnotations().catch(() => {
+      if (isActive) {
+        setAnnotationStatus('error');
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [loadAnnotations]);
+
+  useEffect(() => {
+    if (!userId || !selectedAsset) {
+      return;
+    }
+
+    const serialized = JSON.stringify(annotations);
+    if (serialized === lastSavedAnnotations.current) {
+      return;
+    }
+
+    if (annotationSaveTimeout.current) {
+      clearTimeout(annotationSaveTimeout.current);
+    }
+
+    annotationSaveTimeout.current = setTimeout(async () => {
+      try {
+        setAnnotationStatus('saving');
+        const response = await fetch('/api/learning/annotations', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            userId,
+            pdfId: selectedAsset.id,
+            annotations,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save annotations');
+        }
+
+        lastSavedAnnotations.current = serialized;
+        setAnnotationStatus('saved');
+        setAnnotationMessage('ההערות נשמרו.');
+      } catch (error) {
+        console.error('Failed to save annotations:', error);
+        setAnnotationStatus('error');
+        setAnnotationMessage('אירעה שגיאה בשמירת ההערות.');
+      }
+    }, 800);
+
+    return () => {
+      if (annotationSaveTimeout.current) {
+        clearTimeout(annotationSaveTimeout.current);
+      }
+    };
+  }, [annotations, selectedAsset, userId]);
 
   const handleExportNotes = useCallback(async () => {
     if (!userId || isExporting) {
@@ -629,6 +783,112 @@ const InteractiveLearningRoot = () => {
     setPdfSummaryFeedback('הסיכום נשמר בהערות.');
   }, [handleSaveNote, noteContent, noteTarget, pdfSummary, summaryMode]);
 
+  const handleAddAnnotation = useCallback(
+    (annotation: LearningAnnotation) => {
+      setAnnotationUndoStack((stack) => [...stack, annotations]);
+      setAnnotationRedoStack([]);
+      setAnnotations((prev) => [...prev, annotation]);
+    },
+    [annotations]
+  );
+
+  const handleRemoveAnnotation = useCallback(
+    (annotationId: string) => {
+      setAnnotationUndoStack((stack) => [...stack, annotations]);
+      setAnnotationRedoStack([]);
+      setAnnotations((prev) => prev.filter((item) => item.id !== annotationId));
+    },
+    [annotations]
+  );
+
+  const handleUndoAnnotation = useCallback(() => {
+    setAnnotationUndoStack((stack) => {
+      if (stack.length === 0) {
+        return stack;
+      }
+      const previous = stack[stack.length - 1];
+      setAnnotationRedoStack((redo) => [...redo, annotations]);
+      setAnnotations(previous);
+      return stack.slice(0, -1);
+    });
+  }, [annotations]);
+
+  const handleRedoAnnotation = useCallback(() => {
+    setAnnotationRedoStack((stack) => {
+      if (stack.length === 0) {
+        return stack;
+      }
+      const next = stack[stack.length - 1];
+      setAnnotationUndoStack((undo) => [...undo, annotations]);
+      setAnnotations(next);
+      return stack.slice(0, -1);
+    });
+  }, [annotations]);
+
+  const handleClearAnnotations = useCallback(() => {
+    if (!annotations.length) {
+      return;
+    }
+    if (!window.confirm('לנקות את כל ההערות על גבי ה-PDF?')) {
+      return;
+    }
+    setAnnotationUndoStack((stack) => [...stack, annotations]);
+    setAnnotationRedoStack([]);
+    setAnnotations([]);
+    setAnnotationMessage('ההערות נוקו.');
+  }, [annotations]);
+
+  const handleExportAnnotations = useCallback(() => {
+    if (!selectedAsset || !annotations.length) {
+      setAnnotationMessage('אין הערות לייצוא.');
+      return;
+    }
+
+    const payload = {
+      pdfId: selectedAsset.id,
+      exportedAt: new Date().toISOString(),
+      annotations,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json',
+    });
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = downloadUrl;
+    anchor.download = `interactive-learning-annotations-${selectedAsset.id}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    window.URL.revokeObjectURL(downloadUrl);
+    setAnnotationMessage('הקובץ ירד למחשב.');
+  }, [annotations, selectedAsset]);
+
+  const annotationSummary = useMemo(() => {
+    if (!annotations.length) {
+      return '';
+    }
+
+    const recent = annotations.slice(-5).map((item) => {
+      const typeLabel = item.type === 'highlight' ? 'הדגשה' : 'שרטוט';
+      return `${typeLabel} בעמוד ${item.page}`;
+    });
+
+    return recent.join(', ');
+  }, [annotations]);
+
+  const annotationMichaelUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set('context', 'interactive-learning-annotations');
+    if (selectedAsset) {
+      params.set('source', selectedAsset.id);
+    }
+    if (annotationSummary) {
+      params.set('annotations', annotationSummary);
+    }
+    const query = params.toString();
+    return query ? `/entities/basic-chat?${query}` : '/entities/basic-chat';
+  }, [annotationSummary, selectedAsset]);
+
   useEffect(() => {
     return () => {
       if (exportReadyUrl) {
@@ -710,6 +970,250 @@ const InteractiveLearningRoot = () => {
   }, [pdfSummaryError, pdfSummaryMeta?.maxChars, pdfSummaryMeta?.truncated, pdfSummaryStatus, userId]);
 
   const isNoteDirty = noteContent !== lastSavedContent;
+
+  const PdfPageCanvas = ({
+    page,
+    pageNumber,
+    width,
+    height,
+    annotations: pageAnnotations,
+    tool,
+    color,
+    thickness,
+    show,
+    onAdd,
+    onRemove,
+  }: {
+    page: any;
+    pageNumber: number;
+    width: number;
+    height: number;
+    annotations: LearningAnnotation[];
+    tool: AnnotationTool;
+    color: string;
+    thickness: number;
+    show: boolean;
+    onAdd: (annotation: LearningAnnotation) => void;
+    onRemove: (annotationId: string) => void;
+  }) => {
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const pageCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const annotationCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const [scale, setScale] = useState(1);
+    const [draftPoints, setDraftPoints] = useState<LearningAnnotationPoint[]>([]);
+    const drawingRef = useRef<LearningAnnotation | null>(null);
+
+    useEffect(() => {
+      if (!containerRef.current) {
+        return;
+      }
+
+      const updateScale = () => {
+        const containerWidth = containerRef.current?.clientWidth ?? 0;
+        if (!containerWidth) {
+          return;
+        }
+        setScale(containerWidth / width);
+      };
+
+      updateScale();
+
+      const observer = new ResizeObserver(updateScale);
+      observer.observe(containerRef.current);
+
+      return () => {
+        observer.disconnect();
+      };
+    }, [width]);
+
+    useEffect(() => {
+      if (!pageCanvasRef.current) {
+        return;
+      }
+
+      const renderPage = async () => {
+        const viewport = page.getViewport({ scale });
+        const canvas = pageCanvasRef.current;
+        if (!canvas) {
+          return;
+        }
+        const context = canvas.getContext('2d');
+        if (!context) {
+          return;
+        }
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: context, viewport }).promise;
+      };
+
+      renderPage();
+    }, [page, scale]);
+
+    useEffect(() => {
+      const canvas = annotationCanvasRef.current;
+      if (!canvas) {
+        return;
+      }
+
+      const context = canvas.getContext('2d');
+      if (!context) {
+        return;
+      }
+
+      const displayWidth = width * scale;
+      const displayHeight = height * scale;
+      canvas.width = displayWidth;
+      canvas.height = displayHeight;
+      context.clearRect(0, 0, displayWidth, displayHeight);
+
+      if (!show) {
+        return;
+      }
+
+      const drawStroke = (
+        points: LearningAnnotationPoint[],
+        strokeColor: string,
+        strokeWidth: number,
+        isHighlight: boolean
+      ) => {
+        if (points.length === 0) {
+          return;
+        }
+
+        context.save();
+        context.beginPath();
+        points.forEach((point, index) => {
+          const x = point.x * displayWidth;
+          const y = point.y * displayHeight;
+          if (index === 0) {
+            context.moveTo(x, y);
+          } else {
+            context.lineTo(x, y);
+          }
+        });
+        context.strokeStyle = strokeColor;
+        context.lineWidth = strokeWidth * scale;
+        context.lineJoin = 'round';
+        context.lineCap = 'round';
+        context.globalAlpha = isHighlight ? 0.35 : 0.95;
+        context.stroke();
+        context.restore();
+      };
+
+      pageAnnotations
+        .filter((item) => item.page === pageNumber)
+        .forEach((annotation) => {
+          drawStroke(
+            annotation.points,
+            annotation.color,
+            annotation.thickness,
+            annotation.type === 'highlight'
+          );
+        });
+
+      if (draftPoints.length > 0 && (tool === 'draw' || tool === 'highlight')) {
+        drawStroke(draftPoints, color, thickness, tool === 'highlight');
+      }
+    }, [color, draftPoints, height, pageAnnotations, pageNumber, scale, show, thickness, tool, width]);
+
+    const getNormalizedPoint = useCallback(
+      (event: React.PointerEvent<HTMLCanvasElement>) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const x = (event.clientX - rect.left) / rect.width;
+        const y = (event.clientY - rect.top) / rect.height;
+        return {
+          x: Math.min(Math.max(x, 0), 1),
+          y: Math.min(Math.max(y, 0), 1),
+        };
+      },
+      []
+    );
+
+    const handlePointerDown = useCallback(
+      (event: React.PointerEvent<HTMLCanvasElement>) => {
+        if (!show) {
+          return;
+        }
+
+        if (tool === 'eraser') {
+          const point = getNormalizedPoint(event);
+          const displayWidth = width * scale;
+          const displayHeight = height * scale;
+          const threshold = 12;
+          const target = pageAnnotations.find((annotation) =>
+            annotation.points.some((pt) => {
+              const dx = pt.x * displayWidth - point.x * displayWidth;
+              const dy = pt.y * displayHeight - point.y * displayHeight;
+              return Math.hypot(dx, dy) <= threshold;
+            })
+          );
+          if (target) {
+            onRemove(target.id);
+          }
+          return;
+        }
+
+        const point = getNormalizedPoint(event);
+        const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `annotation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        drawingRef.current = {
+          id,
+          page: pageNumber,
+          type: tool === 'highlight' ? 'highlight' : 'draw',
+          color,
+          thickness,
+          points: [point],
+          createdAt: new Date().toISOString(),
+        };
+        setDraftPoints([point]);
+        event.currentTarget.setPointerCapture(event.pointerId);
+      },
+      [color, getNormalizedPoint, height, onRemove, pageAnnotations, pageNumber, scale, show, thickness, tool, width]
+    );
+
+    const handlePointerMove = useCallback(
+      (event: React.PointerEvent<HTMLCanvasElement>) => {
+        if (!drawingRef.current || tool === 'eraser' || !show) {
+          return;
+        }
+        const point = getNormalizedPoint(event);
+        drawingRef.current.points = [...drawingRef.current.points, point];
+        setDraftPoints([...drawingRef.current.points]);
+      },
+      [getNormalizedPoint, show, tool]
+    );
+
+    const handlePointerUp = useCallback(() => {
+      if (!drawingRef.current) {
+        return;
+      }
+      const annotation = drawingRef.current;
+      drawingRef.current = null;
+      setDraftPoints([]);
+      if (annotation.points.length > 1) {
+        onAdd(annotation);
+      }
+    }, [onAdd]);
+
+    return (
+      <div className={styles.pdfPage} ref={containerRef}>
+        <canvas ref={pageCanvasRef} className={styles.pdfCanvas} />
+        <canvas
+          ref={annotationCanvasRef}
+          className={
+            show ? styles.annotationCanvas : `${styles.annotationCanvas} ${styles.annotationHidden}`
+          }
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+        />
+        <span className={styles.pageNumber}>עמוד {pageNumber}</span>
+      </div>
+    );
+  };
 
   return (
     <div className={styles.interactiveLearning}>
@@ -1061,30 +1565,152 @@ const InteractiveLearningRoot = () => {
             </div>
           </section>
 
+          <section className={styles.annotationToolbar} aria-label="כלי סימון על גבי PDF">
+            <div>
+              <p className={styles.summaryEyebrow}>הערות על גבי PDF</p>
+              <h3 className={styles.summaryTitle}>כלי סימון ושרטוט</h3>
+            </div>
+            <div className={styles.annotationControls}>
+              <div className={styles.annotationTools} role="group" aria-label="כלי עריכה">
+                <button
+                  type="button"
+                  className={
+                    annotationTool === 'draw'
+                      ? `${styles.annotationButton} ${styles.annotationButtonActive}`
+                      : styles.annotationButton
+                  }
+                  onClick={() => setAnnotationTool('draw')}
+                  aria-pressed={annotationTool === 'draw'}
+                >
+                  שרטוט
+                </button>
+                <button
+                  type="button"
+                  className={
+                    annotationTool === 'highlight'
+                      ? `${styles.annotationButton} ${styles.annotationButtonActive}`
+                      : styles.annotationButton
+                  }
+                  onClick={() => setAnnotationTool('highlight')}
+                  aria-pressed={annotationTool === 'highlight'}
+                >
+                  הדגשה
+                </button>
+                <button
+                  type="button"
+                  className={
+                    annotationTool === 'eraser'
+                      ? `${styles.annotationButton} ${styles.annotationButtonActive}`
+                      : styles.annotationButton
+                  }
+                  onClick={() => setAnnotationTool('eraser')}
+                  aria-pressed={annotationTool === 'eraser'}
+                >
+                  מחק
+                </button>
+              </div>
+              <div className={styles.annotationOptions}>
+                <label className={styles.annotationLabel}>
+                  צבע
+                  <input
+                    type="color"
+                    value={annotationColor}
+                    onChange={(event) => setAnnotationColor(event.target.value)}
+                    className={styles.colorPicker}
+                    aria-label="בחירת צבע"
+                  />
+                </label>
+                <label className={styles.annotationLabel}>
+                  עובי
+                  <input
+                    type="range"
+                    min={2}
+                    max={10}
+                    value={annotationThickness}
+                    onChange={(event) => setAnnotationThickness(Number(event.target.value))}
+                    className={styles.thicknessSlider}
+                    aria-label="בחירת עובי"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() => setShowAnnotations((prev) => !prev)}
+                >
+                  {showAnnotations ? 'הסתר הערות' : 'הצג הערות'}
+                </button>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={handleUndoAnnotation}
+                  disabled={annotationUndoStack.length === 0}
+                >
+                  בטל
+                </button>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={handleRedoAnnotation}
+                  disabled={annotationRedoStack.length === 0}
+                >
+                  חזור
+                </button>
+              </div>
+              <div className={styles.annotationActions}>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={handleExportAnnotations}
+                  disabled={!annotations.length}
+                >
+                  ייצא הערות
+                </button>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={handleClearAnnotations}
+                  disabled={!annotations.length}
+                >
+                  נקה הערות
+                </button>
+                <a className={styles.secondaryButton} href={annotationMichaelUrl}>
+                  שאל את מייקל על ההערות
+                </a>
+              </div>
+            </div>
+          </section>
+
           <div
             className={styles.viewerCard}
-            aria-busy={pdfStatus === 'loading' || pdfStatus === 'checking'}
+            aria-busy={pdfStatus === 'loading'}
           >
             {pdfUrl ? (
               <>
-                {pdfAvailable && (
-                  <iframe
-                    className={
-                      pdfStatus === 'ready'
-                        ? `${styles.viewerFrame} ${styles.viewerFrameReady}`
-                        : styles.viewerFrame
-                    }
-                    src={pdfUrl}
-                    title={selectedAsset?.label ?? 'PDF'}
-                    onLoad={() => setPdfStatus('ready')}
-                    onError={() => setPdfStatus('error')}
-                  />
+                {pdfAvailable && pdfStatus === 'ready' && annotationPages.length > 0 && (
+                  <div className={styles.pdfPages}>
+                    {annotationPages.map((pageData) => (
+                      <PdfPageCanvas
+                        key={`page-${pageData.pageNumber}`}
+                        page={pageData.page}
+                        pageNumber={pageData.pageNumber}
+                        width={pageData.width}
+                        height={pageData.height}
+                        annotations={annotations}
+                        tool={annotationTool}
+                        color={annotationColor}
+                        thickness={annotationThickness}
+                        show={showAnnotations}
+                        onAdd={handleAddAnnotation}
+                        onRemove={handleRemoveAnnotation}
+                      />
+                    ))}
+                  </div>
                 )}
-                {(pdfStatus === 'loading' || pdfStatus === 'checking') && (
+                {pdfStatus === 'loading' && (
                   <div className={styles.viewerOverlay} aria-live="polite">
                     <div className={styles.spinner} aria-hidden="true" />
                     <p className={styles.viewerMessage}>
-                      {pdfStatus === 'checking' ? 'בודקים את הקובץ...' : 'טוען את ה-PDF...'}
+                      טוען את ה-PDF...
                     </p>
                   </div>
                 )}
@@ -1112,6 +1738,16 @@ const InteractiveLearningRoot = () => {
             ) : (
               <div className={styles.placeholder}>בחרו מסמך כדי להתחיל</div>
             )}
+          </div>
+
+          <div className={styles.annotationStatus} role="status" aria-live="polite">
+            <span className={styles.annotationStatusText}>
+              {annotationStatus === 'loading' && 'טוענים הערות על גבי ה-PDF...'}
+              {annotationStatus === 'saving' && 'שומרים הערות...'}
+              {annotationStatus === 'saved' && annotationMessage}
+              {annotationStatus === 'error' && (annotationMessage || 'אירעה שגיאה בהערות.')}
+              {annotationStatus === 'idle' && annotationMessage}
+            </span>
           </div>
 
           <section
