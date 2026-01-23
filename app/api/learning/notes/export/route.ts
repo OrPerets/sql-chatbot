@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     const authResult = await requireAuthenticatedUser(request, userId);
-    if (!authResult.ok) {
+    if (authResult.ok === false) {
       return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 

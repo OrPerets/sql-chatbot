@@ -661,7 +661,7 @@ const InteractiveLearningRoot = () => {
               <h2 className={styles.sectionTitle}>תובנות למידה</h2>
               <div className={styles.insightCard}>
                 <div className={styles.insightRow}>
-                  <span className={styles.insightLabel}>סה"כ מפגשים</span>
+                  <span className={styles.insightLabel}>סה״כ מפגשים</span>
                   <span className={styles.insightValue}>{insights.totalSessions}</span>
                 </div>
                 <div className={styles.insightRow}>
