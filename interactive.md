@@ -8,6 +8,8 @@ Add an **Interactive Learning** page that students can access to:
 - **Browse and view** lecture and practice PDFs (from `/docs/pdfs`)
 - **Write and persist notes** per PDF or per topic
 - **Get automated summaries** of their learning sessions with Michael (conversation summaries)
+- **Summarize PDFs** with Michael (full summary or highlights)
+- **Annotate PDFs in-place** (draw, highlight) with persistence
 - **Explore content by topic** (mapped to SQL curriculum weeks/concepts)
 - Use a **professional, elegant UI/UX** aligned with the `/visualizer` route
 
@@ -21,7 +23,6 @@ Add an **Interactive Learning** page that students can access to:
 
 ### 1.3 Non-Goals (Initial)
 
-- In-browser PDF annotation (e.g. drawing on PDFs); notes are in a separate panel
 - Real-time collaboration or shared notes
 - Video lectures or other non-PDF media
 - Offline/PWA-specific optimizations for PDFs beyond normal caching
@@ -297,6 +298,72 @@ The Interactive Learning page should match the **visual and interaction patterns
 
 ---
 
+### Sprint 7: PDF Summaries with Michael (Full + Highlights)
+
+**Objective:** Let students ask Michael to summarize a selected PDF, choosing between a full summary and a concise highlight list.
+
+#### Todo
+
+- [ ] **7.1** Add a **“סיכום עם מייקל”** action near the PDF viewer with two options:
+  - **“סיכום מלא”** (full summary)
+  - **“Highlights”** (main bullets from the file)
+  Persist the last choice in `localStorage` (e.g. `interactive-learning-summary-mode`).
+- [ ] **7.2** Introduce an API endpoint (e.g. `POST /api/learning/summarize`) that accepts:
+  - `userId`, `pdfId`, `summaryMode: 'full' | 'highlights'`
+  - Optionally `pageRange` for partial summarization
+  The endpoint should load the PDF (from `docs/pdfs` or `public/learning/pdfs`) and send it to Michael’s summarization flow (Assistants API or existing summarize pipeline).
+- [ ] **7.3** Add a **summary output panel** below the viewer:
+  - Render returned summary text (Markdown OK)
+  - Provide “העתק”, “שמור להערות”, and “שאל את מייקל על הסיכום”
+  - Store the latest summary per PDF + mode in `student_notes` or a new collection (e.g. `learning_summaries`).
+- [ ] **7.4** Add UI states: loading spinner, error display with retry, and `aria-live` updates.
+- [ ] **7.5** Update `interactive.md` acceptance criteria + docs to include the new summary flow (and mention PDF size limits if any).
+
+**Deliverables**
+
+- Two summary options (full or highlights) with a visible summary panel.
+- Summaries are persisted and can be referenced from notes or Michael chat.
+
+**Implementation Notes**
+
+- Prefer reusing existing assistant threads for the user; include context like PDF name, week, and summary mode in the system prompt.
+- If PDF text extraction is needed, add a small server-side extractor (or reuse an existing utility) with caching to avoid reprocessing.
+
+---
+
+### Sprint 8: In-PDF Annotations (Draw/Highlight) + Persistence
+
+**Objective:** Allow students to annotate PDFs directly (draw/highlight) and persist those annotations per PDF.
+
+#### Todo
+
+- [ ] **8.1** Choose and integrate a PDF annotation layer:
+  - Option A: `pdf.js` viewer + custom annotation overlay (canvas/SVG).
+  - Option B: lightweight annotation lib that works with `react-pdf`.
+  - Ensure RTL-safe toolbar labels and keyboard shortcuts.
+- [ ] **8.2** Add annotation tools to the viewer UI:
+  - **Draw**, **Highlight**, **Eraser**, **Undo/Redo**
+  - Color + thickness presets
+  - Toggle “Annotations” on/off for readability.
+- [ ] **8.3** Persist annotations:
+  - New collection: `learning_annotations`
+  - Schema: `userId`, `pdfId`, `page`, `type`, `data`, `createdAt`, `updatedAt`
+  - API routes: `GET /api/learning/annotations?pdfId=` and `PUT /api/learning/annotations`
+  - Load on PDF open and sync changes on save/debounce.
+- [ ] **8.4** Add “Export annotations” (JSON) and “Clear annotations” with confirmation.
+- [ ] **8.5** Allow Michael to access annotations:
+  - Provide a “שאל את מייקל על ההערות” action that passes recent annotations as context (summarized client-side or server-side).
+
+**Deliverables**
+
+- Students can draw/highlight in the PDF viewer, and annotations persist across sessions.
+- Annotation data is exportable and available as context for Michael.
+
+**Implementation Notes**
+
+- Keep annotation payloads compact (vector paths or normalized coordinates).
+- Use page scaling metadata so annotations render correctly at different zoom levels.
+
 ## 6. File Checklist (Summary)
 
 | Area | Path / Purpose |
@@ -324,6 +391,8 @@ The Interactive Learning page should match the **visual and interaction patterns
 - [ ] Notes can be written and saved per PDF and per topic (week); they persist across sessions.
 - [ ] “שאל את מייקל” (or similar) takes the student to Michael, with optional context.
 - [ ] Conversation summaries (and insights when available) are visible in the Interactive Learning UI.
+- [ ] Students can request **PDF summaries** (full or highlights) from Michael and view results in-page.
+- [ ] Students can **annotate PDFs** (draw/highlight) and see their annotations persist across sessions.
 - [ ] Layout, colors, and responsiveness are aligned with `/visualizer` and support RTL.
 - [ ] The feature can be toggled via `NEXT_PUBLIC_INTERACTIVE_LEARNING` and is documented.
 
@@ -331,7 +400,6 @@ The Interactive Learning page should match the **visual and interaction patterns
 
 ## 8. Future Enhancements (Post-MVP)
 
-- In-PDF annotations (draw, highlight) with persistence.
 - “מייקל, סכם את ההרצאה הזו” via file upload of a PDF (or page images) to the assistant.
 - Bookmarks within a PDF (page + snippet) stored in `student_notes` or a new collection.
 - Progress indicators (“צפית ב‑X מהרצאות”) for gamification or instructor analytics.
