@@ -2,7 +2,6 @@ import { readFile } from 'fs/promises';
 import path from 'path';
 
 import OpenAI from 'openai';
-import pdf from 'pdf-parse';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { getCurrentModel } from '@/app/assistant-config';
@@ -16,6 +15,10 @@ import { requireAuthenticatedUser } from '@/lib/request-auth';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const MAX_TEXT_CHARS = 12000;
+
+let cachedPdfParser:
+  | ((buffer: Buffer, options?: Record<string, unknown>) => Promise<{ text: string; numpages: number }>)
+  | null = null;
 
 const isValidSummaryMode = (value: string | null): value is LearningSummaryMode =>
   value === 'full' || value === 'highlights';
@@ -56,8 +59,19 @@ const normalizePageRange = (range?: PageRangeInput, pageCount?: number) => {
   return { start, end };
 };
 
+const loadPdfParser = async () => {
+  if (cachedPdfParser) {
+    return cachedPdfParser;
+  }
+
+  const module = await import('pdf-parse/lib/pdf-parse.js');
+  cachedPdfParser = module.default;
+  return cachedPdfParser;
+};
+
 const extractPdfText = async (buffer: Buffer, pageRange?: PageRangeInput) => {
   const pageTexts: string[] = [];
+  const pdf = await loadPdfParser();
 
   const parsed = await pdf(buffer, {
     pagerender: async (pageData) => {
