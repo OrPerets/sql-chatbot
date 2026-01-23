@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getLearningNotesForUser } from '@/lib/learning-notes';
 import { requireAuthenticatedUser } from '@/lib/request-auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
