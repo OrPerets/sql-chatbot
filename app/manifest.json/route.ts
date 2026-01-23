@@ -1,38 +1,21 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import manifest from './data.json';
+
+export const runtime = 'nodejs';
+
+const MANIFEST_HEADERS = {
+  'Content-Type': 'application/manifest+json',
+  'Cache-Control': 'public, max-age=3600',
+} as const;
 
 /**
- * Route handler for manifest.json to ensure it's always publicly accessible
- * This prevents 401 errors in Vercel preview deployments
+ * Route handler for manifest.json. Serves the PWA manifest from bundled JSON
+ * (no fs/path) so it works even when those Node modules are not available in
+ * the server build (e.g. webpack resolve.fallback).
  */
 export async function GET() {
-  try {
-    // Read the manifest.json from public folder
-    const manifestPath = path.join(process.cwd(), 'public', 'manifest.json');
-    const manifestContent = fs.readFileSync(manifestPath, 'utf-8');
-    const manifest = JSON.parse(manifestContent);
-    
-    return NextResponse.json(manifest, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/manifest+json',
-        'Cache-Control': 'public, max-age=3600',
-      },
-    });
-  } catch (error) {
-    console.error('Error reading manifest.json:', error);
-    // Return a basic manifest if file read fails
-    return NextResponse.json({
-      name: 'Michael - SQL Assistant',
-      short_name: 'Michael',
-      start_url: '/',
-      display: 'standalone',
-    }, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/manifest+json',
-      },
-    });
-  }
+  return NextResponse.json(manifest, {
+    status: 200,
+    headers: MANIFEST_HEADERS,
+  });
 }

@@ -28,6 +28,13 @@ const nextConfig = {
           },
         ],
       },
+      // PDF viewer in interactive-learning iframe: allow same-origin framing only
+      {
+        source: '/api/learning/pdfs/(.*)',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+        ],
+      },
       // Static 3D/audio assets - long-term cache
       {
         source: '/:all*(gltf|glb|ktx2|basis|wasm|mp3|opus)',

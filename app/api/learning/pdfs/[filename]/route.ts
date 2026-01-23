@@ -54,6 +54,7 @@ export async function HEAD(
         'Content-Length': fileStat.size.toString(),
         'Content-Disposition': `inline; filename="${safeFilename}"`,
         'Cache-Control': 'public, max-age=3600',
+        'X-Frame-Options': 'SAMEORIGIN',
       },
     });
   } catch (error) {
@@ -86,6 +87,7 @@ export async function GET(
         'Content-Type': 'application/pdf',
         'Content-Disposition': `inline; filename="${safeFilename}"`,
         'Cache-Control': 'public, max-age=3600',
+        'X-Frame-Options': 'SAMEORIGIN',
       },
     });
   } catch (error) {
