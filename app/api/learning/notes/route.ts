@@ -7,6 +7,8 @@ import {
 } from '@/lib/learning-notes';
 import { requireAuthenticatedUser } from '@/lib/request-auth';
 
+export const dynamic = 'force-dynamic';
+
 type NotesQuery = {
   userId: string;
   targetType: LearningNoteTargetType;

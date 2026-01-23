@@ -6,6 +6,8 @@ import {
 } from '@/lib/learning-summaries';
 import { requireAuthenticatedUser } from '@/lib/request-auth';
 
+export const dynamic = 'force-dynamic';
+
 const isValidSummaryMode = (value: string | null): value is LearningSummaryMode =>
   value === 'full' || value === 'highlights';
 
