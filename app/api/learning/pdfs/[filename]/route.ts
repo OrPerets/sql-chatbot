@@ -20,7 +20,7 @@ const resolveAuthorizedFilename = (filename: string) => {
 
 const ensureAuthenticated = async (request: NextRequest) => {
   const authResult = await requireAuthenticatedUser(request);
-  if (!authResult.ok) {
+  if (authResult.ok === false) {
     return new Response('Unauthorized', { status: authResult.status });
   }
 
