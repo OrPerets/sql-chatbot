@@ -79,6 +79,46 @@
   color: #0f172a;
 }
 
+.sectionHeaderRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sectionMeta {
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.primaryLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid #1e3a8a;
+  background: #1e3a8a;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.primaryLink:hover {
+  background: #172554;
+  border-color: #172554;
+}
+
+.helperText {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
 .viewToggle {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -205,6 +245,116 @@
 .topicMeta {
   font-size: 11px;
   color: #64748b;
+}
+
+.summaryList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.summaryCard {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.summaryHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.summaryTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.summaryDate {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.summaryPoints {
+  margin: 0;
+  padding: 0 18px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: #334155;
+}
+
+.summaryPoint {
+  line-height: 1.4;
+}
+
+.summaryTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.insightCard {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.insightRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.insightLabel {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+}
+
+.insightValue {
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+.insightBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.insightTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.insightList {
+  margin: 0;
+  padding: 0 18px 0 0;
+  font-size: 12px;
+  color: #334155;
+}
+
+.errorText {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 12px;
 }
 
 .mainArea {

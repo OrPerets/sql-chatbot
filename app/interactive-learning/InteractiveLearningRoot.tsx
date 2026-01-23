@@ -9,6 +9,24 @@ import styles from './interactive-learning.module.css';
 
 type ViewMode = 'list' | 'topic';
 type NoteStatus = 'idle' | 'loading' | 'saving' | 'saved' | 'error';
+type SummaryStatus = 'idle' | 'loading' | 'ready' | 'error';
+
+type ConversationSummary = {
+  sessionId: string;
+  sessionTitle: string;
+  summaryPoints: string[];
+  keyTopics: string[];
+  createdAt: string;
+};
+
+type ConversationInsights = {
+  totalSessions: number;
+  averageSessionDuration: number;
+  mostCommonTopics: string[];
+  learningTrend: 'improving' | 'stable' | 'declining';
+  commonChallenges: string[];
+  overallEngagement: 'low' | 'medium' | 'high';
+};
 
 const VIEW_MODE_STORAGE_KEY = 'interactive-learning-view';
 
@@ -42,6 +60,9 @@ const InteractiveLearningRoot = () => {
   const [noteContent, setNoteContent] = useState('');
   const [noteStatus, setNoteStatus] = useState<NoteStatus>('idle');
   const [lastSavedContent, setLastSavedContent] = useState('');
+  const [summaries, setSummaries] = useState<ConversationSummary[]>([]);
+  const [insights, setInsights] = useState<ConversationInsights | null>(null);
+  const [summaryStatus, setSummaryStatus] = useState<SummaryStatus>('idle');
 
   useEffect(() => {
     const storedView = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
@@ -134,6 +155,22 @@ const InteractiveLearningRoot = () => {
     ? `/api/learning/pdfs/${encodeURIComponent(selectedAsset.filename)}`
     : null;
 
+  const michaelUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set('context', 'interactive-learning');
+
+    if (selectedAsset) {
+      params.set('source', selectedAsset.id);
+    }
+
+    if (selectedWeekData) {
+      params.set('week', String(selectedWeekData.week));
+    }
+
+    const query = params.toString();
+    return query ? `/entities/basic-chat?${query}` : '/entities/basic-chat';
+  }, [selectedAsset, selectedWeekData]);
+
   useEffect(() => {
     if (!userId || !noteTarget) {
       setNoteContent('');
@@ -176,6 +213,51 @@ const InteractiveLearningRoot = () => {
       isActive = false;
     };
   }, [noteTarget, userId]);
+
+  useEffect(() => {
+    if (!userId) {
+      setSummaries([]);
+      setInsights(null);
+      setSummaryStatus('idle');
+      return;
+    }
+
+    let isActive = true;
+    setSummaryStatus('loading');
+
+    const loadSummaries = async () => {
+      try {
+        const response = await fetch(
+          `/api/conversation-summary/student/${encodeURIComponent(userId)}?limit=10&insights=true`
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to load conversation summaries');
+        }
+
+        const data = await response.json();
+        const fetchedSummaries = data?.data?.summaries ?? [];
+        const fetchedInsights = data?.data?.insights ?? null;
+
+        if (isActive) {
+          setSummaries(fetchedSummaries);
+          setInsights(fetchedInsights);
+          setSummaryStatus('ready');
+        }
+      } catch (error) {
+        if (isActive) {
+          console.error('Failed to load conversation summaries:', error);
+          setSummaryStatus('error');
+        }
+      }
+    };
+
+    loadSummaries();
+
+    return () => {
+      isActive = false;
+    };
+  }, [userId]);
 
   const handleSaveNote = useCallback(
     async (content: string) => {
@@ -230,6 +312,23 @@ const InteractiveLearningRoot = () => {
     }
   }, [noteStatus, userId]);
 
+  const summaryStatusLabel = useMemo(() => {
+    if (!userId) {
+      return 'התחברו כדי לראות סיכומים.';
+    }
+
+    switch (summaryStatus) {
+      case 'loading':
+        return 'טוען סיכומים...';
+      case 'error':
+        return 'אירעה שגיאה בטעינת הסיכומים.';
+      default:
+        return summaries.length === 0
+          ? 'אין עדיין סיכומים זמינים.'
+          : `נמצאו ${summaries.length} סיכומים אחרונים.`;
+    }
+  }, [summaries.length, summaryStatus, userId]);
+
   const isNoteDirty = noteContent !== lastSavedContent;
 
   return (
@@ -241,6 +340,14 @@ const InteractiveLearningRoot = () => {
 
       <div className={styles.layout}>
         <aside className={styles.sidebar} aria-label="ניווט קבצי לימוד">
+          <div className={styles.sidebarSection}>
+            <h2 className={styles.sectionTitle}>מייקל</h2>
+            <a className={styles.primaryLink} href={michaelUrl}>
+              שאל את מייקל
+            </a>
+            <p className={styles.helperText}>פתחו שיחה חדשה עם ההקשר הנוכחי.</p>
+          </div>
+
           <div className={styles.sidebarSection}>
             <h2 className={styles.sectionTitle}>תצוגה</h2>
             <div className={styles.viewToggle} role="group" aria-label="מצב תצוגה">
@@ -293,6 +400,102 @@ const InteractiveLearningRoot = () => {
                     </span>
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          <div className={styles.sidebarSection}>
+            <div className={styles.sectionHeaderRow}>
+              <h2 className={styles.sectionTitle}>סיכומי שיחות עם מייקל</h2>
+              <span className={styles.sectionMeta}>{summaryStatusLabel}</span>
+            </div>
+
+            {summaryStatus === 'ready' && summaries.length > 0 && (
+              <div className={styles.summaryList} aria-live="polite">
+                {summaries.map((summary) => (
+                  <div key={summary.sessionId} className={styles.summaryCard}>
+                    <div className={styles.summaryHeader}>
+                      <h3 className={styles.summaryTitle}>{summary.sessionTitle}</h3>
+                      <span className={styles.summaryDate}>
+                        {new Date(summary.createdAt).toLocaleDateString('he-IL')}
+                      </span>
+                    </div>
+                    <ul className={styles.summaryPoints}>
+                      {summary.summaryPoints.map((point) => (
+                        <li key={point} className={styles.summaryPoint}>
+                          {point}
+                        </li>
+                      ))}
+                    </ul>
+                    {summary.keyTopics.length > 0 && (
+                      <div className={styles.summaryTags}>
+                        {summary.keyTopics.map((topic) => (
+                          <span key={topic} className={styles.tag}>
+                            {topic}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {summaryStatus === 'ready' && summaries.length === 0 && (
+              <p className={styles.helperText}>אין עדיין סיכומים עבור החשבון שלכם.</p>
+            )}
+
+            {summaryStatus === 'error' && (
+              <p className={styles.errorText} role="alert">
+                לא הצלחנו לטעון את הסיכומים. נסו שוב מאוחר יותר.
+              </p>
+            )}
+          </div>
+
+          {insights && summaryStatus === 'ready' && (
+            <div className={styles.sidebarSection}>
+              <h2 className={styles.sectionTitle}>תובנות למידה</h2>
+              <div className={styles.insightCard}>
+                <div className={styles.insightRow}>
+                  <span className={styles.insightLabel}>סה"כ מפגשים</span>
+                  <span className={styles.insightValue}>{insights.totalSessions}</span>
+                </div>
+                <div className={styles.insightRow}>
+                  <span className={styles.insightLabel}>משך ממוצע</span>
+                  <span className={styles.insightValue}>
+                    {Math.round(insights.averageSessionDuration)} דקות
+                  </span>
+                </div>
+                <div className={styles.insightRow}>
+                  <span className={styles.insightLabel}>מגמת למידה</span>
+                  <span className={styles.insightValue}>{insights.learningTrend}</span>
+                </div>
+                <div className={styles.insightRow}>
+                  <span className={styles.insightLabel}>מעורבות</span>
+                  <span className={styles.insightValue}>{insights.overallEngagement}</span>
+                </div>
+                {insights.mostCommonTopics.length > 0 && (
+                  <div className={styles.insightBlock}>
+                    <p className={styles.insightLabel}>נושאים נפוצים</p>
+                    <div className={styles.insightTags}>
+                      {insights.mostCommonTopics.map((topic) => (
+                        <span key={topic} className={styles.tag}>
+                          {topic}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {insights.commonChallenges.length > 0 && (
+                  <div className={styles.insightBlock}>
+                    <p className={styles.insightLabel}>אתגרים מרכזיים</p>
+                    <ul className={styles.insightList}>
+                      {insights.commonChallenges.map((challenge) => (
+                        <li key={challenge}>{challenge}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
           )}
