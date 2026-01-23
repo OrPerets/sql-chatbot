@@ -2,12 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageCircle, Database, BookOpen } from 'lucide-react';
+import { MessageCircle, Database, BookOpen, Shield } from 'lucide-react';
 import styles from './page.module.css';
 
 const LandingPage = () => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
 
   useEffect(() => {
     // Check if user is logged in
@@ -16,6 +18,17 @@ const LandingPage = () => {
       router.push('/');
       return;
     }
+
+    try {
+      const user = JSON.parse(storedUser);
+      const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il", "r_admin@gmail.com"];
+      const userIsAdmin = adminEmails.includes(user.email);
+      setIsAdmin(userIsAdmin);
+      setUserName(user.name || user.firstName || null);
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+    }
+
     setIsLoading(false);
   }, [router]);
 
@@ -95,6 +108,25 @@ const LandingPage = () => {
               יגיע בהמשך
             </p>
           </div>
+
+          {/* ממשק ניהול - Admin Interface */}
+          {isAdmin && (
+            <div
+              className={styles.optionCard}
+              onClick={() => handleNavigation('/admin')}
+            >
+              <div className={styles.cardIcon}>
+                <Shield size={48} />
+              </div>
+              <h2 className={styles.cardTitle}>ממשק ניהול</h2>
+              <p className={styles.cardDescription}>
+                ניהול המערכת והמשתמשים
+              </p>
+              {userName && (
+                <p className={styles.adminName}>{userName}</p>
+              )}
+            </div>
+          )}
         </div>
       </main>
     </div>
