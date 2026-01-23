@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { getLearningNotesForUser } from '@/lib/learning-notes';
-
-const resolveUserId = (request: NextRequest, expectedUserId: string) => {
-  const headerUserId = request.headers.get('x-user-id')?.trim();
-
-  if (!headerUserId || headerUserId !== expectedUserId) {
-    return null;
-  }
-
-  return headerUserId;
-};
+import { requireAuthenticatedUser } from '@/lib/request-auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,13 +12,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
 
-    const authenticatedUserId = resolveUserId(request, userId);
-    if (!authenticatedUserId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    const authResult = await requireAuthenticatedUser(request, userId);
+    if (!authResult.ok) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
-    const notes = await getLearningNotesForUser(authenticatedUserId);
-    const filename = `interactive-learning-notes-${authenticatedUserId}.json`;
+    const notes = await getLearningNotesForUser(userId);
+    const filename = `interactive-learning-notes-${userId}.json`;
 
     return new NextResponse(JSON.stringify({ notes }, null, 2), {
       headers: {
