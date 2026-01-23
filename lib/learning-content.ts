@@ -1,3 +1,5 @@
+import { getAllowedConceptsForWeek, SQL_CURRICULUM_MAP } from '@/lib/sql-curriculum';
+
 export type LearningAssetType = 'lecture' | 'practice';
 
 export type LearningAsset = {
@@ -6,9 +8,10 @@ export type LearningAsset = {
   type: LearningAssetType;
   week: number;
   label: string;
+  concepts: string[];
 };
 
-export const LEARNING_PDFS: LearningAsset[] = [
+const BASE_LEARNING_PDFS: Omit<LearningAsset, 'concepts'>[] = [
   { id: 'lecture01', filename: 'lecture01.pdf', type: 'lecture', week: 1, label: 'הרצאה 1' },
   { id: 'lecture02', filename: 'lecture02.pdf', type: 'lecture', week: 2, label: 'הרצאה 2' },
   { id: 'lecture03', filename: 'lecture03.pdf', type: 'lecture', week: 3, label: 'הרצאה 3' },
@@ -37,5 +40,10 @@ export const LEARNING_PDFS: LearningAsset[] = [
   { id: 'tergul10', filename: 'tergul10.pdf', type: 'practice', week: 10, label: 'תרגול 10' },
   { id: 'tergul11', filename: 'tergul11.pdf', type: 'practice', week: 11, label: 'תרגול 11' },
 ];
+
+export const LEARNING_PDFS: LearningAsset[] = BASE_LEARNING_PDFS.map((asset) => ({
+  ...asset,
+  concepts: SQL_CURRICULUM_MAP[asset.week]?.concepts ?? getAllowedConceptsForWeek(asset.week),
+}));
 
 export const LEARNING_PDF_FILENAMES = new Set(LEARNING_PDFS.map((item) => item.filename));
