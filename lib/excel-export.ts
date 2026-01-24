@@ -17,6 +17,7 @@ interface ExportHomeworkParams {
 interface GenerateHomeworkGradesBufferParams
   extends Omit<ExportHomeworkParams, "fileName"> {
   emailMap?: Map<string, string> | Record<string, string>;
+  fileName?: string;
 }
 
 const formatScoreCell = (score: number | undefined) => {
