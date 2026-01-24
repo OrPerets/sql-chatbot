@@ -376,13 +376,13 @@ The Interactive Learning page should match the **visual and interaction patterns
 
 #### Todo
 
-- [ ] **9.1** **Progress page:** Add a new route at `/interactive-learning/progress` (or a tab within the Interactive Learning layout) with a dashboard-style view of quiz progress.
-- [ ] **9.2** **Progress cards:** Show per-lecture/practice status: last score, best score, attempt count, and last attempt date.
-- [ ] **9.3** **Recent activity:** List the most recent quiz attempts with timestamps and quick links back to the relevant lecture/practice.
-- [ ] **9.4** **Completion tracking:** Display overall completion % (e.g., “10/27 quizzes attempted”) and an at-a-glance progress bar.
-- [ ] **9.5** **Adaptive signals:** Surface basic insights (e.g., “Topics to revisit”) using stored per-question outcomes and time-to-answer.
-- [ ] **9.6** **Navigation:** Add a clear entry point from `/interactive-learning` to the progress page (sidebar link or header action).
-- [ ] **9.7** **Accessibility & i18n:** RTL layout, keyboard navigation, and `aria-live` updates for progress metrics.
+- [x] **9.1** **Progress page:** Add a new route at `/interactive-learning/progress` (or a tab within the Interactive Learning layout) with a dashboard-style view of quiz progress.
+- [x] **9.2** **Progress cards:** Show per-lecture/practice status: last score, best score, attempt count, and last attempt date.
+- [x] **9.3** **Recent activity:** List the most recent quiz attempts with timestamps and quick links back to the relevant lecture/practice.
+- [x] **9.4** **Completion tracking:** Display overall completion % (e.g., “10/27 quizzes attempted”) and an at-a-glance progress bar.
+- [x] **9.5** **Adaptive signals:** Surface basic insights (e.g., “Topics to revisit”) using stored per-question outcomes and time-to-answer.
+- [x] **9.6** **Navigation:** Add a clear entry point from `/interactive-learning` to the progress page (sidebar link or header action).
+- [x] **9.7** **Accessibility & i18n:** RTL layout, keyboard navigation, and `aria-live` updates for progress metrics.
 
 **Deliverables**
 
@@ -391,4 +391,6 @@ The Interactive Learning page should match the **visual and interaction patterns
 
 **Implementation Notes**
 
-- The progress page reads from `learning_quiz_results` and joins quiz metadata from `learning_quizzes` for labels and targets.
+- Added `/interactive-learning/progress` with summary cards, progress cards, recent activity, and topics-to-revisit insights in an RTL dashboard layout.
+- Introduced `/api/learning/quizzes/progress` to aggregate `learning_quiz_results` with quiz metadata and compute completion stats plus adaptive signals.
+- Linked the progress dashboard from the Interactive Learning sidebar for quick navigation back and forth.

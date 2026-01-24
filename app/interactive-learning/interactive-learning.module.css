@@ -122,6 +122,26 @@
   border-color: #172554;
 }
 
+.secondaryLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  min-height: 44px;
+  border-radius: 999px;
+  border: 1px solid #1e3a8a;
+  background: #ffffff;
+  color: #1e3a8a;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.secondaryLink:hover {
+  background: rgba(30, 58, 138, 0.08);
+}
+
 .helperText {
   margin: 0;
   font-size: 12px;
