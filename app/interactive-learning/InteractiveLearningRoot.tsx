@@ -1018,49 +1018,6 @@ const InteractiveLearningRoot = () => {
             )}
           </div>
 
-          <section className={styles.summaryToolbar} aria-label="סיכום עם מייקל">
-            <div>
-              <p className={styles.summaryEyebrow}>סיכום עם מייקל</p>
-              <h3 className={styles.summaryTitle}>בחרו מצב סיכום</h3>
-            </div>
-            <div className={styles.summaryControls}>
-              <div className={styles.summaryToggle} role="group" aria-label="מצב סיכום">
-                <button
-                  type="button"
-                  className={
-                    summaryMode === 'full'
-                      ? `${styles.summaryModeButton} ${styles.summaryModeButtonActive}`
-                      : styles.summaryModeButton
-                  }
-                  onClick={() => setSummaryMode('full')}
-                  aria-pressed={summaryMode === 'full'}
-                >
-                  סיכום מלא
-                </button>
-                <button
-                  type="button"
-                  className={
-                    summaryMode === 'highlights'
-                      ? `${styles.summaryModeButton} ${styles.summaryModeButtonActive}`
-                      : styles.summaryModeButton
-                  }
-                  onClick={() => setSummaryMode('highlights')}
-                  aria-pressed={summaryMode === 'highlights'}
-                >
-                  Highlights
-                </button>
-              </div>
-              <button
-                type="button"
-                className={styles.primaryButton}
-                onClick={handleGenerateSummary}
-                disabled={!userId || !selectedAsset || pdfSummaryStatus === 'loading'}
-              >
-                צור סיכום
-              </button>
-            </div>
-          </section>
-
           <div
             className={styles.viewerCard}
             aria-busy={pdfStatus === 'loading' || pdfStatus === 'checking'}
@@ -1113,6 +1070,49 @@ const InteractiveLearningRoot = () => {
               <div className={styles.placeholder}>בחרו מסמך כדי להתחיל</div>
             )}
           </div>
+
+          <section className={styles.summaryToolbar} aria-label="סיכום עם מייקל">
+            <div>
+              <p className={styles.summaryEyebrow}>סיכום עם מייקל</p>
+              <h3 className={styles.summaryTitle}>בחרו מצב סיכום</h3>
+            </div>
+            <div className={styles.summaryControls}>
+              <div className={styles.summaryToggle} role="group" aria-label="מצב סיכום">
+                <button
+                  type="button"
+                  className={
+                    summaryMode === 'full'
+                      ? `${styles.summaryModeButton} ${styles.summaryModeButtonActive}`
+                      : styles.summaryModeButton
+                  }
+                  onClick={() => setSummaryMode('full')}
+                  aria-pressed={summaryMode === 'full'}
+                >
+                  סיכום מלא
+                </button>
+                <button
+                  type="button"
+                  className={
+                    summaryMode === 'highlights'
+                      ? `${styles.summaryModeButton} ${styles.summaryModeButtonActive}`
+                      : styles.summaryModeButton
+                  }
+                  onClick={() => setSummaryMode('highlights')}
+                  aria-pressed={summaryMode === 'highlights'}
+                >
+                  Highlights
+                </button>
+              </div>
+              <button
+                type="button"
+                className={styles.primaryButton}
+                onClick={handleGenerateSummary}
+                disabled={!userId || !selectedAsset || pdfSummaryStatus === 'loading'}
+              >
+                צור סיכום
+              </button>
+            </div>
+          </section>
 
           <section
             className={styles.summaryCard}
