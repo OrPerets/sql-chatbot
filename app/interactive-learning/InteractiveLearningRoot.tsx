@@ -41,6 +41,7 @@ type ActionItem = {
   href?: string;
   onClick?: () => void;
   disabled?: boolean;
+  download?: boolean;
 };
 
 const ActionMenu = ({
@@ -68,6 +69,7 @@ const ActionMenu = ({
             href={item.href}
             target="_blank"
             rel="noreferrer"
+            download={item.download ? '' : undefined}
             aria-disabled={item.disabled}
             role="menuitem"
             tabIndex={item.disabled ? -1 : 0}
@@ -697,8 +699,6 @@ const InteractiveLearningRoot = () => {
     };
   }, [exportReadyUrl]);
 
-  const isNoteDirty = noteContent !== lastSavedContent;
-
   const noteStatusLabel = useMemo(() => {
     if (!userId) {
       return 'התחברו כדי לשמור הערות.';
@@ -717,6 +717,8 @@ const InteractiveLearningRoot = () => {
         return 'הערות נשמרות לחשבון שלכם.';
     }
   }, [noteStatus, userId]);
+
+  const isNoteDirty = noteContent !== lastSavedContent;
 
   const noteStateLabel = useMemo(() => {
     if (!userId) {
@@ -811,13 +813,13 @@ const InteractiveLearningRoot = () => {
     if (!pdfUrl) {
       return [
         { label: 'פתיחה בחלון חדש', disabled: true },
-        { label: 'הורדה', disabled: true },
+        { label: 'הורדה', disabled: true, download: true },
       ];
     }
 
     return [
       { label: 'פתיחה בחלון חדש', href: pdfUrl },
-      { label: 'הורדה', href: pdfUrl },
+      { label: 'הורדה', href: pdfUrl, download: true },
     ];
   }, [pdfUrl]);
 
