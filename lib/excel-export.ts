@@ -14,6 +14,11 @@ interface ExportHomeworkParams {
   fileName: string;
 }
 
+interface GenerateHomeworkGradesBufferParams
+  extends Omit<ExportHomeworkParams, "fileName"> {
+  emailMap?: Map<string, string> | Record<string, string>;
+}
+
 const formatScoreCell = (score: number | undefined) => {
   if (typeof score === "number") return score;
   if (score === 0) return 0;
@@ -90,4 +95,40 @@ export function buildHomeworkGradesWorkbook({
 export function exportHomeworkGradesToExcel(params: ExportHomeworkParams) {
   const workbook = buildHomeworkGradesWorkbook(params);
   XLSX.writeFile(workbook, params.fileName);
+}
+
+const resolveEmailFromMap = (
+  emailMap: Map<string, string> | Record<string, string> | undefined,
+  studentId: string | undefined,
+) => {
+  if (!emailMap || !studentId) return undefined;
+  if (emailMap instanceof Map) {
+    return emailMap.get(studentId);
+  }
+  return emailMap[studentId];
+};
+
+export function generateHomeworkGradesExcelBuffer({
+  homeworkTitle,
+  questions,
+  submissions,
+  summaries,
+  emailMap,
+}: GenerateHomeworkGradesBufferParams) {
+  const normalizedSubmissions = submissions.map((submission) => {
+    const resolvedEmail = resolveEmailFromMap(emailMap, submission.studentId);
+    return {
+      ...submission,
+      studentId: resolvedEmail ?? submission.studentId,
+    };
+  });
+
+  const workbook = buildHomeworkGradesWorkbook({
+    homeworkTitle,
+    questions,
+    submissions: normalizedSubmissions,
+    summaries,
+  });
+
+  return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
 }
