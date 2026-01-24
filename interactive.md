@@ -330,41 +330,6 @@ The Interactive Learning page should match the **visual and interaction patterns
 - Implemented `POST /api/learning/summarize` with PDF text extraction and storage in a new `learning_summaries` collection, and added `GET /api/learning/summaries` for loading cached summaries.
 - Summaries are capped to the first 12k characters of extracted text for performance; the UI discloses when truncation is applied and provides loading/error states.
 
----
-
-### Sprint 8: In-PDF Annotations (Draw/Highlight) + Persistence
-
-**Objective:** Allow students to annotate PDFs directly (draw/highlight) and persist those annotations per PDF.
-
-#### Todo
-
-- [ ] **8.1** Choose and integrate a PDF annotation layer:
-  - Option A: `pdf.js` viewer + custom annotation overlay (canvas/SVG).
-  - Option B: lightweight annotation lib that works with `react-pdf`.
-  - Ensure RTL-safe toolbar labels and keyboard shortcuts.
-- [ ] **8.2** Add annotation tools to the viewer UI:
-  - **Draw**, **Highlight**, **Eraser**, **Undo/Redo**
-  - Color + thickness presets
-  - Toggle “Annotations” on/off for readability.
-- [ ] **8.3** Persist annotations:
-  - New collection: `learning_annotations`
-  - Schema: `userId`, `pdfId`, `page`, `type`, `data`, `createdAt`, `updatedAt`
-  - API routes: `GET /api/learning/annotations?pdfId=` and `PUT /api/learning/annotations`
-  - Load on PDF open and sync changes on save/debounce.
-- [ ] **8.4** Add “Export annotations” (JSON) and “Clear annotations” with confirmation.
-- [ ] **8.5** Allow Michael to access annotations:
-  - Provide a “שאל את מייקל על ההערות” action that passes recent annotations as context (summarized client-side or server-side).
-
-**Deliverables**
-
-- Students can draw/highlight in the PDF viewer, and annotations persist across sessions.
-- Annotation data is exportable and available as context for Michael.
-
-**Implementation Notes**
-
-- Keep annotation payloads compact (vector paths or normalized coordinates).
-- Use page scaling metadata so annotations render correctly at different zoom levels.
-
 ## 6. File Checklist (Summary)
 
 | Area | Path / Purpose |
