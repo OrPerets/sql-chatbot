@@ -697,6 +697,8 @@ const InteractiveLearningRoot = () => {
     };
   }, [exportReadyUrl]);
 
+  const isNoteDirty = noteContent !== lastSavedContent;
+
   const noteStatusLabel = useMemo(() => {
     if (!userId) {
       return 'התחברו כדי לשמור הערות.';
@@ -781,11 +783,10 @@ const InteractiveLearningRoot = () => {
           ? `הסיכום נוצר מתוך ${pdfSummaryMeta.maxChars} תווים ראשונים של הקובץ.`
           : 'הסיכום מוכן.';
       default:
-        return 'בחרו מצב סיכום ולחצו על יצירה.';
+        return '';
     }
   }, [pdfSummaryError, pdfSummaryMeta?.maxChars, pdfSummaryMeta?.truncated, pdfSummaryStatus, userId]);
 
-  const isNoteDirty = noteContent !== lastSavedContent;
 
   const pdfStatusLabel = useMemo(() => {
     if (!selectedAsset) {
@@ -1118,22 +1119,20 @@ const InteractiveLearningRoot = () => {
                 <h2 className={styles.contentTitle}>
                   {selectedAsset ? selectedAsset.label : 'בחרו מסמך'}
                 </h2>
-              </div>
-              <div className={styles.viewerHeaderMeta}>
                 <span className={styles.statusPill} data-tone={pdfStatus}>
                   {pdfStatusLabel}
                 </span>
-                {selectedAsset && (
-                  <button
-                    type="button"
-                    className={styles.primaryButton}
-                    onClick={() => setIsPdfOpen(true)}
-                    disabled={!pdfAvailable || pdfStatus === 'checking' || pdfStatus === 'error'}
-                  >
-                    פתח/י PDF
-                  </button>
-                )}
               </div>
+              {selectedAsset && !isPdfOpen && (
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  onClick={() => setIsPdfOpen(true)}
+                  disabled={!pdfAvailable || pdfStatus === 'checking' || pdfStatus === 'error'}
+                >
+                  פתח/י PDF
+                </button>
+              )}
             </div>
 
             {pdfUrl ? (
@@ -1200,7 +1199,7 @@ const InteractiveLearningRoot = () => {
             aria-busy={pdfSummaryStatus === 'loading'}
           >
             <div className={styles.summaryHeaderRow}>
-              <div>
+              <div className={styles.summaryHeaderContent}>
                 <p className={styles.summaryEyebrow}>שלב 2 · סיכום עם מייקל</p>
                 <h3 className={styles.summaryPanelTitle}>
                   {selectedAsset
@@ -1242,14 +1241,6 @@ const InteractiveLearningRoot = () => {
                     Highlights
                   </button>
                 </div>
-                <button
-                  type="button"
-                  className={`${styles.primaryButton} ${styles.summaryGenerateButton}`}
-                  onClick={handleGenerateSummary}
-                  disabled={!userId || !selectedAsset || pdfSummaryStatus === 'loading'}
-                >
-                  צור סיכום
-                </button>
               </div>
             </div>
 
@@ -1279,16 +1270,27 @@ const InteractiveLearningRoot = () => {
                 </div>
               )}
               {pdfSummaryStatus === 'idle' && (
-                <p className={styles.helperText}>
-                  {userId
-                    ? 'בחרו מצב סיכום ולחצו על צור סיכום.'
-                    : 'התחברו כדי ליצור סיכום.'}
-                </p>
+                <div className={styles.summaryEmptyState}>
+                  <p className={styles.helperText}>
+                    {userId
+                      ? 'בחרו מצב סיכום ולחצו על "צור סיכום" כדי להתחיל.'
+                      : 'התחברו כדי ליצור סיכום.'}
+                  </p>
+                  {userId && selectedAsset && (
+                    <button
+                      type="button"
+                      className={`${styles.primaryButton} ${styles.summaryGenerateButton}`}
+                      onClick={handleGenerateSummary}
+                    >
+                      צור סיכום
+                    </button>
+                  )}
+                </div>
               )}
             </div>
 
             {pdfSummaryStatus === 'ready' && pdfSummary && (
-              <div className={styles.summaryActionGroup}>
+              <div className={styles.summaryFooterActions}>
                 <div className={styles.summaryPanelActions}>
                   <a className={styles.primaryButton} href={summaryMichaelUrl}>
                     שאל את מייקל
@@ -1307,19 +1309,23 @@ const InteractiveLearningRoot = () => {
                     onClick={handleCopySummary}
                     disabled={!pdfSummary}
                     aria-label="העתקת הסיכום"
+                    title="העתק סיכום"
                   >
                     ⧉
                   </button>
                 </div>
+                {(pdfSummaryFeedback || pdfSummaryStatusLabel) && (
+                  <div className={styles.summaryStatusRow} aria-live="polite">
+                    {pdfSummaryFeedback && (
+                      <span className={styles.summaryFeedback}>{pdfSummaryFeedback}</span>
+                    )}
+                    {pdfSummaryStatusLabel && !pdfSummaryFeedback && (
+                      <span className={styles.summaryStatusText}>{pdfSummaryStatusLabel}</span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
-
-            <div className={styles.summaryFooter} aria-live="polite">
-              <span className={styles.summaryStatusText}>{pdfSummaryStatusLabel}</span>
-              {pdfSummaryFeedback && (
-                <span className={styles.summaryStatusText}>{pdfSummaryFeedback}</span>
-              )}
-            </div>
           </section>
 
           <section
@@ -1328,16 +1334,13 @@ const InteractiveLearningRoot = () => {
             aria-busy={noteStatus === 'loading' || noteStatus === 'saving'}
           >
             <div className={styles.notesHeader}>
-              <div>
+              <div className={styles.notesHeaderContent}>
                 <p className={styles.notesEyebrow}>שלב 3 · הערות אישיות</p>
                 <h3 className={styles.notesTitle}>
                   {noteTarget
                     ? `הערות עבור ${noteTarget.label}`
                     : 'בחרו מסמך או נושא כדי להוסיף הערות'}
                 </h3>
-                <span className={styles.statusPill} data-tone={isNoteDirty ? 'warning' : noteStatus}>
-                  {noteStateLabel}
-                </span>
               </div>
               <div className={styles.notesActions}>
                 <div className={styles.notesActionRow}>
@@ -1347,20 +1350,20 @@ const InteractiveLearningRoot = () => {
                     onClick={() => handleSaveNote(noteContent)}
                     disabled={!userId || !noteTarget || noteStatus === 'saving' || !isNoteDirty}
                   >
-                    שמור
+                    {noteStatus === 'saving' ? 'שומר...' : 'שמור'}
                   </button>
                   <ActionMenu
                     label="אפשרויות"
                     items={[
                       {
-                        label: 'ייצוא הערות',
+                        label: 'ייצוא כל ההערות',
                         onClick: handleExportNotes,
                         disabled: !userId || isExporting,
                       },
                       ...(noteStatus === 'error'
                         ? [
                             {
-                              label: 'נסו שוב',
+                              label: 'טען מחדש',
                               onClick: loadNote,
                               disabled: !userId || !noteTarget,
                             },
@@ -1370,12 +1373,14 @@ const InteractiveLearningRoot = () => {
                   />
                 </div>
                 <div className={styles.notesStatusRow}>
-                  <span className={styles.saveStatus} role="status" aria-live="polite">
-                    {noteStatusLabel}
+                  <span className={styles.statusPill} data-tone={isNoteDirty ? 'warning' : noteStatus}>
+                    {noteStateLabel}
                   </span>
-                  <span className={styles.exportStatus} role="status" aria-live="polite">
-                    {exportStatusLabel}
-                  </span>
+                  {(exportStatus !== 'idle' || !userId) && (
+                    <span className={styles.exportStatus} role="status" aria-live="polite">
+                      {exportStatusLabel}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
