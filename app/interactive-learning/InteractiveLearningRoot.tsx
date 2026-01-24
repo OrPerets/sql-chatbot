@@ -1071,49 +1071,6 @@ const InteractiveLearningRoot = () => {
             )}
           </div>
 
-          <section className={styles.summaryToolbar} aria-label="סיכום עם מייקל">
-            <div>
-              <p className={styles.summaryEyebrow}>סיכום עם מייקל</p>
-              <h3 className={styles.summaryTitle}>בחרו מצב סיכום</h3>
-            </div>
-            <div className={styles.summaryControls}>
-              <div className={styles.summaryToggle} role="group" aria-label="מצב סיכום">
-                <button
-                  type="button"
-                  className={
-                    summaryMode === 'full'
-                      ? `${styles.summaryModeButton} ${styles.summaryModeButtonActive}`
-                      : styles.summaryModeButton
-                  }
-                  onClick={() => setSummaryMode('full')}
-                  aria-pressed={summaryMode === 'full'}
-                >
-                  סיכום מלא
-                </button>
-                <button
-                  type="button"
-                  className={
-                    summaryMode === 'highlights'
-                      ? `${styles.summaryModeButton} ${styles.summaryModeButtonActive}`
-                      : styles.summaryModeButton
-                  }
-                  onClick={() => setSummaryMode('highlights')}
-                  aria-pressed={summaryMode === 'highlights'}
-                >
-                  Highlights
-                </button>
-              </div>
-              <button
-                type="button"
-                className={styles.primaryButton}
-                onClick={handleGenerateSummary}
-                disabled={!userId || !selectedAsset || pdfSummaryStatus === 'loading'}
-              >
-                צור סיכום
-              </button>
-            </div>
-          </section>
-
           <section
             className={styles.summaryCard}
             aria-label="סיכום PDF"
@@ -1133,26 +1090,44 @@ const InteractiveLearningRoot = () => {
                   </p>
                 )}
               </div>
-              <div className={styles.summaryPanelActions}>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={handleCopySummary}
-                  disabled={!pdfSummary}
-                >
-                  העתק
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={handleSaveSummaryToNotes}
-                  disabled={!pdfSummary || !noteTarget}
-                >
-                  שמור להערות
-                </button>
-                <a className={styles.secondaryButton} href={summaryMichaelUrl}>
-                  שאל את מייקל על הסיכום
-                </a>
+              <div className={styles.summaryHeaderActions}>
+                <div className={styles.summaryControls}>
+                  <h4 className={styles.summaryControlsTitle}>מצב סיכום</h4>
+                  <div className={styles.summaryToggle} role="group" aria-label="מצב סיכום">
+                    <button
+                      type="button"
+                      className={
+                        summaryMode === 'full'
+                          ? `${styles.summaryModeButton} ${styles.summaryModeButtonActive}`
+                          : styles.summaryModeButton
+                      }
+                      onClick={() => setSummaryMode('full')}
+                      aria-pressed={summaryMode === 'full'}
+                    >
+                      סיכום מלא
+                    </button>
+                    <button
+                      type="button"
+                      className={
+                        summaryMode === 'highlights'
+                          ? `${styles.summaryModeButton} ${styles.summaryModeButtonActive}`
+                          : styles.summaryModeButton
+                      }
+                      onClick={() => setSummaryMode('highlights')}
+                      aria-pressed={summaryMode === 'highlights'}
+                    >
+                      Highlights
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.primaryButton} ${styles.summaryGenerateButton}`}
+                      onClick={handleGenerateSummary}
+                      disabled={!userId || !selectedAsset || pdfSummaryStatus === 'loading'}
+                    >
+                      צור סיכום
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1188,6 +1163,31 @@ const InteractiveLearningRoot = () => {
                     : 'התחברו כדי ליצור סיכום.'}
                 </p>
               )}
+            </div>
+
+            <div className={styles.summaryActionGroup}>
+              <h4 className={styles.summaryControlsTitle}>פעולות סיכום</h4>
+              <div className={styles.summaryPanelActions}>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={handleCopySummary}
+                  disabled={!pdfSummary}
+                >
+                  העתק
+                </button>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={handleSaveSummaryToNotes}
+                  disabled={!pdfSummary || !noteTarget}
+                >
+                  שמור להערות
+                </button>
+                <a className={styles.secondaryButton} href={summaryMichaelUrl}>
+                  שאל את מייקל על הסיכום
+                </a>
+              </div>
             </div>
 
             <div className={styles.summaryFooter} aria-live="polite">
