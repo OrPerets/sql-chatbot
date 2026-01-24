@@ -1185,7 +1185,7 @@ const InteractiveLearningRoot = () => {
                   שמור להערות
                 </button>
                 <a className={styles.secondaryButton} href={summaryMichaelUrl}>
-                  שאל את מייקל על הסיכום
+                  שאל את מייקל <br/>על הסיכום
                 </a>
               </div>
             </div>
