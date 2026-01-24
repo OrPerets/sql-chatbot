@@ -1198,6 +1198,14 @@ const InteractiveLearningRoot = () => {
           </div>
 
           <div className={styles.sidebarSection}>
+            <h2 className={styles.sectionTitle}>מעקב חידונים</h2>
+            <a className={styles.secondaryLink} href="/interactive-learning/progress">
+              לוח התקדמות חידונים
+            </a>
+            <p className={styles.helperText}>בדקו ציונים אחרונים ונושאים לחזרה.</p>
+          </div>
+
+          <div className={styles.sidebarSection}>
             <h2 className={styles.sectionTitle}>תצוגה</h2>
             <div className={styles.viewToggle} role="group" aria-label="מצב תצוגה">
               <button

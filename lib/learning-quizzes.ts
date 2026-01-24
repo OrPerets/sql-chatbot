@@ -136,3 +136,30 @@ export async function createLearningQuizResult(
 
   return result;
 }
+
+export async function getLearningQuizResultsForUser(
+  userId: string
+): Promise<LearningQuizResult[]> {
+  return executeWithRetry(async (db) =>
+    db
+      .collection<LearningQuizResult>(COLLECTIONS.LEARNING_QUIZ_RESULTS)
+      .find({ userId })
+      .sort({ completedAt: -1 })
+      .toArray()
+  );
+}
+
+export async function getLearningQuizzesByIds(
+  quizIds: string[]
+): Promise<LearningQuiz[]> {
+  if (quizIds.length === 0) {
+    return [];
+  }
+
+  return executeWithRetry(async (db) =>
+    db
+      .collection<LearningQuiz>(COLLECTIONS.LEARNING_QUIZZES)
+      .find({ quizId: { $in: quizIds } })
+      .toArray()
+  );
+}
