@@ -15,6 +15,8 @@ type ConversationSummaryStatus = 'idle' | 'loading' | 'ready' | 'error';
 type PdfStatus = 'idle' | 'checking' | 'loading' | 'ready' | 'error';
 type PdfSummaryMode = 'full' | 'highlights';
 type PdfSummaryStatus = 'idle' | 'loading' | 'ready' | 'error';
+type QuizStatus = 'idle' | 'loading' | 'ready' | 'error';
+type QuizAttemptStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 type ConversationSummary = {
   sessionId: string;
@@ -31,6 +33,47 @@ type ConversationInsights = {
   learningTrend: 'improving' | 'stable' | 'declining';
   commonChallenges: string[];
   overallEngagement: 'low' | 'medium' | 'high';
+};
+
+type LearningQuizQuestion =
+  | {
+      id: string;
+      type: 'mcq';
+      prompt: string;
+      choices: string[];
+      correctIndex: number;
+      hint?: string;
+      explanation?: string;
+    }
+  | {
+      id: string;
+      type: 'sql';
+      prompt: string;
+      starterSql?: string;
+      expectedSql?: string;
+      hint?: string;
+      explanation?: string;
+      runnerConfig?: {
+        setId: string;
+        questionId: string;
+      };
+    };
+
+type LearningQuiz = {
+  quizId: string;
+  targetType: 'lecture' | 'practice';
+  targetId: string;
+  title: string;
+  createdBy: 'michael';
+  questions: LearningQuizQuestion[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+type QuizFeedback = {
+  correct: boolean;
+  message: string;
+  explanation?: string;
 };
 
 const VIEW_MODE_STORAGE_KEY = 'interactive-learning-view';
@@ -93,6 +136,29 @@ const ActionMenu = ({
   </details>
 );
 
+const normalizeSql = (sql: string) =>
+  sql
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/[\'"]/g, "'")
+    .replace(/;/g, '')
+    .replace(/\s*,\s*/g, ', ')
+    .replace(/\s*=\s*/g, ' = ')
+    .replace(/\s*>\s*/g, ' > ')
+    .replace(/\s*<\s*/g, ' < ')
+    .replace(/\s*!=\s*/g, ' != ')
+    .replace(/\s*<=\s*/g, ' <= ')
+    .replace(/\s*>=\s*/g, ' >= ')
+    .replace(/\s*like\s*/gi, ' like ')
+    .replace(/\s*is\s+not\s+null\s*/gi, ' is not null ')
+    .replace(/\s*is\s+null\s*/gi, ' is null ')
+    .replace(/\s*order\s+by\s*/gi, ' order by ')
+    .replace(/\s*group\s+by\s*/gi, ' group by ')
+    .trim();
+
+const matchesSql = (left: string, right: string) =>
+  Boolean(left && right && normalizeSql(left) === normalizeSql(right));
+
 const InteractiveLearningRoot = () => {
   const lectures = useMemo(
     () => LEARNING_PDFS.filter((asset) => asset.type === 'lecture'),
@@ -146,6 +212,15 @@ const InteractiveLearningRoot = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [exportReadyUrl, setExportReadyUrl] = useState<string | null>(null);
   const [isPdfOpen, setIsPdfOpen] = useState(false);
+  const [quizStatus, setQuizStatus] = useState<QuizStatus>('idle');
+  const [quizError, setQuizError] = useState<string | null>(null);
+  const [quiz, setQuiz] = useState<LearningQuiz | null>(null);
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, string | number | null>>({});
+  const [quizFeedback, setQuizFeedback] = useState<Record<string, QuizFeedback>>({});
+  const [quizHints, setQuizHints] = useState<Record<string, boolean>>({});
+  const [quizAttemptStatus, setQuizAttemptStatus] = useState<QuizAttemptStatus>('idle');
+  const [quizAttemptMessage, setQuizAttemptMessage] = useState<string | null>(null);
+  const quizStartedAtRef = useRef<string | null>(null);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -216,6 +291,16 @@ const InteractiveLearningRoot = () => {
     () => LEARNING_PDFS.find((asset) => asset.id === selectedId) ?? null,
     [selectedId]
   );
+  const quizTarget = useMemo(() => {
+    if (!selectedAsset) {
+      return null;
+    }
+
+    return {
+      type: selectedAsset.type === 'lecture' ? 'lecture' : 'practice',
+      id: selectedAsset.id,
+    };
+  }, [selectedAsset]);
   const selectedWeekData = useMemo(() => {
     if (selectedWeek === null) {
       return null;
@@ -492,6 +577,72 @@ const InteractiveLearningRoot = () => {
     };
   }, [loadPdfSummary]);
 
+  const resetQuizState = useCallback(() => {
+    setQuizAnswers({});
+    setQuizFeedback({});
+    setQuizHints({});
+    setQuizAttemptStatus('idle');
+    setQuizAttemptMessage(null);
+    quizStartedAtRef.current = new Date().toISOString();
+  }, []);
+
+  const loadQuiz = useCallback(async () => {
+    if (!quizTarget) {
+      setQuiz(null);
+      setQuizStatus('idle');
+      setQuizError(null);
+      return;
+    }
+
+    if (!userId) {
+      setQuiz(null);
+      setQuizStatus('idle');
+      setQuizError('נדרשת התחברות כדי לראות חידונים.');
+      return;
+    }
+
+    setQuizStatus('loading');
+    setQuizError(null);
+
+    try {
+      const response = await fetch(
+        `/api/learning/quizzes?targetType=${quizTarget.type}&targetId=${encodeURIComponent(
+          quizTarget.id
+        )}`,
+        {
+          headers: { 'x-user-id': userId },
+          credentials: 'same-origin',
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to load quiz');
+      }
+
+      const data = await response.json();
+      setQuiz(data?.quiz ?? null);
+      setQuizStatus('ready');
+      resetQuizState();
+    } catch (error) {
+      console.error('Failed to load quiz:', error);
+      setQuizStatus('error');
+      setQuizError('לא הצלחנו לטעון את החידון.');
+    }
+  }, [quizTarget, resetQuizState, userId]);
+
+  useEffect(() => {
+    let isActive = true;
+    loadQuiz().catch(() => {
+      if (isActive) {
+        setQuizStatus('error');
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [loadQuiz]);
+
   useEffect(() => {
     if (!pdfUrl) {
       setPdfStatus('idle');
@@ -691,6 +842,159 @@ const InteractiveLearningRoot = () => {
     setPdfSummaryFeedback('הסיכום נשמר בהערות.');
   }, [handleSaveNote, noteContent, noteTarget, pdfSummary, summaryMode]);
 
+  const handleQuizAnswerChange = useCallback(
+    (questionId: string, response: string | number | null) => {
+      setQuizAnswers((prev) => ({ ...prev, [questionId]: response }));
+      setQuizFeedback((prev) => {
+        if (!prev[questionId]) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next[questionId];
+        return next;
+      });
+      setQuizAttemptStatus('idle');
+      setQuizAttemptMessage(null);
+    },
+    []
+  );
+
+  const handleToggleQuizHint = useCallback((questionId: string) => {
+    setQuizHints((prev) => ({ ...prev, [questionId]: !prev[questionId] }));
+  }, []);
+
+  const evaluateQuizQuestion = useCallback(
+    (question: LearningQuizQuestion, response: string | number | null): QuizFeedback => {
+      if (question.type === 'mcq') {
+        const responseIndex =
+          typeof response === 'number'
+            ? response
+            : response === null
+              ? null
+              : Number.isNaN(Number(response))
+                ? null
+                : Number(response);
+
+        if (responseIndex === null) {
+          return { correct: false, message: 'בחרו תשובה כדי לקבל משוב.' };
+        }
+
+        const correct = responseIndex === question.correctIndex;
+        return {
+          correct,
+          message: correct ? 'תשובה נכונה!' : 'התשובה אינה נכונה.',
+          explanation: question.explanation,
+        };
+      }
+
+      const responseSql = typeof response === 'string' ? response.trim() : '';
+      if (!responseSql) {
+        return { correct: false, message: 'הזינו שאילתה כדי לבדוק אותה.' };
+      }
+
+      if (!question.expectedSql) {
+        return { correct: false, message: 'אין עדיין בדיקה אוטומטית לשאלה הזו.' };
+      }
+
+      const correct = matchesSql(responseSql, question.expectedSql);
+      return {
+        correct,
+        message: correct ? 'השאילתה נראית נכונה!' : 'השאילתה לא תואמת לתשובה הצפויה.',
+        explanation: question.explanation,
+      };
+    },
+    []
+  );
+
+  const handleCheckQuizQuestion = useCallback(
+    (questionId: string) => {
+      if (!quiz) {
+        return;
+      }
+      const question = quiz.questions.find((item) => item.id === questionId);
+      if (!question) {
+        return;
+      }
+      const response = quizAnswers[questionId] ?? null;
+      const feedback = evaluateQuizQuestion(question, response);
+      setQuizFeedback((prev) => ({ ...prev, [questionId]: feedback }));
+    },
+    [evaluateQuizQuestion, quiz, quizAnswers]
+  );
+
+  const handleGenerateQuiz = useCallback(async () => {
+    if (!userId || !quizTarget || quizStatus === 'loading') {
+      return;
+    }
+
+    setQuizStatus('loading');
+    setQuizError(null);
+
+    try {
+      const response = await fetch('/api/learning/quizzes/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          userId,
+          targetType: quizTarget.type,
+          targetId: quizTarget.id,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate quiz');
+      }
+
+      const data = await response.json();
+      setQuiz(data?.quiz ?? null);
+      setQuizStatus('ready');
+      resetQuizState();
+    } catch (error) {
+      console.error('Failed to generate quiz:', error);
+      setQuizStatus('error');
+      setQuizError('לא הצלחנו ליצור חידון חדש.');
+    }
+  }, [quizStatus, quizTarget, resetQuizState, userId]);
+
+  const handleSubmitQuizAttempt = useCallback(async () => {
+    if (!userId || !quiz || quizAttemptStatus === 'saving') {
+      return;
+    }
+
+    setQuizAttemptStatus('saving');
+    setQuizAttemptMessage(null);
+
+    try {
+      const response = await fetch('/api/learning/quizzes/attempts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          userId,
+          quizId: quiz.quizId,
+          answers: quiz.questions.map((question) => ({
+            questionId: question.id,
+            response: quizAnswers[question.id] ?? null,
+          })),
+          startedAt: quizStartedAtRef.current ?? undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save quiz attempt');
+      }
+
+      const data = await response.json();
+      setQuizAttemptStatus('saved');
+      setQuizAttemptMessage(`נשמר ניסיון. ציון ${data?.attempt?.score ?? 0}%.`);
+    } catch (error) {
+      console.error('Failed to save quiz attempt:', error);
+      setQuizAttemptStatus('error');
+      setQuizAttemptMessage('לא הצלחנו לשמור את הניסיון.');
+    }
+  }, [quiz, quizAnswers, quizAttemptStatus, userId]);
+
   useEffect(() => {
     return () => {
       if (exportReadyUrl) {
@@ -788,6 +1092,51 @@ const InteractiveLearningRoot = () => {
         return '';
     }
   }, [pdfSummaryError, pdfSummaryMeta?.maxChars, pdfSummaryMeta?.truncated, pdfSummaryStatus, userId]);
+
+  const quizProgress = useMemo(() => {
+    if (!quiz) {
+      return { answered: 0, total: 0 };
+    }
+
+    const answered = quiz.questions.filter((question) => quizFeedback[question.id]).length;
+    return { answered, total: quiz.questions.length };
+  }, [quiz, quizFeedback]);
+
+  const quizStatusLabel = useMemo(() => {
+    if (!userId) {
+      return 'התחברו כדי לעבוד עם החידון.';
+    }
+
+    switch (quizStatus) {
+      case 'loading':
+        return 'טוען חידון...';
+      case 'error':
+        return quizError ?? 'אירעה שגיאה בטעינת החידון.';
+      case 'ready':
+        return quiz
+          ? `חידון פעיל · ${quizProgress.answered}/${quizProgress.total}`
+          : 'עדיין אין חידון.';
+      default:
+        return 'בחרו מסמך כדי להתחיל.';
+    }
+  }, [quiz, quizError, quizProgress.answered, quizProgress.total, quizStatus, userId]);
+
+  const quizAttemptStatusLabel = useMemo(() => {
+    if (!userId) {
+      return 'נדרשת התחברות כדי לשמור תוצאות.';
+    }
+
+    switch (quizAttemptStatus) {
+      case 'saving':
+        return 'שומרים ניסיון...';
+      case 'saved':
+        return quizAttemptMessage ?? 'הניסיון נשמר.';
+      case 'error':
+        return quizAttemptMessage ?? 'לא הצלחנו לשמור.';
+      default:
+        return quizAttemptMessage ?? '';
+    }
+  }, [quizAttemptMessage, quizAttemptStatus, userId]);
 
 
   const pdfStatusLabel = useMemo(() => {
@@ -1331,13 +1680,211 @@ const InteractiveLearningRoot = () => {
           </section>
 
           <section
+            className={styles.quizCard}
+            aria-label="מיקרו-חידון"
+            aria-busy={quizStatus === 'loading'}
+          >
+            <div className={styles.quizHeader}>
+              <div>
+                <p className={styles.quizEyebrow}>שלב 3 · מיקרו-חידון</p>
+                <h3 className={styles.quizTitle}>
+                  {selectedAsset ? `מיקרו-חידון עבור ${selectedAsset.label}` : 'בחרו מסמך לחידון'}
+                </h3>
+                <span className={styles.statusPill} data-tone={quizStatus}>
+                  {quizStatusLabel}
+                </span>
+              </div>
+              {quiz && (
+                <div className={styles.quizMeta}>
+                  <span className={styles.quizProgress}>
+                    {quizProgress.answered}/{quizProgress.total}
+                  </span>
+                  <span className={styles.quizMetaLabel}>{quiz.title}</span>
+                </div>
+              )}
+            </div>
+
+            <div className={styles.quizBody} aria-live="polite">
+              {!userId && quizStatus !== 'loading' && (
+                <p className={styles.helperText}>
+                  התחברו כדי לצפות בחידונים ולשמור תוצאות.
+                </p>
+              )}
+              {quizStatus === 'loading' && (
+                <div className={styles.summaryLoading}>
+                  <div className={styles.spinner} aria-hidden="true" />
+                  <p className={styles.viewerMessage}>טוענים חידון...</p>
+                </div>
+              )}
+
+              {quizStatus === 'error' && (
+                <div className={styles.errorBanner} role="alert">
+                  <p className={styles.errorText}>{quizError}</p>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={loadQuiz}
+                    disabled={!userId || !quizTarget}
+                  >
+                    נסו שוב
+                  </button>
+                </div>
+              )}
+
+              {quizStatus === 'ready' && !quiz && (
+                <div className={styles.quizEmptyState}>
+                  <p className={styles.helperText}>
+                    {userId
+                      ? 'אין עדיין חידון עבור המסמך הזה. אפשר לבקש ממייקל ליצור אחד.'
+                      : 'התחברו כדי ליצור חידון.'}
+                  </p>
+                  {userId && quizTarget && (
+                    <button
+                      type="button"
+                      className={styles.primaryButton}
+                      onClick={handleGenerateQuiz}
+                    >
+                      צור חידון עם מייקל
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {quizStatus === 'ready' && quiz && (
+                <div className={styles.quizList}>
+                  {quiz.questions.map((question, index) => {
+                    const feedback = quizFeedback[question.id];
+                    const response = quizAnswers[question.id];
+                    const showHint = quizHints[question.id];
+                    return (
+                      <div key={question.id} className={styles.quizQuestionCard}>
+                        <div className={styles.quizQuestionHeader}>
+                          <span className={styles.quizQuestionIndex}>שאלה {index + 1}</span>
+                          <span className={styles.quizQuestionType}>
+                            {question.type === 'mcq' ? 'בחירה מרובה' : 'SQL'}
+                          </span>
+                        </div>
+                        <p className={styles.quizPrompt}>{question.prompt}</p>
+
+                        {question.type === 'mcq' ? (
+                          <div className={styles.quizChoices} role="radiogroup">
+                            {question.choices.map((choice, choiceIndex) => (
+                              <label key={choice} className={styles.quizChoice}>
+                                <input
+                                  type="radio"
+                                  name={`quiz-${question.id}`}
+                                  checked={response === choiceIndex}
+                                  onChange={() =>
+                                    handleQuizAnswerChange(question.id, choiceIndex)
+                                  }
+                                />
+                                <span>{choice}</span>
+                              </label>
+                            ))}
+                          </div>
+                        ) : (
+                          <textarea
+                            className={styles.quizSqlInput}
+                            value={
+                              typeof response === 'string'
+                                ? response
+                                : question.starterSql ?? ''
+                            }
+                            placeholder="כתבו כאן את שאילתת ה-SQL שלכם..."
+                            onChange={(event) =>
+                              handleQuizAnswerChange(question.id, event.target.value)
+                            }
+                          />
+                        )}
+
+                        {question.hint && (
+                          <button
+                            type="button"
+                            className={styles.quizHintButton}
+                            onClick={() => handleToggleQuizHint(question.id)}
+                          >
+                            {showHint ? 'הסתר רמז' : 'הצג רמז'}
+                          </button>
+                        )}
+
+                        {showHint && question.hint && (
+                          <p className={styles.quizHint}>רמז: {question.hint}</p>
+                        )}
+
+                        <div className={styles.quizQuestionActions}>
+                          <button
+                            type="button"
+                            className={styles.secondaryButton}
+                            onClick={() => handleCheckQuizQuestion(question.id)}
+                            disabled={!userId}
+                          >
+                            בדוק תשובה
+                          </button>
+                          {question.type === 'sql' && question.runnerConfig && userId && (
+                            <a
+                              className={styles.actionLink}
+                              href={`/homework/runner/${question.runnerConfig.setId}?studentId=${encodeURIComponent(
+                                userId
+                              )}&questionId=${encodeURIComponent(question.runnerConfig.questionId)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              פתח בסביבת הרצה
+                            </a>
+                          )}
+                        </div>
+
+                        {feedback && (
+                          <div
+                            className={styles.quizFeedback}
+                            data-tone={feedback.correct ? 'success' : 'error'}
+                            aria-live="polite"
+                          >
+                            <p className={styles.quizFeedbackText}>{feedback.message}</p>
+                            {feedback.explanation && (
+                              <p className={styles.quizExplanation}>{feedback.explanation}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {quiz && (
+              <div className={styles.quizFooter}>
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  onClick={handleSubmitQuizAttempt}
+                  disabled={
+                    !userId ||
+                    quizProgress.total === 0 ||
+                    quizProgress.answered < quizProgress.total ||
+                    quizAttemptStatus === 'saving'
+                  }
+                >
+                  {quizAttemptStatus === 'saving' ? 'שומר ניסיון...' : 'סיום חידון'}
+                </button>
+                {quizAttemptStatusLabel && (
+                  <span className={styles.quizAttemptStatus} role="status" aria-live="polite">
+                    {quizAttemptStatusLabel}
+                  </span>
+                )}
+              </div>
+            )}
+          </section>
+
+          <section
             className={styles.notesCard}
             aria-label="הערות ללמידה"
             aria-busy={noteStatus === 'loading' || noteStatus === 'saving'}
           >
             <div className={styles.notesHeader}>
               <div className={styles.notesHeaderContent}>
-                <p className={styles.notesEyebrow}>שלב 3 · הערות אישיות</p>
+                <p className={styles.notesEyebrow}>שלב 4 · הערות אישיות</p>
                 <h3 className={styles.notesTitle}>
                   {noteTarget
                     ? `הערות עבור ${noteTarget.label}`
