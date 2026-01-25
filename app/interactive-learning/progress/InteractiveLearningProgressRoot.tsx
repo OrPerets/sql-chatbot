@@ -125,6 +125,27 @@ const InteractiveLearningProgressRoot = () => {
     return `${data.summary.attemptedTargets}/${data.summary.totalTargets}`;
   }, [data]);
 
+  const averageScore = useMemo(() => {
+    if (!data || data.progressItems.length === 0) {
+      return 0;
+    }
+
+    const itemsWithScores = data.progressItems.filter((item) => item.lastScore !== null);
+    if (itemsWithScores.length === 0) {
+      return 0;
+    }
+
+    const total = itemsWithScores.reduce((sum, item) => sum + (item.lastScore ?? 0), 0);
+    return Math.round(total / itemsWithScores.length);
+  }, [data]);
+
+  const totalQuizzesTaken = useMemo(() => {
+    if (!data) {
+      return 0;
+    }
+    return data.summary.totalAttempts;
+  }, [data]);
+
   const showEmptyState =
     status === 'ready' && data && data.summary.attemptedTargets === 0;
 
@@ -145,16 +166,67 @@ const InteractiveLearningProgressRoot = () => {
         </div>
       </header>
 
-      <main className={styles.layout}>
-        <section className={styles.mainColumn} aria-live="polite">
-          <div className={styles.sectionHeader}>
-            <h2>סטטוס חידונים לפי שיעור</h2>
-            <span className={styles.sectionMeta}>
-              {status === 'loading' && 'טוען נתונים...'}
-              {status === 'error' && 'שגיאה'}
-              {status === 'ready' && 'מעודכן'}
-            </span>
+      <main className={styles.mainContent}>
+        {status === 'ready' && data && (
+          <div className={styles.kpiGrid}>
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiIcon} data-tone="blue">
+                📊
+              </div>
+              <div className={styles.kpiContent}>
+                <div className={styles.kpiValue}>{data.summary.completionRate}%</div>
+                <div className={styles.kpiLabel}>שיעור השלמה</div>
+                <div className={styles.kpiSubtext}>
+                  {data.summary.attemptedTargets} מתוך {data.summary.totalTargets} חידונים
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiIcon} data-tone="green">
+                ✓
+              </div>
+              <div className={styles.kpiContent}>
+                <div className={styles.kpiValue}>{averageScore}%</div>
+                <div className={styles.kpiLabel}>ממוצע ציונים</div>
+                <div className={styles.kpiSubtext}>על בסיס הציון האחרון</div>
+              </div>
+            </div>
+
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiIcon} data-tone="purple">
+                🎯
+              </div>
+              <div className={styles.kpiContent}>
+                <div className={styles.kpiValue}>{totalQuizzesTaken}</div>
+                <div className={styles.kpiLabel}>סה״כ ניסיונות</div>
+                <div className={styles.kpiSubtext}>כל הניסיונות שביצעתם</div>
+              </div>
+            </div>
+
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiIcon} data-tone="orange">
+                📚
+              </div>
+              <div className={styles.kpiContent}>
+                <div className={styles.kpiValue}>{data.summary.attemptedTargets}</div>
+                <div className={styles.kpiLabel}>חידונים שהושלמו</div>
+                <div className={styles.kpiSubtext}>חומרי לימוד שלמדתם</div>
+              </div>
+            </div>
           </div>
+        )}
+
+        <div className={styles.layout}>
+          <section className={styles.mainColumn} aria-live="polite">
+            <div className={styles.sectionHeader}>
+              <h2>סטטוס חידונים לפי שיעור</h2>
+              <span className={styles.sectionMeta}>
+                {status === 'loading' && 'טוען נתונים...'}
+                {status === 'error' && 'שגיאה'}
+                {status === 'ready' && 'מעודכן'}
+              </span>
+            </div>
 
           {status === 'error' && (
             <div className={styles.errorCard} role="alert">
@@ -236,64 +308,44 @@ const InteractiveLearningProgressRoot = () => {
               </div>
             </>
           )}
-        </section>
+          </section>
 
-        <aside className={styles.sideColumn}>
-          <div className={styles.card} aria-live="polite">
-            <h3>התקדמות כללית</h3>
-            <p className={styles.metricValue}>{completionLabel}</p>
-            <p className={styles.metricLabel}>חידונים עם ניסיון מתוך כלל התרגולים</p>
-            <div className={styles.progressBar}>
-              <div
-                className={styles.progressFill}
-                style={{ width: `${data?.summary.completionRate ?? 0}%` }}
-                aria-hidden="true"
-              />
+          <aside className={styles.sideColumn}>
+            <div className={styles.card}>
+              <h3>פעילות אחרונה</h3>
+              {status === 'ready' && data && data.recentAttempts.length === 0 && (
+                <p className={styles.mutedText}>עוד אין ניסיונות אחרונים להצגה.</p>
+              )}
+              <ul className={styles.activityList}>
+                {(data?.recentAttempts ?? []).map((attempt) => (
+                  <li key={`${attempt.quizId}-${attempt.completedAt}`} className={styles.activityItem}>
+                    <div>
+                      <Link className={styles.inlineLink} href={buildAssetLink(attempt.targetId)}>
+                        {attempt.label}
+                      </Link>
+                      <span className={styles.activityMeta}>
+                        {formatDate(attempt.completedAt)}
+                      </span>
+                    </div>
+                    <span className={styles.activityScore}>{attempt.score}%</span>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <div className={styles.metricRow}>
-              <span>אחוז השלמה</span>
-              <strong>{data ? `${data.summary.completionRate}%` : '—'}</strong>
-            </div>
-            <div className={styles.metricRow}>
-              <span>סך ניסיונות</span>
-              <strong>{data ? data.summary.totalAttempts : '—'}</strong>
-            </div>
-          </div>
 
-          <div className={styles.card}>
-            <h3>פעילות אחרונה</h3>
-            {status === 'ready' && data && data.recentAttempts.length === 0 && (
-              <p className={styles.mutedText}>עוד אין ניסיונות אחרונים להצגה.</p>
-            )}
-            <ul className={styles.activityList}>
-              {(data?.recentAttempts ?? []).map((attempt) => (
-                <li key={`${attempt.quizId}-${attempt.completedAt}`} className={styles.activityItem}>
-                  <div>
-                    <Link className={styles.inlineLink} href={buildAssetLink(attempt.targetId)}>
-                      {attempt.label}
-                    </Link>
-                    <span className={styles.activityMeta}>
-                      {formatDate(attempt.completedAt)}
-                    </span>
-                  </div>
-                  <span className={styles.activityScore}>{attempt.score}%</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className={styles.card}>
-            <h3>נושאים לחזרה</h3>
-            {status === 'ready' && data && data.insights.topicsToRevisit.length === 0 && (
-              <p className={styles.mutedText}>אין מספיק נתונים להצעות חזרה כרגע.</p>
-            )}
-            <ul className={styles.insightList}>
-              {(data?.insights.topicsToRevisit ?? []).map((topic) => (
-                <li key={topic}>{topic}</li>
-              ))}
-            </ul>
-          </div>
-        </aside>
+            <div className={styles.card}>
+              <h3>נושאים לחזרה</h3>
+              {status === 'ready' && data && data.insights.topicsToRevisit.length === 0 && (
+                <p className={styles.mutedText}>אין מספיק נתונים להצעות חזרה כרגע.</p>
+              )}
+              <ul className={styles.insightList}>
+                {(data?.insights.topicsToRevisit ?? []).map((topic) => (
+                  <li key={topic}>{topic}</li>
+                ))}
+              </ul>
+            </div>
+          </aside>
+        </div>
       </main>
     </div>
   );

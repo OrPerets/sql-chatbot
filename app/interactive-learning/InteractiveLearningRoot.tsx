@@ -221,6 +221,8 @@ const InteractiveLearningRoot = () => {
   const [quizAttemptStatus, setQuizAttemptStatus] = useState<QuizAttemptStatus>('idle');
   const [quizAttemptMessage, setQuizAttemptMessage] = useState<string | null>(null);
   const quizStartedAtRef = useRef<string | null>(null);
+  const [isLecturesExpanded, setIsLecturesExpanded] = useState(true);
+  const [isPracticesExpanded, setIsPracticesExpanded] = useState(true);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -1377,47 +1379,71 @@ const InteractiveLearningRoot = () => {
           {viewMode === 'list' && (
             <>
               <div className={styles.sidebarSection}>
-                <h2 className={styles.sectionTitle}>הרצאות</h2>
-                <div className={styles.list}>
-                  {lectures.map((asset) => (
-                    <button
-                      key={asset.id}
-                      type="button"
-                      className={
-                        asset.id === selectedId
-                          ? `${styles.listItem} ${styles.listItemActive}`
-                          : styles.listItem
-                      }
-                      onClick={() => setSelectedId(asset.id)}
-                      aria-pressed={asset.id === selectedId}
-                    >
-                      <span className={styles.listItemLabel}>{asset.label}</span>
-                      <span className={styles.listItemMeta}>שבוע {asset.week}</span>
-                    </button>
-                  ))}
-                </div>
+                <button
+                  type="button"
+                  className={styles.collapsibleHeader}
+                  onClick={() => setIsLecturesExpanded(!isLecturesExpanded)}
+                  aria-expanded={isLecturesExpanded}
+                >
+                  <h2 className={styles.sectionTitle}>הרצאות</h2>
+                  <span className={styles.collapseIcon} aria-hidden="true">
+                    {isLecturesExpanded ? '−' : '+'}
+                  </span>
+                </button>
+                {isLecturesExpanded && (
+                  <div className={styles.list}>
+                    {lectures.map((asset) => (
+                      <button
+                        key={asset.id}
+                        type="button"
+                        className={
+                          asset.id === selectedId
+                            ? `${styles.listItem} ${styles.listItemActive}`
+                            : styles.listItem
+                        }
+                        onClick={() => setSelectedId(asset.id)}
+                        aria-pressed={asset.id === selectedId}
+                      >
+                        <span className={styles.listItemLabel}>{asset.label}</span>
+                        <span className={styles.listItemMeta}>שבוע {asset.week}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className={styles.sidebarSection}>
-                <h2 className={styles.sectionTitle}>תרגולים</h2>
-                <div className={styles.list}>
-                  {practices.map((asset) => (
-                    <button
-                      key={asset.id}
-                      type="button"
-                      className={
-                        asset.id === selectedId
-                          ? `${styles.listItem} ${styles.listItemActive}`
-                          : styles.listItem
-                      }
-                      onClick={() => setSelectedId(asset.id)}
-                      aria-pressed={asset.id === selectedId}
-                    >
-                      <span className={styles.listItemLabel}>{asset.label}</span>
-                      <span className={styles.listItemMeta}>שבוע {asset.week}</span>
-                    </button>
-                  ))}
-                </div>
+                <button
+                  type="button"
+                  className={styles.collapsibleHeader}
+                  onClick={() => setIsPracticesExpanded(!isPracticesExpanded)}
+                  aria-expanded={isPracticesExpanded}
+                >
+                  <h2 className={styles.sectionTitle}>תרגולים</h2>
+                  <span className={styles.collapseIcon} aria-hidden="true">
+                    {isPracticesExpanded ? '−' : '+'}
+                  </span>
+                </button>
+                {isPracticesExpanded && (
+                  <div className={styles.list}>
+                    {practices.map((asset) => (
+                      <button
+                        key={asset.id}
+                        type="button"
+                        className={
+                          asset.id === selectedId
+                            ? `${styles.listItem} ${styles.listItemActive}`
+                            : styles.listItem
+                        }
+                        onClick={() => setSelectedId(asset.id)}
+                        aria-pressed={asset.id === selectedId}
+                      >
+                        <span className={styles.listItemLabel}>{asset.label}</span>
+                        <span className={styles.listItemMeta}>שבוע {asset.week}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </>
           )}
