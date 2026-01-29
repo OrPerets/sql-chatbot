@@ -50,6 +50,9 @@ interface QuestionAnalyticsState {
   editsCount: number;
   copyPasteCount: number;
   lastValue: string;
+  showAnswerClicks?: number;
+  timeToFirstShowAnswer?: number | null;
+  showAnswerTimings?: number[];
 }
 
 const AUTOSAVE_DELAY = 800;
@@ -230,6 +233,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const [showDatabaseViewer, setShowDatabaseViewer] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
+  const [showAnswerByQuestion, setShowAnswerByQuestion] = useState<Record<string, boolean>>({});
+  const [copyAnswerStatus, setCopyAnswerStatus] = useState<Record<string, "idle" | "copied">>({});
   const pendingRef = useRef<Record<string, PendingSave>>({});
   const analyticsRef = useRef<Record<string, QuestionAnalyticsState>>({});
   const activeQuestionRef = useRef<string | null>(null);
@@ -304,6 +309,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           editsCount: 0,
           copyPasteCount: 0,
           lastValue: editorValues[questionId] ?? "",
+          showAnswerClicks: 0,
+          timeToFirstShowAnswer: null,
+          showAnswerTimings: [],
         };
       }
       return analyticsRef.current[questionId];
@@ -357,6 +365,24 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     [ensureAnalyticsState]
   );
 
+  const recordShowAnswer = useCallback(
+    (questionId: string) => {
+      const state = ensureAnalyticsState(questionId);
+      const now = Date.now();
+      const elapsed = now - state.startedAt;
+      state.showAnswerClicks = (state.showAnswerClicks ?? 0) + 1;
+      if (state.timeToFirstShowAnswer == null) {
+        state.timeToFirstShowAnswer = elapsed;
+      }
+      if (!state.showAnswerTimings) {
+        state.showAnswerTimings = [];
+      }
+      state.showAnswerTimings.push(elapsed);
+      state.lastActivity = now;
+    },
+    [ensureAnalyticsState]
+  );
+
   const finalizeAnalytics = useCallback(
     async (questionId: string) => {
       const state = analyticsRef.current[questionId];
@@ -384,6 +410,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           charactersTyped: state.charactersTyped,
           editsCount: state.editsCount,
           copyPasteCount: state.copyPasteCount,
+          showAnswerClicks: state.showAnswerClicks ?? 0,
+          timeToFirstShowAnswer: state.timeToFirstShowAnswer ?? null,
+          showAnswerTimings: state.showAnswerTimings ?? [],
           startedAt: new Date(state.startedAt).toISOString(),
           lastActivityAt: new Date(state.lastActivity || now).toISOString(),
         },
@@ -642,6 +671,29 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     });
   }, [activeQuestionId, editorValues, executeMutation, recordExecutionStart, setId, studentId, submissionQuery.data]);
 
+  const handleShowAnswer = useCallback(
+    (questionId: string) => {
+      setShowAnswerByQuestion((prev) => ({ ...prev, [questionId]: true }));
+      recordShowAnswer(questionId);
+    },
+    [recordShowAnswer]
+  );
+
+  const handleCopyAnswer = useCallback(
+    async (questionId: string, sql: string) => {
+      try {
+        await navigator.clipboard.writeText(sql);
+        setCopyAnswerStatus((prev) => ({ ...prev, [questionId]: "copied" }));
+        window.setTimeout(() => {
+          setCopyAnswerStatus((prev) => ({ ...prev, [questionId]: "idle" }));
+        }, 1500);
+      } catch (error) {
+        console.error("Failed to copy solution", error);
+      }
+    },
+    []
+  );
+
   const submission = submissionQuery.data;
   const homework = homeworkQuery.data;
   const questions = useMemo(() => {
@@ -661,6 +713,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const progressPercent = totalQuestions === 0 ? 0 : Math.round((answeredCount / totalQuestions) * 100);
   const activeQuestion = activeQuestionId ? questionsById.get(activeQuestionId) : undefined;
   const activeAnswer = activeQuestionId ? answers[activeQuestionId] : undefined;
+  const activeSolution = activeQuestion?.starterSql?.trim() ?? "";
+  const showAnswer = activeQuestionId ? Boolean(showAnswerByQuestion[activeQuestionId]) : false;
+  const copyStatus = activeQuestionId ? copyAnswerStatus[activeQuestionId] ?? "idle" : "idle";
   const attemptsRemaining = activeQuestion?.maxAttempts
     ? Math.max(0, activeQuestion.maxAttempts - (activeAnswer?.executionCount ?? 0))
     : undefined;
@@ -1012,9 +1067,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               />
               </div>
             </div>
-            <div className={styles.editorActions}>
-              {/* Navigation Buttons */}
-              <div className={styles.navigationButtons}>
+          <div className={styles.editorActions}>
+            {/* Navigation Buttons */}
+            <div className={styles.navigationButtons}>
                 <button
                   type="button"
                   className={styles.navButtonPrev}
@@ -1056,7 +1111,29 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           </div>
 
           <div className={styles.feedbackPanel}>
-            <h4>{t("runner.results.heading")}</h4>
+            <div className={styles.feedbackHeader}>
+              <h4 className={styles.feedbackTitle}>{t("runner.results.heading")}</h4>
+              <div className={styles.solutionActions}>
+                <button
+                  type="button"
+                  className={styles.showAnswerButton}
+                  onClick={() => activeQuestionId && handleShowAnswer(activeQuestionId)}
+                  disabled={!activeQuestionId}
+                >
+                  👀 הצג תשובה
+                </button>
+                {showAnswer && activeSolution && (
+                  <button
+                    type="button"
+                    className={styles.copyAnswerButton}
+                    onClick={() => activeQuestionId && handleCopyAnswer(activeQuestionId, activeSolution)}
+                    disabled={!activeQuestionId}
+                  >
+                    {copyStatus === "copied" ? "✅ הועתק" : "📋 העתק תשובה"}
+                  </button>
+                )}
+              </div>
+            </div>
             {executeMutation.isError && <p className={styles.errorText}>{t("runner.results.error")}</p>}
             
             {/* Schema Error Notification - Show when there's a table/column not found error */}
@@ -1137,6 +1214,18 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               <p className={styles.placeholder}>{t("runner.results.placeholder")}</p>
             )}
 
+            {showAnswer && (
+              <div className={styles.solutionSection}>
+                <div className={styles.solutionHeader}>💡 תשובה רשמית</div>
+                {activeSolution ? (
+                  <pre className={styles.solutionCode}>
+                    <code>{activeSolution}</code>
+                  </pre>
+                ) : (
+                  <p className={styles.solutionEmpty}>טרם הוגדרה תשובה לשאלה זו.</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </section>

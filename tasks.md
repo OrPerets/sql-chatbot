@@ -33,20 +33,20 @@ Deliverables
 
 ## Sprint 2 — Runner UX: Show-answer button
 ### UI/UX
-- [ ] Add **"הצג תשובה"** button to `/homework/runner/[id]`.
+- [x] Add **"הצג תשובה"** button to `/homework/runner/[id]`.
   - Recommend placing it near the Run button or in the results panel header.
-- [ ] On click, reveal the official answer/solution for the active question.
+- [x] On click, reveal the official answer/solution for the active question.
   - If the project treats `starterSql` as the reference solution, display it in a read-only code block.
   - If a separate solution field exists or is introduced, use that field instead.
-- [ ] Add copy-to-clipboard affordance (optional but helpful).
-- [ ] Ensure RTL layout and localized button text in Hebrew.
+- [x] Add copy-to-clipboard affordance (optional but helpful).
+- [x] Ensure RTL layout and localized button text in Hebrew.
 
 ### Telemetry
-- [ ] Track every click on "הצג תשובה" per question.
-  - [ ] Increment `showAnswerClicks`.
-  - [ ] If first click, record `timeToFirstShowAnswer`.
-  - [ ] Append elapsed time (ms since question start) to `showAnswerTimings`.
-- [ ] Send analytics to `/api/analytics/question` on question switch and on unmount (existing pattern).
+- [x] Track every click on "הצג תשובה" per question.
+  - [x] Increment `showAnswerClicks`.
+  - [x] If first click, record `timeToFirstShowAnswer`.
+  - [x] Append elapsed time (ms since question start) to `showAnswerTimings`.
+- [x] Send analytics to `/api/analytics/question` on question switch and on unmount (existing pattern).
 
 Deliverables
 - Show-answer UX implemented.
