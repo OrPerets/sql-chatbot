@@ -79,6 +79,9 @@ export interface QuestionAnalyticsModel {
     charactersTyped: number;
     editsCount: number;
     copyPasteCount: number;
+    showAnswerClicks?: number;
+    timeToFirstShowAnswer?: number | null;
+    showAnswerTimings?: number[];
     startedAt: string;
     lastActivityAt: string;
   };
