@@ -141,5 +141,16 @@
   "builder.grade.publishing": "Publishing…",
   "builder.grade.publishGrades": "Publish grades",
   "builder.grade.notFound.title": "Homework Not Found",
-  "builder.grade.notFound.back": "Back to builder dashboard"
+  "builder.grade.notFound.back": "Back to builder dashboard",
+  "builder.grade.analytics.title": "Activity log",
+  "builder.grade.analytics.question.title": "Question analytics",
+  "builder.grade.analytics.studentsAnswered": "Students answered",
+  "builder.grade.analytics.averageScore": "Average score",
+  "builder.grade.analytics.graded": "Graded",
+  "builder.grade.analytics.scoreDistribution": "Score distribution",
+  "builder.grade.analytics.averageAttempts": "Average attempts",
+  "builder.grade.analytics.showAnswer.title": "Show answer metrics",
+  "builder.grade.analytics.showAnswer.avgClicks": "Average clicks: {value}",
+  "builder.grade.analytics.showAnswer.totalClicks": "Total clicks: {value}",
+  "builder.grade.analytics.showAnswer.avgTime": "Avg time to show (ms): {value}"
 }

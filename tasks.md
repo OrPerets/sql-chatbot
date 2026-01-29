@@ -56,24 +56,24 @@ Deliverables
 
 ## Sprint 3 — General analysis & reporting
 ### What to store
-- [ ] Define “general analysis” payload for each question or submission.
+- [x] Define “general analysis” payload for each question or submission.
   - Examples: hints used, confidence, summary, AI assistance usage (if relevant).
-- [ ] Decide whether this belongs in:
+- [x] Decide whether this belongs in:
   - `QuestionAnalytics` (per-question metrics), or
   - `AnalysisResults` (submission-level summaries), or
   - New collection (if needed).
 
 ### Reporting endpoints
-- [ ] Extend existing analytics endpoints or add a new endpoint to query show-answer stats by:
+- [x] Extend existing analytics endpoints or add a new endpoint to query show-answer stats by:
   - homework set
   - question
   - student
   - time range
-- [ ] Provide a simple admin view (optional): show average show-answer time and click counts.
+- [x] Provide a simple admin view (optional): show average show-answer time and click counts.
 
 Deliverables
-- Analytics pipeline supports “general analysis”.
-- Read APIs for instructors/admins.
+- [x] Analytics pipeline supports “general analysis”.
+- [x] Read APIs for instructors/admins.
 
 ---
 
