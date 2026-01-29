@@ -107,14 +107,14 @@ export async function POST() {
 
     const questions = [
       {
-        prompt: "הציגו את כל המבחנים שמתקיימים בשבועיים הקרובים יחד עם מספר הנרשמים לכל מבחן.",
-        instructions: "מיינו לפי תאריך מבחן מהקרוב לרחוק. (סכמה: מזהה מבחן, קוד קורס, תאריך מבחן, כמות נרשמים).",
+        prompt: "הציגו את כל המבחנים שמתקיימים בשבועיים הקרובים יחד עם מספר הנרשמים המאושרים לכל מבחן.",
+        instructions: "כללו רק הרשמות בסטטוס 'approved'. מיינו לפי תאריך מבחן מהקרוב לרחוק. (סכמה: מזהה מבחן, קוד קורס, תאריך מבחן, כמות נרשמים מאושרים).",
         starterSql: "",
         expectedResultSchema: [
           { column: "מזהה מבחן", type: "number" },
           { column: "קוד קורס", type: "string" },
           { column: "תאריך מבחן", type: "date" },
-          { column: "כמות נרשמים", type: "number" },
+          { column: "כמות נרשמים מאושרים", type: "number" },
         ],
         points: 10,
         maxAttempts: 3,
@@ -133,40 +133,43 @@ export async function POST() {
         evaluationMode: "auto" as const,
       },
       {
-        prompt: "הציגו לכל מבחן את הציון הגבוה ביותר ואת הציון הנמוך ביותר.",
-        instructions: "הציגו רק מבחנים שיש להם ציונים. (סכמה: מזהה מבחן, קוד קורס, ציון מקסימלי, ציון מינימלי).",
+        prompt: "הציגו לכל מבחן את הציון הגבוה ביותר ואת הציון הנמוך ביותר ואת מספר הנבחנים.",
+        instructions: "הציגו רק מבחנים שיש להם ציונים. מיינו לפי מזהה מבחן. (סכמה: מזהה מבחן, קוד קורס, ציון מקסימלי, ציון מינימלי, מספר נבחנים).",
         starterSql: "",
         expectedResultSchema: [
           { column: "מזהה מבחן", type: "number" },
           { column: "קוד קורס", type: "string" },
           { column: "ציון מקסימלי", type: "number" },
           { column: "ציון מינימלי", type: "number" },
+          { column: "מספר נבחנים", type: "number" },
         ],
         points: 10,
         maxAttempts: 3,
         evaluationMode: "auto" as const,
       },
       {
-        prompt: "הציגו את ממוצע הציון לכל חוג בכל קורס מבחן.",
-        instructions: "מיינו לפי חוג ולאחר מכן לפי קוד קורס. (סכמה: חוג, קוד קורס, ממוצע ציון).",
+        prompt: "הציגו את ממוצע הציון לכל חוג בכל קורס מבחן, יחד עם מספר הסטודנטים שנבחנו.",
+        instructions: "הציגו רק חוגים עם לפחות 3 נבחנים. מיינו לפי חוג ולאחר מכן לפי קוד קורס. (סכמה: חוג, קוד קורס, ממוצע ציון, מספר נבחנים).",
         starterSql: "",
         expectedResultSchema: [
           { column: "חוג", type: "string" },
           { column: "קוד קורס", type: "string" },
           { column: "ממוצע ציון", type: "number" },
+          { column: "מספר נבחנים", type: "number" },
         ],
         points: 10,
         maxAttempts: 3,
         evaluationMode: "auto" as const,
       },
       {
-        prompt: "הציגו את הסטודנטים שניגשו ליותר ממבחן אחד, כולל מספר המבחנים.",
-        instructions: "חשבו לפי מבחנים שונים שהסטודנט נרשם אליהם. הציגו רק סטודנטים עם יותר ממבחן אחד. (סכמה: תעודת סטודנט, שם מלא, מספר מבחנים).",
+        prompt: "הציגו את הסטודנטים שניגשו ליותר ממבחן אחד, כולל מספר המבחנים וממוצע הציון שלהם.",
+        instructions: "חשבו לפי מבחנים שונים שהסטודנט נרשם אליהם. הציגו רק סטודנטים עם יותר ממבחן אחד. (סכמה: תעודת סטודנט, שם מלא, מספר מבחנים, ממוצע ציון).",
         starterSql: "",
         expectedResultSchema: [
           { column: "תעודת סטודנט", type: "number" },
           { column: "שם מלא", type: "string" },
           { column: "מספר מבחנים", type: "number" },
+          { column: "ממוצע ציון", type: "number" },
         ],
         points: 10,
         maxAttempts: 3,
@@ -203,13 +206,14 @@ export async function POST() {
         evaluationMode: "auto" as const,
       },
       {
-        prompt: "הציגו לכל סטודנט את תאריך ההרשמה האחרון שלו למבחן.",
-        instructions: "הציגו גם סטודנטים שלא נרשמו, עם ערך ריק לתאריך. מיינו לפי שם מלא. (סכמה: תעודת סטודנט, שם מלא, תאריך הרשמה אחרון).",
+        prompt: "הציגו לכל סטודנט את תאריך ההרשמה האחרון שלו למבחן ואת סטטוס ההרשמה האחרון.",
+        instructions: "הציגו גם סטודנטים שלא נרשמו, עם ערכים ריקים. מיינו לפי שם מלא. (סכמה: תעודת סטודנט, שם מלא, תאריך הרשמה אחרון, סטטוס הרשמה אחרון).",
         starterSql: "",
         expectedResultSchema: [
           { column: "תעודת סטודנט", type: "number" },
           { column: "שם מלא", type: "string" },
           { column: "תאריך הרשמה אחרון", type: "date" },
+          { column: "סטטוס הרשמה אחרון", type: "string" },
         ],
         points: 10,
         maxAttempts: 3,
@@ -217,7 +221,7 @@ export async function POST() {
       },
       {
         prompt: "הציגו את הסטודנטים שנרשמו למבחן אך עדיין לא קיבלו ציון.",
-        instructions: "הציגו את הסטודנט, פרטי המבחן וסטטוס הרשמה. (סכמה: תעודת סטודנט, שם מלא, מזהה מבחן, קוד קורס, סטטוס).",
+        instructions: "כללו רק הרשמות מאושרות. הציגו את הסטודנט, פרטי המבחן וסטטוס הרשמה. (סכמה: תעודת סטודנט, שם מלא, מזהה מבחן, קוד קורס, סטטוס).",
         starterSql: "",
         expectedResultSchema: [
           { column: "תעודת סטודנט", type: "number" },
@@ -275,7 +279,7 @@ export async function POST() {
       homeworkSetId: homeworkSet.id,
       datasetId: examPrepDataset.id,
       questionsCreated: questionIds.length,
-      message: "הכנה למבחן נוצר בהצלחה",
+      message: "תרגיל הכנה למבחן נוצר בהצלחה",
     });
   } catch (error) {
     console.error("Error seeding Exam Prep:", error);
