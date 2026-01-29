@@ -82,6 +82,13 @@ export interface QuestionAnalyticsModel {
     showAnswerClicks?: number;
     timeToFirstShowAnswer?: number | null;
     showAnswerTimings?: number[];
+    generalAnalysis?: {
+      hintsUsed?: number;
+      confidence?: number | null;
+      summary?: string;
+      aiAssistanceUsed?: boolean;
+      aiAssistanceNotes?: string;
+    };
     startedAt: string;
     lastActivityAt: string;
   };
