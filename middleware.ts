@@ -35,7 +35,8 @@ export function middleware(request: NextRequest) {
       request.cookies.get("michael-role")?.value ??
       "instructor"; // default to instructor for local development
 
-    if (role !== "instructor") {
+    const allowedRoles = new Set(["instructor", "admin"]);
+    if (!allowedRoles.has(role)) {
       const url = request.nextUrl.clone();
       url.pathname = "/403";
       const forbiddenResponse = NextResponse.redirect(url);
