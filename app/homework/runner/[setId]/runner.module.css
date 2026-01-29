@@ -1040,7 +1040,15 @@
   overflow: hidden;
 }
 
-.feedbackPanel h4 {
+.feedbackHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.feedbackTitle {
   margin: 0 0 8px;
   font-size: 13px;
   font-weight: 600;
@@ -1051,9 +1059,76 @@
   flex-shrink: 0;
 }
 
-.feedbackPanel h4::before {
+.feedbackTitle::before {
   content: '📊';
   font-size: 14px;
+}
+
+.solutionActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.showAnswerButton,
+.copyAnswerButton {
+  border: 1px solid #cbd5f5;
+  background: #f8fafc;
+  color: #1e3a8a;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.showAnswerButton:hover:not(:disabled),
+.copyAnswerButton:hover:not(:disabled) {
+  background: #e0e7ff;
+  border-color: #818cf8;
+}
+
+.showAnswerButton:disabled,
+.copyAnswerButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.solutionSection {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.solutionHeader {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.solutionCode {
+  margin: 0;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  font-family: "Fira Code", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  direction: ltr;
+  text-align: left;
+}
+
+.solutionEmpty {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
 }
 
 .unknownAnswerNote {
@@ -2752,7 +2827,7 @@
     gap: 16px;
   }
   
-  .feedbackPanel h4 {
+  .feedbackTitle {
     font-size: 16px;
   }
   
@@ -3199,7 +3274,7 @@
     gap: 12px;
   }
   
-  .feedbackPanel h4 {
+  .feedbackTitle {
     font-size: 15px;
     margin: 0 0 12px;
   }
