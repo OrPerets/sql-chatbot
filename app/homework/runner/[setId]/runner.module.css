@@ -1511,6 +1511,8 @@
   padding: 16px;
   margin-bottom: 12px;
   direction: rtl;
+  max-height: 280px;
+  overflow-y: auto;
 }
 
 .schemaErrorHeader {
@@ -1541,6 +1543,8 @@
   direction: ltr;
   text-align: left;
   word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
 }
 
 .schemaErrorHint {

@@ -182,39 +182,38 @@ const parseSchemaError = (errorMessage: string | undefined): { type: 'table' | '
   return { type: null, name: null };
 };
 
-// Database sample data for each table (matches תרגיל 3 schema)
+// Database sample data for "הכנה למבחן" schema (Exams, Students, Registrations, Scores)
 const DATABASE_SAMPLE_DATA: Record<string, { columns: string[]; rows: Record<string, string | number>[] }> = {
+  Exams: {
+    columns: ["ExamID", "CourseCode", "ExamDate", "DurationMinutes", "Room"],
+    rows: [
+      { ExamID: 1, CourseCode: "SQL101", ExamDate: "2026-02-15", DurationMinutes: 90, Room: "A1" },
+      { ExamID: 2, CourseCode: "DB202", ExamDate: "2026-02-18", DurationMinutes: 120, Room: "B2" },
+      { ExamID: 3, CourseCode: "SQL101", ExamDate: "2026-02-22", DurationMinutes: 150, Room: "A1" },
+    ],
+  },
   Students: {
-    columns: ["StudentID", "FirstName", "LastName", "BirthDate", "City", "Email"],
+    columns: ["StudentID", "FirstName", "LastName", "Major", "Year"],
     rows: [
-      { StudentID: 1, FirstName: "יעל", LastName: "כהן", BirthDate: "1999-03-15", City: "תל אביב", Email: "yael@example.com" },
-      { StudentID: 2, FirstName: "דוד", LastName: "לוי", BirthDate: "2000-07-22", City: "חיפה", Email: "david@example.com" },
-      { StudentID: 3, FirstName: "שרה", LastName: "מזרחי", BirthDate: "1998-11-08", City: "ירושלים", Email: "sara@example.com" },
+      { StudentID: 1001, FirstName: "אלי", LastName: "כהן", Major: "CS", Year: 2 },
+      { StudentID: 1002, FirstName: "מיה", LastName: "לוי", Major: "Math", Year: 2 },
+      { StudentID: 1003, FirstName: "דוד", LastName: "ישראלי", Major: "CS", Year: 3 },
     ],
   },
-  Courses: {
-    columns: ["CourseID", "CourseName", "Credits", "Department"],
+  Registrations: {
+    columns: ["RegistrationID", "StudentID", "ExamID", "RegisteredAt", "Status"],
     rows: [
-      { CourseID: 101, CourseName: "מבוא למערכות מידע", Credits: 3, Department: "מערכות מידע" },
-      { CourseID: 102, CourseName: "מסדי נתונים", Credits: 4, Department: "מדעי המחשב" },
-      { CourseID: 103, CourseName: "תכנות מתקדם", Credits: 3, Department: "מדעי המחשב" },
+      { RegistrationID: 1, StudentID: 1001, ExamID: 1, RegisteredAt: "2026-01-10", Status: "approved" },
+      { RegistrationID: 2, StudentID: 1001, ExamID: 2, RegisteredAt: "2026-01-12", Status: "approved" },
+      { RegistrationID: 4, StudentID: 1002, ExamID: 3, RegisteredAt: "2026-01-14", Status: "waitlist" },
     ],
   },
-  Lecturers: {
-    columns: ["LecturerID", "FirstName", "LastName", "City", "HireDate", "CourseID", "Seniority"],
+  Scores: {
+    columns: ["ScoreID", "StudentID", "ExamID", "Score", "GradedAt", "Attempt"],
     rows: [
-      { LecturerID: 1, FirstName: "משה", LastName: "אברהם", City: "תל אביב", HireDate: "2015-09-01", CourseID: 101, Seniority: 9 },
-      { LecturerID: 2, FirstName: "רות", LastName: "בנימין", City: "חיפה", HireDate: "2018-03-15", CourseID: 102, Seniority: 6 },
-      { LecturerID: 3, FirstName: "יוסף", LastName: "כהן", City: "ירושלים", HireDate: "2020-10-01", CourseID: 103, Seniority: 4 },
-    ],
-  },
-  Enrollments: {
-    columns: ["StudentID", "CourseID", "EnrollmentDate", "Grade"],
-    rows: [
-      { StudentID: 1, CourseID: 101, EnrollmentDate: "2024-09-01", Grade: 85 },
-      { StudentID: 1, CourseID: 102, EnrollmentDate: "2024-09-01", Grade: 92 },
-      { StudentID: 2, CourseID: 101, EnrollmentDate: "2024-09-01", Grade: 78 },
-      { StudentID: 3, CourseID: 103, EnrollmentDate: "2024-09-01", Grade: 88 },
+      { ScoreID: 1, StudentID: 1001, ExamID: 1, Score: 85, GradedAt: "2026-02-16", Attempt: 1 },
+      { ScoreID: 2, StudentID: 1001, ExamID: 2, Score: 90, GradedAt: "2026-02-19", Attempt: 1 },
+      { ScoreID: 4, StudentID: 1003, ExamID: 1, Score: 92, GradedAt: "2026-02-16", Attempt: 1 },
     ],
   },
 };
@@ -231,7 +230,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const [aiDeclarationChecked, setAiDeclarationChecked] = useState(false);
   const [commitmentError, setCommitmentError] = useState<string | null>(null);
   const [showDatabaseViewer, setShowDatabaseViewer] = useState(false);
-  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
   const [showAnswerByQuestion, setShowAnswerByQuestion] = useState<Record<string, boolean>>({});
   const [copyAnswerStatus, setCopyAnswerStatus] = useState<Record<string, "idle" | "copied">>({});
@@ -763,32 +761,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     }
   }, [activeQuestionId, activeAnswer]);
 
-  const handleDownloadDatabasePdf = useCallback(async () => {
-    try {
-      setIsDownloadingPdf(true);
-      const response = await fetch(`/api/homework/${setId}/database-pdf?studentId=${studentId}`);
-
-      if (!response.ok) {
-        console.error("Failed to download database PDF", await response.text());
-        return;
-      }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `database-${setId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error downloading database PDF", error);
-    } finally {
-      setIsDownloadingPdf(false);
-    }
-  }, [setId, studentId]);
-
   if (homeworkQuery.isLoading || questionsQuery.isLoading || submissionQuery.isLoading) {
     return (
       <div className={styles.loading} dir={direction}>
@@ -921,18 +893,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
             />
           )}
 
-          {/* Database Viewer Button */}
+          {/* Database Viewer */}
           <div className={styles.databaseViewerSection}>
-            <button
-              type="button"
-              className={styles.databasePdfButton}
-              onClick={handleDownloadDatabasePdf}
-              disabled={isDownloadingPdf}
-            >
-              <span>📄</span>
-              {isDownloadingPdf ? "יוצר PDF..." : "הורד PDF של מסד הנתונים"}
-            </button>
-
             <button
               type="button"
               className={styles.databaseViewerButton}
@@ -1027,9 +989,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               <p className={styles.instructions}>{activeQuestion.instructions}</p>
             )}
           </div>
-          <div className={styles.unknownAnswerNote}>
-            💡 עבור שאלות שאינכם יודעים לענות, עליכם לרשום &quot;X&quot;
-          </div>
+        
         </header>
 
         <div className={styles.editorSection}>
@@ -1051,6 +1011,10 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               height="300px"
               value={activeQuestionId ? (editorValues[activeQuestionId] || "") : ""}
               defaultLanguage="sql"
+              options={{
+                fontSize: 16,
+                fontFamily: "ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace",
+              }}
               onChange={(value) => {
                 console.log("🟢 Monaco onChange triggered:", { 
                   activeQuestionId, 
@@ -1107,32 +1071,30 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 <span className={styles.runIcon}>{executeMutation.isPending ? "⏳" : "▶"}</span>
                 {executeMutation.isPending ? t("runner.actions.running") : t("runner.actions.run")}
               </button>
+              <button
+                type="button"
+                className={styles.showAnswerButton}
+                onClick={() => activeQuestionId && handleShowAnswer(activeQuestionId)}
+                disabled={!activeQuestionId}
+              >
+                👀 הצג תשובה
+              </button>
+              {showAnswer && activeSolution && (
+                <button
+                  type="button"
+                  className={styles.copyAnswerButton}
+                  onClick={() => activeQuestionId && handleCopyAnswer(activeQuestionId, activeSolution)}
+                  disabled={!activeQuestionId}
+                >
+                  {copyStatus === "copied" ? "✅ הועתק" : "📋 העתק תשובה"}
+                </button>
+              )}
             </div>
           </div>
 
           <div className={styles.feedbackPanel}>
             <div className={styles.feedbackHeader}>
               <h4 className={styles.feedbackTitle}>{t("runner.results.heading")}</h4>
-              <div className={styles.solutionActions}>
-                <button
-                  type="button"
-                  className={styles.showAnswerButton}
-                  onClick={() => activeQuestionId && handleShowAnswer(activeQuestionId)}
-                  disabled={!activeQuestionId}
-                >
-                  👀 הצג תשובה
-                </button>
-                {showAnswer && activeSolution && (
-                  <button
-                    type="button"
-                    className={styles.copyAnswerButton}
-                    onClick={() => activeQuestionId && handleCopyAnswer(activeQuestionId, activeSolution)}
-                    disabled={!activeQuestionId}
-                  >
-                    {copyStatus === "copied" ? "✅ הועתק" : "📋 העתק תשובה"}
-                  </button>
-                )}
-              </div>
             </div>
             {executeMutation.isError && <p className={styles.errorText}>{t("runner.results.error")}</p>}
             

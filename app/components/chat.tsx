@@ -1038,6 +1038,7 @@ const updateUserBalance = async (value) => {
           body: JSON.stringify({
             content: messageWithTags, // Send message with tags to AI
             imageData: imageData, // Send image data if available
+            homeworkRunner: !!homeworkContext, // Allow all SQL (subqueries, CONCAT, ALL, TOP) in homework
           }),
         }
       );

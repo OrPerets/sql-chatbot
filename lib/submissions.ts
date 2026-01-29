@@ -642,20 +642,24 @@ export class SubmissionsService {
       
       // Register MySQL-compatible DATEDIFF function for alasql
       // Register it so it can be called directly from SQL queries
+      // CONCAT: concatenate all arguments as strings (MySQL/SQL compatible)
+      const concatFn = (...args: unknown[]) => (args || []).map(String).join('');
       if (alasql.fn) {
         alasql.fn.DATEDIFF = calculateDateDiff;
         alasql.fn.datediff = calculateDateDiff;
         alasql.fn.STRCMP = strcmp;
         alasql.fn.strcmp = strcmp;
-        console.log('✅ Registered DATEDIFF and STRCMP functions in alasql.fn');
+        alasql.fn.CONCAT = concatFn;
+        alasql.fn.concat = concatFn;
+        console.log('✅ Registered DATEDIFF, STRCMP, and CONCAT in alasql.fn');
       }
-      
-      // Also ensure it's available in the fn object directly
       if (typeof (alasql as any).fn === 'object') {
         (alasql as any).fn.DATEDIFF = calculateDateDiff;
         (alasql as any).fn.datediff = calculateDateDiff;
         (alasql as any).fn.STRCMP = strcmp;
         (alasql as any).fn.strcmp = strcmp;
+        (alasql as any).fn.CONCAT = concatFn;
+        (alasql as any).fn.concat = concatFn;
       }
       
       // Test the function registration by trying simple queries
@@ -968,13 +972,122 @@ export class SubmissionsService {
             ('59183746', 122, '2024-03-05', 80);
         `);
       };
-      
+
+      // Helper function to initialize Exam Prep (הכנה למבחן) data
+      const initializeExamPrepData = () => {
+        alasql('DROP TABLE IF EXISTS Scores');
+        alasql('DROP TABLE IF EXISTS Registrations');
+        alasql('DROP TABLE IF EXISTS Exams');
+        alasql('DROP TABLE IF EXISTS Students');
+
+        alasql(`
+          CREATE TABLE Exams (
+            ExamID INTEGER PRIMARY KEY,
+            CourseCode TEXT,
+            ExamDate TEXT,
+            DurationMinutes INTEGER,
+            Room TEXT
+          );
+        `);
+        alasql(`
+          CREATE TABLE Students (
+            StudentID INTEGER PRIMARY KEY,
+            FirstName TEXT,
+            LastName TEXT,
+            Major TEXT,
+            Year INTEGER
+          );
+        `);
+        alasql(`
+          CREATE TABLE Registrations (
+            RegistrationID INTEGER PRIMARY KEY,
+            StudentID INTEGER,
+            ExamID INTEGER,
+            RegisteredAt TEXT,
+            Status TEXT
+          );
+        `);
+        alasql(`
+          CREATE TABLE Scores (
+            ScoreID INTEGER PRIMARY KEY,
+            StudentID INTEGER,
+            ExamID INTEGER,
+            Score INTEGER,
+            GradedAt TEXT,
+            Attempt INTEGER
+          );
+        `);
+
+        // Exams: mix of near-future (for Q1), room A1, duration > 120
+        alasql(`
+          INSERT INTO Exams VALUES
+            (1, 'SQL101', '2026-02-15', 90, 'A1'),
+            (2, 'DB202', '2026-02-18', 120, 'B2'),
+            (3, 'SQL101', '2026-02-22', 150, 'A1'),
+            (4, 'DB202', '2026-02-25', 90, 'C3'),
+            (5, 'SQL101', '2026-03-01', 120, 'B2'),
+            (6, 'DB202', '2026-03-05', 90, 'A1');
+        `);
+        // Students: some with no registrations (Q2), multiple exams (Q5)
+        alasql(`
+          INSERT INTO Students VALUES
+            (1001, 'אלי', 'כהן', 'CS', 2),
+            (1002, 'מיה', 'לוי', 'Math', 2),
+            (1003, 'דוד', 'ישראלי', 'CS', 3),
+            (1004, 'שרה', 'מזרחי', 'Math', 2),
+            (1005, 'יוסי', 'אברהם', 'CS', 3),
+            (1006, 'רונית', 'דהן', 'Math', 1),
+            (1007, 'עמית', 'בן דוד', 'CS', 2),
+            (1008, 'נועה', 'שמעון', 'Biology', 1);
+        `);
+        // Registrations: approved, waitlist; some without scores (Q9)
+        alasql(`
+          INSERT INTO Registrations VALUES
+            (1, 1001, 1, '2026-01-10', 'approved'),
+            (2, 1001, 2, '2026-01-12', 'approved'),
+            (3, 1002, 1, '2026-01-11', 'approved'),
+            (4, 1002, 3, '2026-01-14', 'waitlist'),
+            (5, 1003, 1, '2026-01-09', 'approved'),
+            (6, 1003, 2, '2026-01-13', 'approved'),
+            (7, 1003, 3, '2026-01-15', 'approved'),
+            (8, 1004, 2, '2026-01-11', 'approved'),
+            (9, 1004, 4, '2026-01-16', 'waitlist'),
+            (10, 1005, 1, '2026-01-10', 'approved'),
+            (11, 1005, 3, '2026-01-14', 'approved'),
+            (12, 1006, 2, '2026-01-12', 'waitlist'),
+            (13, 1007, 1, '2026-01-15', 'approved'),
+            (14, 1007, 2, '2026-01-16', 'approved'),
+            (15, 1008, 4, '2026-01-17', 'approved');
+        `);
+        // Scores: some registrations without score yet (Q9)
+        alasql(`
+          INSERT INTO Scores VALUES
+            (1, 1001, 1, 85, '2026-02-16', 1),
+            (2, 1001, 2, 90, '2026-02-19', 1),
+            (3, 1002, 1, 78, '2026-02-16', 1),
+            (4, 1003, 1, 92, '2026-02-16', 1),
+            (5, 1003, 2, 88, '2026-02-19', 1),
+            (6, 1003, 3, 95, '2026-02-23', 1),
+            (7, 1004, 2, 72, '2026-02-19', 1),
+            (8, 1005, 1, 80, '2026-02-16', 1),
+            (9, 1005, 3, 84, '2026-02-23', 1),
+            (10, 1007, 1, 91, '2026-02-16', 1),
+            (11, 1007, 2, 87, '2026-02-19', 1);
+        `);
+      };
+
       // Initialize data based on dataset
-      const isExercise3 = dataset.connectionUri.includes('exercise3-college') || 
+      const isExamPrep = dataset.connectionUri.includes('exam-prep') ||
+                        dataset.name?.includes('הכנה למבחן') ||
+                        dataset.name?.includes('מבחנים');
+      const isExercise3 = dataset.connectionUri.includes('exercise3-college') ||
                           dataset.name?.includes('תרגיל 3') ||
                           dataset.name?.includes('מכללה');
-      
-      if (isExercise3) {
+
+      if (isExamPrep) {
+        initializeExamPrepData();
+        console.log('✅ Initialized Exam Prep (הכנה למבחן) tables with sample data using alasql');
+      } else if (isExercise3) {
         // Get or assign student-specific table data
         const studentTableData = await this.getOrAssignStudentTableData(
           payload.studentId,
@@ -1011,10 +1124,14 @@ export class SubmissionsService {
       // Transform SQL to replace MySQL-specific functions with alasql-compatible versions
       const transformMySQLFunctions = (sql: string): string => {
         let transformedSql = sql;
-        
+        // Remove semicolon before closing paren (e.g. "from t;);" or "from t;\n);" -> "from t );" so parser accepts it)
+        transformedSql = transformedSql.replace(/\s*;\s*\)/g, ' )');
+        // Normalize strcmp to STRCMP so lowercase/any case works (engine expects STRCMP)
+        transformedSql = transformedSql.replace(/\bstrcmp\s*\(/gi, 'STRCMP(');
+
         // Get current date in YYYY-MM-DD format for CURDATE() replacement
         const currentDate = new Date().toISOString().split('T')[0];
-        
+
         // Replace CURDATE() with current date string (MUST be done first, before DATEDIFF transformation)
         // MySQL CURDATE() returns current date
         transformedSql = transformedSql.replace(/\bCURDATE\s*\(\s*\)/gi, `'${currentDate}'`);
@@ -1098,6 +1215,9 @@ export class SubmissionsService {
           'lecturers': 'Lecturers',
           'enrollments': 'Enrollments',
           'employees': 'Employees',
+          'exams': 'Exams',
+          'registrations': 'Registrations',
+          'scores': 'Scores',
           // Column names - Students
           'studentid': 'StudentID',
           'firstname': 'FirstName',
@@ -1105,6 +1225,8 @@ export class SubmissionsService {
           'birthdate': 'BirthDate',
           'city': 'City',
           'email': 'Email',
+          'major': 'Major',
+          'year': 'Year',
           // Column names - Courses
           'courseid': 'CourseID',
           'coursename': 'CourseName',
@@ -1117,6 +1239,21 @@ export class SubmissionsService {
           // Column names - Enrollments
           'enrollmentdate': 'EnrollmentDate',
           'grade': 'Grade',
+          // Column names - Exams (exam prep)
+          'examid': 'ExamID',
+          'coursecode': 'CourseCode',
+          'examdate': 'ExamDate',
+          'durationminutes': 'DurationMinutes',
+          'room': 'Room',
+          // Column names - Registrations (exam prep)
+          'registrationid': 'RegistrationID',
+          'registeredat': 'RegisteredAt',
+          'status': 'Status',
+          // Column names - Scores (exam prep)
+          'scoreid': 'ScoreID',
+          'score': 'Score',
+          'gradedat': 'GradedAt',
+          'attempt': 'Attempt',
           // Column names - Employees (fallback table)
           'id': 'id',
           'name': 'name',
@@ -1168,8 +1305,9 @@ export class SubmissionsService {
           const hasDateDiff = sqlError.message.includes('DATEDIFF') || sqlError.message.includes('datediff');
           console.log('🔄 Attempting fallback: replacing SQL functions with direct JavaScript calculations');
           
-          // Transform DATEDIFF to use direct JavaScript calculation (bypass VALUE())
           let fallbackSql = payload.sql;
+          // Remove semicolon before closing paren (same as main path)
+          fallbackSql = fallbackSql.replace(/\s*;\s*\)/g, ' )');
           const currentDate = new Date().toISOString().split('T')[0];
           fallbackSql = fallbackSql.replace(/\bCURDATE\s*\(\s*\)/gi, `'${currentDate}'`);
           fallbackSql = fallbackSql.replace(/\bNOW\s*\(\s*\)/gi, `'${currentDate}'`);
@@ -1239,24 +1377,33 @@ export class SubmissionsService {
             };
           }
         } else {
-          // Other errors - return as is
+          // Other errors - return as is, with friendly hints where applicable
           const errorMessage = sqlError.message || 'Invalid SQL syntax';
-          
+          const errLower = errorMessage.toLowerCase();
+
+          // Ambiguous column / "need table prefix": when same column exists in multiple tables
+          const isAmbiguous = errLower.includes('ambiguous') || errLower.includes('which one') || errLower.includes('qualify');
+          const ambiguousHint = isAmbiguous
+            ? ' העמודה מופיעה ביותר מטבלה אחת — השתמשו ב־Table.Column רק כשצריך להבדיל (למשל Students.StudentID).'
+            : '';
+
           // Check if this is a JavaScript runtime error (like "Cannot read properties of undefined")
-          const isRuntimeError = errorMessage.includes('Cannot read properties') || 
+          const isRuntimeError = errorMessage.includes('Cannot read properties') ||
                                  errorMessage.includes('reading') ||
                                  errorMessage.includes('undefined');
-          
+
           // Check if the query uses nested subqueries (which alasql may struggle with)
-          const hasNestedSubquery = payload.sql.match(/\([^)]*\s+IN\s*\([^)]*\(/i) || 
+          const hasNestedSubquery = payload.sql.match(/\([^)]*\s+IN\s*\([^)]*\(/i) ||
                                          payload.sql.match(/\([^)]*\s*=\s*\([^)]*\(/i);
-          
-          const errorHint = isRuntimeError && hasNestedSubquery
-            ? ' This error may occur with deeply nested subqueries. Try rewriting your query using JOINs instead of nested IN subqueries. For example, use "FROM Table1 JOIN Table2 ON ..." instead of "WHERE Column IN (SELECT ...)".'
+
+          const errorHint = ambiguousHint
+            ? ambiguousHint
+            : isRuntimeError && hasNestedSubquery
+            ? ' This error may occur with deeply nested subqueries. Try rewriting your query using JOINs instead of nested IN subqueries.'
             : isRuntimeError
-            ? ' This error suggests the SQL engine may have trouble with this query pattern. Try simplifying the query or using a different approach (e.g., JOINs instead of subqueries).'
+            ? ' Try simplifying the query or using a different approach (e.g., JOINs instead of subqueries).'
             : '';
-          
+
           return {
             columns: [],
             rows: [],
@@ -1265,7 +1412,7 @@ export class SubmissionsService {
             feedback: {
               questionId: payload.questionId,
               score: 0,
-              autoNotes: `SQL Error: ${errorMessage}${errorHint}`,
+              autoNotes: `SQL Error: ${errorMessage}${errorHint ? '\n' + errorHint : ''}`,
               rubricBreakdown: [],
             },
           };
