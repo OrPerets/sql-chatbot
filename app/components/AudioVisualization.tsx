@@ -45,16 +45,16 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({
   const animationRef = useRef<NodeJS.Timeout | number | undefined>();
   const [peaks, setPeaks] = useState<number[]>(new Array(frequencyBands).fill(0));
 
-  const getCanvasSize = () => {
+  const getCanvasSize = useCallback(() => {
     switch (size) {
       case 'small': return { width: 200, height: 80 };
       case 'medium': return { width: 300, height: 120 };
       case 'large': return { width: 400, height: 160 };
       default: return { width: 300, height: 120 };
     }
-  };
+  }, [size]);
 
-  const getColorScheme = () => {
+  const getColorScheme = useCallback(() => {
     const schemes = {
       blue: {
         gradient: ['rgba(59, 130, 246, 0.8)', 'rgba(99, 102, 241, 1)', 'rgba(139, 92, 246, 0.8)'],
@@ -74,7 +74,7 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({
       }
     };
     return schemes[color];
-  };
+  }, [color]);
 
   const drawSpectrum = useCallback(() => {
     const canvas = canvasRef.current;
@@ -163,7 +163,18 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({
       const speed = animationSpeed === 'fast' ? 60 : animationSpeed === 'slow' ? 30 : 45;
       animationRef.current = setTimeout(() => requestAnimationFrame(drawSpectrum), 1000 / speed);
     }
-  }, [audioData, isActive, frequencyBands, logScale, showFrequencyLabels, sensitivity, color, size, peaks, animationSpeed]);
+  }, [
+    audioData,
+    isActive,
+    frequencyBands,
+    logScale,
+    showFrequencyLabels,
+    sensitivity,
+    peaks,
+    animationSpeed,
+    getCanvasSize,
+    getColorScheme
+  ]);
 
   useEffect(() => {
     if (isActive && audioData) {
@@ -336,16 +347,16 @@ export const CircularAudioVisualization: React.FC<AudioVisualizationProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<NodeJS.Timeout | number | undefined>();
 
-  const getCanvasSize = () => {
+  const getCanvasSize = useCallback(() => {
     switch (size) {
       case 'small': return 120;
       case 'medium': return 200;
       case 'large': return 300;
       default: return 200;
     }
-  };
+  }, [size]);
 
-  const getColorScheme = () => {
+  const getColorScheme = useCallback(() => {
     const schemes = {
       blue: ['rgba(59, 130, 246, 0.8)', 'rgba(99, 102, 241, 1)'],
       green: ['rgba(16, 185, 129, 0.8)', 'rgba(5, 150, 105, 1)'],
@@ -353,7 +364,7 @@ export const CircularAudioVisualization: React.FC<AudioVisualizationProps> = ({
       orange: ['rgba(245, 158, 11, 0.8)', 'rgba(217, 119, 6, 1)']
     };
     return schemes[color];
-  };
+  }, [color]);
 
   const drawCircularVisualization = useCallback(() => {
     const canvas = canvasRef.current;
@@ -410,7 +421,7 @@ export const CircularAudioVisualization: React.FC<AudioVisualizationProps> = ({
     if (isActive) {
       animationRef.current = requestAnimationFrame(drawCircularVisualization);
     }
-  }, [audioData, isActive, sensitivity, color, size]);
+  }, [audioData, isActive, sensitivity, getCanvasSize, getColorScheme]);
 
   useEffect(() => {
     if (isActive && audioData) {

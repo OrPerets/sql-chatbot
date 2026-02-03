@@ -112,46 +112,37 @@ const Michael3DVisual: React.FC<Michael3DVisualProps> = ({
         console.log('✅ Three.js components loaded successfully!');
         
         // Create a safe 3D canvas component
-        const Safe3DCanvas = ({ avatarUrl, avatarState, scale }: any) => {
-                     const AvatarModel = () => {
-             try {
-               const groupRef = React.useRef<any>(null);
-               const gltf = useGLTF(avatarUrl) as any;
-               
-               if (!gltf || !gltf.scene) {
-                 console.error('❌ GLTF scene is null');
-                 return null;
-               }
-               
-               const { actions } = useAnimations(gltf.animations || [], groupRef);
-               
-               console.log('🎭 Avatar model loaded:', gltf.scene);
-               
-               // Simple animation loop
-               const { useFrame } = require('@react-three/fiber');
-               useFrame((state: any) => {
-                 if (!groupRef.current) return;
-                 const time = state.clock.getElapsedTime();
-                 groupRef.current.position.y = Math.sin(time * 0.5) * 0.02;
-                 if (avatarState === 'speaking') {
-                   groupRef.current.rotation.y = Math.sin(time * 2) * 0.02;
-                 }
-               });
-               
-               if (!gltf.scene) {
-                 return null;
-               }
-               
-               return (
-                 <group ref={groupRef} scale={scale}>
-                   <primitive object={gltf.scene} />
-                 </group>
-               );
-             } catch (error) {
-               console.error('❌ Avatar model error:', error);
-               return null;
-             }
-           };
+          const Safe3DCanvas = ({ avatarUrl, avatarState, scale }: any) => {
+            const AvatarModel = () => {
+              const groupRef = React.useRef<any>(null);
+              const gltf = useGLTF(avatarUrl) as any;
+
+              const { actions } = useAnimations(gltf?.animations || [], groupRef);
+
+              console.log('🎭 Avatar model loaded:', gltf?.scene);
+
+              // Simple animation loop
+              const { useFrame } = require('@react-three/fiber');
+              useFrame((state: any) => {
+                if (!groupRef.current || !gltf?.scene) return;
+                const time = state.clock.getElapsedTime();
+                groupRef.current.position.y = Math.sin(time * 0.5) * 0.02;
+                if (avatarState === 'speaking') {
+                  groupRef.current.rotation.y = Math.sin(time * 2) * 0.02;
+                }
+              });
+
+              if (!gltf || !gltf.scene) {
+                console.error('❌ GLTF scene is null');
+                return null;
+              }
+
+              return (
+                <group ref={groupRef} scale={scale}>
+                  <primitive object={gltf.scene} />
+                </group>
+              );
+            };
           
           return (
             <Canvas

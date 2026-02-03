@@ -42,6 +42,79 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
   const maxReconnectAttempts = 3;
   const conversationMemoryRef = useRef<Array<{role: 'user' | 'assistant', content: string, timestamp: number}>>([]);
   const interruptionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const initializeRealtimeRef = useRef<() => void>(() => {});
+
+  // Handle reconnection
+  const handleReconnect = useCallback(() => {
+    if (reconnectAttempts.current < maxReconnectAttempts) {
+      reconnectAttempts.current++;
+      console.log(`🔄 Attempting to reconnect (${reconnectAttempts.current}/${maxReconnectAttempts})`);
+      setTimeout(() => initializeRealtimeRef.current(), 2000 * reconnectAttempts.current);
+    } else {
+      console.error('❌ Max reconnection attempts reached');
+      setConnectionStatus('error');
+    }
+  }, [maxReconnectAttempts]);
+
+  // Handle interruption
+  const handleInterruption = useCallback(() => {
+    console.log('🛑 User interrupted assistant response');
+    setIsInterrupted(true);
+
+    // Stop current response
+    if (realtimeService.current) {
+      // realtimeService.current.stopResponse(); // Method doesn't exist yet
+    }
+
+    // Clear interruption timeout
+    if (interruptionTimeoutRef.current) {
+      clearTimeout(interruptionTimeoutRef.current);
+    }
+
+    // Set timeout to reset interruption state
+    interruptionTimeoutRef.current = setTimeout(() => {
+      setIsInterrupted(false);
+    }, 2000);
+  }, []);
+
+  // Generate conversation summary
+  const generateConversationSummary = useCallback(() => {
+    if (conversationMemoryRef.current.length < 3) return;
+
+    const recentMessages = conversationMemoryRef.current.slice(-5);
+    const context = recentMessages
+      .map(msg => `${msg.role}: ${msg.content}`)
+      .join('\n');
+
+    setConversationContext(context);
+
+    // Notify parent component
+    if (onConversationSummary && recentMessages.length > 0) {
+      onConversationSummary(context);
+    }
+  }, [onConversationSummary]);
+
+  // Update conversation context for memory
+  const updateConversationContext = useCallback((role: 'user' | 'assistant', content: string) => {
+    const message = {
+      role,
+      content,
+      timestamp: Date.now()
+    };
+
+    conversationMemoryRef.current.push(message);
+
+    // Keep only last 10 messages for context
+    if (conversationMemoryRef.current.length > 10) {
+      conversationMemoryRef.current = conversationMemoryRef.current.slice(-10);
+    }
+
+    // Update conversation history state
+    setConversationHistory([...conversationMemoryRef.current]);
+
+    // Generate conversation context summary
+    generateConversationSummary();
+  }, [generateConversationSummary]);
 
   // Initialize realtime service
   const initializeRealtime = useCallback(async () => {
@@ -123,79 +196,25 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
       setConnectionStatus('error');
       handleReconnect();
     }
-  }, [isEnabled, voice, instructions, onTranscriptionUpdate, onResponseUpdate]);
+  }, [
+    isEnabled,
+    voice,
+    instructions,
+    onTranscriptionUpdate,
+    onResponseUpdate,
+    conversationMemory,
+    handleInterruption,
+    handleReconnect,
+    interruptionHandling,
+    isSpeaking,
+    updateConversationContext
+  ]);
 
-  // Handle reconnection
-  const handleReconnect = useCallback(() => {
-    if (reconnectAttempts.current < maxReconnectAttempts) {
-      reconnectAttempts.current++;
-      console.log(`🔄 Attempting to reconnect (${reconnectAttempts.current}/${maxReconnectAttempts})`);
-      setTimeout(initializeRealtime, 2000 * reconnectAttempts.current);
-    } else {
-      console.error('❌ Max reconnection attempts reached');
-      setConnectionStatus('error');
-    }
-  }, [initializeRealtime]);
-
-  // Handle interruption
-  const handleInterruption = useCallback(() => {
-    console.log('🛑 User interrupted assistant response');
-    setIsInterrupted(true);
-    
-    // Stop current response
-    if (realtimeService.current) {
-      // realtimeService.current.stopResponse(); // Method doesn't exist yet
-    }
-    
-    // Clear interruption timeout
-    if (interruptionTimeoutRef.current) {
-      clearTimeout(interruptionTimeoutRef.current);
-    }
-    
-    // Set timeout to reset interruption state
-    interruptionTimeoutRef.current = setTimeout(() => {
-      setIsInterrupted(false);
-    }, 2000);
-  }, []);
-
-  // Update conversation context for memory
-  const updateConversationContext = useCallback((role: 'user' | 'assistant', content: string) => {
-    const message = {
-      role,
-      content,
-      timestamp: Date.now()
+  useEffect(() => {
+    initializeRealtimeRef.current = () => {
+      void initializeRealtime();
     };
-    
-    conversationMemoryRef.current.push(message);
-    
-    // Keep only last 10 messages for context
-    if (conversationMemoryRef.current.length > 10) {
-      conversationMemoryRef.current = conversationMemoryRef.current.slice(-10);
-    }
-    
-    // Update conversation history state
-    setConversationHistory([...conversationMemoryRef.current]);
-    
-    // Generate conversation context summary
-    generateConversationSummary();
-  }, []);
-
-  // Generate conversation summary
-  const generateConversationSummary = useCallback(() => {
-    if (conversationMemoryRef.current.length < 3) return;
-    
-    const recentMessages = conversationMemoryRef.current.slice(-5);
-    const context = recentMessages
-      .map(msg => `${msg.role}: ${msg.content}`)
-      .join('\n');
-    
-    setConversationContext(context);
-    
-    // Notify parent component
-    if (onConversationSummary && recentMessages.length > 0) {
-      onConversationSummary(context);
-    }
-  }, [onConversationSummary]);
+  }, [initializeRealtime]);
 
   // Get conversation memory for context
   const getConversationMemory = useCallback(() => {

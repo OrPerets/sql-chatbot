@@ -327,6 +327,7 @@ const ChatEnglish = ({
   const [isThinking, setIsThinking] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imageProcessing, setImageProcessing] = useState(false);
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [threadId, setThreadId] = useState("");
   const [user, setUser] = useState(null);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
@@ -351,6 +352,7 @@ const ChatEnglish = ({
   // Add audio and speech state
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
   const [autoPlaySpeech, setAutoPlaySpeech] = useState(false);
+  const actionMenuRef = useRef<HTMLDivElement | null>(null);
   // Environment variables - these are available at build time
   const enableAvatar = process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1' || process.env.NODE_ENV === 'development';
   const enableVoice = process.env.NEXT_PUBLIC_VOICE_ENABLED === '1' || process.env.NODE_ENV === 'development';
@@ -371,6 +373,23 @@ const ChatEnglish = ({
       isHydrated
     });
   }, [enableAvatar, enableVoice, isHydrated]);
+
+  useEffect(() => {
+    if (!isActionMenuOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(event.target as Node)) {
+        setIsActionMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isActionMenuOpen]);
   
   // Add display mode state for avatar/logo toggle
   const [displayMode, setDisplayMode] = useState<'avatar' | 'logo'>('avatar');
@@ -468,7 +487,17 @@ const ChatEnglish = ({
       textLength: lastAssistantMessage?.length || 0
     });
     return currentState;
-  }, [isThinking, isRecording, shouldSpeak, isAssistantMessageComplete, isUserTyping, lastAssistantMessage?.length, enableAvatar, enableVoice]);
+  }, [
+    isThinking,
+    isRecording,
+    shouldSpeak,
+    autoPlaySpeech,
+    isAssistantMessageComplete,
+    isUserTyping,
+    lastAssistantMessage?.length,
+    enableAvatar,
+    enableVoice
+  ]);
 
   const router = useRouter();
 
@@ -634,6 +663,45 @@ const ChatEnglish = ({
     scrollToBottom();
   }, [messages]);
 
+  const triggerConversationAnalysis = useCallback(async (sessionId) => {
+    try {
+      const userId = JSON.parse(localStorage.getItem("currentUser"))?.email;
+      if (!userId || !sessionId) return;
+
+      // Check if analysis already exists for this session
+      const checkResponse = await fetch(`/api/conversation-summary/student/${userId}?limit=50`);
+      const checkData = await checkResponse.json();
+      
+      if (checkData.success) {
+        const existingAnalysis = checkData.data.summaries.find(summary => summary.sessionId === sessionId);
+        if (existingAnalysis) {
+          console.log('Conversation analysis already exists for session:', sessionId);
+          return;
+        }
+      }
+
+      // Trigger analysis
+      const response = await fetch(`/api/chat/sessions/${sessionId}/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userId,
+          sessionTitle: 'Chat Session'
+        }),
+      });
+
+      if (response.ok) {
+        console.log('✅ Conversation analysis triggered for session:', sessionId);
+      } else {
+        console.error('❌ Failed to trigger conversation analysis:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error triggering conversation analysis:', error);
+    }
+  }, []);
+
 
   useEffect(() => {
     let cUser = JSON.parse(localStorage.getItem("currentUser"));
@@ -738,7 +806,7 @@ const updateUserBalance = async (value) => {
         triggerConversationAnalysis(currentChatId);
       }
     };
-  }, [currentChatId]);
+  }, [currentChatId, triggerConversationAnalysis]);
 
   // Modified useEffect for progressive speech
   useEffect(() => {
@@ -785,7 +853,17 @@ const updateUserBalance = async (value) => {
       setShouldSpeak(false);
     }
 
-  }, [lastAssistantMessage, isDone, autoPlaySpeech, shouldSpeak, lastSpokenMessageId, hasStartedSpeaking, isManualSpeech]);
+  }, [
+    currentAssistantMessageId,
+    lastAssistantMessage,
+    isDone,
+    autoPlaySpeech,
+    shouldSpeak,
+    lastSpokenMessageId,
+    hasStartedSpeaking,
+    isManualSpeech,
+    streamingText?.length
+  ]);
 
   // Avatar interaction handlers
   const handleAvatarInteraction = useCallback((gesture: string, context: any) => {
@@ -795,7 +873,7 @@ const updateUserBalance = async (value) => {
     // AVATAR DISABLED: if (enableAnalytics && currentUser) {
     //   avatarAnalytics.trackGesture(gesture, context.type, currentUser);
     // }
-  }, [enableAnalytics, currentUser]);
+  }, []);
 
   const handleInteractionAnalytics = useCallback((analytics: any) => {
     if (enableAnalytics) {
@@ -946,46 +1024,6 @@ const updateUserBalance = async (value) => {
         return true; // Keep the first instance
       }
     });
-  };
-
-  // Function to trigger conversation analysis
-  const triggerConversationAnalysis = async (sessionId) => {
-    try {
-      const userId = JSON.parse(localStorage.getItem("currentUser"))?.email;
-      if (!userId || !sessionId) return;
-
-      // Check if analysis already exists for this session
-      const checkResponse = await fetch(`/api/conversation-summary/student/${userId}?limit=50`);
-      const checkData = await checkResponse.json();
-      
-      if (checkData.success) {
-        const existingAnalysis = checkData.data.summaries.find(summary => summary.sessionId === sessionId);
-        if (existingAnalysis) {
-          console.log('Conversation analysis already exists for session:', sessionId);
-          return;
-        }
-      }
-
-      // Trigger analysis
-      const response = await fetch(`/api/chat/sessions/${sessionId}/analyze`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: userId,
-          sessionTitle: 'Chat Session'
-        }),
-      });
-
-      if (response.ok) {
-        console.log('✅ Conversation analysis triggered for session:', sessionId);
-      } else {
-        console.error('❌ Failed to trigger conversation analysis:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Error triggering conversation analysis:', error);
-    }
   };
 
   // Add a function to load messages for a specific chat
@@ -1147,6 +1185,10 @@ const loadChatMessages = (chatId: string) => {
 
    // New function to handle message changes
    const handleMessagesChange = useCallback(() => {
+    if (!currentChatId) {
+      return;
+    }
+
     let msgs = messages.filter(msg => msg.role === "assistant")
     if (msgs.length > 0) {
         // Save the message to the server
@@ -1163,7 +1205,7 @@ const loadChatMessages = (chatId: string) => {
           }),
         }); 
     }
-  }, [isDone]);
+  }, [currentChatId, messages]);
 
    // Use effect to watch for changes in messages
    useEffect(() => {
@@ -1496,7 +1538,7 @@ return (
             {/* Send Button - Removed for demo */}
 
             {/* Action Buttons Row */}
-            <div className={styles.actionButtons}>
+            <div className={styles.actionButtons} ref={actionMenuRef}>
               {/* Audio Recorder - hidden for clean version */}
               {/* {enableVoice && (
                 <AudioRecorder
@@ -1506,79 +1548,80 @@ return (
                 />
               )} */}
 
-
-              {/* Exercise Button */}
               <button
                 type="button"
-                className={`${styles.actionButton} ${styles.exerciseActionButton} ${isExerciseMode ? styles.actionButtonActive : ''}`}
-                onClick={startExercise}
-                disabled={inputDisabled}
-                title="Get new SQL practice"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                </svg>
-                {/* <span className={styles.actionButtonText}>Practice</span> */}
-              </button>
-
-              {/* Attachment Button */}
-              <button
-                type="button"
-                className={styles.actionButton}
-                onClick={() => document.getElementById('imageInput')?.click()}
+                className={`${styles.actionButton} ${styles.actionMenuButton} ${isActionMenuOpen ? styles.actionButtonActive : ''}`}
+                onClick={() => setIsActionMenuOpen((prev) => !prev)}
                 disabled={inputDisabled || imageProcessing}
-                title="Attach image"
+                title="Open options"
+                aria-haspopup="true"
+                aria-expanded={isActionMenuOpen}
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.49"/>
-                </svg>
+                <span className={styles.actionMenuIcon}>➕️</span>
                 {selectedImage && <span className={styles.attachmentDot}></span>}
               </button>
 
-              {/* SQL Query Builder Button */}
-              <button
-                type="button"
-                className={styles.actionButton}
-                onClick={() => setSqlBuilderOpen(true)}
-                title="Build SQL query"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M4 7h16M4 12h16M4 17h16"/>
-                  <path d="M2 3h20v18H2z"/>
-                </svg>
-                <span className={styles.actionButtonText}>SQL</span>
-              </button>
+              {isActionMenuOpen && (
+                <div className={styles.actionMenu} role="menu">
+                  <button
+                    type="button"
+                    className={styles.actionMenuItem}
+                    onClick={() => {
+                      setIsActionMenuOpen(false);
+                      startExercise();
+                    }}
+                    disabled={inputDisabled}
+                    title="Get new SQL practice"
+                    role="menuitem"
+                  >
+                    <span className={styles.actionMenuItemIcon}>⭐️</span>
+                    <span className={styles.actionMenuItemText}>SQL Practice</span>
+                  </button>
 
+                  <button
+                    type="button"
+                    className={styles.actionMenuItem}
+                    onClick={() => {
+                      setIsActionMenuOpen(false);
+                      document.getElementById('imageInput')?.click();
+                    }}
+                    disabled={inputDisabled || imageProcessing}
+                    title="Attach image"
+                    role="menuitem"
+                  >
+                    <span className={styles.actionMenuItemIcon}>📎</span>
+                    <span className={styles.actionMenuItemText}>Attach image</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={styles.actionMenuItem}
+                    onClick={() => {
+                      setIsActionMenuOpen(false);
+                      setSqlBuilderOpen(true);
+                    }}
+                    title="Build SQL query"
+                    role="menuitem"
+                  >
+                    <span className={styles.actionMenuItemIcon}>🧩</span>
+                    <span className={styles.actionMenuItemText}>SQL Builder</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={styles.actionMenuItem}
+                    onClick={() => {
+                      setIsActionMenuOpen(false);
+                      router.push('/visualizer');
+                    }}
+                    title="Visualize query"
+                    role="menuitem"
+                  >
+                    <span className={styles.actionMenuItemIcon}>📊</span>
+                    <span className={styles.actionMenuItemText}>Visualize query</span>
+                  </button>
+                </div>
+              )}
             </div>
 
 

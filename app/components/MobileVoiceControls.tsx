@@ -172,54 +172,6 @@ const MobileVoiceControls: React.FC<MobileVoiceControlsProps> = ({
     }
   }, [touchStart]);
 
-  // Handle touch end
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    e.preventDefault();
-    
-    if (!touchStart || !touchCurrent) return;
-
-    const endTime = Date.now();
-    const duration = endTime - pressStartTime;
-    const gesture = detectGesture(touchStart, touchCurrent, duration);
-
-    // Clear timers
-    if (longPressTimeoutRef.current) {
-      clearTimeout(longPressTimeoutRef.current);
-      longPressTimeoutRef.current = null;
-    }
-
-    // Handle double tap detection
-    if (gesture?.type === 'tap') {
-      const timeSinceLastTap = endTime - lastTapTimeRef.current;
-      
-      if (timeSinceLastTap < 300) {
-        // Double tap detected
-        setGestureDetected({ type: 'double-tap', duration });
-        triggerHaptic('success');
-        handleDoubleTap();
-      } else {
-        // Single tap - wait to see if there's a second tap
-        doubleTapTimeoutRef.current = setTimeout(() => {
-          handleSingleTap();
-        }, 300);
-      }
-      
-      lastTapTimeRef.current = endTime;
-    } else if (gesture) {
-      setGestureDetected(gesture);
-      handleGesture(gesture);
-    }
-
-    // Reset state
-    setTouchStart(null);
-    setTouchCurrent(null);
-    setIsPressed(false);
-    setPressStartTime(0);
-    
-    // Clear ripple effect
-    setTimeout(() => setRipplePosition(null), 600);
-  }, [touchStart, touchCurrent, pressStartTime, detectGesture, triggerHaptic]);
-
   // Gesture handlers
   const handleSingleTap = useCallback(() => {
     if (isRecording) {
@@ -273,6 +225,63 @@ const MobileVoiceControls: React.FC<MobileVoiceControlsProps> = ({
         break;
     }
   }, [volume, speed, onVolumeChange, onSpeedChange, triggerHaptic]);
+
+  // Handle touch end
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+
+    if (!touchStart || !touchCurrent) return;
+
+    const endTime = Date.now();
+    const duration = endTime - pressStartTime;
+    const gesture = detectGesture(touchStart, touchCurrent, duration);
+
+    // Clear timers
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+
+    // Handle double tap detection
+    if (gesture?.type === 'tap') {
+      const timeSinceLastTap = endTime - lastTapTimeRef.current;
+
+      if (timeSinceLastTap < 300) {
+        // Double tap detected
+        setGestureDetected({ type: 'double-tap', duration });
+        triggerHaptic('success');
+        handleDoubleTap();
+      } else {
+        // Single tap - wait to see if there's a second tap
+        doubleTapTimeoutRef.current = setTimeout(() => {
+          handleSingleTap();
+        }, 300);
+      }
+
+      lastTapTimeRef.current = endTime;
+    } else if (gesture) {
+      setGestureDetected(gesture);
+      handleGesture(gesture);
+    }
+
+    // Reset state
+    setTouchStart(null);
+    setTouchCurrent(null);
+    setIsPressed(false);
+    setPressStartTime(0);
+
+    // Clear ripple effect
+    setTimeout(() => setRipplePosition(null), 600);
+  }, [
+    touchStart,
+    touchCurrent,
+    pressStartTime,
+    detectGesture,
+    triggerHaptic,
+    handleDoubleTap,
+    handleGesture,
+    handleSingleTap
+  ]);
 
   // Cleanup timers on unmount
   useEffect(() => {

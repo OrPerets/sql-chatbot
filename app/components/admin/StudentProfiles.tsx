@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Users,
   Search,
@@ -114,7 +114,7 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
   // Show all students (including those with "ריק" scores)
   const filteredProfiles = profiles;
 
-  const fetchProfiles = async () => {
+  const fetchProfiles = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -144,7 +144,7 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, searchTerm, selectedRisk, selectedScore]);
 
   const fetchAnalytics = async () => {
     try {
@@ -163,7 +163,7 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
 
   useEffect(() => {
     fetchProfiles();
-  }, [currentPage, searchTerm, selectedScore, selectedRisk]);
+  }, [fetchProfiles]);
 
   useEffect(() => {
     fetchAnalytics();
@@ -632,7 +632,7 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
                           </div>
                           <div className={studentStyles.metricRow}>
                             <span className={studentStyles.metricLabel}>ממוצע זמן:</span>
-                            <span className={studentStyles.metricValue}>{profile.engagementMetrics.averageSessionDuration.toFixed(1)} דק'</span>
+                            <span className={studentStyles.metricValue}>{profile.engagementMetrics.averageSessionDuration.toFixed(1)} דק&apos;</span>
                           </div>
                         </div>
                       </td>

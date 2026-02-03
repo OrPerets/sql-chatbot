@@ -961,7 +961,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
         isPending: aiGradingMutation.isPending,
       });
     }
-  }, []);
+  }, [aiGradingMutation.isPending, aiGradingMutation.mutate, aiGradingMutation.mutateAsync]);
 
   // Test AI mutation
   const testAIMutation = useMutation({

@@ -4,7 +4,12 @@ import "./globals.css";
 import "./components/admin/design-tokens.css";
 import Warnings from "./components/warnings";
 import { getAssistantId } from "./assistant-config";
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ 
+  subsets: ["latin"],
+  display: 'swap',
+  fallback: ['system-ui', 'arial'],
+  adjustFontFallback: true,
+});
 
 export const metadata = {
   title: "Michael - SQL Assistant",

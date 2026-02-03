@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { AnalysisResult, FailedQuestionAnalysis, ErrorPattern, ImprovementRecommendation } from '@/lib/ai-analysis';
 
 interface AIAnalysisFeedbackProps {
@@ -32,11 +32,7 @@ export default function AIAnalysisFeedback({
   const [error, setError] = useState<string | null>(null);
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisResult | null>(null);
 
-  useEffect(() => {
-    fetchAnalysisData();
-  }, [submissionId, studentId, homeworkSetId]);
-
-  const fetchAnalysisData = async () => {
+  const fetchAnalysisData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -104,7 +100,11 @@ export default function AIAnalysisFeedback({
     } finally {
       setLoading(false);
     }
-  };
+  }, [homeworkSetId, submissionId]);
+
+  useEffect(() => {
+    fetchAnalysisData();
+  }, [fetchAnalysisData]);
 
   const triggerAnalysis = async () => {
     try {

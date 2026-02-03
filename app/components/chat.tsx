@@ -17,10 +17,10 @@ import SQLQueryEditorComponent from "./query-vizualizer";
 import ImageUpload from "./image-upload";
 import { fileToBase64 } from "../utils/parseImage";
 // import AudioRecorder from "./audio-recorder"; // Clean version: hide audio recorder button
-// AVATAR TEMPORARILY DISABLED - Commented out to prevent crashes
-// import MichaelAvatarDirect from "./MichaelAvatarDirect";
-// import VoiceModeCircle from "./VoiceModeCircle";
-// import StaticLogoMode from "./StaticLogoMode";
+// AVATAR RE-ENABLED
+import MichaelAvatarDirect from "./MichaelAvatarDirect";
+import VoiceModeCircle from "./VoiceModeCircle";
+import StaticLogoMode from "./StaticLogoMode";
 // import { AvatarIcon, MicIcon } from "./AvatarToggleIcons";
 // import Avatar3DErrorBoundary from "./michael-3d-visual-wrapper";
 // import { enhancedTTS } from "@/app/utils/enhanced-tts";
@@ -350,6 +350,7 @@ const Chat = ({
   const [isThinking, setIsThinking] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imageProcessing, setImageProcessing] = useState(false);
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [threadId, setThreadId] = useState("");
   const [user, setUser] = useState(null);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
@@ -383,6 +384,7 @@ const Chat = ({
 
   // Add hydration state to prevent layout shift
   const [isHydrated, setIsHydrated] = useState(false);
+  const actionMenuRef = useRef<HTMLDivElement | null>(null);
   
   // Debug logging for production
   useEffect(() => {
@@ -394,6 +396,23 @@ const Chat = ({
       isHydrated
     });
   }, [enableAvatar, enableVoice, isHydrated]);
+
+  useEffect(() => {
+    if (!isActionMenuOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(event.target as Node)) {
+        setIsActionMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isActionMenuOpen]);
   
   // Add display mode state for avatar/logo toggle
   const [displayMode, setDisplayMode] = useState<'avatar' | 'logo'>('avatar');
@@ -445,7 +464,7 @@ const Chat = ({
   const [lastSpokenMessageId, setLastSpokenMessageId] = useState<string>("");
   const [currentAssistantMessageId, setCurrentAssistantMessageId] = useState<string>("");
 
-  const getStoredUser = () => {
+  const getStoredUser = useCallback(() => {
     if (typeof window === "undefined") return null;
     const storedUser = localStorage.getItem("currentUser");
     if (!storedUser) return null;
@@ -455,7 +474,7 @@ const Chat = ({
       console.error("Invalid currentUser in localStorage:", error);
       return null;
     }
-  };
+  }, []);
 
   // Add state for progressive speech
   const [streamingText, setStreamingText] = useState<string>("");
@@ -553,7 +572,17 @@ const Chat = ({
       textLength: lastAssistantMessage?.length || 0
     });
     return currentState;
-  }, [isThinking, isRecording, shouldSpeak, isAssistantMessageComplete, isUserTyping, lastAssistantMessage?.length, enableAvatar, enableVoice]);
+  }, [
+    isThinking,
+    isRecording,
+    shouldSpeak,
+    autoPlaySpeech,
+    isAssistantMessageComplete,
+    isUserTyping,
+    lastAssistantMessage?.length,
+    enableAvatar,
+    enableVoice
+  ]);
 
   const router = useRouter();
 
@@ -704,7 +733,7 @@ const Chat = ({
     };
 
     loadUserPoints();
-  }, []);
+  }, [getStoredUser]);
 
   // Toggle sidebar visibility
   const toggleSidebar = () => {
@@ -723,6 +752,46 @@ const Chat = ({
     scrollToBottom();
   }, [messages]);
 
+  const triggerConversationAnalysis = useCallback(async (sessionId) => {
+    try {
+      const storedUser = getStoredUser();
+      const userId = storedUser?.email;
+      if (!userId || !sessionId) return;
+
+      // Check if analysis already exists for this session
+      const checkResponse = await fetch(`/api/conversation-summary/student/${userId}?limit=50`);
+      const checkData = await checkResponse.json();
+      
+      if (checkData.success) {
+        const existingAnalysis = checkData.data.summaries.find(summary => summary.sessionId === sessionId);
+        if (existingAnalysis) {
+          console.log('Conversation analysis already exists for session:', sessionId);
+          return;
+        }
+      }
+
+      // Trigger analysis
+      const response = await fetch(`/api/chat/sessions/${sessionId}/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userId,
+          sessionTitle: 'Chat Session'
+        }),
+      });
+
+      if (response.ok) {
+        console.log('✅ Conversation analysis triggered for session:', sessionId);
+      } else {
+        console.error('❌ Failed to trigger conversation analysis:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error triggering conversation analysis:', error);
+    }
+  }, [getStoredUser]);
+
 
   useEffect(() => {
     const storedUser = getStoredUser();
@@ -736,7 +805,7 @@ const Chat = ({
     fetch(`/api/users/coins?status=1`).then(response => response.json())
     .then(data => setIsTokenBalanceVisible(data["status"] === "ON"))
 
-  }, []);
+  }, [getStoredUser]);
 
   // Add this useEffect to load chat sessions when the component mounts
 useEffect(() => {
@@ -754,7 +823,7 @@ useEffect(() => {
   };
 
   loadChatSessions();
-}, []);
+}, [getStoredUser]);
 
   // Function to refresh chat sessions from server
   const refreshChatSessions = () => {
@@ -813,7 +882,7 @@ const updateUserBalance = async (value) => {
       return;
     }
     setUser(null);
-  }, [embeddedMode]);
+  }, [embeddedMode, getStoredUser]);
 
   // create a new threadID when chat component created
   useEffect(() => {
@@ -841,7 +910,7 @@ const updateUserBalance = async (value) => {
         triggerConversationAnalysis(currentChatId);
       }
     };
-  }, [currentChatId]);
+  }, [currentChatId, triggerConversationAnalysis]);
 
   // Modified useEffect for progressive speech
   useEffect(() => {
@@ -888,7 +957,17 @@ const updateUserBalance = async (value) => {
       setShouldSpeak(false);
     }
 
-  }, [lastAssistantMessage, isDone, autoPlaySpeech, shouldSpeak, lastSpokenMessageId, hasStartedSpeaking, isManualSpeech]);
+  }, [
+    currentAssistantMessageId,
+    lastAssistantMessage,
+    isDone,
+    autoPlaySpeech,
+    shouldSpeak,
+    lastSpokenMessageId,
+    hasStartedSpeaking,
+    isManualSpeech,
+    streamingText?.length
+  ]);
 
   // Avatar interaction handlers
   const handleAvatarInteraction = useCallback((gesture: string, context: any) => {
@@ -898,7 +977,7 @@ const updateUserBalance = async (value) => {
     // AVATAR DISABLED: if (enableAnalytics && currentUser) {
     //   avatarAnalytics.trackGesture(gesture, context.type, currentUser);
     // }
-  }, [enableAnalytics, currentUser]);
+  }, []);
 
   const handleInteractionAnalytics = useCallback((analytics: any) => {
     if (enableAnalytics) {
@@ -1099,46 +1178,6 @@ const updateUserBalance = async (value) => {
   };
 
   // Function to trigger conversation analysis
-  const triggerConversationAnalysis = async (sessionId) => {
-    try {
-      const storedUser = getStoredUser();
-      const userId = storedUser?.email;
-      if (!userId || !sessionId) return;
-
-      // Check if analysis already exists for this session
-      const checkResponse = await fetch(`/api/conversation-summary/student/${userId}?limit=50`);
-      const checkData = await checkResponse.json();
-      
-      if (checkData.success) {
-        const existingAnalysis = checkData.data.summaries.find(summary => summary.sessionId === sessionId);
-        if (existingAnalysis) {
-          console.log('Conversation analysis already exists for session:', sessionId);
-          return;
-        }
-      }
-
-      // Trigger analysis
-      const response = await fetch(`/api/chat/sessions/${sessionId}/analyze`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: userId,
-          sessionTitle: 'Chat Session'
-        }),
-      });
-
-      if (response.ok) {
-        console.log('✅ Conversation analysis triggered for session:', sessionId);
-      } else {
-        console.error('❌ Failed to trigger conversation analysis:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Error triggering conversation analysis:', error);
-    }
-  };
-
   // Add a function to load messages for a specific chat
 const loadChatMessages = (chatId: string) => {
   setLoadingMessages(true); // Set loading to true before fetching
@@ -1298,6 +1337,10 @@ const loadChatMessages = (chatId: string) => {
 
    // New function to handle message changes
   const handleMessagesChange = useCallback(() => {
+    if (!currentChatId) {
+      return;
+    }
+
     let msgs = messages.filter(msg => msg.role === "assistant")
     if (msgs.length > 0) {
         const storedUser = getStoredUser();
@@ -1316,7 +1359,7 @@ const loadChatMessages = (chatId: string) => {
           }),
         }); 
     }
-  }, [isDone]);
+  }, [currentChatId, getStoredUser, messages]);
 
    // Use effect to watch for changes in messages
    useEffect(() => {
@@ -1341,7 +1384,7 @@ const loadChatMessages = (chatId: string) => {
     if (!storedUser && !embeddedMode) {
       router.push('/login'); // Redirect to login if no user is found
     }
-  }, [router, embeddedMode]);
+  }, [router, embeddedMode, getStoredUser]);
 
   const handleLogout = () => {
     localStorage.removeItem("currentUser");
@@ -1721,7 +1764,7 @@ return (
 
             {/* Action Buttons Row */}
             {!minimalMode && (
-            <div className={styles.actionButtons}>
+            <div className={styles.actionButtons} ref={actionMenuRef}>
               {/* Audio Recorder - hidden for clean version */}
               {/* {enableVoice && (
                 <AudioRecorder
@@ -1731,79 +1774,80 @@ return (
                 />
               )} */}
 
-
-              {/* Exercise Button */}
               <button
                 type="button"
-                className={`${styles.actionButton} ${styles.exerciseActionButton} ${isExerciseMode ? styles.actionButtonActive : ''}`}
-                onClick={startExercise}
-                disabled={inputDisabled}
-                title="קבל תרגול SQL חדש"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                </svg>
-                {/* <span className={styles.actionButtonText}>תרגול</span> */}
-              </button>
-
-              {/* Attachment Button */}
-              <button
-                type="button"
-                className={styles.actionButton}
-                onClick={() => document.getElementById('imageInput')?.click()}
+                className={`${styles.actionButton} ${styles.actionMenuButton} ${isActionMenuOpen ? styles.actionButtonActive : ''}`}
+                onClick={() => setIsActionMenuOpen((prev) => !prev)}
                 disabled={inputDisabled || imageProcessing}
-                title="Attach image"
+                title="פתח אפשרויות"
+                aria-haspopup="true"
+                aria-expanded={isActionMenuOpen}
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.49"/>
-                </svg>
+                <span className={styles.actionMenuIcon}>➕️</span>
                 {selectedImage && <span className={styles.attachmentDot}></span>}
               </button>
 
-              {/* SQL Query Builder Button */}
-              <button
-                type="button"
-                className={styles.actionButton}
-                onClick={() => setSqlBuilderOpen(true)}
-                title="בנה שאילתת SQL"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M4 7h16M4 12h16M4 17h16"/>
-                  <path d="M2 3h20v18H2z"/>
-                </svg>
-                <span className={styles.actionButtonText}>SQL</span>
-              </button>
+              {isActionMenuOpen && (
+                <div className={styles.actionMenu} role="menu">
+                  <button
+                    type="button"
+                    className={styles.actionMenuItem}
+                    onClick={() => {
+                      setIsActionMenuOpen(false);
+                      startExercise();
+                    }}
+                    disabled={inputDisabled}
+                    title="קבל תרגול SQL חדש"
+                    role="menuitem"
+                  >
+                    <span className={styles.actionMenuItemIcon}>⭐️</span>
+                    <span className={styles.actionMenuItemText}>תרגול SQL</span>
+                  </button>
 
+                  <button
+                    type="button"
+                    className={styles.actionMenuItem}
+                    onClick={() => {
+                      setIsActionMenuOpen(false);
+                      document.getElementById('imageInput')?.click();
+                    }}
+                    disabled={inputDisabled || imageProcessing}
+                    title="Attach image"
+                    role="menuitem"
+                  >
+                    <span className={styles.actionMenuItemIcon}>📎</span>
+                    <span className={styles.actionMenuItemText}>הוספת תמונה</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={styles.actionMenuItem}
+                    onClick={() => {
+                      setIsActionMenuOpen(false);
+                      setSqlBuilderOpen(true);
+                    }}
+                    title="בנה שאילתת SQL"
+                    role="menuitem"
+                  >
+                    <span className={styles.actionMenuItemIcon}>🧩</span>
+                    <span className={styles.actionMenuItemText}>בונה SQL</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={styles.actionMenuItem}
+                    onClick={() => {
+                      setIsActionMenuOpen(false);
+                      router.push('/visualizer');
+                    }}
+                    title="המחשת שאילתה"
+                    role="menuitem"
+                  >
+                    <span className={styles.actionMenuItemIcon}>📊</span>
+                    <span className={styles.actionMenuItemText}>המחשת שאילתה</span>
+                  </button>
+                </div>
+              )}
             </div>
             )}
 
@@ -1857,8 +1901,110 @@ return (
   </div>
 )} */}
     
-    {/* AVATAR TEMPORARILY DISABLED - Commented out to prevent crashes */}
-    {/* Avatar section completely removed to fix build errors */}
+    {/* Right Column - Avatar Section */}
+    {!hideAvatar && !minimalMode && (
+      <div className={styles.rightColumn}>
+        {!isHydrated ? (
+          <div 
+            className={styles.avatarHydrationPlaceholder}
+            role="status"
+            aria-label="טוען אווטאר"
+            aria-live="polite"
+          ></div>
+        ) : (
+          <div className={styles.avatarSection}>
+            {displayMode === 'avatar' && enableAvatar ? (
+              <>
+                {avatarMode === 'avatar' ? (
+                  <MichaelAvatarDirect
+                    text={lastAssistantMessage}
+                    state={avatarState}
+                    size="medium"
+                    progressiveMode={enableVoice && !isDone}
+                    isStreaming={enableVoice && !isDone}
+                    onSpeakingStart={() => {
+                      console.log('🎤 Michael started speaking');
+                      if (enableVoice) setShouldSpeak(true);
+                    }}
+                    onSpeakingEnd={() => {
+                      console.log('🎤 Michael finished speaking');
+                      if (enableVoice) setShouldSpeak(false);
+                      setIsAssistantMessageComplete(false);
+                      setHasStartedSpeaking(false);
+                      setIsManualSpeech(false);
+                    }}
+                  />
+                ) : (
+                  <VoiceModeCircle
+                    state={avatarState}
+                    size="medium"
+                    text={lastAssistantMessage}
+                    onSpeakingStart={() => {
+                      console.log('🎤 Voice circle started speaking');
+                      if (enableVoice) setShouldSpeak(true);
+                    }}
+                    onSpeakingEnd={() => {
+                      console.log('🎤 Voice circle finished speaking');
+                      if (enableVoice) setShouldSpeak(false);
+                      setIsAssistantMessageComplete(false);
+                      setHasStartedSpeaking(false);
+                      setIsManualSpeech(false);
+                    }}
+                  />
+                )}
+              </>
+            ) : (
+              <StaticLogoMode
+                size="medium"
+                state={avatarState}
+                userName={currentUser}
+              />
+            )}
+            
+            {/* Toggle Buttons Container */}
+            <div className={styles.toggleButtonsContainer}>
+              {/* Display Mode Toggle Button */}
+              <div className={styles.displayModeToggle}>
+                <button 
+                  className={`${styles.displayToggleButton} ${displayMode === 'logo' ? styles.logoModeActive : styles.avatarModeActive}`}
+                  onClick={() => setDisplayMode(displayMode === 'avatar' ? 'logo' : 'avatar')}
+                  title={displayMode === 'avatar' ? 'עבור למצב לוגו' : 'עבור למצב אווטאר'}
+                  aria-label={displayMode === 'avatar' ? 'Switch to logo mode' : 'Switch to avatar mode'}
+                >
+                  {displayMode === 'avatar' ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                      <circle cx="8.5" cy="8.5" r="1.5"/>
+                      <path d="M21 15l-5-5L5 21"/>
+                    </svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+            
+            {/* User info below the avatar */}
+            <div className={styles.userInfo}>
+              <div className={styles.nickname}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                  <span>היי {currentUser}</span>
+                </div>
+                {isTokenBalanceVisible && (
+                  <div>
+                    יתרה נוכחית: ₪{currentBalance}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )}
+
     {/* Exercise Modal */}
     <Modal isOpen={showExerciseModal} onClose={() => {
       setShowExerciseModal(false);

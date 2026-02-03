@@ -40,9 +40,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
         >
           ← חזור לדשבורד
         </button>
-        <button onClick={onLogout} className={styles.logoutButton}>
-          יציאה
-        </button>
+       
       </div>
       <div className={styles.simpleContent}>
         {children}
