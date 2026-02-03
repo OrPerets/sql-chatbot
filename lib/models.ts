@@ -79,6 +79,16 @@ export interface QuestionAnalyticsModel {
     charactersTyped: number;
     editsCount: number;
     copyPasteCount: number;
+    showAnswerClicks?: number;
+    timeToFirstShowAnswer?: number | null;
+    showAnswerTimings?: number[];
+    generalAnalysis?: {
+      hintsUsed?: number;
+      confidence?: number | null;
+      summary?: string;
+      aiAssistanceUsed?: boolean;
+      aiAssistanceNotes?: string;
+    };
     startedAt: string;
     lastActivityAt: string;
   };

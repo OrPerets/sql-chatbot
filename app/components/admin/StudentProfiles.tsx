@@ -426,7 +426,7 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
             <div className={studentStyles.statCard}>
               <Users className={studentStyles.statIcon} />
               {analytics.totalStudents}
-              <div className={studentStyles.statLabel}>סה"כ תלמידים</div>
+              <div className={studentStyles.statLabel}>סה&quot;כ תלמידים</div>
             </div>
 
             <div className={studentStyles.statCard}>
@@ -832,7 +832,7 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="bg-gray-50 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-gray-900">{selectedStudentIssues.totalIssues}</div>
-                  <div className="text-sm text-gray-600">סה"כ בעיות</div>
+                  <div className="text-sm text-gray-600">סה&quot;כ בעיות</div>
                 </div>
                 <div className="bg-red-50 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-red-600">{selectedStudentIssues.unresolvedIssues}</div>

@@ -172,6 +172,15 @@ export interface AnalyticsEvent {
   metadata?: Record<string, unknown>;
 }
 
+export interface QuestionAnalyticsStats {
+  questionId: string;
+  totalRecords: number;
+  totalShowAnswerClicks: number;
+  averageShowAnswerClicks: number;
+  averageTimeToFirstShowAnswer: number | null;
+  studentsWithShowAnswer: number;
+}
+
 export interface PublishGradesResult {
   updated: number;
   submissions: Submission[];

@@ -22,44 +22,50 @@ function base64ToBuffer(base64Data: string): { buffer: Buffer; mimeType: string 
 // Send a new message to a thread
 export async function POST(request, { params: { threadId } }) {
   try {
-    const { content, imageData } = await request.json();
+    const { content, imageData, homeworkRunner } = await request.json();
+
+    // When in homework runner, allow all SQL (subqueries, CONCAT, ALL, TOP, nested queries)
+    const useHomeworkSqlMode = !!homeworkRunner;
 
     // CRITICAL: Inject current week context directly into message to ensure assistant knows the week
-    // Use getCurrentWeekContextNormalized directly instead of API call to avoid inconsistencies
     let weeklyContext = '';
     let currentWeekNumber: number | null = null;
     try {
-      // Use the same function that get_course_week_context uses to ensure consistency
       const { getCurrentWeekContextNormalized } = await import('@/lib/content');
       const weekContext = await getCurrentWeekContextNormalized(null);
-      currentWeekNumber = weekContext.weekNumber;
-      
+      // In homework runner, use week 13 so all concepts are allowed (no forbiddenConcepts)
+      currentWeekNumber = useHomeworkSqlMode ? 13 : weekContext.weekNumber;
+
       if (currentWeekNumber) {
-        console.log(`[messages-route] Injected week context: Week ${currentWeekNumber} (from getCurrentWeekContextNormalized)`);
-        
-        // Get SQL restrictions for this week
+        if (useHomeworkSqlMode) {
+          console.log('[messages-route] Homework runner mode: allowing all SQL (week 13)');
+        } else {
+          console.log(`[messages-route] Injected week context: Week ${currentWeekNumber}`);
+        }
+
         const { getAllowedConceptsForWeek, getForbiddenConceptsForWeek } = await import('@/lib/sql-curriculum');
         const allowedConcepts = getAllowedConceptsForWeek(currentWeekNumber);
         const forbiddenConcepts = getForbiddenConceptsForWeek(currentWeekNumber);
-        
-        // Create explicit context with week number and key restrictions
         const hasJOIN = allowedConcepts.some(c => c.toLowerCase().includes('join'));
         const hasALTER = forbiddenConcepts.some(c => c.toLowerCase().includes('alter'));
-        
-        weeklyContext = `\n\n[CRITICAL WEEK CONTEXT - DO NOT IGNORE]
-השבוע הנוכחי הוא שבוע ${currentWeekNumber} (לא שבוע 6 ולא שבוע אחר).
+
+        if (useHomeworkSqlMode) {
+          weeklyContext = `\n\n[HOMEWORK RUNNER - SQL CONTEXT]
+הסטודנט עובד בממשק הרצת שיעורי בית. מותר להשתמש בכל פונקציות ורעיונות SQL הרלוונטיים: שאילתות מקוננות (subqueries), CONCAT, STRCMP (גם באותיות קטנות), ALL, ANY, TOP, LIMIT, JOINים מורכבים. אל תגביל את התשובות לפי שבוע לימוד — תן דוגמאות מלאות שהמנוע תומך בהן.]`;
+        } else {
+          weeklyContext = `\n\n[CRITICAL WEEK CONTEXT - DO NOT IGNORE]
 השבוע הנוכחי הוא שבוע ${currentWeekNumber}.
 Week ${currentWeekNumber} includes ALL concepts from weeks 1-${currentWeekNumber}.
-${hasJOIN ? 'JOIN is ALLOWED (learned in week 7).' : 'JOIN is NOT yet learned.'}
-${hasALTER ? 'ALTER is FORBIDDEN (will be learned in week 11). Do NOT use ALTER TABLE.' : 'ALTER is allowed.'}
+${hasJOIN ? 'JOIN is ALLOWED.' : 'JOIN is NOT yet learned.'}
+${hasALTER ? 'ALTER is FORBIDDEN. Do NOT use ALTER TABLE.' : 'ALTER is allowed.'}
 You MUST call get_course_week_context() to get the complete list of allowed/forbidden concepts.
-The weekNumber from that function is the SOURCE OF TRUTH. Use it, not any other number.]`;
+The weekNumber from that function is the SOURCE OF TRUTH.]`;
+        }
       } else {
         console.warn('[messages-route] Could not determine current week - weekNumber is null');
       }
     } catch (weeklyError) {
       console.error('[messages-route] Could not fetch weekly context:', weeklyError);
-      // Continue without weekly context if fetch fails
     }
 
     // Prepare message content

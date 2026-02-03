@@ -52,7 +52,7 @@ export const SQL_CURRICULUM_MAP: Record<number, {
   },
   9: {
     week: 9,
-    concepts: ['subquery', 'sub-query', 'nested query'],
+    concepts: ['subquery', 'sub-query', 'nested query', 'CONCAT', 'concat', 'TOP', 'LIMIT', 'ALL', 'ANY', 'complex query', 'nested queries'],
     forbiddenConcepts: []
   },
   10: {

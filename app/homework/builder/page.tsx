@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, Edit3, Eye, GraduationCap, CheckCircle, Clock, AlertCircle, Archive, Send } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Plus, Edit3, Eye, GraduationCap, CheckCircle, Clock, AlertCircle, Archive, Send, BookOpen } from "lucide-react";
 import { useHomeworkSets } from "@/app/homework/hooks/useHomeworkSets";
 import type { HomeworkStatusFilter, HomeworkSummary } from "@/app/homework/types";
 import styles from "./dashboard.module.css";
@@ -54,11 +55,32 @@ function groupByStatus(items: HomeworkSummary[]) {
 
 export default function BuilderDashboardPage() {
   const [activeFilter, setActiveFilter] = useState<HomeworkStatusFilter | "all">("all");
+  const [isSeedingExamPrep, setIsSeedingExamPrep] = useState(false);
+  const queryClient = useQueryClient();
   const { data, isLoading, error } = useHomeworkSets(activeFilter === "all" ? undefined : { status: [activeFilter] });
   const { t, formatNumber, direction } = useHomeworkLocale();
 
   const grouped = useMemo(() => groupByStatus(data?.items ?? []), [data]);
   const totalCount = useMemo(() => data?.items?.length ?? 0, [data?.items]);
+
+  const handleSeedExamPrep = async () => {
+    if (!confirm('האם ליצור את סט "הכנה למבחן"? אם כבר קיים, השאלות יוחלפו.')) return;
+    setIsSeedingExamPrep(true);
+    try {
+      const res = await fetch("/api/admin/seed-exam-prep", { method: "POST" });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || err.details || "Failed to seed");
+      }
+      const json = await res.json();
+      await queryClient.invalidateQueries({ queryKey: ["homeworkSets"] });
+      alert(json.message || "הכנה למבחן נוצר בהצלחה");
+    } catch (e) {
+      alert(`שגיאה: ${e instanceof Error ? e.message : "Unknown error"}`);
+    } finally {
+      setIsSeedingExamPrep(false);
+    }
+  };
 
   return (
     <div className={styles.container} dir={direction}>
@@ -67,10 +89,22 @@ export default function BuilderDashboardPage() {
           <h2>{t("builder.dashboard.title")}</h2>
           <p>{t("builder.dashboard.subtitle")}</p>
         </div>
-        <Link href="/homework/builder/create" className={styles.cta}>
-          <Plus size={18} />
-          {t("builder.dashboard.newSet")}
-        </Link>
+        <div className={styles.headerActions}>
+          <button
+            type="button"
+            className={styles.seedCta}
+            onClick={handleSeedExamPrep}
+            disabled={isSeedingExamPrep}
+            title="יצירת סט הכנה למבחן (מסד מבחנים)"
+          >
+            <BookOpen size={18} />
+            {isSeedingExamPrep ? "יוצר..." : "הכנה למבחן"}
+          </button>
+          <Link href="/homework/builder/create" className={styles.cta}>
+            <Plus size={18} />
+            {t("builder.dashboard.newSet")}
+          </Link>
+        </div>
       </header>
 
       <div className={styles.filters}>

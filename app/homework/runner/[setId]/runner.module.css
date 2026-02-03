@@ -1040,7 +1040,15 @@
   overflow: hidden;
 }
 
-.feedbackPanel h4 {
+.feedbackHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.feedbackTitle {
   margin: 0 0 8px;
   font-size: 13px;
   font-weight: 600;
@@ -1051,9 +1059,144 @@
   flex-shrink: 0;
 }
 
-.feedbackPanel h4::before {
+.feedbackTitle::before {
   content: '📊';
   font-size: 14px;
+}
+
+.solutionActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.showAnswerButton,
+.copyAnswerButton {
+  border: 1px solid #cbd5f5;
+  background: #f8fafc;
+  color: #1e3a8a;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.showAnswerButton:hover:not(:disabled),
+.copyAnswerButton:hover:not(:disabled) {
+  background: #e0e7ff;
+  border-color: #818cf8;
+}
+
+.showAnswerButton:disabled,
+.copyAnswerButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.solutionSection {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.solutionHeader {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.solutionCode {
+  margin: 0;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  font-family: "Fira Code", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  direction: ltr;
+  text-align: left;
+}
+
+.solutionEmpty {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.solutionModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.52);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 20px;
+}
+
+.solutionModal {
+  width: min(820px, 100%);
+  max-height: min(86vh, 760px);
+  overflow: auto;
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #dbe2ea;
+  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.24);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.solutionModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.solutionModalTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.solutionModalClose {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.solutionModalClose:hover {
+  background: #e2e8f0;
+}
+
+.solutionModalPrompt {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #334155;
+}
+
+.solutionModalActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .unknownAnswerNote {
@@ -1436,6 +1579,8 @@
   padding: 16px;
   margin-bottom: 12px;
   direction: rtl;
+  max-height: 280px;
+  overflow-y: auto;
 }
 
 .schemaErrorHeader {
@@ -1466,6 +1611,8 @@
   direction: ltr;
   text-align: left;
   word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
 }
 
 .schemaErrorHint {
@@ -2752,7 +2899,7 @@
     gap: 16px;
   }
   
-  .feedbackPanel h4 {
+  .feedbackTitle {
     font-size: 16px;
   }
   
@@ -3199,7 +3346,7 @@
     gap: 12px;
   }
   
-  .feedbackPanel h4 {
+  .feedbackTitle {
     font-size: 15px;
     margin: 0 0 12px;
   }

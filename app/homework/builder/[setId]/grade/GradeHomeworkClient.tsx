@@ -10,7 +10,7 @@ import {
   gradeSubmission,
   listSubmissionSummaries,
 } from "@/app/homework/services/submissionService";
-import { listAnalyticsEvents } from "@/app/homework/services/analyticsService";
+import { getQuestionAnalyticsStats, listAnalyticsEvents } from "@/app/homework/services/analyticsService";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 import type { Question, QuestionProgress, Submission, SqlAnswer } from "@/app/homework/types";
 import styles from "./grade.module.css";
@@ -286,6 +286,16 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
   const analyticsQuery = useQuery({
     queryKey: ["analytics", setId],
     queryFn: () => listAnalyticsEvents(setId),
+  });
+
+  const questionAnalyticsStatsQuery = useQuery({
+    queryKey: ["question-analytics-stats", setId, activeQuestionId],
+    queryFn: () =>
+      getQuestionAnalyticsStats({
+        setId,
+        questionId: activeQuestionId ?? undefined,
+      }),
+    enabled: Boolean(setId && activeQuestionId),
   });
 
   const submissionQuery = useQuery({
@@ -2036,7 +2046,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
               return (
                 <>
                   <div className={styles.analyticsMetric}>
-                    <span className={styles.metricLabel}>סה"כ סטודנטים:</span>
+                    <span className={styles.metricLabel}>סה&quot;כ סטודנטים:</span>
                     <span className={styles.metricValue}>{totalStudents}</span>
                   </div>
                   <div className={styles.analyticsMetric}>
@@ -2076,6 +2086,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
               const submissionsForQuestion = allSubmissions.filter(
                 (s) => s.answers[activeQuestionId] as SqlAnswer | undefined
               );
+              const questionAnalyticsStats = questionAnalyticsStatsQuery.data?.[0];
 
               // Calculate score distribution
               const scoreDistribution = submissionsForQuestion.reduce((acc, submission) => {
@@ -2139,6 +2150,28 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                 }, 0) / submissionsForQuestion.length
                               ).toFixed(1)
                             : 0}
+                        </span>
+                      </div>
+
+                      <div className={styles.averageAttempts}>
+                        <h4>{t("builder.grade.analytics.showAnswer.title")}</h4>
+                        <span className={styles.metricValue}>
+                          {t("builder.grade.analytics.showAnswer.avgClicks", {
+                            value: (questionAnalyticsStats?.averageShowAnswerClicks ?? 0).toFixed(1),
+                          })}
+                        </span>
+                        <span className={styles.metricValue}>
+                          {t("builder.grade.analytics.showAnswer.totalClicks", {
+                            value: questionAnalyticsStats?.totalShowAnswerClicks ?? 0,
+                          })}
+                        </span>
+                        <span className={styles.metricValue}>
+                          {t("builder.grade.analytics.showAnswer.avgTime", {
+                            value:
+                              questionAnalyticsStats?.averageTimeToFirstShowAnswer == null
+                                ? "—"
+                                : formatNumber(questionAnalyticsStats.averageTimeToFirstShowAnswer),
+                          })}
                         </span>
                       </div>
                     </div>
@@ -2311,7 +2344,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                   ) : (
                     <>
                       <div className={styles.testAIResultsSummary}>
-                        סה"כ {testAIResults.results.length} תשובות נבדקו
+                        סה&quot;כ {testAIResults.results.length} תשובות נבדקו
                       </div>
                       <div className={styles.testAIResultsList}>
                         {testAIResults.results.map((result, index) => (

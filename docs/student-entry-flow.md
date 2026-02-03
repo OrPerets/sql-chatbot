@@ -1,51 +1,59 @@
 # Student Entry Flow
 
 ## Overview
-A 3-step entry process for students before starting homework exercises.
+A multi-step entry process for students before starting homework: optionally choose a homework set (when several are published), log in with email and password, read instructions, then start the runner.
 
 ## Flow
 
-### Step 1: Student ID Entry
-**Route:** `/homework/start?setId={homeworkId}`
+### Optional: Choose homework set
+**When multiple published sets exist** (e.g. "תרגיל 3" and "הכנה למבחן"):
+- Students see a "בחר מטלה" screen listing all published sets.
+- They pick one, then continue to the login step.
+- If only one set is published, this step is skipped.
 
-- Student enters their תעודת זהות (ID number)
-- Validates 6-9 digits
-- Beautiful card-based UI with gradient background
-- Error handling for invalid IDs
+### Step 1: Login
+**Route:** `/homework/start` or `/homework/start?setId={homeworkSetId}`
 
-### Step 2: Instructions Display
-After ID validation:
-- Shows homework title and metadata
-  - Course ID
-  - Number of questions
-  - Due date
-- Displays background story (סיפור הרקע)
-- Shows general instructions:
-  - Each question requires SQL query
-  - Can run and see results
-  - Auto-save functionality
-  - Submit when complete
-- Two buttons:
-  - "חזרה" (Back) - returns to ID entry
-  - "התחל את שיעור הבית" (Start Homework) - proceeds to runner
+- Student enters **email** and **password** (login).
+- If they came from "בחר מטלה", the chosen set is shown; they can click "החלף מטלה" to go back.
+- If the URL has `?setId=...`, that set is used (no chooser).
 
-### Step 3: Redirect to Runner
-Automatically redirects to:
+### Step 2: Instructions
+After successful login:
+- Shows homework title and metadata (questions count, due date).
+- Displays background story (סיפור הרקע).
+- General instructions (SQL queries, run & test, submit when complete).
+- Buttons: "חזרה" (Back) to login, "התחל את שיעור הבית" to start.
+
+### Step 3: Runner
+Redirects to:
 `/homework/runner/{setId}?studentId={studentId}`
 
 ## Usage
 
-### For Teachers
-Share this link with students:
-```
-https://your-domain.com/homework/start?setId={homeworkSetId}
-```
+### For teachers: how students enter a published homework
 
-### For Students
-1. Click the link from teacher
-2. Enter ID number
-3. Read instructions
-4. Click "התחל" to start
+1. **Direct link (recommended for "הכנה למבחן")**  
+   Share:
+   ```
+   https://your-domain.com/homework/start?setId={homeworkSetId}
+   ```
+   Get `homeworkSetId` from the builder: open the set → copy from the URL, e.g. `/homework/builder/6789.../edit` → `6789...` is the setId.
+
+2. **Generic student page**  
+   Share:
+   ```
+   https://your-domain.com/homework/start
+   ```
+   - If only one set is published, students go straight to login for that set.
+   - If several are published (e.g. תרגיל 3 + הכנה למבחן), students first choose the homework, then log in.
+
+### For students
+1. Open the link from the teacher (`/homework/start` or `/homework/start?setId=...`).
+2. If you see "בחר מטלה", choose the homework (e.g. "הכנה למבחן").
+3. Enter email and password → "התחבר".
+4. Read instructions and click "התחל את שיעור הבית".
+5. Solve questions in the runner and submit when done.
 
 ## Features
 

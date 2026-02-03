@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BookOpen, Play, ArrowRight } from "lucide-react";
+import { BookOpen, Play, ArrowRight, ChevronLeft } from "lucide-react";
 import styles from "./student-entry.module.css";
 import { isHomeworkAccessible, getDeadlineMessage } from "@/lib/deadline-utils";
 
@@ -15,12 +15,22 @@ interface HomeworkSet {
   dueAt?: string;
 }
 
+interface PublishedSetSummary {
+  id: string;
+  title: string;
+  courseId?: string;
+  draftQuestionCount?: number;
+}
+
 export function StudentEntryClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const setId = searchParams.get("setId");
+  const setIdFromUrl = searchParams.get("setId");
 
-  const [step, setStep] = useState<"id" | "instructions" | "loading">("id");
+  const [step, setStep] = useState<"choose" | "id" | "instructions" | "loading">("id");
+  const [publishedSets, setPublishedSets] = useState<PublishedSetSummary[]>([]);
+  const [publishedSetsLoading, setPublishedSetsLoading] = useState(true);
+  const [selectedSetId, setSelectedSetId] = useState<string | null>(setIdFromUrl);
   const [studentEmail, setStudentEmail] = useState("");
   const [password, setPassword] = useState("");
   const [studentId, setStudentId] = useState("");
@@ -28,6 +38,36 @@ export function StudentEntryClient() {
   const [error, setError] = useState("");
   const [homework, setHomework] = useState<HomeworkSet | null>(null);
   const [isStarting, setIsStarting] = useState(false);
+
+  // Sync URL setId into selected when URL changes
+  useEffect(() => {
+    if (setIdFromUrl) setSelectedSetId(setIdFromUrl);
+  }, [setIdFromUrl]);
+
+  // Fetch published sets on mount (for "choose homework" when multiple exist)
+  useEffect(() => {
+    let cancelled = false;
+    setPublishedSetsLoading(true);
+    fetch("/api/homework")
+      .then((res) => (res.ok ? res.json() : { items: [] }))
+      .then((data) => {
+        if (cancelled) return;
+        const published = (data.items || []).filter(
+          (hw: { published?: boolean; visibility?: string }) =>
+            hw.published && hw.visibility !== "archived"
+        );
+        setPublishedSets(published);
+        if (published.length === 1 && !setIdFromUrl) setSelectedSetId(published[0].id);
+        if (published.length > 1 && !setIdFromUrl) setStep("choose");
+      })
+      .catch(() => {
+        if (!cancelled) setPublishedSets([]);
+      })
+      .finally(() => {
+        if (!cancelled) setPublishedSetsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [setIdFromUrl]);
 
   // Transform background story for תרגיל 3
   const transformBackgroundStory = (story: string | undefined, title: string): string => {
@@ -155,30 +195,15 @@ export function StudentEntryClient() {
         );
       }
 
-      // Now load the homework set
-      let homeworkSetId = setId;
-      
-      // If no setId provided, fetch the first available homework
+      // Use selected set, URL setId, or first published
+      let homeworkSetId = selectedSetId || setIdFromUrl;
+      if (!homeworkSetId && publishedSets.length > 0) {
+        homeworkSetId = publishedSets[0].id;
+      }
       if (!homeworkSetId) {
-        console.log("📚 No setId provided, fetching available homework sets...");
-        const setsResponse = await fetch("/api/homework");
-        if (!setsResponse.ok) {
-          throw new Error("Failed to load homework sets");
-        }
-        const setsData = await setsResponse.json();
-        
-        // Find published homework sets
-        const publishedSets = setsData.items?.filter((hw: any) => hw.published) || [];
-        if (publishedSets.length === 0) {
-          setError("אין שיעורי בית זמינים כרגע");
-          setStep("id");
-          return;
-        }
-        
-        // Prioritize "תרגיל 3" if it exists, otherwise use the first published one
-        const exercise3 = publishedSets.find((hw: any) => hw.title === "תרגיל 3" || hw.title === "תרגיל בית 3");
-        homeworkSetId = exercise3 ? exercise3.id : publishedSets[0].id;
-        console.log("✅ Using homework set:", homeworkSetId, exercise3 ? "(תרגיל 3)" : "");
+        setError("אין שיעורי בית זמינים כרגע");
+        setStep("id");
+        return;
       }
 
       // Fetch homework details - pass email for accurate deadline extension check
@@ -240,6 +265,54 @@ export function StudentEntryClient() {
     setStudentName("");
   };
 
+  const handleBackToChoose = () => {
+    setStep("choose");
+    setError("");
+  };
+
+  if (step === "choose") {
+    return (
+      <div className={styles.container} dir="rtl">
+        <div className={styles.card}>
+          <div className={styles.header}>
+            <div className={styles.icon}>
+              <BookOpen size={40} />
+            </div>
+            <h1 className={styles.title}>בחר מטלה</h1>
+            <p className={styles.subtitle}>בחר את שיעור הבית שברצונך להתחיל</p>
+          </div>
+          {publishedSetsLoading ? (
+            <div className={styles.loading}>
+              <div className={styles.spinner} />
+              <p style={{ color: "#64748b", fontSize: "15px" }}>טוען מטלות...</p>
+            </div>
+          ) : (
+            <div className={styles.setChooser}>
+              {publishedSets.map((set) => (
+                <button
+                  key={set.id}
+                  type="button"
+                  className={styles.setCard}
+                  onClick={() => {
+                    setSelectedSetId(set.id);
+                    setStep("id");
+                    setError("");
+                  }}
+                >
+                  <span className={styles.setCardTitle}>{set.title}</span>
+                  {set.courseId && <span className={styles.setCardMeta}>{set.courseId}</span>}
+                  {typeof set.draftQuestionCount === "number" && (
+                    <span className={styles.setCardMeta}>{set.draftQuestionCount} שאלות</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (step === "loading") {
     return (
       <div className={styles.container} dir="rtl">
@@ -264,7 +337,7 @@ export function StudentEntryClient() {
                 <span>שלום {studentName}!</span>
               </div>
             )}
-            <div className={styles.homeworkInfo}>
+            {/* <div className={styles.homeworkInfo}>
               <h2 className={styles.homeworkTitle}>{homework.title}</h2>
               <div className={styles.homeworkMeta}>
                 
@@ -279,7 +352,7 @@ export function StudentEntryClient() {
                   </div>
                 )}
               </div>
-            </div>
+            </div> */}
 
             {homework.backgroundStory && (
               <div className={styles.instructionsBox}>
@@ -291,7 +364,7 @@ export function StudentEntryClient() {
               </div>
             )}
 
-            <div className={styles.instructionsBox}>
+            {/* <div className={styles.instructionsBox}>
               <h3 className={styles.instructionsTitle}>
                 <span>💡</span>
                 הנחיות כלליות
@@ -328,7 +401,7 @@ export function StudentEntryClient() {
                   בהצלחה! 🎯
                 </div>
               </div>
-            </div>
+            </div> */}
 
             <div className={styles.buttonGroup}>
               <button className={styles.buttonSecondary} onClick={handleBack} disabled={isStarting}>
@@ -342,7 +415,7 @@ export function StudentEntryClient() {
                   </>
                 ) : (
                   <>
-                    התחל את שיעור הבית
+                    התחל 
                     <ArrowRight size={20} />
                   </>
                 )}
@@ -354,6 +427,8 @@ export function StudentEntryClient() {
     );
   }
 
+  const chosenSet = selectedSetId ? publishedSets.find((s) => s.id === selectedSetId) : null;
+
   return (
     <div className={styles.container} dir="rtl">
       <div className={styles.card}>
@@ -363,6 +438,15 @@ export function StudentEntryClient() {
           </div>
           <h1 className={styles.title}>שיעורי בית SQL</h1>
           <p className={styles.subtitle}>נא להזין את כתובת האימייל והסיסמה שלך להתחברות</p>
+          {publishedSets.length > 1 && chosenSet && (
+            <p className={styles.chosenSet}>
+              מטלה נבחרת: <strong>{chosenSet.title}</strong>
+              {" · "}
+              <button type="button" className={styles.changeSetLink} onClick={handleBackToChoose}>
+                <ChevronLeft size={14} /> החלף מטלה
+              </button>
+            </p>
+          )}
         </div>
 
         <form className={styles.form} onSubmit={handleEmailSubmit}>
