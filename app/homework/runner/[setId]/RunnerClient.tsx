@@ -9,13 +9,11 @@ import {
   getSubmission,
   saveSubmissionDraft,
   submitHomework,
-  SubmitHomeworkPayload,
 } from "@/app/homework/services/submissionService";
 import { executeSql } from "@/app/homework/services/sqlService";
 import type { Question, SqlExecutionRequest, Submission } from "@/app/homework/types";
 import styles from "./runner.module.css";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
-import { InstructionsSection } from "./InstructionsSection";
 import { SubmittedPage } from "./SubmittedPage";
 import Chat from "@/app/components/chat";
 
@@ -56,73 +54,6 @@ interface QuestionAnalyticsState {
 }
 
 const AUTOSAVE_DELAY = 800;
-
-// Transform background story for תרגיל 3
-const transformBackgroundStory = (story: string | undefined, title: string): string => {
-  if (!story) return "";
-  
-  // Only transform if it's תרגיל 3
-  if (title === "תרגיל 3" || title === "תרגיל בית 3") {
-    // First, remove unwanted sections from the entire story (before processing)
-    let cleanedStory = story;
-    
-    // Remove: "הנחייה חשובה" section - remove from entire story first
-    cleanedStory = cleanedStory.replace(/הנחייה חשובה:[\s\S]*?וכד'\.?\s*/g, "").trim();
-    cleanedStory = cleanedStory.replace(/הנחייה חשובה:[^\n]*(?:[^\n]*וכד'[^\n]*)?/g, "").trim();
-    
-    // Remove: "דוגמא: אם ת.ז.:321654987 (ABCDEFGHI), אז ABC= 321, DEF= 654, GHI= 987."
-    cleanedStory = cleanedStory.replace(/דוגמא: אם ת\.ז\.:321654987 \(ABCDEFGHI\), אז ABC= 321, DEF= 654, GHI= 987\.\s*/g, "").trim();
-    
-    // Remove: "יש להיצמד להגדרות סוגי הנתונים בבואכם להגדיר את סכמת הטבלה לפי הפירוט המופיע בכל טבלה וטבלה."
-    cleanedStory = cleanedStory.replace(/יש להיצמד להגדרות סוגי הנתונים בבואכם להגדיר את סכמת הטבלה לפי הפירוט המופיע בכל טבלה וטבלה\.\s*/g, "").trim();
-    
-    // Remove: "למרות שניתן לפתור את התרגיל רק ע"י הצגת הסכמות וללא רשומות בטבלאות עצמן כפי שלמדנו בתרגיל 2, נבנו בתרגיל זה לכל טבלה מספר רשומות לדוגמא בכדי לסייע בהבנת הסכמות. עם זאת במקרה ותשובה של אחת מהשאילתות יוצאת ריקה - יש להוסיף נתונים לטבלאות כך שע"י הפעלת כל אחת מהשאילתות בתרגיל תתקבל תשובה שאינה טבלה ריקה, ז"א עליכם למלא תוכן רלוונטי בטבלאות כך שבכל תוצאת שאילתא תחזור לפחות שורה אחת - שאילתות שיחזירו סכמות ריקות לא תקבלנה את מלאו הנקודות!"
-    cleanedStory = cleanedStory.replace(/למרות שניתן לפתור את התרגיל רק ע"י הצגת הסכמות וללא רשומות בטבלאות עצמן כפי שלמדנו בתרגיל 2, נבנו בתרגיל זה לכל טבלה מספר רשומות לדוגמא בכדי לסייע בהבנת הסכמות\. עם זאת במקרה ותשובה של אחת מהשאילתות יוצאת ריקה - יש להוסיף נתונים לטבלאות כך שע"י הפעלת כל אחת מהשאילתות בתרגיל תתקבל תשובה שאינה טבלה ריקה, ז"א עליכם למלא תוכן רלוונטי בטבלאות כך שבכל תוצאת שאילתא תחזור לפחות שורה אחת - שאילתות שיחזירו סכמות ריקות לא תקבלנה את מלאו הנקודות!\s*/g, "").trim();
-    
-    // Remove any remaining lines that contain "הנחייה חשובה"
-    const allLines = cleanedStory.split('\n');
-    cleanedStory = allLines.filter(line => !line.includes('הנחייה חשובה')).join('\n').trim();
-    
-    // Remove existing credits note from the entire story (before processing)
-    cleanedStory = cleanedStory.replace(/עמודת credits מייצגת[^\n]*/g, "").trim();
-    cleanedStory = cleanedStory.replace(/עמודת credits מייצגת את כמות נקודות הזכות שהסטודנט יקבל בסיום הקורס\.?\s*/g, "").trim();
-    
-    // Now process the cleaned story
-    // Find where the tables start
-    const tablesStart = cleanedStory.indexOf("1) מידע על הסטודנטים:");
-    if (tablesStart === -1) return cleanedStory;
-    
-    // Find where the tables end (after Enrollments table definition)
-    const enrollmentsEnd = cleanedStory.indexOf("Enrollments (StudentID, CourseID, EnrollmentDate, Grade)");
-    if (enrollmentsEnd === -1) return cleanedStory;
-    
-    // Find the newline after the Enrollments line
-    let tablesEndIndex = cleanedStory.indexOf("\n", enrollmentsEnd + 60);
-    if (tablesEndIndex === -1) tablesEndIndex = cleanedStory.length;
-    
-    // Extract the tables section
-    const tablesText = cleanedStory.substring(tablesStart, tablesEndIndex).trim();
-    
-    // Get everything after the tables
-    let afterTables = cleanedStory.substring(tablesEndIndex).trim();
-    
-    // Clean up multiple consecutive newlines
-    afterTables = afterTables.replace(/\n{3,}/g, "\n\n").trim();
-    
-    // Build the new background story
-    const newFirstParagraph = `בתרגיל זה, נתון מסד נתונים הקשור לניהול מערכת סטודנטים וקורסים במכללה. הנכם מגלמים תפקיד של מנהל/מנהלת מערכת קורסים במכללה האחראי/ת על ניהול קורסים, סטודנטים, מרצים ונרשמים לקורסים. מסד הנתונים כולל 4 טבלאות.`;
-    const creditsNote = `עמודת credits מייצגת את כמות נקודות הזכות שהסטודנט יקבל בסיום הקורס`;
-    
-    // Combine: new first paragraph + tables + credits note + rest
-    if (afterTables) {
-      return `${newFirstParagraph}\n\n${tablesText}\n\n${creditsNote}\n\n${afterTables}`;
-    } else {
-      return `${newFirstParagraph}\n\n${tablesText}\n\n${creditsNote}`;
-    }
-  }
-  
-  return story;
-};
 
 // Helper function to check if SQL error is about non-existing table/column
 const parseSchemaError = (errorMessage: string | undefined): { type: 'table' | 'column' | null; name: string | null } => {
@@ -190,6 +121,13 @@ const DATABASE_SAMPLE_DATA: Record<string, { columns: string[]; rows: Record<str
       { ExamID: 1, CourseCode: "SQL101", ExamDate: "2026-02-15", DurationMinutes: 90, Room: "A1" },
       { ExamID: 2, CourseCode: "DB202", ExamDate: "2026-02-18", DurationMinutes: 120, Room: "B2" },
       { ExamID: 3, CourseCode: "SQL101", ExamDate: "2026-02-22", DurationMinutes: 150, Room: "A1" },
+      { ExamID: 4, CourseCode: "DB202", ExamDate: "2026-02-25", DurationMinutes: 90, Room: "C3" },
+      { ExamID: 5, CourseCode: "SQL201", ExamDate: "2026-03-01", DurationMinutes: 135, Room: "A1" },
+      { ExamID: 6, CourseCode: "DB301", ExamDate: "2026-03-05", DurationMinutes: 105, Room: "B1" },
+      { ExamID: 7, CourseCode: "BI101", ExamDate: "2026-03-08", DurationMinutes: 80, Room: "D2" },
+      { ExamID: 8, CourseCode: "ST201", ExamDate: "2026-03-11", DurationMinutes: 140, Room: "A1" },
+      { ExamID: 9, CourseCode: "CS330", ExamDate: "2026-03-14", DurationMinutes: 110, Room: "C1" },
+      { ExamID: 10, CourseCode: "MATH220", ExamDate: "2026-03-18", DurationMinutes: 100, Room: "B3" },
     ],
   },
   Students: {
@@ -198,6 +136,13 @@ const DATABASE_SAMPLE_DATA: Record<string, { columns: string[]; rows: Record<str
       { StudentID: 1001, FirstName: "אלי", LastName: "כהן", Major: "CS", Year: 2 },
       { StudentID: 1002, FirstName: "מיה", LastName: "לוי", Major: "Math", Year: 2 },
       { StudentID: 1003, FirstName: "דוד", LastName: "ישראלי", Major: "CS", Year: 3 },
+      { StudentID: 1004, FirstName: "שרה", LastName: "מזרחי", Major: "Math", Year: 2 },
+      { StudentID: 1005, FirstName: "יוסי", LastName: "אברהם", Major: "CS", Year: 3 },
+      { StudentID: 1006, FirstName: "רונית", LastName: "דהן", Major: "Math", Year: 1 },
+      { StudentID: 1007, FirstName: "עמית", LastName: "בן דוד", Major: "CS", Year: 2 },
+      { StudentID: 1008, FirstName: "נועה", LastName: "שמעון", Major: "Biology", Year: 1 },
+      { StudentID: 1009, FirstName: "תום", LastName: "גל", Major: "CS", Year: 4 },
+      { StudentID: 1010, FirstName: "הילה", LastName: "אדרי", Major: "Math", Year: 3 },
     ],
   },
   Registrations: {
@@ -205,7 +150,23 @@ const DATABASE_SAMPLE_DATA: Record<string, { columns: string[]; rows: Record<str
     rows: [
       { RegistrationID: 1, StudentID: 1001, ExamID: 1, RegisteredAt: "2026-01-10", Status: "approved" },
       { RegistrationID: 2, StudentID: 1001, ExamID: 2, RegisteredAt: "2026-01-12", Status: "approved" },
+      { RegistrationID: 3, StudentID: 1002, ExamID: 1, RegisteredAt: "2026-01-11", Status: "approved" },
       { RegistrationID: 4, StudentID: 1002, ExamID: 3, RegisteredAt: "2026-01-14", Status: "waitlist" },
+      { RegistrationID: 5, StudentID: 1003, ExamID: 1, RegisteredAt: "2026-01-09", Status: "approved" },
+      { RegistrationID: 6, StudentID: 1003, ExamID: 2, RegisteredAt: "2026-01-13", Status: "approved" },
+      { RegistrationID: 7, StudentID: 1003, ExamID: 3, RegisteredAt: "2026-01-15", Status: "approved" },
+      { RegistrationID: 8, StudentID: 1004, ExamID: 2, RegisteredAt: "2026-01-11", Status: "approved" },
+      { RegistrationID: 9, StudentID: 1004, ExamID: 4, RegisteredAt: "2026-01-16", Status: "waitlist" },
+      { RegistrationID: 10, StudentID: 1005, ExamID: 1, RegisteredAt: "2026-01-10", Status: "approved" },
+      { RegistrationID: 11, StudentID: 1005, ExamID: 3, RegisteredAt: "2026-01-14", Status: "approved" },
+      { RegistrationID: 12, StudentID: 1006, ExamID: 2, RegisteredAt: "2026-01-12", Status: "waitlist" },
+      { RegistrationID: 13, StudentID: 1007, ExamID: 1, RegisteredAt: "2026-01-15", Status: "approved" },
+      { RegistrationID: 14, StudentID: 1007, ExamID: 2, RegisteredAt: "2026-01-16", Status: "approved" },
+      { RegistrationID: 15, StudentID: 1008, ExamID: 4, RegisteredAt: "2026-01-17", Status: "approved" },
+      { RegistrationID: 16, StudentID: 1009, ExamID: 5, RegisteredAt: "2026-01-19", Status: "approved" },
+      { RegistrationID: 17, StudentID: 1009, ExamID: 8, RegisteredAt: "2026-01-21", Status: "approved" },
+      { RegistrationID: 18, StudentID: 1010, ExamID: 6, RegisteredAt: "2026-01-20", Status: "approved" },
+      { RegistrationID: 19, StudentID: 1010, ExamID: 10, RegisteredAt: "2026-01-24", Status: "waitlist" },
     ],
   },
   Scores: {
@@ -213,7 +174,19 @@ const DATABASE_SAMPLE_DATA: Record<string, { columns: string[]; rows: Record<str
     rows: [
       { ScoreID: 1, StudentID: 1001, ExamID: 1, Score: 85, GradedAt: "2026-02-16", Attempt: 1 },
       { ScoreID: 2, StudentID: 1001, ExamID: 2, Score: 90, GradedAt: "2026-02-19", Attempt: 1 },
+      { ScoreID: 3, StudentID: 1002, ExamID: 1, Score: 78, GradedAt: "2026-02-16", Attempt: 1 },
       { ScoreID: 4, StudentID: 1003, ExamID: 1, Score: 92, GradedAt: "2026-02-16", Attempt: 1 },
+      { ScoreID: 5, StudentID: 1003, ExamID: 2, Score: 88, GradedAt: "2026-02-19", Attempt: 1 },
+      { ScoreID: 6, StudentID: 1003, ExamID: 3, Score: 95, GradedAt: "2026-02-23", Attempt: 1 },
+      { ScoreID: 7, StudentID: 1004, ExamID: 2, Score: 72, GradedAt: "2026-02-19", Attempt: 1 },
+      { ScoreID: 8, StudentID: 1005, ExamID: 1, Score: 80, GradedAt: "2026-02-16", Attempt: 1 },
+      { ScoreID: 9, StudentID: 1005, ExamID: 3, Score: 84, GradedAt: "2026-02-23", Attempt: 1 },
+      { ScoreID: 10, StudentID: 1007, ExamID: 1, Score: 91, GradedAt: "2026-02-16", Attempt: 1 },
+      { ScoreID: 11, StudentID: 1007, ExamID: 2, Score: 87, GradedAt: "2026-02-19", Attempt: 1 },
+      { ScoreID: 12, StudentID: 1008, ExamID: 4, Score: 75, GradedAt: "2026-02-26", Attempt: 1 },
+      { ScoreID: 13, StudentID: 1009, ExamID: 5, Score: 89, GradedAt: "2026-03-02", Attempt: 1 },
+      { ScoreID: 14, StudentID: 1009, ExamID: 8, Score: 86, GradedAt: "2026-03-12", Attempt: 1 },
+      { ScoreID: 15, StudentID: 1010, ExamID: 6, Score: 82, GradedAt: "2026-03-06", Attempt: 1 },
     ],
   },
 };
@@ -224,14 +197,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const [editorValues, setEditorValues] = useState<Record<string, string>>({});
   const [autosaveState, setAutosaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [showCommitmentDialog, setShowCommitmentDialog] = useState(false);
-  const [aiConversationFile, setAiConversationFile] = useState<File | null>(null);
-  const [aiDeclarationChecked, setAiDeclarationChecked] = useState(false);
-  const [commitmentError, setCommitmentError] = useState<string | null>(null);
-  const [showDatabaseViewer, setShowDatabaseViewer] = useState(false);
+  const [showDatabaseViewer, setShowDatabaseViewer] = useState(true);
   const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
-  const [showAnswerByQuestion, setShowAnswerByQuestion] = useState<Record<string, boolean>>({});
+  const [solutionModalQuestionId, setSolutionModalQuestionId] = useState<string | null>(null);
   const [copyAnswerStatus, setCopyAnswerStatus] = useState<Record<string, "idle" | "copied">>({});
   const pendingRef = useRef<Record<string, PendingSave>>({});
   const analyticsRef = useRef<Record<string, QuestionAnalyticsState>>({});
@@ -544,11 +512,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       // Update the query cache immediately so the component re-renders with new status
       queryClient.setQueryData<Submission | undefined>(["submission", setId, studentId], submission);
       queryClient.invalidateQueries({ queryKey: ["submission", setId, studentId] });
-      // Close confirmation dialog
-      setShowConfirmDialog(false);
-      setShowCommitmentDialog(false);
-      setAiConversationFile(null);
-      setAiDeclarationChecked(false);
       // The page will automatically show SubmittedPage due to the check below
       // Force a refetch to ensure the UI updates
       submissionQuery.refetch();
@@ -556,48 +519,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   });
 
   const handleSubmitClick = useCallback(() => {
-    setCommitmentError(null);
-    setAiConversationFile(null);
-    setAiDeclarationChecked(false);
-    setShowCommitmentDialog(false);
-    setShowConfirmDialog(true);
-  }, []);
-
-  const handleConfirmSubmit = useCallback(() => {
-    setShowConfirmDialog(false);
-    setShowCommitmentDialog(true);
-  }, []);
-
-  const handleCancelSubmit = useCallback(() => {
-    setShowConfirmDialog(false);
-  }, []);
-
-  const handleCommitmentSubmit = useCallback(() => {
-    if (!aiConversationFile && !aiDeclarationChecked) {
-      setCommitmentError("אנא צרף שיחה או אשר שלא השתמשת בכלי AI");
-      return;
-    }
-
-    setCommitmentError(null);
-    const aiCommitment: SubmitHomeworkPayload["aiCommitment"] = {
-      signed: true,
-      declaredNoAi: aiDeclarationChecked,
-      fileAttached: aiConversationFile?.name,
-      timestamp: new Date().toISOString(),
-    };
-
-    submitMutation.mutate({
-      studentId,
-      aiCommitment,
-      aiConversationFile,
-    });
-  }, [aiConversationFile, aiDeclarationChecked, studentId, submitMutation]);
-
-  const handleCancelCommitment = useCallback(() => {
-    setShowCommitmentDialog(false);
-    setAiConversationFile(null);
-    setAiDeclarationChecked(false);
-  }, []);
+    submitMutation.mutate({ studentId });
+  }, [studentId, submitMutation]);
 
   const scheduleAutosave = useCallback(
     (questionId: string, value: string) => {
@@ -671,8 +594,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
 
   const handleShowAnswer = useCallback(
     (questionId: string) => {
-      setShowAnswerByQuestion((prev) => ({ ...prev, [questionId]: true }));
       recordShowAnswer(questionId);
+      setSolutionModalQuestionId(questionId);
     },
     [recordShowAnswer]
   );
@@ -711,12 +634,27 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const progressPercent = totalQuestions === 0 ? 0 : Math.round((answeredCount / totalQuestions) * 100);
   const activeQuestion = activeQuestionId ? questionsById.get(activeQuestionId) : undefined;
   const activeAnswer = activeQuestionId ? answers[activeQuestionId] : undefined;
-  const activeSolution = activeQuestion?.starterSql?.trim() ?? "";
-  const showAnswer = activeQuestionId ? Boolean(showAnswerByQuestion[activeQuestionId]) : false;
-  const copyStatus = activeQuestionId ? copyAnswerStatus[activeQuestionId] ?? "idle" : "idle";
+  const solutionModalQuestion = solutionModalQuestionId ? questionsById.get(solutionModalQuestionId) : undefined;
+  const solutionModalSql = solutionModalQuestion?.starterSql?.trim() ?? "";
+  const solutionModalCopyStatus = solutionModalQuestionId
+    ? copyAnswerStatus[solutionModalQuestionId] ?? "idle"
+    : "idle";
   const attemptsRemaining = activeQuestion?.maxAttempts
     ? Math.max(0, activeQuestion.maxAttempts - (activeAnswer?.executionCount ?? 0))
     : undefined;
+
+  useEffect(() => {
+    if (!solutionModalQuestionId) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSolutionModalQuestionId(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [solutionModalQuestionId]);
 
   const chatHomeworkContext = useMemo(() => {
     if (!homework) return null;
@@ -798,101 +736,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   return (
     <div className={styles.runner} dir={direction}>
 
-      {/* Confirmation Dialog Overlay */}
-      {showConfirmDialog && (
-        <div className={styles.confirmOverlay}>
-          <div className={styles.confirmDialog}>
-            <h3 className={styles.confirmTitle}>אישור הגשה</h3>
-            <p className={styles.confirmText}>
-              האם אתה בטוח שברצונך להגיש? לאחר מכן לא יהיה ניתן לחזור ולערוך את התרגיל
-            </p>
-            <div className={styles.confirmActions}>
-              <button
-                className={styles.confirmButton}
-                onClick={handleConfirmSubmit}
-                disabled={submitMutation.isPending}
-              >
-                {submitMutation.isPending ? "מגיש..." : "כן, הגש"}
-              </button>
-              <button
-                className={styles.cancelButton}
-                onClick={handleCancelSubmit}
-                disabled={submitMutation.isPending}
-              >
-                ביטול
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* AI Commitment Dialog */}
-      {showCommitmentDialog && (
-        <div className={styles.confirmOverlay}>
-          <div className={styles.confirmDialog}>
-            <h3 className={styles.confirmTitle}>הצהרת שימוש בכלי AI</h3>
-            <p className={styles.confirmText}>
-              אני מתחייב/ת שאם השתמשתי בכלי AI אחר אני מצרף את השיחה להלן או מסמן שלא נעשה שימוש.
-            </p>
-
-            <div className={styles.commitmentField}>
-              <label className={styles.fileLabel} htmlFor="ai-conversation">
-                צרף שיחה או קובץ (אופציונלי)
-              </label>
-              <input
-                id="ai-conversation"
-                name="ai-conversation"
-                type="file"
-                className={styles.fileInput}
-                onChange={(event) => setAiConversationFile(event.target.files?.[0] ?? null)}
-                disabled={submitMutation.isPending}
-              />
-              {aiConversationFile && (
-                <p className={styles.fileName}>📎 {aiConversationFile.name}</p>
-              )}
-            </div>
-
-            <label className={styles.checkboxRow}>
-              <input
-                type="checkbox"
-                checked={aiDeclarationChecked}
-                onChange={(event) => setAiDeclarationChecked(event.target.checked)}
-                disabled={submitMutation.isPending}
-              />
-              <span>אישרתי שלא השתמשתי בכלי AI</span>
-            </label>
-
-            {commitmentError && <p className={styles.commitmentError}>{commitmentError}</p>}
-
-            <div className={styles.confirmActions}>
-              <button
-                className={styles.confirmButton}
-                onClick={handleCommitmentSubmit}
-                disabled={submitMutation.isPending}
-              >
-                {submitMutation.isPending ? "מגיש..." : "אישור והגשה"}
-              </button>
-              <button
-                className={styles.cancelButton}
-                onClick={handleCancelCommitment}
-                disabled={submitMutation.isPending}
-              >
-                ביטול
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Right Sidebar: Background Story */}
+      {/* Sidebar: Tables + Data */}
       <aside className={styles.sidebar}>
         <div className={styles.assignmentMeta}>
-          {homework.backgroundStory && (
-            <InstructionsSection
-              instructions={transformBackgroundStory(homework.backgroundStory, homework.title)}
-            />
-          )}
-
           {/* Database Viewer */}
           <div className={styles.databaseViewerSection}>
             <button
@@ -1033,7 +879,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
             </div>
           <div className={styles.editorActions}>
             {/* Navigation Buttons */}
-            <div className={styles.navigationButtons}>
+              <div className={styles.navigationButtons}>
                 <button
                   type="button"
                   className={styles.navButtonPrev}
@@ -1060,6 +906,14 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 >
                   שאלה הבאה →
                 </button>
+                <button
+                  type="button"
+                  className={styles.showAnswerButton}
+                  onClick={() => activeQuestionId && handleShowAnswer(activeQuestionId)}
+                  disabled={!activeQuestionId}
+                >
+                  👀 הצג פתרון
+                </button>
               </div>
               
               <button
@@ -1071,24 +925,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 <span className={styles.runIcon}>{executeMutation.isPending ? "⏳" : "▶"}</span>
                 {executeMutation.isPending ? t("runner.actions.running") : t("runner.actions.run")}
               </button>
-              <button
-                type="button"
-                className={styles.showAnswerButton}
-                onClick={() => activeQuestionId && handleShowAnswer(activeQuestionId)}
-                disabled={!activeQuestionId}
-              >
-                👀 הצג תשובה
-              </button>
-              {showAnswer && activeSolution && (
-                <button
-                  type="button"
-                  className={styles.copyAnswerButton}
-                  onClick={() => activeQuestionId && handleCopyAnswer(activeQuestionId, activeSolution)}
-                  disabled={!activeQuestionId}
-                >
-                  {copyStatus === "copied" ? "✅ הועתק" : "📋 העתק תשובה"}
-                </button>
-              )}
             </div>
           </div>
 
@@ -1176,18 +1012,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               <p className={styles.placeholder}>{t("runner.results.placeholder")}</p>
             )}
 
-            {showAnswer && (
-              <div className={styles.solutionSection}>
-                <div className={styles.solutionHeader}>💡 תשובה רשמית</div>
-                {activeSolution ? (
-                  <pre className={styles.solutionCode}>
-                    <code>{activeSolution}</code>
-                  </pre>
-                ) : (
-                  <p className={styles.solutionEmpty}>טרם הוגדרה תשובה לשאלה זו.</p>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </section>
@@ -1228,12 +1052,63 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         disabled={submitMutation.isPending || submission?.status === "submitted" || submission?.status === "graded"}
       >
         <span>{submitMutation.isPending ? "⏳" : submission?.status === "submitted" ? "✅" : "📤"}</span>
-        {submitMutation.isPending
-          ? t("runner.actions.submitting")
-          : submission?.status === "submitted"
-            ? t("runner.actions.submitted")
-            : t("runner.actions.submit")}
+        {submitMutation.isPending ? "מסיים..." : "סיום"}
       </button>
+
+      {solutionModalQuestionId && (
+        <div
+          className={styles.solutionModalOverlay}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setSolutionModalQuestionId(null);
+            }
+          }}
+        >
+          <div className={styles.solutionModal} dir="rtl">
+            <div className={styles.solutionModalHeader}>
+              <h4 className={styles.solutionModalTitle}>💡 פתרון רשמי</h4>
+              <button
+                type="button"
+                className={styles.solutionModalClose}
+                onClick={() => setSolutionModalQuestionId(null)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {solutionModalQuestion ? (
+              <p className={styles.solutionModalPrompt}>{solutionModalQuestion.prompt}</p>
+            ) : null}
+
+            {solutionModalSql ? (
+              <pre className={styles.solutionCode}>
+                <code>{solutionModalSql}</code>
+              </pre>
+            ) : (
+              <p className={styles.solutionEmpty}>טרם הוגדרה תשובה לשאלה זו.</p>
+            )}
+
+            <div className={styles.solutionModalActions}>
+              {solutionModalSql && (
+                <button
+                  type="button"
+                  className={styles.copyAnswerButton}
+                  onClick={() => solutionModalQuestionId && handleCopyAnswer(solutionModalQuestionId, solutionModalSql)}
+                >
+                  {solutionModalCopyStatus === "copied" ? "✅ הועתק" : "📋 העתק פתרון"}
+                </button>
+              )}
+              <button
+                type="button"
+                className={styles.showAnswerButton}
+                onClick={() => setSolutionModalQuestionId(null)}
+              >
+                סגור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
