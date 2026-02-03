@@ -337,7 +337,7 @@ export function StudentEntryClient() {
                 <span>שלום {studentName}!</span>
               </div>
             )}
-            <div className={styles.homeworkInfo}>
+            {/* <div className={styles.homeworkInfo}>
               <h2 className={styles.homeworkTitle}>{homework.title}</h2>
               <div className={styles.homeworkMeta}>
                 
@@ -352,7 +352,7 @@ export function StudentEntryClient() {
                   </div>
                 )}
               </div>
-            </div>
+            </div> */}
 
             {homework.backgroundStory && (
               <div className={styles.instructionsBox}>
@@ -364,7 +364,7 @@ export function StudentEntryClient() {
               </div>
             )}
 
-            <div className={styles.instructionsBox}>
+            {/* <div className={styles.instructionsBox}>
               <h3 className={styles.instructionsTitle}>
                 <span>💡</span>
                 הנחיות כלליות
@@ -401,7 +401,7 @@ export function StudentEntryClient() {
                   בהצלחה! 🎯
                 </div>
               </div>
-            </div>
+            </div> */}
 
             <div className={styles.buttonGroup}>
               <button className={styles.buttonSecondary} onClick={handleBack} disabled={isStarting}>
@@ -415,7 +415,7 @@ export function StudentEntryClient() {
                   </>
                 ) : (
                   <>
-                    התחל את שיעור הבית
+                    התחל 
                     <ArrowRight size={20} />
                   </>
                 )}
