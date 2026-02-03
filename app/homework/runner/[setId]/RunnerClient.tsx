@@ -9,6 +9,7 @@ import {
   getSubmission,
   saveSubmissionDraft,
   submitHomework,
+  SubmitHomeworkPayload,
 } from "@/app/homework/services/submissionService";
 import { executeSql } from "@/app/homework/services/sqlService";
 import type { Question, SqlExecutionRequest, Submission } from "@/app/homework/types";
