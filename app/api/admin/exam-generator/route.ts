@@ -8,7 +8,8 @@ import {
 } from "@/lib/sql-curriculum";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
+// Vercel Hobby plan max is 60s; upgrade plan for longer execution
+export const maxDuration = 60;
 
 const VECTOR_POLL_TIMEOUT_MS = 120_000;
 const POLL_INTERVAL_MS = 1_500;
@@ -89,7 +90,9 @@ async function waitForVectorStoreFiles(
   while (Date.now() - startedAt < VECTOR_POLL_TIMEOUT_MS) {
     const statuses = await Promise.all(
       vectorFileIds.map((vectorFileId) =>
-        openai.vectorStores.files.retrieve(vectorStoreId, vectorFileId)
+        openai.vectorStores.files.retrieve(vectorFileId, {
+          vector_store_id: vectorStoreId,
+        })
       )
     );
 
@@ -203,7 +206,7 @@ export async function POST(request: NextRequest) {
   } finally {
     if (vectorStoreId) {
       try {
-        await openai.vectorStores.del(vectorStoreId);
+        await openai.vectorStores.delete(vectorStoreId);
       } catch (cleanupError) {
         console.warn("Failed deleting vector store:", cleanupError);
       }
@@ -213,7 +216,7 @@ export async function POST(request: NextRequest) {
       await Promise.all(
         uploadedFileIds.map(async (fileId) => {
           try {
-            await openai.files.del(fileId);
+            await openai.files.delete(fileId);
           } catch (cleanupError) {
             console.warn(`Failed deleting file ${fileId}:`, cleanupError);
           }

@@ -50,8 +50,8 @@ export async function GET() {
       fileList.data.map(async (file) => {
         const fileDetails = await openai.files.retrieve(file.id);
         const vectorFileDetails = await openai.vectorStores.files.retrieve(
-          vectorStoreId,
-          file.id
+          file.id,
+          { vector_store_id: vectorStoreId }
         );
         return {
           file_id: file.id,
@@ -84,7 +84,9 @@ export async function DELETE(request: Request) {
     }
 
     const vectorStoreId = await getOrCreateVectorStore();
-    await openai.vectorStores.files.del(vectorStoreId, fileId);
+    await openai.vectorStores.files.delete(fileId, {
+      vector_store_id: vectorStoreId,
+    });
 
     return Response.json({ mode, deleted: true, fileId, vectorStoreId });
   } catch (error: any) {
