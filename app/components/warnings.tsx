@@ -2,44 +2,40 @@
 
 import React, { useState } from "react";
 import styles from "./warnings.module.css";
-import { assistantId } from "../assistant-config";
 
 const Warnings = () => {
   const [loading, setLoading] = useState(false);
-  const [newAssistantId, setNewAssistantId] = useState("");
+  const [sessionId, setSessionId] = useState("");
 
-  const fetchAssistantId = async () => {
+  const createResponsesSession = async () => {
     setLoading(true);
 
-    const response = await fetch("/api/assistants", { method: "POST" });
+    const response = await fetch("/api/responses/sessions", { method: "POST" });
     const data = await response.json();
-    setNewAssistantId(data.assistantId);
+    setSessionId(data.sessionId || "");
 
     setLoading(false);
   };
 
   return (
     <>
-      {!assistantId && (
-        <div className={styles.container}>
-          <h1>Start by creating your assistant</h1>
-          <div className={styles.message}>
-            Create an assistant and set its ID in{" "}
-            <span>app/assistant-config.ts</span>
-          </div>
-          {!newAssistantId ? (
-            <button
-              onClick={fetchAssistantId}
-              disabled={loading}
-              className={styles.button}
-            >
-              {loading ? "Loading..." : "Create Assistant"}
-            </button>
-          ) : (
-            <div className={styles.result}>{newAssistantId}</div>
-          )}
+      <div className={styles.container}>
+        <h1>Responses API readiness check</h1>
+        <div className={styles.message}>
+          Create a test Responses session to verify runtime configuration.
         </div>
-      )}
+        {!sessionId ? (
+          <button
+            onClick={createResponsesSession}
+            disabled={loading}
+            className={styles.button}
+          >
+            {loading ? "Loading..." : "Create Session"}
+          </button>
+        ) : (
+          <div className={styles.result}>{sessionId}</div>
+        )}
+      </div>
     </>
   );
 };

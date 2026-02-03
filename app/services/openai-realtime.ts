@@ -1,7 +1,5 @@
 'use client';
 
-import OpenAI from 'openai';
-
 export interface RealtimeEvent {
   type: string;
   [key: string]: any;
@@ -20,13 +18,13 @@ export interface RealtimeCallbacks {
 
 export class OpenAIRealtimeService {
   private ws: WebSocket | null = null;
-  private openai: OpenAI;
   private callbacks: RealtimeCallbacks = {};
   private isConnected = false;
   private audioContext: AudioContext | null = null;
   private mediaRecorder: MediaRecorder | null = null;
-  private audioQueue: ArrayBuffer[] = [];
   private isPlaying = false;
+  private sessionId: string | null = null;
+  private previousResponseId: string | null = null;
   private sessionConfig = {
     model: 'gpt-4o-realtime-preview-2024-10-01',
     voice: 'alloy',
@@ -37,11 +35,32 @@ export class OpenAIRealtimeService {
       When explaining SQL queries, be practical and give examples.`,
   };
 
-  constructor(apiKey?: string) {
-    this.openai = new OpenAI({
-      apiKey: apiKey || process.env.NEXT_PUBLIC_OPENAI_API_KEY,
-      dangerouslyAllowBrowser: true
+  constructor(_apiKey?: string) {}
+
+  private async ensureResponsesSession(): Promise<void> {
+    if (this.sessionId) {
+      return;
+    }
+
+    const sessionResponse = await fetch('/api/responses/sessions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        metadata: {
+          source: 'realtime-voice-chat',
+        },
+      }),
     });
+
+    if (!sessionResponse.ok) {
+      throw new Error('Failed to initialize responses session');
+    }
+
+    const sessionData = await sessionResponse.json();
+    this.sessionId = sessionData.sessionId || null;
+    this.previousResponseId = sessionData.responseId || null;
   }
 
   async connect(): Promise<void> {
@@ -52,6 +71,7 @@ export class OpenAIRealtimeService {
       
       // Initialize audio context
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      await this.ensureResponsesSession();
       
       this.isConnected = true;
       console.log('✅ OpenAI Realtime Service connected');
@@ -78,6 +98,8 @@ export class OpenAIRealtimeService {
     }
     
     this.isConnected = false;
+    this.sessionId = null;
+    this.previousResponseId = null;
     console.log('🔌 OpenAI Realtime Service disconnected');
   }
 
@@ -169,14 +191,16 @@ export class OpenAIRealtimeService {
     try {
       this.callbacks.onResponseStarted?.();
 
-      // Use the existing chat completion API with streaming
-      const response = await fetch('/api/assistants', {
+      await this.ensureResponsesSession();
+      const response = await fetch('/api/responses/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: userMessage,
+          sessionId: this.sessionId,
+          previousResponseId: this.previousResponseId,
+          content: userMessage,
           stream: true,
         }),
       });
@@ -191,28 +215,50 @@ export class OpenAIRealtimeService {
       }
 
       let fullResponse = '';
+      let latestResponseId = this.previousResponseId;
       const decoder = new TextDecoder();
+      let pending = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        pending += decoder.decode(value, { stream: true });
+        const lines = pending.split('\n');
+        pending = lines.pop() || '';
 
         for (const line of lines) {
-          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.content) {
-                fullResponse += data.content;
-                this.callbacks.onResponseUpdate?.(fullResponse);
-              }
-            } catch (e) {
-              // Skip invalid JSON
+          if (!line.trim()) {
+            continue;
+          }
+
+          let data: any;
+          try {
+            data = JSON.parse(line);
+          } catch (parseError) {
+            console.warn('Skipping malformed responses stream event:', parseError);
+            continue;
+          }
+
+          if (data.type === 'response.created' && data.responseId) {
+            latestResponseId = data.responseId;
+          } else if (data.type === 'response.output_text.delta' && typeof data.delta === 'string') {
+            fullResponse += data.delta;
+            this.callbacks.onResponseUpdate?.(fullResponse);
+          } else if (data.type === 'response.completed') {
+            latestResponseId = data.responseId || latestResponseId;
+            if (typeof data.outputText === 'string' && data.outputText.length > fullResponse.length) {
+              fullResponse = data.outputText;
+              this.callbacks.onResponseUpdate?.(fullResponse);
             }
+          } else if (data.type === 'response.error') {
+            throw new Error(data.message || 'Stream interrupted');
           }
         }
+      }
+
+      if (latestResponseId) {
+        this.previousResponseId = latestResponseId;
       }
 
       // Generate TTS for the response

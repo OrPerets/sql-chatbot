@@ -3,9 +3,10 @@ import { connectToDatabase, executeWithRetry, COLLECTIONS } from '@/lib/database
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { studentId: string } }
+  context: { params: Promise<{ studentId: string }> }
 ) {
   try {
+    const params = await context.params
     const { studentId } = params
     const { searchParams } = new URL(request.url)
     

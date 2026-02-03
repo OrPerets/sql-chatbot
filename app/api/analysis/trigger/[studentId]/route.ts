@@ -3,9 +3,10 @@ import { checkAnalysisTriggers, analyzeStudent } from '@/lib/ai-analysis-engine'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { studentId: string } }
+  context: { params: Promise<{ studentId: string }> }
 ) {
   try {
+    const params = await context.params
     const { studentId } = params
     const body = await request.json()
     
@@ -59,10 +60,11 @@ export async function POST(
 }
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { studentId: string } }
+  _request: NextRequest,
+  context: { params: Promise<{ studentId: string }> }
 ) {
   try {
+    const params = await context.params
     const { studentId } = params
 
     if (!studentId) {

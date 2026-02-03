@@ -59,7 +59,11 @@ Configure the following environment variables in `.env.local`:
 ```bash
 # OpenAI API Configuration
 OPENAI_API_KEY=your_openai_api_key_here
-ASSISTANT_ID=your_assistant_id_here
+OPENAI_API_MODE=responses
+OPENAI_MODEL=gpt-4.1-mini
+OPENAI_VECTOR_STORE_ID=
+OPENAI_ASSISTANT_ID_GPT5=
+USE_GPT5_ASSISTANT=false
 
 # Database Configuration
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority&appName=SQLMentor
@@ -151,6 +155,7 @@ For detailed documentation on specific features, see the `docs/` directory:
 - [Sprint 3 Implementation](./docs/sprint3-implementation.md) - AI-powered knowledge score updates
 - [Conversation Summary System](./docs/conversation-summary-system.md) - AI conversation analysis
 - [Admin Panel Enhancement](./docs/admin-panel-enhancement.md) - Admin dashboard features
+- [Responses API Runbook](./docs/responses-api-runbook.md) - rollout, monitoring, rollback
 
 ## Troubleshooting
 
@@ -168,8 +173,9 @@ If you encounter database connection errors:
 If the AI assistant is not working:
 
 1. Verify your `OPENAI_API_KEY` is set correctly
-2. Check your OpenAI account has available credits
-3. Ensure the API key has proper permissions
+2. Verify `OPENAI_API_MODE=responses`
+3. Check your OpenAI account has available credits
+4. Ensure the API key has proper permissions
 
 ### Port Already in Use
 

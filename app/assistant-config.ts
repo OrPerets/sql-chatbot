@@ -1,37 +1,18 @@
-// Current GPT-5-nano assistant ID
-export let assistantId = "asst_9bDfXIUHAqyYGa6SZgzBjE87"; // set your assistant ID here
+import { agentConfig, getAgentModel, getCompatibilityAssistantId } from "@/app/agent-config";
 
-// Future GPT-5 assistant ID (when available)
-export let assistantIdGPT5 = process.env.OPENAI_ASSISTANT_ID_GPT5 || "";
+// Legacy compatibility exports used by Assistants API routes.
+export let assistantId = agentConfig.compatibility.assistantId;
+export let assistantIdGPT5 = agentConfig.compatibility.assistantIdGpt5;
 
-// Feature flag for model selection
 export const useLatestModel = process.env.USE_LATEST_MODEL === "true";
-export const useGPT5 = process.env.USE_GPT5_ASSISTANT === "true";
+export const useGPT5 = agentConfig.compatibility.useGpt5Assistant;
 
-// Dynamic assistant ID getter with fallback logic
-export const getAssistantId = (): string => {
-  // If GPT-5 is available and enabled, use it
-  if (useGPT5 && assistantIdGPT5) {
-    return assistantIdGPT5;
-  }
-  
-  // Use the current assistant ID (upgraded to GPT-5-nano)
-  if (assistantId === "") {
-    assistantId = process.env.OPENAI_ASSISTANT_ID || "asst_9bDfXIUHAqyYGa6SZgzBjE87";
-  }
-  
-  return assistantId;
-};
+export const getAssistantId = (): string => getCompatibilityAssistantId();
+export const getCurrentModel = (): string => getAgentModel();
 
-// Get current model information
-export const getCurrentModel = (): string => {
-  return "gpt-4.1-mini";
-};
-
-// Assistant configuration metadata
 export const assistantConfig = {
   getCurrentAssistantId: getAssistantId,
   getCurrentModel,
   isUsingLatestModel: useLatestModel,
-  isUsingGPT5: useGPT5 && !!assistantIdGPT5
+  isUsingGPT5: useGPT5 && !!assistantIdGPT5,
 };

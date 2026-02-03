@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getChatMessages, saveChatMessage } from '@/lib/chat'
 
-export async function GET(_request: Request, { params }: { params: { sessionId: string } }) {
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ sessionId: string }> }
+) {
   try {
+    const params = await context.params
     const { sessionId } = params
     const messages = await getChatMessages(sessionId)
     return NextResponse.json(messages)
@@ -12,8 +16,12 @@ export async function GET(_request: Request, { params }: { params: { sessionId: 
   }
 }
 
-export async function POST(request: Request, { params }: { params: { sessionId: string } }) {
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ sessionId: string }> }
+) {
   try {
+    const params = await context.params
     const { sessionId } = params
     const body = await request.json()
     const role = body.role

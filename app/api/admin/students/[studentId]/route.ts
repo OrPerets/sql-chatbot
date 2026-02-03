@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getStudentProfile, updateKnowledgeScore } from '@/lib/student-profiles'
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { studentId: string } }
+  _request: NextRequest,
+  context: { params: Promise<{ studentId: string }> }
 ) {
   try {
+    const params = await context.params
     const { studentId: id } = params
 
     if (!id) {
@@ -44,9 +45,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { studentId: string } }
+  context: { params: Promise<{ studentId: string }> }
 ) {
   try {
+    const params = await context.params
     const { studentId: id } = params
     const body = await request.json()
 

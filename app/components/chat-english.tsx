@@ -3,11 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import styles from "./chat.module.css";
 import "./mobile-optimizations.css";
-import { AssistantStream } from "openai/lib/AssistantStream";
 import Markdown from "react-markdown";
-// @ts-expect-error - no types for this yet
-import { AssistantStreamEvent } from "openai/resources/beta/assistants/assistants";
-import { RequiredActionFunctionToolCall } from "openai/resources/beta/threads/runs/runs";
 import { ThumbsUp, ThumbsDown, ClipboardCopy } from 'lucide-react';
 import Link from 'next/link';
 import SidebarEnglish from './sidebar-english';
@@ -26,9 +22,9 @@ import { fileToBase64 } from "../utils/parseImage";
 // import AvatarInteractionManager from "./AvatarInteractionManager";
 import { analyzeMessage } from "../utils/sql-query-analyzer";
 // import { avatarAnalytics } from "../utils/avatar-analytics";
-import OpenAI from "openai";
 import PracticeModal from "./PracticeModal";
 import SqlQueryBuilder from "./SqlQueryBuilder/SqlQueryBuilder";
+import type { ResponseStreamEvent } from "@/lib/openai/contracts";
 
 export const maxDuration = 50;
 
@@ -43,6 +39,16 @@ type MessageProps = {
   onFeedback?: (feedback: "like" | "dislike" | null) => void;
   hasImage?: boolean;
 };
+
+type ClientFunctionToolCall = {
+  id?: string;
+  function: {
+    name: string;
+    arguments: string;
+  };
+};
+
+type StreamFailureKind = "tool_timeout" | "invalid_function_args" | "stream_interruption" | "generic";
 
 // Add these types
 type ChatSession = {
@@ -295,7 +301,7 @@ const Message = ({ role, text, feedback, onFeedback, hasImage, autoPlaySpeech, o
 
 type ChatProps = {
   functionCallHandler?: (
-    toolCall: RequiredActionFunctionToolCall
+    toolCall: ClientFunctionToolCall
   ) => Promise<string>;
   chatId: string;
   onUserMessage?: (message: string) => void;
@@ -308,6 +314,7 @@ const ChatEnglish = ({
   onUserMessage,
   onAssistantResponse
 }: ChatProps) => {
+  void functionCallHandler;
   const [userInput, setUserInput] = useState("");
   const [messages, setMessages] = useState<MessageProps[]>([
     {
@@ -328,7 +335,8 @@ const ChatEnglish = ({
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imageProcessing, setImageProcessing] = useState(false);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
-  const [threadId, setThreadId] = useState("");
+  const [sessionId, setSessionId] = useState("");
+  const [previousResponseId, setPreviousResponseId] = useState("");
   const [user, setUser] = useState(null);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
@@ -345,6 +353,7 @@ const ChatEnglish = ({
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [currentBalance, setCurrentBalance] = useState(0);
   const [balanceError, setBalanceError] = useState(false);
+  const [streamError, setStreamError] = useState<string | null>(null);
   const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false); // Add loading state
   // Add SQL Query Builder state
@@ -780,17 +789,29 @@ const updateUserBalance = async (value) => {
     setUser(JSON.parse(storedUser));
   }, []);
 
-  // create a new threadID when chat component created
-  useEffect(() => {
-    const createThread = async () => {
-      const res = await fetch(`/api/assistants/threads`, {
-        method: "POST",
-      });
-      const data = await res.json();
-      setThreadId(data.threadId);
-    };
-    createThread();
+  const createSession = useCallback(async () => {
+    const res = await fetch(`/api/responses/sessions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data?.error || "Failed to create responses session");
+    }
+    setSessionId(data.sessionId || "");
+    setPreviousResponseId(data.responseId || "");
+    return data.sessionId || "";
   }, []);
+
+  useEffect(() => {
+    createSession().catch((error) => {
+      console.error("Failed to create responses session:", error);
+      setStreamError("Could not start a new chat session. Please refresh.");
+    });
+  }, [createSession]);
 
   // Cleanup speech and typing detection on unmount
   useEffect(() => {
@@ -880,6 +901,109 @@ const updateUserBalance = async (value) => {
       console.log('📊 Avatar Interaction Analytics:', analytics);
     }
   }, [enableAnalytics]);
+
+  const classifyStreamFailure = (message?: string): StreamFailureKind => {
+    const normalized = (message || "").toLowerCase();
+    if (normalized.includes("timeout") || normalized.includes("timed out")) {
+      return "tool_timeout";
+    }
+    if (normalized.includes("invalid") && normalized.includes("arg")) {
+      return "invalid_function_args";
+    }
+    return "generic";
+  };
+
+  const renderStreamFailureMessage = (kind: StreamFailureKind) => {
+    if (kind === "tool_timeout") {
+      return "Tool execution timed out. Please retry or simplify the request.";
+    }
+    if (kind === "invalid_function_args") {
+      return "A tool received invalid arguments. Please rephrase your request.";
+    }
+    if (kind === "stream_interruption") {
+      return "The response stream was interrupted. Please send again.";
+    }
+    return "Something went wrong while generating a response. Please try again.";
+  };
+
+  const ensureResponseSession = useCallback(async () => {
+    if (sessionId) return sessionId;
+    return createSession();
+  }, [createSession, sessionId]);
+
+  const consumeResponseStream = async (stream: ReadableStream<Uint8Array>) => {
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let sawCompleted = false;
+    let sawDelta = false;
+    let createdAssistantMessage = false;
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        let event: ResponseStreamEvent | null = null;
+        try {
+          event = JSON.parse(line) as ResponseStreamEvent;
+        } catch {
+          continue;
+        }
+
+        if (event.type === "response.created") {
+          if (event.responseId) setPreviousResponseId(event.responseId);
+          continue;
+        }
+
+        if (event.type === "response.output_text.delta") {
+          if (!createdAssistantMessage) {
+            handleTextCreated();
+            createdAssistantMessage = true;
+          }
+          sawDelta = true;
+          handleTextDelta({ value: event.delta });
+          continue;
+        }
+
+        if (event.type === "response.completed") {
+          sawCompleted = true;
+          if (event.responseId) setPreviousResponseId(event.responseId);
+          if (!createdAssistantMessage) {
+            handleTextCreated();
+            createdAssistantMessage = true;
+          }
+          if (!sawDelta && event.outputText) {
+            appendToLastMessage(event.outputText);
+          }
+          continue;
+        }
+
+        if (event.type === "response.error") {
+          const failureKind = classifyStreamFailure(event.message);
+          const failureText = renderStreamFailureMessage(failureKind);
+          setStreamError(failureText);
+          appendMessage("assistant", failureText);
+          endStreamResponse();
+          return;
+        }
+      }
+    }
+
+    if (!sawCompleted) {
+      const failureText = renderStreamFailureMessage("stream_interruption");
+      setStreamError(failureText);
+      appendMessage("assistant", failureText);
+    }
+
+    endStreamResponse();
+  };
 
   const sendMessage = async (text) => { 
     setImageProcessing(true);
@@ -994,19 +1118,56 @@ const updateUserBalance = async (value) => {
       });
     }
     
+    setStreamError(null);
+
     // saveToDatabase(text, "user");
-    const response = await fetch(
-      `/api/assistants/threads/${threadId}/messages`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          content: messageWithTags, // Send message with tags to AI
-          imageData: imageData, // Send image data if available
-        }),
+    try {
+      const activeSessionId = await ensureResponseSession();
+      const response = await fetch(
+        `/api/responses/messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sessionId: activeSessionId,
+            previousResponseId: previousResponseId || undefined,
+            content: messageWithTags, // Send message with tags to AI
+            imageData: imageData, // Send image data if available
+            stream: true,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        console.error('❌ Failed to send message:', response.status, response.statusText);
+        appendMessage("assistant", "Sorry, there was an error processing your message. Please try again.");
+        setInputDisabled(false);
+        setIsThinking(false);
+        setImageProcessing(false);
+        return;
       }
-    );
-    const stream = AssistantStream.fromReadableStream(response.body);
-    handleReadableStream(stream);
+
+      if (!response.body) {
+        console.error('❌ Response body is null');
+        appendMessage("assistant", "Sorry, there was a communication error. Please refresh the page.");
+        setInputDisabled(false);
+        setIsThinking(false);
+        setImageProcessing(false);
+        return;
+      }
+
+      await consumeResponseStream(response.body);
+    } catch (error) {
+      console.error('❌ Error in sendMessage:', error);
+      const failureText = renderStreamFailureMessage("stream_interruption");
+      setStreamError(failureText);
+      appendMessage("assistant", failureText);
+      setInputDisabled(false);
+      setIsThinking(false);
+      setIsDone(true);
+    }
 
     // Reset image after sending
     setSelectedImage(null);
@@ -1047,24 +1208,6 @@ const loadChatMessages = (chatId: string) => {
     setLoadingMessages(false);
   })  
 };
-
-  const submitActionResult = async (runId, toolCallOutputs) => {
-    const response = await fetch(
-      `/api/assistants/threads/${threadId}/actions`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          runId: runId,
-          toolCallOutputs: toolCallOutputs,
-        }),
-      }
-    );
-    const stream = AssistantStream.fromReadableStream(response.body);
-    handleReadableStream(stream);
-  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -1141,48 +1284,6 @@ const loadChatMessages = (chatId: string) => {
     }
   };
 
-  // imageFileDone - show image in chat
-  const handleImageFileDone = (image) => {
-    appendToLastMessage(`\n![${image.file_id}](/api/files/${image.file_id})\n`);
-  }
-
-  // toolCallCreated - log new tool call
-  const toolCallCreated = (toolCall) => {
-    if (toolCall.type != "code_interpreter") return;
-    appendMessage("code", "");
-  };
-
-  // toolCallDelta - log delta and snapshot for the tool call
-  const toolCallDelta = (delta, snapshot) => {
-    if (delta.type != "code_interpreter") return;
-    if (!delta.code_interpreter.input) return;
-    appendToLastMessage(delta.code_interpreter.input);
-  };
-
-  // handleRequiresAction - handle function call
-  const handleRequiresAction = async (
-    event: AssistantStreamEvent.ThreadRunRequiresAction
-  ) => {
-    const runId = event.data.id;
-    const toolCalls = event.data.required_action.submit_tool_outputs.tool_calls;
-    // loop over tool calls and call function handler
-    const toolCallOutputs = await Promise.all(
-      toolCalls.map(async (toolCall) => {
-        const result = await functionCallHandler(toolCall);
-        return { output: result, tool_call_id: toolCall.id };
-      })
-    );
-    setInputDisabled(true);
-    setIsThinking(true); // Set thinking when processing tool calls
-    submitActionResult(runId, toolCallOutputs);
-  };
-
-  // handleRunCompleted - re-enable the input form
-  const handleRunCompleted = () => {
-    setInputDisabled(false);
-    setIsThinking(false); // Stop thinking when run is completed
-  };
-
    // New function to handle message changes
    const handleMessagesChange = useCallback(() => {
     if (!currentChatId) {
@@ -1243,28 +1344,6 @@ const loadChatMessages = (chatId: string) => {
   if (!user) {
     return null; // Or you could return a loading indicator here
   }
-
-  const handleReadableStream = (stream: AssistantStream) => {
-    // messages
-    stream.on("textCreated", handleTextCreated);
-    stream.on("textDelta", handleTextDelta);
-
-    stream.on("end", endStreamResponse);
-
-    // image
-    stream.on("imageFileDone", handleImageFileDone);
-
-    // code interpreter
-    stream.on("toolCallCreated", toolCallCreated);
-    stream.on("toolCallDelta", toolCallDelta);
-
-    // events without helpers yet (e.g. requires_action and run.done)
-    stream.on("event", (event) => {
-      if (event.event === "thread.run.requires_action")
-        handleRequiresAction(event);
-      if (event.event === "thread.run.completed") handleRunCompleted();
-    });
-  };
 
   /*
     =======================
@@ -1378,6 +1457,7 @@ const loadChatMessages = (chatId: string) => {
   const openNewChat = () => {
     setCurrentChatId(null);
     setMessages([]);
+    setStreamError(null);
     setLastAssistantMessage("");
     setLastSpokenMessageId(""); // Reset spoken message tracking
     setShouldSpeak(false);
@@ -1391,6 +1471,11 @@ const loadChatMessages = (chatId: string) => {
       clearTimeout(progressiveSpeechTimeoutRef.current);
       progressiveSpeechTimeoutRef.current = null;
     }
+
+    createSession().catch((error) => {
+      console.error("Failed to refresh responses session:", error);
+      setStreamError("Could not start a new session. Please try again.");
+    });
   }
 
 return (
@@ -1499,12 +1584,18 @@ return (
                 Query cost: ${estimatedCost.toFixed(2)}
               </div>
             )}
+            {streamError && (
+              <div className={styles.streamErrorBanner}>
+                {streamError}
+              </div>
+            )}
             
 
             <textarea
               className={styles.input}
               value={userInput}
               onChange={(e) => {
+                if (streamError) setStreamError(null);
                 setUserInput(e.target.value);
                 setEstimatedCost(calculateCost(e.target.value));
                 e.target.style.height = 'auto';
