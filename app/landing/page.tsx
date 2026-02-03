@@ -81,20 +81,21 @@ const LandingPage = () => {
 
           {/* המחשה ויזואלית של SQL */}
           <div
-            className={styles.optionCard}
-            onClick={() => handleNavigation('/visualizer')}
+            className={`${styles.optionCard} ${styles.optionCardDisabled}`}
+            onClick={() => {}}
+            // onClick={() => handleNavigation('/visualizer')}
           >
             <div className={styles.cardIcon}>
               <Database size={48} />
             </div>
             <h2 className={styles.cardTitle}>המחשה ויזואלית של SQL</h2>
             <p className={styles.cardDescription}>
-              כלי ויזואלי להבנת שאילתות SQL
+            יגיע בהמשך
             </p>
           </div>
 
           {/* סביבת למידה אינטרנטיקית */}
-          <div
+          {/* <div
             className={`${styles.optionCard} ${styles.optionCardDisabled}`}
             onClick={() => {
               // Placeholder - does nothing for now
@@ -107,7 +108,7 @@ const LandingPage = () => {
             <p className={styles.cardDescription}>
               יגיע בהמשך
             </p>
-          </div>
+          </div> */}
 
           {/* ממשק ניהול - Admin Interface */}
           {isAdmin && (
