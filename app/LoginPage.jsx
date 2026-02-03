@@ -6,6 +6,7 @@ import styles from './login.module.css';
 const SERVER = `/api/users`;
 const UPDATE_PASSWORD = `/api/users`;
 const GET_COINS_BALANCE = `/api/users/balance`;
+const REQUEST_TIMEOUT_MS = 8000;
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -40,10 +41,25 @@ const LoginPage = () => {
     fetchUsers();
   }, []);
 
+  const fetchWithTimeout = async (url, options = {}) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+      return response;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
+
   const getCoinsBalance = async (userEmail) => {
     setIsFetchingUsers(true);
     try {
-      const response = await fetch(`${GET_COINS_BALANCE}?email=${encodeURIComponent(userEmail)}`, {
+      const response = await fetchWithTimeout(`${GET_COINS_BALANCE}?email=${encodeURIComponent(userEmail)}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -57,7 +73,10 @@ const LoginPage = () => {
       }
     } catch (error) {
       console.error('Error fetching balance:', error);
-      setError('Failed to fetch balance. Please try again.');
+      const message = error?.name === 'AbortError'
+        ? 'Fetching balance timed out. Please try again.'
+        : 'Failed to fetch balance. Please try again.';
+      setError(message);
     } finally {
       setIsFetchingUsers(false);
     }
@@ -66,7 +85,7 @@ const LoginPage = () => {
   const fetchUsers = async () => {
     setIsFetchingUsers(true);
     try {
-      const response = await fetch(SERVER, {
+      const response = await fetchWithTimeout(SERVER, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -76,13 +95,16 @@ const LoginPage = () => {
       setUsers(data);
     } catch (error) {
       console.error('Error fetching users:', error);
-      setError('Failed to fetch users. Please try again.');
+      const message = error?.name === 'AbortError'
+        ? 'Fetching users timed out. Please try again.'
+        : 'Failed to fetch users. Please try again.';
+      setError(message);
     } finally {
       setIsFetchingUsers(false);
     }
     
     try {
-      const response = await fetch('/api/admin/status', {
+      const response = await fetchWithTimeout('/api/admin/status', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -93,7 +115,10 @@ const LoginPage = () => {
       setStatus("ON");
     } catch (error) {
       console.error('Error fetching status:', error);
-      setError('Failed to fetch status. Please try again.');
+      const message = error?.name === 'AbortError'
+        ? 'Fetching status timed out. Please try again.'
+        : 'Failed to fetch status. Please try again.';
+      setError(message);
     }
   };
 
