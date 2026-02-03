@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 
 import { openai } from "@/app/openai";
-import { ToolCallOutput, ToolCallRequest } from "@/lib/openai/contracts";
+import { SqlTutorResponse, ToolCallOutput, ToolCallRequest } from "@/lib/openai/contracts";
 import { getRuntimeAgentConfig } from "@/lib/openai/runtime-config";
 import { executeToolCall } from "@/lib/openai/tools";
 
@@ -17,6 +17,7 @@ type CreateResponseInput = {
   extraInstructions?: string;
   toolChoice?: unknown;
   parallelToolCalls?: boolean | null;
+  responseFormat?: unknown;
 };
 
 type ToolCallHandler = (toolCall: ToolCallRequest) => Promise<string>;
@@ -82,6 +83,7 @@ export async function createResponse(params: CreateResponseInput) {
       tools,
       tool_choice: toolChoice,
       parallel_tool_calls: params.parallelToolCalls,
+      response_format: params.responseFormat,
       input: params.input,
       previous_response_id: params.previousResponseId,
       metadata: {
@@ -128,6 +130,7 @@ export async function streamResponse(params: CreateResponseInput) {
       tools,
       tool_choice: toolChoice,
       parallel_tool_calls: params.parallelToolCalls,
+      response_format: params.responseFormat,
       input: params.input,
       previous_response_id: params.previousResponseId,
       stream: true,
@@ -180,6 +183,72 @@ export function extractOutputText(response: any): string {
   }
 
   return chunks.join("");
+}
+
+const sqlTutorResponseFormat = {
+  type: "json_schema",
+  json_schema: {
+    name: "sql_tutor_response",
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        query: {
+          type: "string",
+          description: "A runnable SQL query that answers the student's request.",
+        },
+        explanation: {
+          type: "string",
+          description: "A clear, student-friendly explanation of how the query works.",
+        },
+        commonMistakes: {
+          type: "array",
+          items: {
+            type: "string",
+          },
+          description: "Common mistakes students might make with this query.",
+        },
+        optimization: {
+          type: "string",
+          description: "Suggestions for performance or readability improvements.",
+        },
+      },
+      required: ["query", "explanation", "commonMistakes", "optimization"],
+    },
+    strict: true,
+  },
+} as const;
+
+export function getSqlTutorResponseFormat() {
+  return sqlTutorResponseFormat;
+}
+
+function isSqlTutorResponse(value: unknown): value is SqlTutorResponse {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const candidate = value as SqlTutorResponse;
+  return (
+    typeof candidate.query === "string" &&
+    typeof candidate.explanation === "string" &&
+    typeof candidate.optimization === "string" &&
+    Array.isArray(candidate.commonMistakes) &&
+    candidate.commonMistakes.every((item) => typeof item === "string")
+  );
+}
+
+export function extractSqlTutorResponse(response: any): SqlTutorResponse | null {
+  const outputText = extractOutputText(response);
+  if (!outputText) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(outputText) as unknown;
+    return isSqlTutorResponse(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 function extractFunctionCalls(response: any): ToolCallRequest[] {

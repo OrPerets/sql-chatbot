@@ -25,7 +25,7 @@ import { analyzeMessage } from "../utils/sql-query-analyzer";
 // import { avatarAnalytics } from "../utils/avatar-analytics";
 import PracticeModal from "./PracticeModal";
 import SqlQueryBuilder from "./SqlQueryBuilder/SqlQueryBuilder";
-import type { ResponseStreamEvent } from "@/lib/openai/contracts";
+import type { ResponseStreamEvent, SqlTutorResponse } from "@/lib/openai/contracts";
 
 export const maxDuration = 50;
 
@@ -36,9 +36,10 @@ const UPDATE_BALANCE = "/api/users/balance";
 type MessageProps = {
   role: "user" | "assistant" | "code";
   text: string;
-  feedback: "like" | "dislike" | null;
+  feedback?: "like" | "dislike" | null;
   onFeedback?: (feedback: "like" | "dislike" | null) => void;
   hasImage?: boolean;
+  tutorResponse?: SqlTutorResponse | null;
 };
 
 type ClientFunctionToolCall = {
@@ -50,6 +51,14 @@ type ClientFunctionToolCall = {
 };
 
 type StreamFailureKind = "tool_timeout" | "invalid_function_args" | "stream_interruption" | "generic";
+
+type ChatMessage = {
+  role: "user" | "assistant" | "code";
+  text: string;
+  feedback?: "like" | "dislike" | null;
+  hasImage?: boolean;
+  tutorResponse?: SqlTutorResponse | null;
+};
 
 // Add these types
 type ChatSession = {
@@ -85,7 +94,21 @@ type HomeworkChatContext = {
 const UserMessage = ({ text }: { text: string }) => {
   return <div className={styles.userMessage}>{text}</div>;
 };
-const AssistantMessage = ({ text, feedback, onFeedback, autoPlaySpeech, onPlayMessage }: { text: string; feedback: "like" | "dislike" | null; onFeedback?: (feedback: "like" | "dislike" | null) => void; autoPlaySpeech?: boolean; onPlayMessage?: () => void }) => {
+const AssistantMessage = ({
+  text,
+  feedback = null,
+  onFeedback,
+  tutorResponse,
+  autoPlaySpeech,
+  onPlayMessage,
+}: {
+  text: string;
+  feedback: "like" | "dislike" | null;
+  onFeedback?: (feedback: "like" | "dislike" | null) => void;
+  tutorResponse?: SqlTutorResponse | null;
+  autoPlaySpeech?: boolean;
+  onPlayMessage?: () => void;
+}) => {
   const [activeFeedback, setActiveFeedback] = useState(feedback);
   const [showTooltip, setShowTooltip] = useState(false);
   const [showPlayTooltip, setShowPlayTooltip] = useState(false);  // Separate state for play button tooltip
@@ -213,6 +236,28 @@ const renderers = {
     );
   },
 };
+
+  const renderTutorSection = (title: string, content: string) => (
+    <div className={styles.tutorSection}>
+      <h4 className={styles.tutorSectionTitle}>{title}</h4>
+      <Markdown components={renderers}>{content}</Markdown>
+    </div>
+  );
+
+  const renderTutorResponse = (response: SqlTutorResponse) => {
+    const mistakes =
+      response.commonMistakes?.length > 0
+        ? response.commonMistakes.map((mistake) => `- ${mistake}`).join("\n")
+        : "—";
+    return (
+      <div className={styles.tutorResponse}>
+        {renderTutorSection("Query", `\`\`\`sql\n${response.query}\n\`\`\``)}
+        {renderTutorSection("Explanation", response.explanation || "—")}
+        {renderTutorSection("Common mistakes", mistakes)}
+        {renderTutorSection("Optimization", response.optimization || "—")}
+      </div>
+    );
+  };
 const copyQueryToClipboard = (text) => {
   // Regular expression to find SQL queries within ```sql ... ``` blocks
   const sqlRegex = /```sql\s*([\s\S]*?)\s*```/gi; 
@@ -242,10 +287,14 @@ const copyQueryToClipboard = (text) => {
         console.error("Failed to copy:", error);
       });
 };
+  const copyTextSource = tutorResponse
+    ? `\`\`\`sql\n${tutorResponse.query}\n\`\`\``
+    : text;
+
   return (
     <div className={styles.assistantMessage}>
       <div className={styles.messageContent}>
-        <Markdown components={renderers}>{text}</Markdown>
+        {tutorResponse ? renderTutorResponse(tutorResponse) : <Markdown components={renderers}>{text}</Markdown>}
       </div>
       <div className={styles.feedbackButtons}>
         {!autoPlaySpeech && (
@@ -283,7 +332,7 @@ const copyQueryToClipboard = (text) => {
           {activeFeedback === "dislike" ? <ThumbsDown width="80%" height="80%" color="red" fill="red" /> : <ThumbsDown width="80%" height="80%" />}
         </button>
         <button
-          onClick={() => copyQueryToClipboard(text)} // Keep this for general copying
+          onClick={() => copyQueryToClipboard(copyTextSource)} // Keep this for general copying
           className={`${styles.feedbackButton} ${styles.copyButton}`}
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
@@ -311,12 +360,30 @@ const CodeMessage = ({ text }: { text: string }) => {
   );
 };
 
-const Message = ({ role, text, feedback, onFeedback, hasImage, autoPlaySpeech, onPlayMessage }: MessageProps & { autoPlaySpeech?: boolean; onPlayMessage?: () => void }) => {
+const Message = ({
+  role,
+  text,
+  feedback,
+  onFeedback,
+  hasImage,
+  tutorResponse,
+  autoPlaySpeech,
+  onPlayMessage,
+}: MessageProps & { autoPlaySpeech?: boolean; onPlayMessage?: () => void }) => {
   switch (role) {
     case "user":
       return <UserMessage text={text} />;
     case "assistant":
-      return <AssistantMessage text={text} feedback={feedback} onFeedback={onFeedback} autoPlaySpeech={autoPlaySpeech} onPlayMessage={onPlayMessage} />;
+      return (
+        <AssistantMessage
+          text={text}
+          feedback={feedback}
+          onFeedback={onFeedback}
+          tutorResponse={tutorResponse}
+          autoPlaySpeech={autoPlaySpeech}
+          onPlayMessage={onPlayMessage}
+        />
+      );
     case "code":
       return <CodeMessage text={text} />;
     default:
@@ -351,7 +418,7 @@ const Chat = ({
 }: ChatProps) => {
   void functionCallHandler;
   const [userInput, setUserInput] = useState("");
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputDisabled, setInputDisabled] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
@@ -1042,6 +1109,7 @@ const updateUserBalance = async (value) => {
     let sawCompleted = false;
     let sawDelta = false;
     let createdAssistantMessage = false;
+    let tutorMode = false;
 
     while (true) {
       const { value, done } = await reader.read();
@@ -1066,7 +1134,16 @@ const updateUserBalance = async (value) => {
           continue;
         }
 
+        if (event.type === "response.tutor.mode") {
+          tutorMode = event.enabled;
+          continue;
+        }
+
         if (event.type === "response.output_text.delta") {
+          if (tutorMode) {
+            sawDelta = true;
+            continue;
+          }
           if (!createdAssistantMessage) {
             handleTextCreated();
             createdAssistantMessage = true;
@@ -1083,7 +1160,11 @@ const updateUserBalance = async (value) => {
             handleTextCreated();
             createdAssistantMessage = true;
           }
-          if (!sawDelta && event.outputText) {
+          if (event.tutorResponse) {
+            setLastMessageTutorResponse(event.tutorResponse);
+            continue;
+          }
+          if ((tutorMode || !sawDelta) && event.outputText) {
             appendToLastMessage(event.outputText);
           }
           continue;
@@ -1468,6 +1549,14 @@ const loadChatMessages = (chatId: string) => {
     =======================
   */
 
+  const buildTutorResponseText = (tutorResponse: SqlTutorResponse) => {
+    const mistakesText =
+      tutorResponse.commonMistakes?.length > 0
+        ? tutorResponse.commonMistakes.map((mistake) => `- ${mistake}`).join("\n")
+        : "- —";
+    return `**Query**\n\`\`\`sql\n${tutorResponse.query}\n\`\`\`\n\n**Explanation**\n${tutorResponse.explanation}\n\n**Common mistakes**\n${mistakesText}\n\n**Optimization**\n${tutorResponse.optimization}`;
+  };
+
   const appendToLastMessage = (text) => {
     setMessages((prevMessages) => {
       const lastMessage = prevMessages[prevMessages.length - 1];
@@ -1485,8 +1574,32 @@ const loadChatMessages = (chatId: string) => {
     });
   };
 
-  const appendMessage = (role, text) => {
-    setMessages((prevMessages) => [...prevMessages, { role, text }]);
+  const setLastMessageTutorResponse = (tutorResponse: SqlTutorResponse) => {
+    setMessages((prevMessages) => {
+      const lastMessage = prevMessages[prevMessages.length - 1];
+      if (!lastMessage) {
+        return prevMessages;
+      }
+      const formattedText = buildTutorResponseText(tutorResponse);
+      const updatedLastMessage = {
+        ...lastMessage,
+        text: formattedText,
+        tutorResponse,
+      };
+
+      if (lastMessage.role === "assistant") {
+        setLastAssistantMessage(formattedText);
+        if (onAssistantResponse) {
+          onAssistantResponse(formattedText);
+        }
+      }
+
+      return [...prevMessages.slice(0, -1), updatedLastMessage];
+    });
+  };
+
+  const appendMessage = (role, text, options: Partial<ChatMessage> = {}) => {
+    setMessages((prevMessages) => [...prevMessages, { role, text, ...options }]);
     
     // Track last assistant message for speech synthesis
     if (role === 'assistant') {
@@ -1685,6 +1798,7 @@ return (
                   text={msg.text}
                   feedback={msg.feedback}
                   hasImage={msg.hasImage}
+                  tutorResponse={msg.tutorResponse}
                   onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
                   autoPlaySpeech={msg.role === 'assistant' ? (enableVoice && autoPlaySpeech) : undefined}
                   onPlayMessage={msg.role === 'assistant' ? () => {

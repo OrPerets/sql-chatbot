@@ -24,7 +24,7 @@ import { analyzeMessage } from "../utils/sql-query-analyzer";
 // import { avatarAnalytics } from "../utils/avatar-analytics";
 import PracticeModal from "./PracticeModal";
 import SqlQueryBuilder from "./SqlQueryBuilder/SqlQueryBuilder";
-import type { ResponseStreamEvent } from "@/lib/openai/contracts";
+import type { ResponseStreamEvent, SqlTutorResponse } from "@/lib/openai/contracts";
 
 export const maxDuration = 50;
 
@@ -938,6 +938,7 @@ const updateUserBalance = async (value) => {
     let sawCompleted = false;
     let sawDelta = false;
     let createdAssistantMessage = false;
+    let tutorMode = false;
 
     while (true) {
       const { value, done } = await reader.read();
@@ -962,7 +963,16 @@ const updateUserBalance = async (value) => {
           continue;
         }
 
+        if (event.type === "response.tutor.mode") {
+          tutorMode = event.enabled;
+          continue;
+        }
+
         if (event.type === "response.output_text.delta") {
+          if (tutorMode) {
+            sawDelta = true;
+            continue;
+          }
           if (!createdAssistantMessage) {
             handleTextCreated();
             createdAssistantMessage = true;
@@ -979,7 +989,11 @@ const updateUserBalance = async (value) => {
             handleTextCreated();
             createdAssistantMessage = true;
           }
-          if (!sawDelta && event.outputText) {
+          if (event.tutorResponse) {
+            setLastMessageTutorResponse(event.tutorResponse);
+            continue;
+          }
+          if ((tutorMode || !sawDelta) && event.outputText) {
             appendToLastMessage(event.outputText);
           }
           continue;
@@ -1351,6 +1365,14 @@ const loadChatMessages = (chatId: string) => {
     =======================
   */
 
+  const buildTutorResponseText = (tutorResponse: SqlTutorResponse) => {
+    const mistakesText =
+      tutorResponse.commonMistakes?.length > 0
+        ? tutorResponse.commonMistakes.map((mistake) => `- ${mistake}`).join("\n")
+        : "- —";
+    return `**Query**\n\`\`\`sql\n${tutorResponse.query}\n\`\`\`\n\n**Explanation**\n${tutorResponse.explanation}\n\n**Common mistakes**\n${mistakesText}\n\n**Optimization**\n${tutorResponse.optimization}`;
+  };
+
   const appendToLastMessage = (text) => {
     setMessages((prevMessages) => {
       const lastMessage = prevMessages[prevMessages.length - 1];
@@ -1364,6 +1386,29 @@ const loadChatMessages = (chatId: string) => {
         setLastAssistantMessage(updatedLastMessage.text);
       }
       
+      return [...prevMessages.slice(0, -1), updatedLastMessage];
+    });
+  };
+
+  const setLastMessageTutorResponse = (tutorResponse: SqlTutorResponse) => {
+    setMessages((prevMessages) => {
+      const lastMessage = prevMessages[prevMessages.length - 1];
+      if (!lastMessage) {
+        return prevMessages;
+      }
+      const formattedText = buildTutorResponseText(tutorResponse);
+      const updatedLastMessage = {
+        ...lastMessage,
+        text: formattedText,
+      };
+
+      if (lastMessage.role === "assistant") {
+        setLastAssistantMessage(formattedText);
+        if (onAssistantResponse) {
+          onAssistantResponse(formattedText);
+        }
+      }
+
       return [...prevMessages.slice(0, -1), updatedLastMessage];
     });
   };
