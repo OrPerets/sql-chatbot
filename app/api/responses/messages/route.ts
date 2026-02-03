@@ -1,8 +1,14 @@
 import { openai } from "@/app/openai";
 import { getAgentTools } from "@/app/agent-config";
-import { ChatRequestDto, ChatResponseDto } from "@/lib/openai/contracts";
+import { ChatRequestDto, ChatResponseDto, SqlTutorResponse } from "@/lib/openai/contracts";
 import { getOpenAIApiMode } from "@/lib/openai/api-mode";
-import { createResponse, extractOutputText, streamResponse } from "@/lib/openai/responses-client";
+import {
+  createResponse,
+  extractOutputText,
+  extractSqlTutorResponse,
+  getSqlTutorResponseFormat,
+  streamResponse,
+} from "@/lib/openai/responses-client";
 import { executeToolCall } from "@/lib/openai/tools";
 import { buildFileSearchTool, getOrCreateAppVectorStoreId } from "@/lib/openai/vector-store";
 
@@ -12,6 +18,7 @@ export const maxDuration = 50;
 type MessageRequestDto = ChatRequestDto & {
   stream?: boolean;
   homeworkRunner?: boolean;
+  tutorMode?: boolean;
 };
 
 type ResponseCreateLike = {
@@ -26,6 +33,42 @@ type WeeklyPolicy = {
     name: "get_course_week_context";
   };
 };
+
+const tutorIntentKeywords = [
+  "explain",
+  "explanation",
+  "why",
+  "how",
+  "teach",
+  "tutor",
+  "tutorial",
+  "guide",
+  "step by step",
+  "help me understand",
+  "what does",
+  "optimize",
+  "optimization",
+  "mistake",
+  "mistakes",
+  "הסבר",
+  "תסביר",
+  "למד",
+  "למד אותי",
+  "איך",
+  "מה זה",
+  "למה",
+  "טעויות",
+  "טעות",
+  "אופטימיזציה",
+];
+
+const tutorInstructions = `[TUTORING RESPONSE FORMAT]
+You are a SQL tutor. Respond using the sql_tutor_response JSON schema only.
+Fill each field with clear, student-friendly content.
+- query: the SQL query
+- explanation: step-by-step explanation
+- commonMistakes: list of common mistakes
+- optimization: performance/readability tips.`;
 
 function base64ToBuffer(base64Data: string): { buffer: Buffer; mimeType: string } {
   const matches = base64Data.match(/^data:([^;]+);base64,(.+)$/);
@@ -56,6 +99,23 @@ Never rely on guessed week numbers. Follow sqlRestrictions.allowedConcepts and s
       name: "get_course_week_context",
     },
   };
+}
+
+function hasTutorIntent(
+  content: string,
+  tutorMode?: boolean,
+  metadata?: Record<string, string>
+): boolean {
+  if (tutorMode) {
+    return true;
+  }
+
+  if (metadata?.tutor_mode === "true") {
+    return true;
+  }
+
+  const normalized = content.toLowerCase();
+  return tutorIntentKeywords.some((keyword) => normalized.includes(keyword));
 }
 
 function extractFunctionCalls(response: ResponseCreateLike) {
@@ -139,6 +199,11 @@ export async function POST(request: Request) {
     const inputItems: Array<{ type: "input_text" | "input_image"; text?: string; file_id?: string }> = [];
     const weeklyPolicy = buildWeeklyPolicy(Boolean(body.homeworkRunner));
     const textInput = content || "";
+    const tutorIntent = hasTutorIntent(textInput, body.tutorMode, body.metadata);
+    const responseFormat = tutorIntent ? getSqlTutorResponseFormat() : undefined;
+    const extraInstructions = tutorIntent
+      ? `${weeklyPolicy.extraInstructions}\n\n${tutorInstructions}`
+      : weeklyPolicy.extraInstructions;
 
     if (textInput) {
       inputItems.push({ type: "input_text", text: textInput });
@@ -178,13 +243,20 @@ export async function POST(request: Request) {
         let finalOutputText = "";
         let finalResponseId = "";
 
+        if (tutorIntent) {
+          await writer.write(
+            encoder.encode(`${JSON.stringify({ type: "response.tutor.mode", enabled: true })}\n`)
+          );
+        }
+
         for (let iteration = 1; iteration <= maxIterations; iteration += 1) {
           const stream = await streamResponse({
             input: iterationInput,
             previousResponseId,
             tools,
             toolChoice: iteration === 1 ? weeklyPolicy.forcedInitialToolChoice : undefined,
-            extraInstructions: weeklyPolicy.extraInstructions,
+            extraInstructions,
+            responseFormat,
             metadata: {
               ...(body.metadata || {}),
               session_id: sessionId || "",
@@ -195,6 +267,7 @@ export async function POST(request: Request) {
 
           let iterationResponseId = "";
           let iterationOutputText = "";
+          let iterationTutorResponse: SqlTutorResponse | null = null;
           const calls: Array<{ callId: string; name: string; argumentsJson: string }> = [];
 
           for await (const event of stream as any) {
@@ -231,6 +304,9 @@ export async function POST(request: Request) {
             } else if (event?.type === "response.completed") {
               iterationResponseId = String(event.response?.id || iterationResponseId || "");
               iterationOutputText = extractOutputText(event.response);
+              if (tutorIntent) {
+                iterationTutorResponse = extractSqlTutorResponse(event.response);
+              }
             }
           }
 
@@ -243,6 +319,7 @@ export async function POST(request: Request) {
                   type: "response.completed",
                   responseId: finalResponseId,
                   outputText: finalOutputText,
+                  tutorResponse: iterationTutorResponse,
                 })}\n`
               )
             );
@@ -276,7 +353,8 @@ export async function POST(request: Request) {
         previousResponseId,
         tools,
         toolChoice: iteration === 1 ? weeklyPolicy.forcedInitialToolChoice : undefined,
-        extraInstructions: weeklyPolicy.extraInstructions,
+        extraInstructions,
+        responseFormat,
         metadata: {
           ...(body.metadata || {}),
           session_id: sessionId || "",
@@ -291,6 +369,7 @@ export async function POST(request: Request) {
           sessionId: sessionId || null,
           responseId: response?.id || "",
           outputText: extractOutputText(response),
+          tutorResponse: tutorIntent ? extractSqlTutorResponse(response) : null,
         };
         return Response.json({ mode, ...payload });
       }
@@ -304,6 +383,7 @@ export async function POST(request: Request) {
       sessionId: sessionId || null,
       responseId: response?.id || "",
       outputText: extractOutputText(response),
+      tutorResponse: tutorIntent ? extractSqlTutorResponse(response) : null,
     };
     return Response.json({ mode, ...payload });
   } catch (error: any) {

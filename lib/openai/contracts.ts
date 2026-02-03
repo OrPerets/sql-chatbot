@@ -41,10 +41,24 @@ export type ChatResponseDto = {
   sessionId: string | null;
   responseId: string;
   outputText: string;
+  tutorResponse?: SqlTutorResponse | null;
+};
+
+export type SqlTutorResponse = {
+  query: string;
+  explanation: string;
+  commonMistakes: string[];
+  optimization: string;
 };
 
 export type ResponseStreamEvent =
   | { type: "response.created"; responseId: string }
   | { type: "response.output_text.delta"; delta: string }
-  | { type: "response.completed"; responseId: string; outputText: string }
+  | {
+      type: "response.completed";
+      responseId: string;
+      outputText: string;
+      tutorResponse?: SqlTutorResponse | null;
+    }
+  | { type: "response.tutor.mode"; enabled: boolean }
   | { type: "response.error"; message: string };
