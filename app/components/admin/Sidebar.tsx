@@ -124,6 +124,13 @@ const navigationItems: NavigationItem[] = [
         icon: BookOpen,
         type: 'route',
         route: '/admin/homework'
+      },
+      {
+        id: 'exam-generator',
+        label: 'יצירת מבחן',
+        icon: FileText,
+        type: 'route',
+        route: '/admin/exam-generator'
       }
     ]
   },
