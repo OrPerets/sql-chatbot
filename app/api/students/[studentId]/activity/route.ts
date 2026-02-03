@@ -3,9 +3,10 @@ import { getStudentActivityHistory } from '@/lib/activity-tracker'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { studentId: string } }
+  context: { params: Promise<{ studentId: string }> }
 ) {
   try {
+    const params = await context.params
     const { studentId: id } = params
     const { searchParams } = new URL(request.url)
     

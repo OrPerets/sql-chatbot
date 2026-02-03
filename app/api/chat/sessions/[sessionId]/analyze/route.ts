@@ -5,9 +5,10 @@ import { getChatSessions } from '@/lib/chat'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  context: { params: Promise<{ sessionId: string }> }
 ) {
   try {
+    const params = await context.params
     const { sessionId } = params
     const body = await request.json()
     const { userId, sessionTitle } = body

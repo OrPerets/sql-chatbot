@@ -3,9 +3,10 @@ import { getStudentProfilesService } from '@/lib/student-profiles'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { studentId: string } }
+  context: { params: Promise<{ studentId: string }> }
 ) {
   try {
+    const params = await context.params
     const { studentId } = params
     const body = await request.json()
     const { issueId } = body

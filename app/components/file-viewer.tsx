@@ -30,15 +30,15 @@ const FileViewer = () => {
   }, []);
 
   const fetchFiles = async () => {
-    const resp = await fetch("/api/assistants/files", {
+    const resp = await fetch("/api/responses/files", {
       method: "GET",
     });
     const data = await resp.json();
-    setFiles(data);
+    setFiles(data?.files || []);
   };
 
   const handleFileDelete = async (fileId) => {
-    await fetch("/api/assistants/files", {
+    await fetch("/api/responses/files", {
       method: "DELETE",
       body: JSON.stringify({ fileId }),
     });
@@ -48,7 +48,7 @@ const FileViewer = () => {
     const data = new FormData();
     if (event.target.files.length < 0) return;
     data.append("file", event.target.files[0]);
-    await fetch("/api/assistants/files", {
+    await fetch("/api/responses/files", {
       method: "POST",
       body: data,
     });

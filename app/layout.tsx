@@ -1,14 +1,11 @@
 import { cookies, headers } from "next/headers";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import "./components/admin/design-tokens.css";
-import Warnings from "./components/warnings";
-import { getAssistantId } from "./assistant-config";
-const inter = Inter({ 
-  subsets: ["latin"],
-  display: 'swap',
-  fallback: ['system-ui', 'arial'],
-  adjustFontFallback: true,
+const inter = localFont({
+  src: "../fonts/NotoSansHebrew-Regular.ttf",
+  display: "swap",
+  fallback: ["system-ui", "arial"],
 });
 
 export const metadata = {
@@ -47,9 +44,9 @@ function resolveLocale({ acceptLanguage, headerLocale, cookieLocale }: { acceptL
   return primaryLanguage.startsWith("en") ? "en" : "he";
 }
 
-export default function RootLayout({ children }) {
-  const headerList = headers();
-  const cookieStore = cookies();
+export default async function RootLayout({ children }) {
+  const headerList = await headers();
+  const cookieStore = await cookies();
   const acceptLanguage = headerList.get("accept-language") ?? "";
   const headerLocale = headerList.get("x-michael-locale");
   const cookieLocale = cookieStore.get("michael-locale")?.value ?? null;
@@ -72,7 +69,7 @@ export default function RootLayout({ children }) {
         <meta name="theme-color" content="#2a8ad8" />
       </head>
       <body className={inter.className}>
-        {getAssistantId() ? children : <Warnings />}
+        {children}
         {/* <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "120px", height: "120px"}}/> */}
         
         {/* Service Worker Registration */}

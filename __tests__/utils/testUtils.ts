@@ -54,45 +54,35 @@ export const mockFetch = (responses: { [url: string]: any }) => {
  * Mock OpenAI responses
  */
 export const mockOpenAI = {
-  createAssistant: (response: any) => ({
-    beta: {
-      assistants: {
-        create: jest.fn().mockResolvedValue(response)
-      }
-    }
+  createResponse: (response: any) => ({
+    responses: {
+      create: jest.fn().mockResolvedValue(response),
+    },
   }),
-  
-  createThread: (response: any) => ({
-    beta: {
-      threads: {
-        create: jest.fn().mockResolvedValue(response)
-      }
-    }
+
+  createResponseStream: (stream: any) => ({
+    responses: {
+      stream: jest.fn().mockResolvedValue(stream),
+    },
   }),
-  
-  createMessage: (response: any) => ({
-    beta: {
-      threads: {
-        messages: {
-          create: jest.fn().mockResolvedValue(response),
-          list: jest.fn().mockResolvedValue({
-            data: Array.isArray(response) ? response : [response]
-          })
-        }
-      }
-    }
+
+  uploadFile: (response: any) => ({
+    files: {
+      create: jest.fn().mockResolvedValue(response),
+      retrieve: jest.fn().mockResolvedValue(response),
+    },
   }),
-  
-  createRun: (response: any) => ({
-    beta: {
-      threads: {
-        runs: {
-          create: jest.fn().mockResolvedValue(response),
-          retrieve: jest.fn().mockResolvedValue(response)
-        }
-      }
-    }
-  })
+
+  vectorStoreFiles: (listResponse: any) => ({
+    vectorStores: {
+      files: {
+        create: jest.fn().mockResolvedValue({ id: "vsf_test_1" }),
+        list: jest.fn().mockResolvedValue(listResponse),
+        retrieve: jest.fn().mockResolvedValue({ status: "completed" }),
+        del: jest.fn().mockResolvedValue({ deleted: true }),
+      },
+    },
+  }),
 }
 
 /**
@@ -239,22 +229,20 @@ export const testData = {
     role: 'student'
   },
   
-  assistant: {
-    id: 'asst_test123',
-    object: 'assistant',
+  response: {
+    id: 'resp_test123',
+    object: 'response',
     created_at: Date.now(),
-    name: 'Test Assistant',
-    description: 'A test assistant',
+    status: 'completed',
     model: 'gpt-4',
-    instructions: 'You are a helpful assistant.',
-    tools: [],
-    file_ids: [],
-    metadata: {}
+    output_text: 'Hello from Responses API',
+    output: [],
+    metadata: {},
   },
   
-  thread: {
-    id: 'thread_test123',
-    object: 'thread',
+  session: {
+    id: 'sess_test123',
+    object: 'session',
     created_at: Date.now(),
     metadata: {}
   },

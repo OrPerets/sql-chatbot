@@ -16,6 +16,10 @@ jest.mock('@/lib/content', () => ({
 
 // Mock sql-curriculum module
 jest.mock('@/lib/sql-curriculum', () => ({
+  SQL_CURRICULUM_MAP: {
+    1: { week: 1, concepts: [], forbiddenConcepts: [] },
+    13: { week: 13, concepts: [], forbiddenConcepts: [] },
+  },
   getAllowedConceptsForWeek: jest.fn().mockReturnValue([]),
   getForbiddenConceptsForWeek: jest.fn().mockReturnValue([]),
 }));
@@ -232,6 +236,38 @@ describe('MCP Michael System', () => {
       const data = JSON.parse(text)
       expect(data.weekNumber).toBeGreaterThanOrEqual(1)
       expect(data.weekNumber).toBeLessThanOrEqual(14)
+    })
+
+    test('auto week after semester end falls back to last curriculum week', async () => {
+      jest.resetModules();
+
+      const { getCurrentWeekContextNormalized, getWeekContextByNumberNormalized } = await import('@/lib/content');
+      (getCurrentWeekContextNormalized as jest.Mock).mockResolvedValue({
+        weekNumber: 14,
+        content: null,
+        dateRange: null,
+        updatedAt: null,
+        updatedBy: null,
+      });
+      (getWeekContextByNumberNormalized as jest.Mock).mockResolvedValue({
+        weekNumber: 13,
+        content: 'Final week context',
+        dateRange: '2024-04-01 - 2024-04-07',
+        updatedAt: '2024-04-01T00:00:00.000Z',
+        updatedBy: 'admin',
+      });
+
+      const { POST } = await import('../app/api/assistants/functions/course-context/route');
+      const req = new (NextRequest as any)('http://localhost:3000/api/assistants/functions/course-context', {
+        method: 'POST',
+        body: JSON.stringify({ functionName: 'get_course_week_context', parameters: {} })
+      })
+      const res = await POST(req)
+      const text = await (res as any).text()
+      const data = JSON.parse(text)
+      expect(data.weekNumber).toBe(13)
+      expect(data.content).toBe('Final week context')
+      expect(getWeekContextByNumberNormalized).toHaveBeenCalledWith(13)
     })
   })
 
