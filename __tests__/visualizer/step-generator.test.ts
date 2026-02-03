@@ -12,11 +12,12 @@ describe('generateStepsFromSql', () => {
     `);
 
     const titles = steps.map((step) => step.title);
-    expect(titles.some((title) => title.includes('Match rows'))).toBe(true);
-    expect(titles.some((title) => title.includes('Apply WHERE'))).toBe(true);
-    expect(titles.some((title) => title.includes('Apply ORDER BY'))).toBe(true);
-    expect(titles.some((title) => title.includes('Apply LIMIT'))).toBe(true);
-    expect(titles.some((title) => title.includes('Project columns'))).toBe(true);
+    // Step titles are in Hebrew; keywords (WHERE, ORDER BY, LIMIT) appear in titles
+    expect(titles.some((title) => title.includes('JOIN'))).toBe(true);
+    expect(titles.some((title) => title.includes('WHERE'))).toBe(true);
+    expect(titles.some((title) => title.includes('ORDER BY'))).toBe(true);
+    expect(titles.some((title) => title.includes('LIMIT'))).toBe(true);
+    expect(titles.some((title) => title.includes('הקרנת'))).toBe(true);
   });
 
   it('adds a placeholder step when keyword coverage gaps are detected', () => {
