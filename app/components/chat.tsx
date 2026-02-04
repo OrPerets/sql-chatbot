@@ -872,21 +872,72 @@ const Chat = ({
     }
   }, []);
 
+  const normalizeReasoningText = useCallback((rawText: string) => {
+    let text = rawText.trim();
+    if (!text) return "";
+
+    if (text.startsWith("{") || text.startsWith("[")) {
+      const hasClosedJson = text.endsWith("}") || text.endsWith("]");
+      if (!hasClosedJson) return "מעדכן את ההתקדמות...";
+    }
+
+    if ((text.startsWith("{") && text.endsWith("}")) || (text.startsWith("[") && text.endsWith("]"))) {
+      try {
+        const parsed = JSON.parse(text) as unknown;
+        if (typeof parsed === "string") {
+          text = parsed.trim();
+        } else if (Array.isArray(parsed)) {
+          const firstItem = parsed.find((item) => typeof item === "string");
+          text = typeof firstItem === "string" ? firstItem.trim() : "מעדכן את ההתקדמות...";
+        } else if (parsed && typeof parsed === "object") {
+          const parsedRecord = parsed as Record<string, unknown>;
+          const candidate =
+            (typeof parsedRecord.summary === "string" && parsedRecord.summary) ||
+            (typeof parsedRecord.message === "string" && parsedRecord.message) ||
+            (typeof parsedRecord.step === "string" && parsedRecord.step) ||
+            (typeof parsedRecord.reasoning === "string" && parsedRecord.reasoning) ||
+            (typeof parsedRecord.text === "string" && parsedRecord.text);
+          text = (candidate ?? "מעדכן את ההתקדמות...").trim();
+        }
+      } catch {
+        text = "מעדכן את ההתקדמות...";
+      }
+    }
+
+    const normalized = text
+      .replace(/^\s*[-*]\s*/g, "")
+      .replace(/tool call/giu, "שלב עיבוד")
+      .replace(/calling tool/giu, "אוסף מידע רלוונטי")
+      .replace(/tool completed|tool call completed/giu, "המידע נקלט, ממשיך בתשובה")
+      .replace(/analy(?:s|z)ing (your )?request/giu, "מנתח את הבקשה")
+      .replace(/thinking|reasoning/giu, "מחשב את הדרך הטובה ביותר לענות")
+      .replace(/generating (the )?response/giu, "מנסח תשובה")
+      .replace(/finalizing|polishing/giu, "מסיים ומלטש את התשובה")
+      .replace(/^\s*step\s*\d*[:.-]?\s*/giu, "שלב: ")
+      .trim();
+
+    if (/[A-Za-z]/.test(normalized) && !/[\u0590-\u05FF]/.test(normalized)) {
+      return "מעבד את הבקשה ומרכיב תשובה...";
+    }
+
+    return normalized || "מעדכן את ההתקדמות...";
+  }, []);
+
   const addReasoningLog = useCallback((log: string) => {
-    const trimmed = log.trim();
+    const trimmed = normalizeReasoningText(log);
     if (!trimmed) return;
     setReasoningLogs((prev) => {
       const lastLog = prev[prev.length - 1];
       if (lastLog === trimmed) return prev;
       return [...prev, trimmed];
     });
-  }, []);
+  }, [normalizeReasoningText]);
 
   const appendReasoningDelta = useCallback((delta: string) => {
     if (!delta) return;
     reasoningDraftRef.current += delta;
-    setReasoningDraft(reasoningDraftRef.current);
-  }, []);
+    setReasoningDraft(normalizeReasoningText(reasoningDraftRef.current));
+  }, [normalizeReasoningText]);
 
   const flushReasoningDraft = useCallback(() => {
     const trimmed = reasoningDraftRef.current.trim();
@@ -1230,7 +1281,7 @@ const updateUserBalance = async (value) => {
           tutorMode = event.enabled;
           if (event.enabled) {
             setReasoningLogsEnabledForResponse(true);
-            addReasoningLog("מכין תשובה לימודית מסודרת...");
+            addReasoningLog("מכין הסבר ברור ומסודר לפי הבקשה שלך...");
           }
           continue;
         }
@@ -1249,12 +1300,12 @@ const updateUserBalance = async (value) => {
 
         if (event.type === "response.tool_call.started") {
           flushReasoningDraft();
-          addReasoningLog(`מריץ כלי: ${event.name}`);
+          addReasoningLog("אוסף מידע רלוונטי לשאלה שלך...");
           continue;
         }
 
         if (event.type === "response.tool_call.completed") {
-          addReasoningLog(`הכלי ${event.name} הסתיים.`);
+          addReasoningLog("המידע מוכן, מרכיב תשובה מדויקת ונוחה להבנה.");
           continue;
         }
 
@@ -2040,7 +2091,7 @@ const reasoningPanel = shouldShowReasoningPanel ? (
       onClick={() => setIsReasoningCollapsed((prev) => !prev)}
       aria-expanded={!isReasoningCollapsed}
     >
-      <span className={styles.reasoningTitle}>יומן חשיבה</span>
+      <span className={styles.reasoningTitle}>מה קורה עכשיו</span>
       <ChevronDown
         size={14}
         className={`${styles.reasoningChevron} ${isReasoningCollapsed ? styles.reasoningChevronCollapsed : ""}`}
@@ -2165,9 +2216,9 @@ return (
                 <div className={styles.assistantMessage}>
                   {!hasStreamingAssistantMessage && reasoningPanel}
                   <div className={styles.typingIndicator}>
-                    <div className={styles.dot}></div>
-                    <div className={styles.dot}></div>
-                    <div className={styles.dot}></div>
+                    <div className={styles.typingDot}></div>
+                    <div className={styles.typingDot}></div>
+                    <div className={styles.typingDot}></div>
                   </div>
                 </div>
               )}
