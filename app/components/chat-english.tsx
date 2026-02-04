@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import styles from "./chat.module.css";
 import "./mobile-optimizations.css";
 import Markdown from "react-markdown";
-import { ThumbsUp, ThumbsDown, ClipboardCopy } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ClipboardCopy, Plus, Sparkles, ImagePlus, Braces, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import SidebarEnglish from './sidebar-english';
 import { useRouter } from 'next/navigation';
@@ -455,6 +455,7 @@ const ChatEnglish = ({
   const [hasStartedSpeaking, setHasStartedSpeaking] = useState(false);
   const streamingTextRef = useRef<string>("");
   const progressiveSpeechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [reasoningLogs, setReasoningLogs] = useState<string[]>([]);
   
   // Add state for manual speech playback
   const [isManualSpeech, setIsManualSpeech] = useState(false);
@@ -665,12 +666,38 @@ const ChatEnglish = ({
 
   // automatically scroll to bottom of chat
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const autoScrollRef = useRef(true);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
+  }, []);
+  const scheduleScrollToBottom = useCallback(
+    (behavior: ScrollBehavior = "smooth") => {
+      if (!autoScrollRef.current) return;
+      if (scrollTimeoutRef.current) return;
+      scrollTimeoutRef.current = setTimeout(() => {
+        scrollTimeoutRef.current = null;
+        scrollToBottom(behavior);
+      }, 120);
+    },
+    [scrollToBottom]
+  );
+  const handleMessagesScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const threshold = 120;
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    autoScrollRef.current = distanceFromBottom < threshold;
+  }, []);
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    scheduleScrollToBottom("smooth");
+  }, [messages, scheduleScrollToBottom]);
+  useEffect(() => () => {
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+  }, []);
 
   const triggerConversationAnalysis = useCallback(async (sessionId) => {
     try {
@@ -965,6 +992,13 @@ const updateUserBalance = async (value) => {
 
         if (event.type === "response.tutor.mode") {
           tutorMode = event.enabled;
+          if (event.enabled) {
+            setReasoningLogs((prev) =>
+              prev.includes("Switching to tutor mode for step-by-step guidance.")
+                ? prev
+                : [...prev, "Switching to tutor mode for step-by-step guidance."]
+            );
+          }
           continue;
         }
 
@@ -978,6 +1012,11 @@ const updateUserBalance = async (value) => {
             createdAssistantMessage = true;
           }
           sawDelta = true;
+          setReasoningLogs((prev) =>
+            prev.includes("Drafting a clear response.")
+              ? prev
+              : [...prev, "Drafting a clear response."]
+          );
           handleTextDelta({ value: event.delta });
           continue;
         }
@@ -989,6 +1028,11 @@ const updateUserBalance = async (value) => {
             handleTextCreated();
             createdAssistantMessage = true;
           }
+          setReasoningLogs((prev) =>
+            prev.includes("Finalizing the answer and double-checking details.")
+              ? prev
+              : [...prev, "Finalizing the answer and double-checking details."]
+          );
           if (event.tutorResponse) {
             setLastMessageTutorResponse(event.tutorResponse);
             continue;
@@ -1021,6 +1065,10 @@ const updateUserBalance = async (value) => {
 
   const sendMessage = async (text) => { 
     setImageProcessing(true);
+    setReasoningLogs([
+      "Understanding your request.",
+      "Reviewing relevant context and constraints.",
+    ]);
     
     // Notify parent component about user message for avatar interaction
     if (onUserMessage) {
@@ -1254,7 +1302,8 @@ const loadChatMessages = (chatId: string) => {
     setUserInput("");
     setInputDisabled(true);
     setIsThinking(true);
-    scrollToBottom();
+    autoScrollRef.current = true;
+    scheduleScrollToBottom("smooth");
   };
 
   /* Stream Event Handlers */
@@ -1266,6 +1315,11 @@ const loadChatMessages = (chatId: string) => {
     setHasStartedSpeaking(false); // Reset for new message
     streamingTextRef.current = "";
     setStreamingText("");
+    setReasoningLogs((prev) =>
+      prev.includes("Composing a structured response.")
+        ? prev
+        : [...prev, "Composing a structured response."]
+    );
     // Create a stable message id for this assistant message
     setCurrentAssistantMessageId(`${Date.now()}-${Math.random().toString(36).slice(2)}`);
     // If voice is enabled and we are currently speaking, stop to avoid overlap with the new message
@@ -1332,6 +1386,7 @@ const loadChatMessages = (chatId: string) => {
     setInputDisabled(false);
     setIsThinking(false);
     setIsDone(true);
+    setReasoningLogs([]);
     
     // Clear progressive speech timeout when stream ends
     if (progressiveSpeechTimeoutRef.current) {
@@ -1510,6 +1565,8 @@ const loadChatMessages = (chatId: string) => {
     setHasStartedSpeaking(false); // Reset progressive speech state
     setStreamingText("");
     streamingTextRef.current = "";
+    setReasoningLogs([]);
+    autoScrollRef.current = true;
     
     // Clear any pending progressive speech
     if (progressiveSpeechTimeoutRef.current) {
@@ -1547,7 +1604,12 @@ return (
         </button>
       )}
       <div className={styles.chatContainer}>
-        <div className={styles.messages} style={{direction:"ltr"}}>
+        <div
+          className={styles.messages}
+          style={{direction:"ltr"}}
+          ref={messagesContainerRef}
+          onScroll={handleMessagesScroll}
+        >
           {loadingMessages ? (
             <div className={styles.loadingIndicator}></div>
           ) : (
@@ -1605,6 +1667,18 @@ return (
               ))}
               {inputDisabled && (
                 <div className={styles.assistantMessage}>
+                  {reasoningLogs.length > 0 && (
+                    <div className={styles.reasoningPanel}>
+                      <div className={styles.reasoningTitle}>Thinking log</div>
+                      <ul className={styles.reasoningList}>
+                        {reasoningLogs.map((log, index) => (
+                          <li key={`${log}-${index}`} className={styles.reasoningItem}>
+                            {log}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   <div className={styles.typingIndicator}>
                     <div className={styles.dot}></div>
                     <div className={styles.dot}></div>
@@ -1693,7 +1767,7 @@ return (
                 aria-haspopup="true"
                 aria-expanded={isActionMenuOpen}
               >
-                <span className={styles.actionMenuIcon}>➕️</span>
+                <Plus className={styles.actionMenuIcon} size={16} strokeWidth={2.2} />
                 {selectedImage && <span className={styles.attachmentDot}></span>}
               </button>
 
@@ -1710,7 +1784,7 @@ return (
                     title="Get new SQL practice"
                     role="menuitem"
                   >
-                    <span className={styles.actionMenuItemIcon}>⭐️</span>
+                    <Sparkles className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
                     <span className={styles.actionMenuItemText}>SQL Practice</span>
                   </button>
 
@@ -1725,7 +1799,7 @@ return (
                     title="Attach image"
                     role="menuitem"
                   >
-                    <span className={styles.actionMenuItemIcon}>📎</span>
+                    <ImagePlus className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
                     <span className={styles.actionMenuItemText}>Attach image</span>
                   </button>
 
@@ -1739,7 +1813,7 @@ return (
                     title="Build SQL query"
                     role="menuitem"
                   >
-                    <span className={styles.actionMenuItemIcon}>🧩</span>
+                    <Braces className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
                     <span className={styles.actionMenuItemText}>SQL Builder</span>
                   </button>
 
@@ -1753,7 +1827,7 @@ return (
                     title="Visualize query"
                     role="menuitem"
                   >
-                    <span className={styles.actionMenuItemIcon}>📊</span>
+                    <BarChart3 className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
                     <span className={styles.actionMenuItemText}>Visualize query</span>
                   </button>
                 </div>
