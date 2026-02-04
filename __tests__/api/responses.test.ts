@@ -43,9 +43,7 @@ describe("Responses API routes", () => {
     mockGetOrCreateVectorStoreId.mockReset();
   });
 
-  it("creates a responses session with warmup response id", async () => {
-    mockCreateResponse.mockResolvedValue({ id: "resp_bootstrap_1" });
-
+  it("creates a responses session", async () => {
     const { POST } = await import("../../app/api/responses/sessions/route");
     const request = new Request("http://localhost:3000/api/responses/sessions", {
       method: "POST",
@@ -59,8 +57,8 @@ describe("Responses API routes", () => {
     expect(response.status).toBe(200);
     expect(payload.mode).toBe("responses");
     expect(payload.sessionId).toMatch(/^sess_/);
-    expect(payload.responseId).toBe("resp_bootstrap_1");
-    expect(mockCreateResponse).toHaveBeenCalledTimes(1);
+    expect(payload.responseId).toBeNull();
+    expect(payload.compatibility).toBe("responses_session");
   });
 
   it("returns validation error when no content or image is provided", async () => {

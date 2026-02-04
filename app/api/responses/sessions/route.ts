@@ -1,6 +1,5 @@
 import { randomUUID } from "crypto";
 
-import { createResponse } from "@/lib/openai/responses-client";
 import { getOpenAIApiMode } from "@/lib/openai/api-mode";
 
 export const runtime = "nodejs";
@@ -27,29 +26,13 @@ export async function POST(request: Request) {
   const mode = getOpenAIApiMode();
 
   try {
-    const body = await request.json().catch(() => ({}));
-    const metadata = body?.metadata ?? {};
+    await request.json().catch(() => ({}));
     const sessionId = `sess_${randomUUID()}`;
-
-    // Warmup call provides a deterministic response_id anchor for this session.
-    const warmup = await createResponse({
-      input: [
-        {
-          role: "user",
-          content: [{ type: "input_text", text: "Start a new session." }],
-        },
-      ],
-      metadata: {
-        ...metadata,
-        session_id: sessionId,
-        bootstrap: "true",
-      },
-    });
 
     return Response.json({
       mode,
       sessionId,
-      responseId: warmup.id,
+      responseId: null,
       compatibility: "responses_session",
     });
   } catch (error: any) {

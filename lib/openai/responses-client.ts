@@ -18,9 +18,29 @@ type CreateResponseInput = {
   toolChoice?: unknown;
   parallelToolCalls?: boolean | null;
   responseFormat?: unknown;
+  reasoning?: unknown;
 };
 
 type ToolCallHandler = (toolCall: ToolCallRequest) => Promise<string>;
+
+function normalizeTextFormat(format: unknown): unknown {
+  if (!format || typeof format !== "object") {
+    return format;
+  }
+
+  const candidate = format as Record<string, any>;
+  if (candidate.type === "json_schema" && candidate.json_schema) {
+    const schemaSpec = candidate.json_schema as Record<string, any>;
+    return {
+      type: "json_schema",
+      name: schemaSpec.name,
+      schema: schemaSpec.schema,
+      strict: schemaSpec.strict,
+    };
+  }
+
+  return format;
+}
 
 function normalizeToolChoice(toolChoice: unknown, tools: unknown[]): unknown {
   if (!toolChoice || typeof toolChoice !== "object") {
@@ -77,20 +97,28 @@ export async function createResponse(params: CreateResponseInput) {
     const tools = params.tools || runtimeConfig.tools;
     const toolChoice = normalizeToolChoice(params.toolChoice, tools);
 
-    const response = await (openai as any).responses.create({
+    const payload: Record<string, unknown> = {
       model,
       instructions,
       tools,
       tool_choice: toolChoice,
       parallel_tool_calls: params.parallelToolCalls,
-      response_format: params.responseFormat,
       input: params.input,
       previous_response_id: params.previousResponseId,
       metadata: {
         trace_id: traceId,
         ...(params.metadata || {}),
       },
-    });
+    };
+
+    if (typeof params.responseFormat !== "undefined") {
+      payload.text = { format: normalizeTextFormat(params.responseFormat) };
+    }
+    if (typeof params.reasoning !== "undefined") {
+      payload.reasoning = params.reasoning;
+    }
+
+    const response = await (openai as any).responses.create(payload);
 
     logAdapterEvent("info", "create_response.success", {
       traceId,
@@ -124,13 +152,12 @@ export async function streamResponse(params: CreateResponseInput) {
     const tools = params.tools || runtimeConfig.tools;
     const toolChoice = normalizeToolChoice(params.toolChoice, tools);
 
-    const stream = await (openai as any).responses.create({
+    const payload: Record<string, unknown> = {
       model,
       instructions,
       tools,
       tool_choice: toolChoice,
       parallel_tool_calls: params.parallelToolCalls,
-      response_format: params.responseFormat,
       input: params.input,
       previous_response_id: params.previousResponseId,
       stream: true,
@@ -138,7 +165,16 @@ export async function streamResponse(params: CreateResponseInput) {
         trace_id: traceId,
         ...(params.metadata || {}),
       },
-    });
+    };
+
+    if (typeof params.responseFormat !== "undefined") {
+      payload.text = { format: normalizeTextFormat(params.responseFormat) };
+    }
+    if (typeof params.reasoning !== "undefined") {
+      payload.reasoning = params.reasoning;
+    }
+
+    const stream = await (openai as any).responses.create(payload);
 
     logAdapterEvent("info", "stream_response.started", {
       traceId,

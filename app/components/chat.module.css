@@ -762,6 +762,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.6);
   border: 1px solid rgba(0, 51, 102, 0.12);
   font-weight: 500;
+  white-space: pre-wrap;
 }
 
 .userMessage:hover {
@@ -780,6 +781,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(0, 0, 0, 0.05); /* Even lighter border */
   backdrop-filter: blur(16px);
+  white-space: normal;
 }
 
 .assistantMessage:hover {
@@ -1364,7 +1366,12 @@
 .typingIndicator {
   display: flex;
   align-items: center;
-  padding: 12px 0;
+  gap: 4px;
+  padding: 6px 10px;
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.25);
   animation: fadeIn 0.3s ease-out;
 }
 
@@ -1377,37 +1384,35 @@
   }
 }
 
-.dot {
-  width: 8px;
-  height: 8px;
-  margin: 0 3px;
-  background: linear-gradient(135deg, #6c757d 0%, #8b949e 100%);
+.typingDot {
+  width: 5px;
+  height: 5px;
+  background: #64748b;
   border-radius: 50%;
-  animation: typing 1.4s infinite ease-in-out;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  opacity: 0.35;
+  animation: typingPulse 1.2s infinite ease-in-out;
 }
 
-.dot:nth-child(1) {
+.typingDot:nth-child(1) {
   animation-delay: 0s;
 }
 
-.dot:nth-child(2) {
+.typingDot:nth-child(2) {
   animation-delay: 0.2s;
 }
 
-.dot:nth-child(3) {
+.typingDot:nth-child(3) {
   animation-delay: 0.4s;
 }
 
-@keyframes typing {
-  0%, 60%, 100% {
-    transform: translateY(0);
-    opacity: 0.4;
+@keyframes typingPulse {
+  0%, 80%, 100% {
+    transform: scale(0.92);
+    opacity: 0.3;
   }
-  30% {
-    transform: translateY(-12px);
-    opacity: 1;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  40% {
+    transform: scale(1.15);
+    opacity: 0.95;
   }
 }
 
@@ -2011,7 +2016,9 @@
 }
 
 .actionMenuIcon {
-  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
 }
 
@@ -2058,13 +2065,129 @@
 }
 
 .actionMenuItemIcon {
-  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
+  color: #1f2937;
 }
 
 .actionMenuItemText {
   font-weight: 600;
   letter-spacing: 0.2px;
+}
+
+.reasoningPanel {
+  position: relative;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow:
+    0 8px 20px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  animation: reasoningPanelIn 0.35s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+@keyframes reasoningPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.reasoningToggle {
+  width: 100%;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  cursor: pointer;
+}
+
+.reasoningTitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.02em;
+}
+
+.reasoningChevron {
+  color: #475569;
+  transition: transform 0.2s ease;
+}
+
+.reasoningChevronCollapsed {
+  transform: rotate(-90deg);
+}
+
+.reasoningList {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reasoningItem {
+  font-size: 11px;
+  color: #334155;
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  line-height: 1.45;
+  animation: reasoningItemIn 0.3s ease-out both;
+}
+
+.reasoningItem::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0ea5e9, #2563eb);
+  flex-shrink: 0;
+  margin-top: 5px;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.14);
+}
+
+.reasoningItemStreaming {
+  color: #0f172a;
+}
+
+.reasoningItemStreaming::after {
+  content: "";
+  width: 1px;
+  height: 1em;
+  background: #0f172a;
+  margin-right: 4px;
+  animation: reasoningCaretBlink 0.9s steps(1, end) infinite;
+}
+
+@keyframes reasoningItemIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes reasoningCaretBlink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
 }
 
 /* Attachment Indicator Dot */

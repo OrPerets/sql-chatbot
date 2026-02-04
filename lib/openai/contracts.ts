@@ -54,6 +54,10 @@ export type SqlTutorResponse = {
 export type ResponseStreamEvent =
   | { type: "response.created"; responseId: string }
   | { type: "response.output_text.delta"; delta: string }
+  | { type: "response.reasoning_summary_text.delta"; delta: string }
+  | { type: "response.reasoning_summary_text.done"; text: string }
+  | { type: "response.tool_call.started"; name: string }
+  | { type: "response.tool_call.completed"; name: string }
   | {
       type: "response.completed";
       responseId: string;

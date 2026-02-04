@@ -1,6 +1,6 @@
 import { SHARED_TOOL_SCHEMAS } from "@/lib/openai/tools";
 
-const DEFAULT_MODEL = "gpt-4.1-mini";
+const DEFAULT_MODEL = "gpt-5-mini";
 
 export type AgentConfig = {
   model: string;
