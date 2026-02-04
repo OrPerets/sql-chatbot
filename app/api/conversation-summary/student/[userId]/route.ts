@@ -3,9 +3,10 @@ import { getStudentConversationSummaries, getStudentConversationInsights } from 
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  context: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const params = await context.params
     const { userId } = params
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '20')

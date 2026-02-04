@@ -8,10 +8,11 @@ import { getSubmissionsService } from '@/lib/submissions';
  * This is used by instructors during grading to see what data the student worked with
  */
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { submissionId: string } }
+  _request: NextRequest,
+  context: { params: Promise<{ submissionId: string }> }
 ) {
   try {
+    const params = await context.params
     const submissionId = params.submissionId;
     
     if (!submissionId) {
@@ -47,4 +48,3 @@ export async function GET(
     );
   }
 }
-

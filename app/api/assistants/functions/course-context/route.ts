@@ -1,12 +1,13 @@
 import { NextRequest } from 'next/server'
 import { getCurrentWeekContextNormalized, getWeekContextByNumberNormalized } from '@/lib/content'
-import { getAllowedConceptsForWeek, getForbiddenConceptsForWeek } from '@/lib/sql-curriculum'
+import { SQL_CURRICULUM_MAP, getAllowedConceptsForWeek, getForbiddenConceptsForWeek } from '@/lib/sql-curriculum'
 
 export const runtime = 'nodejs'
 
 type GetCourseWeekContextParams = {
   week?: number
 }
+const LAST_COURSE_WEEK = Math.max(...Object.keys(SQL_CURRICULUM_MAP).map((week) => Number(week)))
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,9 +38,13 @@ async function handleGetCourseWeekContext(params: GetCourseWeekContextParams) {
   const week = typeof params?.week === 'number' ? params.week : undefined
 
   try {
-    const payload = week
+    let payload = week
       ? await getWeekContextByNumberNormalized(week)
       : await getCurrentWeekContextNormalized(null)
+
+    if (!week && payload.weekNumber && payload.weekNumber > LAST_COURSE_WEEK) {
+      payload = await getWeekContextByNumberNormalized(LAST_COURSE_WEEK)
+    }
 
     const weekNumber = payload.weekNumber
     const allowedConcepts = weekNumber ? getAllowedConceptsForWeek(weekNumber) : []
@@ -125,5 +130,4 @@ async function handleListCourseWeekSummaries() {
     return new Response(out, { status: 500, headers: { 'Content-Type': 'text/plain' } })
   }
 }
-
 

@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getStudentProfilesService } from '@/lib/student-profiles'
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { studentId: string } }
+  _request: NextRequest,
+  context: { params: Promise<{ studentId: string }> }
 ) {
   try {
+    const params = await context.params
     const { studentId } = params
 
     if (!studentId) {

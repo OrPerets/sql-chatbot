@@ -3,12 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import styles from "./chat.module.css";
 import "./mobile-optimizations.css";
-import { AssistantStream } from "openai/lib/AssistantStream";
 import Markdown from "react-markdown";
-// @ts-expect-error - no types for this yet
-import { AssistantStreamEvent } from "openai/resources/beta/assistants/assistants";
-import { RequiredActionFunctionToolCall } from "openai/resources/beta/threads/runs/runs";
-import { ThumbsUp, ThumbsDown, ClipboardCopy } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ClipboardCopy, Plus, Sparkles, ImagePlus, Braces, BarChart3, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import Sidebar from './sidebar';
 import { useRouter } from 'next/navigation';
@@ -27,9 +23,8 @@ import StaticLogoMode from "./StaticLogoMode";
 // import AvatarInteractionManager from "./AvatarInteractionManager";
 import { analyzeMessage } from "../utils/sql-query-analyzer";
 // import { avatarAnalytics } from "../utils/avatar-analytics";
-import OpenAI from "openai";
 import PracticeModal from "./PracticeModal";
-import SqlQueryBuilder from "./SqlQueryBuilder/SqlQueryBuilder";
+import type { ResponseStreamEvent, SqlTutorResponse } from "@/lib/openai/contracts";
 
 export const maxDuration = 50;
 
@@ -40,9 +35,28 @@ const UPDATE_BALANCE = "/api/users/balance";
 type MessageProps = {
   role: "user" | "assistant" | "code";
   text: string;
-  feedback: "like" | "dislike" | null;
+  feedback?: "like" | "dislike" | null;
   onFeedback?: (feedback: "like" | "dislike" | null) => void;
   hasImage?: boolean;
+  tutorResponse?: SqlTutorResponse | null;
+};
+
+type ClientFunctionToolCall = {
+  id?: string;
+  function: {
+    name: string;
+    arguments: string;
+  };
+};
+
+type StreamFailureKind = "tool_timeout" | "invalid_function_args" | "stream_interruption" | "generic";
+
+type ChatMessage = {
+  role: "user" | "assistant" | "code";
+  text: string;
+  feedback?: "like" | "dislike" | null;
+  hasImage?: boolean;
+  tutorResponse?: SqlTutorResponse | null;
 };
 
 // Add these types
@@ -79,7 +93,21 @@ type HomeworkChatContext = {
 const UserMessage = ({ text }: { text: string }) => {
   return <div className={styles.userMessage}>{text}</div>;
 };
-const AssistantMessage = ({ text, feedback, onFeedback, autoPlaySpeech, onPlayMessage }: { text: string; feedback: "like" | "dislike" | null; onFeedback?: (feedback: "like" | "dislike" | null) => void; autoPlaySpeech?: boolean; onPlayMessage?: () => void }) => {
+const AssistantMessage = ({
+  text,
+  feedback = null,
+  onFeedback,
+  tutorResponse,
+  autoPlaySpeech,
+  onPlayMessage,
+}: {
+  text: string;
+  feedback: "like" | "dislike" | null;
+  onFeedback?: (feedback: "like" | "dislike" | null) => void;
+  tutorResponse?: SqlTutorResponse | null;
+  autoPlaySpeech?: boolean;
+  onPlayMessage?: () => void;
+}) => {
   const [activeFeedback, setActiveFeedback] = useState(feedback);
   const [showTooltip, setShowTooltip] = useState(false);
   const [showPlayTooltip, setShowPlayTooltip] = useState(false);  // Separate state for play button tooltip
@@ -87,6 +115,15 @@ const AssistantMessage = ({ text, feedback, onFeedback, autoPlaySpeech, onPlayMe
   const [copied, setCopied] = useState(false);  // Tooltip state
   const [copiedText, setCopiedText] =  useState("העתק שאילתה")
   const [playTooltipText, setPlayTooltipText] = useState("השמע הודעה זו");
+  const compactText = useMemo(() => {
+    const segments = text.split(/(```[\s\S]*?```)/g);
+    return segments
+      .map((segment) => {
+        if (segment.startsWith("```")) return segment;
+        return segment.replace(/\n{3,}/g, "\n\n");
+      })
+      .join("");
+  }, [text]);
 
 
   const handleLike = () => {
@@ -207,6 +244,28 @@ const renderers = {
     );
   },
 };
+
+  const renderTutorSection = (title: string, content: string) => (
+    <div className={styles.tutorSection}>
+      <h4 className={styles.tutorSectionTitle}>{title}</h4>
+      <Markdown components={renderers}>{content}</Markdown>
+    </div>
+  );
+
+  const renderTutorResponse = (response: SqlTutorResponse) => {
+    const mistakes =
+      response.commonMistakes?.length > 0
+        ? response.commonMistakes.map((mistake) => `- ${mistake}`).join("\n")
+        : "—";
+    return (
+      <div className={styles.tutorResponse}>
+        {renderTutorSection("שאילתה", `\`\`\`sql\n${response.query}\n\`\`\``)}
+        {renderTutorSection("הסבר", response.explanation || "—")}
+        {renderTutorSection("טעויות נפוצות", mistakes)}
+        {renderTutorSection("אופטימיזציה", response.optimization || "—")}
+      </div>
+    );
+  };
 const copyQueryToClipboard = (text) => {
   // Regular expression to find SQL queries within ```sql ... ``` blocks
   const sqlRegex = /```sql\s*([\s\S]*?)\s*```/gi; 
@@ -236,10 +295,14 @@ const copyQueryToClipboard = (text) => {
         console.error("Failed to copy:", error);
       });
 };
+  const copyTextSource = tutorResponse
+    ? `\`\`\`sql\n${tutorResponse.query}\n\`\`\``
+    : text;
+
   return (
     <div className={styles.assistantMessage}>
       <div className={styles.messageContent}>
-        <Markdown components={renderers}>{text}</Markdown>
+        {tutorResponse ? renderTutorResponse(tutorResponse) : <Markdown components={renderers}>{compactText}</Markdown>}
       </div>
       <div className={styles.feedbackButtons}>
         {!autoPlaySpeech && (
@@ -277,7 +340,7 @@ const copyQueryToClipboard = (text) => {
           {activeFeedback === "dislike" ? <ThumbsDown width="80%" height="80%" color="red" fill="red" /> : <ThumbsDown width="80%" height="80%" />}
         </button>
         <button
-          onClick={() => copyQueryToClipboard(text)} // Keep this for general copying
+          onClick={() => copyQueryToClipboard(copyTextSource)} // Keep this for general copying
           className={`${styles.feedbackButton} ${styles.copyButton}`}
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
@@ -305,12 +368,30 @@ const CodeMessage = ({ text }: { text: string }) => {
   );
 };
 
-const Message = ({ role, text, feedback, onFeedback, hasImage, autoPlaySpeech, onPlayMessage }: MessageProps & { autoPlaySpeech?: boolean; onPlayMessage?: () => void }) => {
+const Message = ({
+  role,
+  text,
+  feedback,
+  onFeedback,
+  hasImage,
+  tutorResponse,
+  autoPlaySpeech,
+  onPlayMessage,
+}: MessageProps & { autoPlaySpeech?: boolean; onPlayMessage?: () => void }) => {
   switch (role) {
     case "user":
       return <UserMessage text={text} />;
     case "assistant":
-      return <AssistantMessage text={text} feedback={feedback} onFeedback={onFeedback} autoPlaySpeech={autoPlaySpeech} onPlayMessage={onPlayMessage} />;
+      return (
+        <AssistantMessage
+          text={text}
+          feedback={feedback}
+          onFeedback={onFeedback}
+          tutorResponse={tutorResponse}
+          autoPlaySpeech={autoPlaySpeech}
+          onPlayMessage={onPlayMessage}
+        />
+      );
     case "code":
       return <CodeMessage text={text} />;
     default:
@@ -320,7 +401,7 @@ const Message = ({ role, text, feedback, onFeedback, hasImage, autoPlaySpeech, o
 
 type ChatProps = {
   functionCallHandler?: (
-    toolCall: RequiredActionFunctionToolCall
+    toolCall: ClientFunctionToolCall
   ) => Promise<string>;
   chatId: string | null;
   onUserMessage?: (message: string) => void;
@@ -343,15 +424,19 @@ const Chat = ({
   homeworkContext = null,
   embeddedMode = false,
 }: ChatProps) => {
+  void functionCallHandler;
   const [userInput, setUserInput] = useState("");
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputDisabled, setInputDisabled] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imageProcessing, setImageProcessing] = useState(false);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
-  const [threadId, setThreadId] = useState("");
+  const [sessionId, setSessionId] = useState("");
+  const [previousResponseId, setPreviousResponseId] = useState("");
+  const sessionIdRef = useRef("");
+  const createSessionPromiseRef = useRef<Promise<string> | null>(null);
   const [user, setUser] = useState(null);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
@@ -368,10 +453,13 @@ const Chat = ({
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [currentBalance, setCurrentBalance] = useState(0);
   const [balanceError, setBalanceError] = useState(false);
+  const [streamError, setStreamError] = useState<string | null>(null);
   const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false); // Add loading state
-  // Add SQL Query Builder state
-  const [sqlBuilderOpen, setSqlBuilderOpen] = useState(false);
+  const [sqlTutorModalOpen, setSqlTutorModalOpen] = useState(false);
+  const [sqlTutorOperation, setSqlTutorOperation] = useState<"create" | "insert">("create");
+  const [sqlTutorTableName, setSqlTutorTableName] = useState("");
+  const [sqlTutorColumns, setSqlTutorColumns] = useState("");
   // Add audio and speech state
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
   const [autoPlaySpeech, setAutoPlaySpeech] = useState(false);
@@ -437,7 +525,7 @@ const Chat = ({
       if (savedAvatarMode === 'voice' || savedAvatarMode === 'avatar') {
         setAvatarMode(savedAvatarMode);
       }
-      
+
       setIsHydrated(true);
     }
   }, []);
@@ -448,6 +536,7 @@ const Chat = ({
       localStorage.setItem('displayMode', displayMode);
     }
   }, [displayMode, isHydrated]);
+
   // Add sidebar visibility state
   // Check if we're on mobile to default sidebar to closed
   const [sidebarVisible, setSidebarVisible] = useState(() => {
@@ -481,6 +570,11 @@ const Chat = ({
   const [hasStartedSpeaking, setHasStartedSpeaking] = useState(false);
   const streamingTextRef = useRef<string>("");
   const progressiveSpeechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [reasoningLogs, setReasoningLogs] = useState<string[]>([]);
+  const [reasoningDraft, setReasoningDraft] = useState("");
+  const [isReasoningCollapsed, setIsReasoningCollapsed] = useState(false);
+  const reasoningDraftRef = useRef("");
+  const tutorRawResponseRef = useRef("");
   
   // Add state for manual speech playback
   const [isManualSpeech, setIsManualSpeech] = useState(false);
@@ -598,10 +692,44 @@ const Chat = ({
       setShowModal(!showModal);
     };
 
-  // Handle SQL Query Builder
-  const handleQueryGenerated = (query: string) => {
-    setUserInput(prev => prev + (prev ? '\n' : '') + query);
-    setSqlBuilderOpen(false);
+  const resetSqlTutorForm = () => {
+    setSqlTutorOperation("create");
+    setSqlTutorTableName("");
+    setSqlTutorColumns("");
+  };
+
+  const closeSqlTutorModal = () => {
+    setSqlTutorModalOpen(false);
+    resetSqlTutorForm();
+  };
+
+  const buildSqlTutorRequest = () => {
+    const tableName = sqlTutorTableName.trim();
+    const normalizedColumns = sqlTutorColumns
+      .split(/\n|,/)
+      .map((col) => col.trim())
+      .filter(Boolean)
+      .join(", ");
+
+    if (!tableName || !normalizedColumns) return "";
+
+    if (sqlTutorOperation === "create") {
+      return [
+        "Michael, provide only SQL (no explanation).",
+        "I need a CREATE TABLE statement.",
+        `Table name: ${tableName}`,
+        `Columns: ${normalizedColumns}`,
+        "If a column type is missing, choose a sensible SQL type. Do not use CHECK constraints."
+      ].join("\n");
+    }
+
+    return [
+      "Michael, provide only SQL (no explanation).",
+      "I need an INSERT statement.",
+      `Table name: ${tableName}`,
+      `Columns: ${normalizedColumns}`,
+      "Use one realistic sample row of values matching the columns. Do not use CHECK constraints."
+    ].join("\n");
   };
 
   // Handle audio transcription
@@ -745,12 +873,211 @@ const Chat = ({
 
   // automatically scroll to bottom of chat
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const autoScrollRef = useRef(true);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previousScrollTopRef = useRef(0);
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
+  }, []);
+  const scheduleScrollToBottom = useCallback(
+    (behavior: ScrollBehavior = "smooth") => {
+      if (!autoScrollRef.current) return;
+      if (scrollTimeoutRef.current) return;
+      scrollTimeoutRef.current = setTimeout(() => {
+        scrollTimeoutRef.current = null;
+        const container = messagesContainerRef.current;
+        if (!container) return;
+        const threshold = 120;
+        const distanceFromBottom =
+          container.scrollHeight - container.scrollTop - container.clientHeight;
+        if (distanceFromBottom >= threshold) {
+          autoScrollRef.current = false;
+          return;
+        }
+        scrollToBottom(behavior);
+      }, 120);
+    },
+    [scrollToBottom]
+  );
+  const handleMessagesScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const didScrollUp = container.scrollTop < previousScrollTopRef.current;
+    previousScrollTopRef.current = container.scrollTop;
+    if (didScrollUp) {
+      autoScrollRef.current = false;
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = null;
+      }
+      return;
+    }
+    const threshold = 120;
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    autoScrollRef.current = distanceFromBottom < threshold;
+    if (!autoScrollRef.current && scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = null;
+    }
+  }, []);
+  const handleMessagesWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
+    if (event.deltaY < 0) {
+      autoScrollRef.current = false;
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = null;
+      }
+    }
+  }, []);
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    scheduleScrollToBottom("smooth");
+  }, [messages, scheduleScrollToBottom]);
+  useEffect(() => () => {
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+  }, []);
+
+  const normalizeReasoningText = useCallback((rawText: string) => {
+    let text = rawText.trim();
+    if (!text) return "";
+
+    if (text.startsWith("{") || text.startsWith("[")) {
+      const hasClosedJson = text.endsWith("}") || text.endsWith("]");
+      if (!hasClosedJson) return "מעדכן את ההתקדמות...";
+    }
+
+    if ((text.startsWith("{") && text.endsWith("}")) || (text.startsWith("[") && text.endsWith("]"))) {
+      try {
+        const parsed = JSON.parse(text) as unknown;
+        if (typeof parsed === "string") {
+          text = parsed.trim();
+        } else if (Array.isArray(parsed)) {
+          const firstItem = parsed.find((item) => typeof item === "string");
+          text = typeof firstItem === "string" ? firstItem.trim() : "מעדכן את ההתקדמות...";
+        } else if (parsed && typeof parsed === "object") {
+          const parsedRecord = parsed as Record<string, unknown>;
+          const candidate =
+            (typeof parsedRecord.summary === "string" && parsedRecord.summary) ||
+            (typeof parsedRecord.message === "string" && parsedRecord.message) ||
+            (typeof parsedRecord.step === "string" && parsedRecord.step) ||
+            (typeof parsedRecord.reasoning === "string" && parsedRecord.reasoning) ||
+            (typeof parsedRecord.text === "string" && parsedRecord.text);
+          text = (candidate ?? "מעדכן את ההתקדמות...").trim();
+        }
+      } catch {
+        text = "מעדכן את ההתקדמות...";
+      }
+    }
+
+    const normalized = text
+      .replace(/^\s*[-*]\s*/g, "")
+      .replace(/tool call/giu, "שלב עיבוד")
+      .replace(/calling tool/giu, "אוסף מידע רלוונטי")
+      .replace(/using tool/giu, "נעזר במידע רלוונטי")
+      .replace(/function call/giu, "שלב בדיקה")
+      .replace(/checking schema|schema check/giu, "בודק את מבנה הנתונים כדי לדייק את הפתרון")
+      .replace(/running query|execute query/giu, "בודק את השאילתה כדי לוודא תוצאה נכונה")
+      .replace(/course week|curriculum context/giu, "מוודא שההסבר מתאים לחומר שנלמד")
+      .replace(/tool completed|tool call completed/giu, "המידע נקלט, ממשיך בתשובה")
+      .replace(/analy(?:s|z)ing (your )?request/giu, "מנתח את הבקשה")
+      .replace(/thinking|reasoning/giu, "מחשב את הדרך הטובה ביותר לענות")
+      .replace(/generating (the )?response/giu, "מנסח תשובה")
+      .replace(/finalizing|polishing/giu, "מסיים ומלטש את התשובה")
+      .replace(/^\s*step\s*\d*[:.-]?\s*/giu, "שלב: ")
+      .trim();
+
+    if (/[A-Za-z]/.test(normalized) && !/[\u0590-\u05FF]/.test(normalized)) {
+      const english = normalized.toLowerCase();
+
+      if (english.includes("explaining sql query structure")) {
+        return "מפרק את מבנה השאילתה: טבלאות, קשרים וסוגי JOIN מתאימים.";
+      }
+
+      if (english.includes("identifying common sql mistakes")) {
+        return "מאתר טעויות SQL נפוצות כדי לעזור לך להימנע מהן.";
+      }
+
+      if (english.includes("preparing a step-by-step explanation")) {
+        return "מארגן הסבר מסודר שלב-אחר-שלב שיהיה קל ליישם.";
+      }
+
+      if (english.includes("inner join") || english.includes("left join") || english.includes("join")) {
+        return "בודק איזה JOIN יתן את התוצאה הנכונה בהתאם לקשרים בין הטבלאות.";
+      }
+
+      if (english.includes("where") && english.includes("on")) {
+        return "מדייק את תנאי הסינון כדי שהתוצאה תהיה נכונה וברורה.";
+      }
+
+      if (english.includes("performance") || english.includes("index")) {
+        return "בודק גם ביצועים כדי להציע ניסוח יעיל יותר לשאילתה.";
+      }
+
+      if (english.includes("test") || english.includes("dataset") || english.includes("duplicate")) {
+        return "מריץ בדיקה לוגית על הדוגמה כדי לוודא שאין כפילויות או חריגות.";
+      }
+
+      return "מעבד את הבקשה ומרכיב עבורך הסבר ברור.";
+    }
+
+    return normalized || "מעדכן את ההתקדמות...";
+  }, []);
+
+  const getToolProgressLog = useCallback((toolName: string, phase: "started" | "completed") => {
+    const key = (toolName || "").trim().toLowerCase();
+    const toolCopy: Record<string, { started: string; completed: string }> = {
+      get_course_week_context: {
+        started: "בודק את ההקשר של החומר שנלמד כדי לבנות תשובה מתאימה.",
+        completed: "ההקשר הלימודי ברור, ממשיך לפתרון המדויק עבורך.",
+      },
+      get_database_schema: {
+        started: "בודק את מבנה הטבלאות והעמודות כדי לדייק את השאילתה.",
+        completed: "מבנה הנתונים ברור, משלב את זה בהסבר פשוט עבורך.",
+      },
+      execute_sql_query: {
+        started: "מריץ בדיקה מהירה על השאילתה כדי לוודא שהתוצאה נכונה.",
+        completed: "הבדיקה הסתיימה, משלב את הממצאים בתשובה הסופית.",
+      },
+      analyze_query_performance: {
+        started: "בודק יעילות וביצועים כדי להציע גרסה טובה יותר לשאילתה.",
+        completed: "ניתוח הביצועים מוכן, מוסיף המלצות שיפור ברורות.",
+      },
+    };
+
+    const fallback =
+      phase === "started"
+        ? "אוסף מידע רלוונטי כדי לדייק עבורך את התשובה."
+        : "המידע נאסף, מסכם לך אותו בצורה ברורה.";
+
+    return toolCopy[key]?.[phase] || fallback;
+  }, []);
+
+  const addReasoningLog = useCallback((log: string) => {
+    const trimmed = normalizeReasoningText(log);
+    if (!trimmed) return;
+    setReasoningLogs((prev) => {
+      const lastLog = prev[prev.length - 1];
+      if (lastLog === trimmed) return prev;
+      return [...prev, trimmed];
+    });
+  }, [normalizeReasoningText]);
+
+  const appendReasoningDelta = useCallback((delta: string) => {
+    if (!delta) return;
+    reasoningDraftRef.current += delta;
+    setReasoningDraft(normalizeReasoningText(reasoningDraftRef.current));
+  }, [normalizeReasoningText]);
+
+  const flushReasoningDraft = useCallback(() => {
+    const trimmed = reasoningDraftRef.current.trim();
+    if (trimmed) {
+      addReasoningLog(trimmed);
+    }
+    reasoningDraftRef.current = "";
+    setReasoningDraft("");
+  }, [addReasoningLog]);
 
   const triggerConversationAnalysis = useCallback(async (sessionId) => {
     try {
@@ -872,6 +1199,10 @@ const updateUserBalance = async (value) => {
   }
 
   useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
+
+  useEffect(() => {
     const storedUser = getStoredUser();
     if (storedUser) {
       setUser(storedUser);
@@ -884,17 +1215,48 @@ const updateUserBalance = async (value) => {
     setUser(null);
   }, [embeddedMode, getStoredUser]);
 
-  // create a new threadID when chat component created
-  useEffect(() => {
-    const createThread = async () => {
-      const res = await fetch(`/api/assistants/threads`, {
+  const createSession = useCallback(async (forceNew = false) => {
+    if (!forceNew) {
+      if (sessionIdRef.current) {
+        return sessionIdRef.current;
+      }
+      if (createSessionPromiseRef.current) {
+        return createSessionPromiseRef.current;
+      }
+    }
+
+    const promise = (async () => {
+      const res = await fetch(`/api/responses/sessions`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
       });
       const data = await res.json();
-      setThreadId(data.threadId);
-    };
-    createThread();
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to create responses session");
+      }
+
+      const nextSessionId = data.sessionId || "";
+      sessionIdRef.current = nextSessionId;
+      setSessionId(nextSessionId);
+      setPreviousResponseId(data.responseId || "");
+      return nextSessionId;
+    })().finally(() => {
+      createSessionPromiseRef.current = null;
+    });
+
+    createSessionPromiseRef.current = promise;
+    return promise;
   }, []);
+
+  useEffect(() => {
+    createSession().catch((error) => {
+      console.error("Failed to create responses session:", error);
+      setStreamError("לא הצלחנו לפתוח סשן צ'אט חדש. נסו לרענן את הדף.");
+    });
+  }, [createSession]);
 
   // Cleanup speech and typing detection on unmount
   useEffect(() => {
@@ -985,8 +1347,164 @@ const updateUserBalance = async (value) => {
     }
   }, [enableAnalytics]);
 
-  const sendMessage = async (text) => { 
+  const classifyStreamFailure = (message?: string): StreamFailureKind => {
+    const normalized = (message || "").toLowerCase();
+    if (normalized.includes("timeout") || normalized.includes("timed out")) {
+      return "tool_timeout";
+    }
+    if (normalized.includes("invalid") && normalized.includes("arg")) {
+      return "invalid_function_args";
+    }
+    return "generic";
+  };
+
+  const renderStreamFailureMessage = (kind: StreamFailureKind) => {
+    if (kind === "tool_timeout") {
+      return "המערכת חרגה מזמן ההמתנה בזמן הפעלת כלי. נסו שוב או נסחו שאלה קצרה יותר.";
+    }
+    if (kind === "invalid_function_args") {
+      return "התרחשה שגיאה בפרמטרים של כלי פנימי. נסו לנסח מחדש את הבקשה.";
+    }
+    if (kind === "stream_interruption") {
+      return "החיבור לזרם התשובה נותק באמצע. נסו לשלוח שוב.";
+    }
+    return "אירעה שגיאה בעת יצירת התשובה. נסו שוב בעוד רגע.";
+  };
+
+  const ensureResponseSession = useCallback(async () => {
+    if (sessionIdRef.current) return sessionIdRef.current;
+    return createSession();
+  }, [createSession]);
+
+  const consumeResponseStream = async (stream: ReadableStream<Uint8Array>) => {
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let sawCompleted = false;
+    let sawDelta = false;
+    let createdAssistantMessage = false;
+    let tutorMode = false;
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        let event: ResponseStreamEvent | null = null;
+        try {
+          event = JSON.parse(line) as ResponseStreamEvent;
+        } catch {
+          continue;
+        }
+
+        if (event.type === "response.created") {
+          if (event.responseId) setPreviousResponseId(event.responseId);
+          continue;
+        }
+
+        if (event.type === "response.tutor.mode") {
+          tutorMode = event.enabled;
+          if (event.enabled) {
+            addReasoningLog("מכין הסבר ברור ומסודר לפי הבקשה שלך...");
+          }
+          continue;
+        }
+
+        if (event.type === "response.reasoning_summary_text.delta") {
+          appendReasoningDelta(event.delta);
+          continue;
+        }
+
+        if (event.type === "response.reasoning_summary_text.done") {
+          if (reasoningDraftRef.current.trim()) {
+            flushReasoningDraft();
+          } else if (event.text) {
+            addReasoningLog(event.text);
+          }
+          continue;
+        }
+
+        if (event.type === "response.tool_call.started") {
+          flushReasoningDraft();
+          addReasoningLog(getToolProgressLog(event.name, "started"));
+          continue;
+        }
+
+        if (event.type === "response.tool_call.completed") {
+          addReasoningLog(getToolProgressLog(event.name, "completed"));
+          continue;
+        }
+
+        if (event.type === "response.output_text.delta") {
+          if (!createdAssistantMessage) {
+            handleTextCreated();
+            createdAssistantMessage = true;
+            setIsReasoningCollapsed(true);
+          }
+          sawDelta = true;
+          if (tutorMode) {
+            tutorRawResponseRef.current += event.delta;
+            setLastAssistantMessageText(buildTutorPreviewFromRaw(tutorRawResponseRef.current));
+            continue;
+          }
+          handleTextDelta({ value: event.delta });
+          continue;
+        }
+
+        if (event.type === "response.completed") {
+          sawCompleted = true;
+          if (event.responseId) setPreviousResponseId(event.responseId);
+          if (!createdAssistantMessage) {
+            handleTextCreated();
+            createdAssistantMessage = true;
+          }
+          flushReasoningDraft();
+          setIsReasoningCollapsed(true);
+          if (event.tutorResponse) {
+            await setLastMessageTutorResponse(event.tutorResponse, true);
+            continue;
+          }
+          if (!sawDelta && event.outputText) {
+            await appendToLastMessageProgressively(event.outputText);
+          }
+          continue;
+        }
+
+        if (event.type === "response.error") {
+          flushReasoningDraft();
+          const failureKind = classifyStreamFailure(event.message);
+          const failureText = renderStreamFailureMessage(failureKind);
+          setStreamError(failureText);
+          appendMessage("assistant", failureText);
+          endStreamResponse();
+          return;
+        }
+      }
+    }
+
+    if (!sawCompleted) {
+      flushReasoningDraft();
+      const failureText = renderStreamFailureMessage("stream_interruption");
+      setStreamError(failureText);
+      appendMessage("assistant", failureText);
+    }
+
+    endStreamResponse();
+  };
+
+  const sendMessage = async (text, image: File | null = selectedImage) => { 
     setImageProcessing(true);
+    setIsReasoningCollapsed(false);
+    setReasoningLogs([]);
+    reasoningDraftRef.current = "";
+    tutorRawResponseRef.current = "";
+    setReasoningDraft("");
     
     // Notify parent component about user message for avatar interaction
     if (onUserMessage) {
@@ -1025,7 +1543,11 @@ const updateUserBalance = async (value) => {
       }
     }
     
-    // Message text is used as-is (SQL queries are now added directly by SqlQueryBuilder)
+    const thinkingIntentPattern =
+      /\b(think|thinking|reason|reasoning|analyze|analysis|step by step)\b|חשיבה|תחשוב|לחשוב|תהליך חשיבה/iu;
+    const hasThinkingIntent = thinkingIntentPattern.test(text);
+
+    // Message text is used as-is.
     let messageWithTags = text;
 
     if (formattedHomeworkContext) {
@@ -1034,9 +1556,9 @@ const updateUserBalance = async (value) => {
 
     // Process image if one is selected
     let imageData = null;
-    if (selectedImage) {
+    if (image) {
       try {
-        imageData = await fileToBase64(selectedImage);
+        imageData = await fileToBase64(image);
       } catch (error) {
         console.error("Error converting image to base64:", error);
         setImageProcessing(false);
@@ -1108,16 +1630,27 @@ const updateUserBalance = async (value) => {
       }
     }
     
+    setStreamError(null);
+
     // saveToDatabase(text, "user");
     try {
+      const activeSessionId = await ensureResponseSession();
       const response = await fetch(
-        `/api/assistants/threads/${threadId}/messages`,
+        `/api/responses/messages`,
         {
           method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({
+            sessionId: activeSessionId,
+            previousResponseId: previousResponseId || undefined,
             content: messageWithTags, // Send message with tags to AI
             imageData: imageData, // Send image data if available
             homeworkRunner: !!homeworkContext, // Allow all SQL (subqueries, CONCAT, ALL, TOP) in homework
+            tutorMode: hasThinkingIntent,
+            thinkingMode: hasThinkingIntent,
+            stream: true,
           }),
         }
       );
@@ -1140,29 +1673,51 @@ const updateUserBalance = async (value) => {
         setImageProcessing(false);
         return;
       }
-      
-      const stream = AssistantStream.fromReadableStream(response.body);
-      handleReadableStream(stream);
-      
-      // Handle stream errors
-      stream.on("error", (error) => {
-        console.error('❌ Stream error:', error);
-        // Don't show error message if we already have content
-        setInputDisabled(false);
-        setIsThinking(false);
-        setIsDone(true);
-      });
+
+      await consumeResponseStream(response.body);
     } catch (error) {
       console.error('❌ Error in sendMessage:', error);
-      appendMessage("assistant", "מצטער, הייתה שגיאה בתקשורת. נסה לרענן את הדף (Ctrl+Shift+R).");
+      const failureText = renderStreamFailureMessage("stream_interruption");
+      setStreamError(failureText);
+      appendMessage("assistant", failureText);
       setInputDisabled(false);
       setIsThinking(false);
+      setIsDone(true);
     }
 
     // Reset image after sending
     setSelectedImage(null);
     setImageProcessing(false);
 
+  };
+
+  const submitMessage = (messageText: string, displayText?: string, image: File | null = null) => {
+    const trimmed = messageText.trim();
+    if (!trimmed) return;
+
+    if (userTypingTimeoutRef.current) {
+      clearTimeout(userTypingTimeoutRef.current);
+    }
+    setIsUserTyping(false);
+    console.log('📤 User submitted message, clearing typing state');
+
+    sendMessage(trimmed, image);
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      { role: "user", text: displayText ?? trimmed, hasImage: !!image },
+    ]);
+    setUserInput("");
+    setInputDisabled(true);
+    setIsThinking(true);
+    autoScrollRef.current = true;
+    scheduleScrollToBottom("smooth");
+  };
+
+  const handleSqlTutorRequest = () => {
+    const prompt = buildSqlTutorRequest();
+    if (!prompt || inputDisabled || imageProcessing) return;
+    closeSqlTutorModal();
+    submitMessage(prompt);
   };
 
   const keepOneInstance = (arr, key) => {
@@ -1200,34 +1755,9 @@ const loadChatMessages = (chatId: string) => {
   })  
 };
 
-  const submitActionResult = async (runId, toolCallOutputs) => {
-    const response = await fetch(
-      `/api/assistants/threads/${threadId}/actions`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          runId: runId,
-          toolCallOutputs: toolCallOutputs,
-        }),
-      }
-    );
-    const stream = AssistantStream.fromReadableStream(response.body);
-    handleReadableStream(stream);
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!userInput.trim() && !selectedImage) return;
-    
-    // Clear typing state when user submits message
-    if (userTypingTimeoutRef.current) {
-      clearTimeout(userTypingTimeoutRef.current);
-    }
-    setIsUserTyping(false);
-    console.log('📤 User submitted message, clearing typing state');
     
     // Display message with image info if present
     const displayText = selectedImage 
@@ -1240,16 +1770,7 @@ const loadChatMessages = (chatId: string) => {
       return;
     }
     
-    sendMessage(userInput);
-    // Always show the user message in the UI, regardless of balance
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      { role: "user", text: displayText, hasImage: !!selectedImage },
-    ]);
-    setUserInput("");
-    setInputDisabled(true);
-    setIsThinking(true);
-    scrollToBottom();
+    submitMessage(userInput, displayText, selectedImage);
   };
 
   /* Stream Event Handlers */
@@ -1260,6 +1781,7 @@ const loadChatMessages = (chatId: string) => {
     setIsThinking(false); // Stop thinking when assistant starts responding
     setHasStartedSpeaking(false); // Reset for new message
     streamingTextRef.current = "";
+    tutorRawResponseRef.current = "";
     setStreamingText("");
     // Create a stable message id for this assistant message
     setCurrentAssistantMessageId(`${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -1293,47 +1815,29 @@ const loadChatMessages = (chatId: string) => {
     }
   };
 
-  // imageFileDone - show image in chat
-  const handleImageFileDone = (image) => {
-    appendToLastMessage(`\n![${image.file_id}](/api/files/${image.file_id})\n`);
-  }
-
-  // toolCallCreated - log new tool call
-  const toolCallCreated = (toolCall) => {
-    if (toolCall.type != "code_interpreter") return;
-    appendMessage("code", "");
-  };
-
-  // toolCallDelta - log delta and snapshot for the tool call
-  const toolCallDelta = (delta, snapshot) => {
-    if (delta.type != "code_interpreter") return;
-    if (!delta.code_interpreter.input) return;
-    appendToLastMessage(delta.code_interpreter.input);
-  };
-
-  // handleRequiresAction - handle function call
-  const handleRequiresAction = async (
-    event: AssistantStreamEvent.ThreadRunRequiresAction
-  ) => {
-    const runId = event.data.id;
-    const toolCalls = event.data.required_action.submit_tool_outputs.tool_calls;
-    // loop over tool calls and call function handler
-    const toolCallOutputs = await Promise.all(
-      toolCalls.map(async (toolCall) => {
-        const result = await functionCallHandler(toolCall);
-        return { output: result, tool_call_id: toolCall.id };
-      })
-    );
-    setInputDisabled(true);
-    setIsThinking(true); // Set thinking when processing tool calls
-    submitActionResult(runId, toolCallOutputs);
-  };
-
-  // handleRunCompleted - re-enable the input form
-  const handleRunCompleted = () => {
-    setInputDisabled(false);
-    setIsThinking(false); // Stop thinking when run is completed
-  };
+  const appendToLastMessageProgressively = useCallback(
+    async (text: string) => {
+      if (!text) return;
+      const step = text.length > 900 ? 8 : text.length > 450 ? 5 : 3;
+      for (let i = 0; i < text.length; i += step) {
+        const chunk = text.slice(i, i + step);
+        setMessages((prevMessages) => {
+          const lastMessage = prevMessages[prevMessages.length - 1];
+          if (!lastMessage) return prevMessages;
+          const updatedLastMessage = {
+            ...lastMessage,
+            text: lastMessage.text + chunk,
+          };
+          if (lastMessage.role === 'assistant') {
+            setLastAssistantMessage(updatedLastMessage.text);
+          }
+          return [...prevMessages.slice(0, -1), updatedLastMessage];
+        });
+        await new Promise((resolve) => setTimeout(resolve, 14));
+      }
+    },
+    []
+  );
 
    // New function to handle message changes
   const handleMessagesChange = useCallback(() => {
@@ -1371,6 +1875,9 @@ const loadChatMessages = (chatId: string) => {
     setInputDisabled(false);
     setIsThinking(false);
     setIsDone(true);
+    setReasoningDraft("");
+    reasoningDraftRef.current = "";
+    tutorRawResponseRef.current = "";
     
     // Clear progressive speech timeout when stream ends
     if (progressiveSpeechTimeoutRef.current) {
@@ -1396,33 +1903,84 @@ const loadChatMessages = (chatId: string) => {
     return null; // Or you could return a loading indicator here
   }
 
-  const handleReadableStream = (stream: AssistantStream) => {
-    // messages
-    stream.on("textCreated", handleTextCreated);
-    stream.on("textDelta", handleTextDelta);
-
-    stream.on("end", endStreamResponse);
-
-    // image
-    stream.on("imageFileDone", handleImageFileDone);
-
-    // code interpreter
-    stream.on("toolCallCreated", toolCallCreated);
-    stream.on("toolCallDelta", toolCallDelta);
-
-    // events without helpers yet (e.g. requires_action and run.done)
-    stream.on("event", (event) => {
-      if (event.event === "thread.run.requires_action")
-        handleRequiresAction(event);
-      if (event.event === "thread.run.completed") handleRunCompleted();
-    });
-  };
-
   /*
     =======================
     === Utility Helpers ===
     =======================
   */
+
+  const buildTutorResponseText = (tutorResponse: SqlTutorResponse) => {
+    const mistakesText =
+      tutorResponse.commonMistakes?.length > 0
+        ? tutorResponse.commonMistakes.map((mistake) => `- ${mistake}`).join("\n")
+        : "- —";
+    return `**שאילתה**\n\`\`\`sql\n${tutorResponse.query}\n\`\`\`\n\n**הסבר**\n${tutorResponse.explanation}\n\n**טעויות נפוצות**\n${mistakesText}\n\n**אופטימיזציה**\n${tutorResponse.optimization}`;
+  };
+
+  const decodeJsonString = (value: string) => {
+    try {
+      return JSON.parse(`"${value}"`);
+    } catch {
+      return value.replace(/\\n/g, "\n").replace(/\\"/g, "\"");
+    }
+  };
+
+  const extractPartialJsonStringField = (raw: string, field: string) => {
+    const escapedField = field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`"${escapedField}"\\s*:\\s*"((?:\\\\.|[^"\\\\])*)`);
+    const match = regex.exec(raw);
+    return match?.[1] ? decodeJsonString(match[1]) : "";
+  };
+
+  const extractPartialMistakes = (raw: string) => {
+    const arrayMatch = /"commonMistakes"\s*:\s*\[([\s\S]*?)(?:\]|$)/.exec(raw);
+    if (!arrayMatch?.[1]) return [];
+    const items: string[] = [];
+    const itemRegex = /"((?:\\.|[^"\\])*)"/g;
+    let match: RegExpExecArray | null = null;
+    while ((match = itemRegex.exec(arrayMatch[1])) !== null) {
+      items.push(decodeJsonString(match[1]));
+    }
+    return items;
+  };
+
+  const buildTutorPreviewFromRaw = (raw: string) => {
+    const query = extractPartialJsonStringField(raw, "query");
+    const explanation = extractPartialJsonStringField(raw, "explanation");
+    const optimization = extractPartialJsonStringField(raw, "optimization");
+    const commonMistakes = extractPartialMistakes(raw);
+
+    const blocks: string[] = [];
+    if (query) {
+      blocks.push(`**שאילתה**\n\`\`\`sql\n${query}\n\`\`\``);
+    }
+    if (explanation) {
+      blocks.push(`**הסבר**\n${explanation}`);
+    }
+    if (commonMistakes.length > 0) {
+      blocks.push(`**טעויות נפוצות**\n${commonMistakes.map((mistake) => `- ${mistake}`).join("\n")}`);
+    }
+    if (optimization) {
+      blocks.push(`**אופטימיזציה**\n${optimization}`);
+    }
+
+    return blocks.length > 0 ? blocks.join("\n\n") : "מנסח תשובה...";
+  };
+
+  const setLastAssistantMessageText = (text: string) => {
+    setMessages((prevMessages) => {
+      const lastMessage = prevMessages[prevMessages.length - 1];
+      if (!lastMessage) return prevMessages;
+      const updatedLastMessage = {
+        ...lastMessage,
+        text,
+      };
+      if (lastMessage.role === "assistant") {
+        setLastAssistantMessage(text);
+      }
+      return [...prevMessages.slice(0, -1), updatedLastMessage];
+    });
+  };
 
   const appendToLastMessage = (text) => {
     setMessages((prevMessages) => {
@@ -1441,8 +1999,63 @@ const loadChatMessages = (chatId: string) => {
     });
   };
 
-  const appendMessage = (role, text) => {
-    setMessages((prevMessages) => [...prevMessages, { role, text }]);
+  const setLastMessageTutorResponse = async (
+    tutorResponse: SqlTutorResponse,
+    progressive = false
+  ) => {
+    const formattedText = buildTutorResponseText(tutorResponse);
+
+    if (progressive) {
+      setMessages((prevMessages) => {
+        const lastMessage = prevMessages[prevMessages.length - 1];
+        if (!lastMessage) {
+          return prevMessages;
+        }
+        const updatedLastMessage = {
+          ...lastMessage,
+          text: "",
+          tutorResponse,
+        };
+
+        if (lastMessage.role === "assistant") {
+          setLastAssistantMessage("");
+        }
+
+        return [...prevMessages.slice(0, -1), updatedLastMessage];
+      });
+
+      await appendToLastMessageProgressively(formattedText);
+
+      if (onAssistantResponse) {
+        onAssistantResponse(formattedText);
+      }
+      return;
+    }
+
+    setMessages((prevMessages) => {
+      const lastMessage = prevMessages[prevMessages.length - 1];
+      if (!lastMessage) {
+        return prevMessages;
+      }
+      const updatedLastMessage = {
+        ...lastMessage,
+        text: formattedText,
+        tutorResponse,
+      };
+
+      if (lastMessage.role === "assistant") {
+        setLastAssistantMessage(formattedText);
+        if (onAssistantResponse) {
+          onAssistantResponse(formattedText);
+        }
+      }
+
+      return [...prevMessages.slice(0, -1), updatedLastMessage];
+    });
+  };
+
+  const appendMessage = (role, text, options: Partial<ChatMessage> = {}) => {
+    setMessages((prevMessages) => [...prevMessages, { role, text, ...options }]);
     
     // Track last assistant message for speech synthesis
     if (role === 'assistant') {
@@ -1530,6 +2143,7 @@ const loadChatMessages = (chatId: string) => {
   const openNewChat = () => {
     setCurrentChatId(null);
     setMessages([]);
+    setStreamError(null);
     setLastAssistantMessage("");
     setLastSpokenMessageId(""); // Reset spoken message tracking
     setShouldSpeak(false);
@@ -1537,12 +2151,25 @@ const loadChatMessages = (chatId: string) => {
     setHasStartedSpeaking(false); // Reset progressive speech state
     setStreamingText("");
     streamingTextRef.current = "";
+    setReasoningLogs([]);
+    setReasoningDraft("");
+    reasoningDraftRef.current = "";
+    autoScrollRef.current = true;
+    setIsReasoningCollapsed(false);
     
     // Clear any pending progressive speech
     if (progressiveSpeechTimeoutRef.current) {
       clearTimeout(progressiveSpeechTimeoutRef.current);
       progressiveSpeechTimeoutRef.current = null;
     }
+
+    sessionIdRef.current = "";
+    setSessionId("");
+    setPreviousResponseId("");
+    createSession(true).catch((error) => {
+      console.error("Failed to refresh responses session:", error);
+      setStreamError("לא הצלחנו לפתוח סשן חדש. נסו שוב.");
+    });
   }
 
 // Embedded mode styles for homework runner sidebar
@@ -1593,6 +2220,41 @@ const embeddedStyles = embeddedMode ? {
   messages: { direction: 'rtl' as const },
 };
 
+const shouldShowReasoningPanel = reasoningLogs.length > 0 || reasoningDraft.length > 0;
+const hasStreamingAssistantMessage =
+  inputDisabled && messages.length > 0 && messages[messages.length - 1]?.role === "assistant";
+
+const reasoningPanel = shouldShowReasoningPanel ? (
+  <div className={`${styles.reasoningPanel} ${isReasoningCollapsed ? styles.reasoningPanelCollapsed : ""}`}>
+    <button
+      type="button"
+      className={styles.reasoningToggle}
+      onClick={() => setIsReasoningCollapsed((prev) => !prev)}
+      aria-expanded={!isReasoningCollapsed}
+    >
+      <span className={styles.reasoningTitle}>דרכי פעולה</span>
+      <ChevronDown
+        size={14}
+        className={`${styles.reasoningChevron} ${isReasoningCollapsed ? styles.reasoningChevronCollapsed : ""}`}
+      />
+    </button>
+    {!isReasoningCollapsed && (
+      <ul className={styles.reasoningList}>
+        {reasoningLogs.map((log, index) => (
+          <li key={`${log}-${index}`} className={styles.reasoningItem}>
+            {log}
+          </li>
+        ))}
+        {reasoningDraft && (
+          <li className={`${styles.reasoningItem} ${styles.reasoningItemStreaming}`}>
+            {reasoningDraft}
+          </li>
+        )}
+      </ul>
+    )}
+  </div>
+) : null;
+
 return (
   <div 
     className={`${styles.main} ${!sidebarVisible || hideSidebar || minimalMode ? styles.mainFullWidth : ''}`}
@@ -1623,68 +2285,81 @@ return (
         </button>
       )}
       <div className={styles.chatContainer} style={embeddedStyles.chatContainer}>
-        <div className={styles.messages} style={embeddedStyles.messages}>
+        <div
+          className={styles.messages}
+          style={embeddedStyles.messages}
+          ref={messagesContainerRef}
+          onScroll={handleMessagesScroll}
+          onWheel={handleMessagesWheel}
+        >
           {loadingMessages ? (
             <div className={styles.loadingIndicator}></div>
           ) : (
             <>
               {messages.map((msg, index) => (
-                <Message
-                  key={index}
-                  role={msg.role}
-                  text={msg.text}
-                  feedback={msg.feedback}
-                  hasImage={msg.hasImage}
-                  onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
-                  autoPlaySpeech={msg.role === 'assistant' ? (enableVoice && autoPlaySpeech) : undefined}
-                  onPlayMessage={msg.role === 'assistant' ? () => {
-                    console.log('🎤 Playing individual message:', {
-                      messageText: msg.text.substring(0, 50) + '...',
-                      enableVoice,
-                      avatarMode,
-                      currentAvatarState: avatarState,
-                      lastAssistantMessage: lastAssistantMessage?.substring(0, 30) + '...'
-                    });
-                    if (!enableVoice) {
-                      console.log('❌ Voice is not enabled');
-                      return;
-                    }
-                    // Stop any current speech
-                    // AVATAR DISABLED: enhancedTTS.stop();
-                    // Reset speech states first
-                    setShouldSpeak(false);
-                    setIsAssistantMessageComplete(false);
-                    setHasStartedSpeaking(false);
-                    
-                    // Use setTimeout to ensure state changes are processed
-                    setTimeout(() => {
-                      // Set the text to the avatar for speaking
-                      setLastAssistantMessage(msg.text);
-                      // Set a new manual id and mark as spoken to avoid auto trigger
-                      const manualId = `manual-${Date.now()}`;
-                      setCurrentAssistantMessageId(manualId);
-                      setLastSpokenMessageId(manualId);
-                      setShouldSpeak(true);
-                      setIsAssistantMessageComplete(true);
-                      setHasStartedSpeaking(true);
-                      setIsManualSpeech(true);  // Mark as manual speech
-                      // Clear thinking state
-                      setIsThinking(false);
-                      console.log('🎤 Set speech state for avatar:', {
-                        shouldSpeak: true,
-                        isAssistantMessageComplete: true,
-                        text: msg.text.substring(0, 50) + '...'
+                <React.Fragment key={index}>
+                  {shouldShowReasoningPanel &&
+                    index === messages.length - 1 &&
+                    msg.role === "assistant" &&
+                    reasoningPanel}
+                  <Message
+                    role={msg.role}
+                    text={msg.text}
+                    feedback={msg.feedback}
+                    hasImage={msg.hasImage}
+                    tutorResponse={msg.tutorResponse}
+                    onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
+                    autoPlaySpeech={msg.role === 'assistant' ? (enableVoice && autoPlaySpeech) : undefined}
+                    onPlayMessage={msg.role === 'assistant' ? () => {
+                      console.log('🎤 Playing individual message:', {
+                        messageText: msg.text.substring(0, 50) + '...',
+                        enableVoice,
+                        avatarMode,
+                        currentAvatarState: avatarState,
+                        lastAssistantMessage: lastAssistantMessage?.substring(0, 30) + '...'
                       });
-                    }, 100);
-                  } : undefined}
-                />
+                      if (!enableVoice) {
+                        console.log('❌ Voice is not enabled');
+                        return;
+                      }
+                      // Stop any current speech
+                      // AVATAR DISABLED: enhancedTTS.stop();
+                      // Reset speech states first
+                      setShouldSpeak(false);
+                      setIsAssistantMessageComplete(false);
+                      setHasStartedSpeaking(false);
+                      
+                      // Use setTimeout to ensure state changes are processed
+                      setTimeout(() => {
+                        // Set the text to the avatar for speaking
+                        setLastAssistantMessage(msg.text);
+                        // Set a new manual id and mark as spoken to avoid auto trigger
+                        const manualId = `manual-${Date.now()}`;
+                        setCurrentAssistantMessageId(manualId);
+                        setLastSpokenMessageId(manualId);
+                        setShouldSpeak(true);
+                        setIsAssistantMessageComplete(true);
+                        setHasStartedSpeaking(true);
+                        setIsManualSpeech(true);  // Mark as manual speech
+                        // Clear thinking state
+                        setIsThinking(false);
+                        console.log('🎤 Set speech state for avatar:', {
+                          shouldSpeak: true,
+                          isAssistantMessageComplete: true,
+                          text: msg.text.substring(0, 50) + '...'
+                        });
+                      }, 100);
+                    } : undefined}
+                  />
+                </React.Fragment>
               ))}
               {inputDisabled && (
                 <div className={styles.assistantMessage}>
+                  {!hasStreamingAssistantMessage && reasoningPanel}
                   <div className={styles.typingIndicator}>
-                    <div className={styles.dot}></div>
-                    <div className={styles.dot}></div>
-                    <div className={styles.dot}></div>
+                    <div className={styles.typingDot}></div>
+                    <div className={styles.typingDot}></div>
+                    <div className={styles.typingDot}></div>
                   </div>
                 </div>
               )}
@@ -1705,12 +2380,18 @@ return (
                 עלות השאילתה: ₪{estimatedCost.toFixed(2)}
               </div>
             )}
+            {streamError && (
+              <div className={styles.streamErrorBanner}>
+                {streamError}
+              </div>
+            )}
             
 
             <textarea
               className={styles.input}
               value={userInput}
               onChange={(e) => {
+                if (streamError) setStreamError(null);
                 setUserInput(e.target.value);
                 setEstimatedCost(calculateCost(e.target.value));
                 e.target.style.height = 'auto';
@@ -1783,7 +2464,7 @@ return (
                 aria-haspopup="true"
                 aria-expanded={isActionMenuOpen}
               >
-                <span className={styles.actionMenuIcon}>➕️</span>
+                <Plus className={styles.actionMenuIcon} size={16} strokeWidth={2.2} />
                 {selectedImage && <span className={styles.attachmentDot}></span>}
               </button>
 
@@ -1800,7 +2481,7 @@ return (
                     title="קבל תרגול SQL חדש"
                     role="menuitem"
                   >
-                    <span className={styles.actionMenuItemIcon}>⭐️</span>
+                    <Sparkles className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
                     <span className={styles.actionMenuItemText}>תרגול SQL</span>
                   </button>
 
@@ -1815,7 +2496,7 @@ return (
                     title="Attach image"
                     role="menuitem"
                   >
-                    <span className={styles.actionMenuItemIcon}>📎</span>
+                    <ImagePlus className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
                     <span className={styles.actionMenuItemText}>הוספת תמונה</span>
                   </button>
 
@@ -1824,13 +2505,13 @@ return (
                     className={styles.actionMenuItem}
                     onClick={() => {
                       setIsActionMenuOpen(false);
-                      setSqlBuilderOpen(true);
+                      setSqlTutorModalOpen(true);
                     }}
-                    title="בנה שאילתת SQL"
+                    title="קבל שאילתת CREATE/INSERT ממייקל"
                     role="menuitem"
                   >
-                    <span className={styles.actionMenuItemIcon}>🧩</span>
-                    <span className={styles.actionMenuItemText}>בונה SQL</span>
+                    <Braces className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
+                    <span className={styles.actionMenuItemText}>מייקל: CREATE/INSERT</span>
                   </button>
 
                   <button
@@ -1843,7 +2524,7 @@ return (
                     title="המחשת שאילתה"
                     role="menuitem"
                   >
-                    <span className={styles.actionMenuItemIcon}>📊</span>
+                    <BarChart3 className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
                     <span className={styles.actionMenuItemText}>המחשת שאילתה</span>
                   </button>
                 </div>
@@ -2208,12 +2889,65 @@ return (
       userId={user?.email || 'anonymous'}
     />
 
-    {/* SQL Query Builder Modal */}
-    <SqlQueryBuilder
-      isOpen={sqlBuilderOpen}
-      onClose={() => setSqlBuilderOpen(false)}
-      onQueryGenerated={handleQueryGenerated}
-    />
+    <Modal isOpen={sqlTutorModalOpen} onClose={closeSqlTutorModal}>
+      <div className={styles.sqlTutorModal}>
+        <h3 className={styles.sqlTutorTitle}>מייקל: צור שאילתת SQL</h3>
+        <p className={styles.sqlTutorDescription}>
+          מלא שם טבלה ועמודות, ומייקל יחזיר שאילתת SQL מוכנה.
+        </p>
+
+        <div className={styles.sqlTutorOperation}>
+          <button
+            type="button"
+            className={`${styles.sqlTutorOperationButton} ${sqlTutorOperation === "create" ? styles.sqlTutorOperationButtonActive : ""}`}
+            onClick={() => setSqlTutorOperation("create")}
+          >
+            CREATE TABLE
+          </button>
+          <button
+            type="button"
+            className={`${styles.sqlTutorOperationButton} ${sqlTutorOperation === "insert" ? styles.sqlTutorOperationButtonActive : ""}`}
+            onClick={() => setSqlTutorOperation("insert")}
+          >
+            INSERT
+          </button>
+        </div>
+
+        <input
+          type="text"
+          className={styles.sqlTutorInput}
+          value={sqlTutorTableName}
+          onChange={(e) => setSqlTutorTableName(e.target.value)}
+          placeholder="Table name (e.g. students)"
+        />
+
+        <textarea
+          className={styles.sqlTutorTextarea}
+          value={sqlTutorColumns}
+          onChange={(e) => setSqlTutorColumns(e.target.value)}
+          placeholder="Columns (comma or line-separated), e.g. id INT, full_name VARCHAR(100), grade INT"
+          rows={5}
+        />
+
+        <div className={styles.sqlTutorActions}>
+          <button
+            type="button"
+            className={styles.sqlTutorCancelButton}
+            onClick={closeSqlTutorModal}
+          >
+            ביטול
+          </button>
+          <button
+            type="button"
+            className={styles.sqlTutorSubmitButton}
+            onClick={handleSqlTutorRequest}
+            disabled={!sqlTutorTableName.trim() || !sqlTutorColumns.trim() || inputDisabled || imageProcessing}
+          >
+            שלח למייקל
+          </button>
+        </div>
+      </div>
+    </Modal>
   </div>
 );
 };

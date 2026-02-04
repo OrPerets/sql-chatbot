@@ -3,11 +3,18 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import '@testing-library/jest-dom';
 import VisualizerRoot from '../../app/visualizer/VisualizerRoot';
 
+const openSqlEditor = async () => {
+  const editButton = screen.getByTitle('ערוך שאילתה');
+  fireEvent.click(editButton);
+  const textarea = await screen.findByLabelText(/שאילתת ה-SQL/i);
+  return textarea;
+};
+
 describe('VisualizerRoot', () => {
   it('renders timeline steps for grouped queries', async () => {
     render(<VisualizerRoot />);
 
-    const textarea = screen.getByLabelText('שאילתת SQL');
+    const textarea = await openSqlEditor();
     fireEvent.change(textarea, {
       target: {
         value: `
@@ -20,27 +27,29 @@ describe('VisualizerRoot', () => {
         `
       }
     });
+    fireEvent.click(screen.getByRole('button', { name: /שמור והפעל/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Apply GROUP BY/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /GROUP BY/i })).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Apply HAVING/i)).toBeInTheDocument();
-    expect(screen.getByText(/Apply ORDER BY/i)).toBeInTheDocument();
-    expect(screen.getByText(/Apply LIMIT/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /HAVING/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /ORDER BY/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /LIMIT/i })).toBeInTheDocument();
   });
 
   it('surfaces placeholder coverage details when needed', async () => {
     render(<VisualizerRoot />);
 
-    const textarea = screen.getByLabelText('שאילתת SQL');
+    const textarea = await openSqlEditor();
     fireEvent.change(textarea, {
       target: {
         value: 'SELECT DISTINCT name FROM Students;'
       }
     });
+    fireEvent.click(screen.getByRole('button', { name: /שמור והפעל/i }));
 
-    const coverageButton = await screen.findByRole('button', { name: /Coverage check/i });
+    const coverageButton = await screen.findByRole('button', { name: /בדיקת כיסוי/i });
     fireEvent.click(coverageButton);
 
     const placeholderCard = screen.getByRole('region', { name: 'Keyword coverage gaps' });

@@ -2572,10 +2572,22 @@ class TalkingHead {
   * @param {string} [path="./"] Module path
   */
   lipsyncGetProcessor(lang, path="./") {
+    void path;
     if ( !this.lipsync.hasOwnProperty(lang) ) {
-      const moduleName = path + 'lipsync-' + lang.toLowerCase() + '.mjs';
-      const className = 'Lipsync' + lang.charAt(0).toUpperCase() + lang.slice(1);
-      import(moduleName).then( module => {
+      const key = String(lang || "").toLowerCase();
+      const loaders = {
+        en: () => import("./lipsync-en.mjs"),
+        fi: () => import("./lipsync-fi.mjs"),
+        lt: () => import("./lipsync-lt.mjs"),
+      };
+      const classNames = {
+        en: "LipsyncEn",
+        fi: "LipsyncFi",
+        lt: "LipsyncLt",
+      };
+      const load = loaders[key] || loaders.en;
+      const className = classNames[key] || classNames.en;
+      load().then( module => {
         this.lipsync[lang] = new module[className];
       });
     }

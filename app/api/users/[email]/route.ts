@@ -3,9 +3,10 @@ import { updateUser, updatePassword } from '@/lib/users'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { email: string } }
+  context: { params: Promise<{ email: string }> }
 ) {
   try {
+    const params = await context.params
     const email = decodeURIComponent(params.email)
     const body = await request.json()
     
@@ -44,4 +45,3 @@ export async function PUT(
     }, { status: 500 })
   }
 }
-

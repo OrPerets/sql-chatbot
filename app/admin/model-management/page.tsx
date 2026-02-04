@@ -1,33 +1,40 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import styles from './ModelManagement.module.css';
+import { useEffect, useState } from "react";
+import styles from "./ModelManagement.module.css";
 
-interface AssistantInfo {
-  assistantId: string;
+interface RuntimeConfig {
   model: string;
-  name: string;
-  tools: number;
-  createdAt?: number;
-  instructions?: string;
+  toolsCount: number;
+  enabledToolNames?: string[];
+  updatedAt?: string | null;
+  source?: string;
+}
+
+interface RuntimeConfigResponse {
+  success?: boolean;
+  mode?: string;
+  config?: RuntimeConfig;
+  error?: string;
 }
 
 interface TestResult {
   success: boolean;
   model: string;
   testType: string;
-  runStatus: string;
-  executionTime: string;
+  executionTimeMs: number;
   results: {
     success: boolean;
     responseQuality: string;
     languageSupport: string;
     functionCalling: string;
+    functionCallsCount: number;
     responseLength: number;
     containsExample: boolean;
     containsHebrew: boolean;
     issues: string[];
   };
+  preview?: string;
 }
 
 interface UsageAnalytics {
@@ -40,65 +47,72 @@ interface UsageAnalytics {
 }
 
 export default function ModelManagement() {
-  const [assistantInfo, setAssistantInfo] = useState<AssistantInfo | null>(null);
+  const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig | null>(null);
+  const [apiMode, setApiMode] = useState<string>("unknown");
   const [testResults, setTestResults] = useState<TestResult | null>(null);
   const [usageAnalytics, setUsageAnalytics] = useState<UsageAnalytics | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadAssistantInfo();
-    loadUsageAnalytics();
+    void loadRuntimeConfig();
+    void loadUsageAnalytics();
   }, []);
 
-  const loadAssistantInfo = async () => {
+  const loadRuntimeConfig = async () => {
     try {
-      const response = await fetch('/api/assistants/update');
-      if (response.ok) {
-        const data = await response.json();
-        setAssistantInfo(data);
+      const response = await fetch("/api/assistants/update");
+      if (!response.ok) {
+        throw new Error("Failed to load runtime config.");
       }
-    } catch (err) {
-      console.error('Failed to load assistant info:', err);
+
+      const data = (await response.json()) as RuntimeConfigResponse;
+      if (!data.success || !data.config) {
+        throw new Error(data.error || "Failed to load runtime config.");
+      }
+
+      setRuntimeConfig(data.config);
+      setApiMode(data.mode || "unknown");
+    } catch (err: any) {
+      setError(err.message || "Failed to load runtime config.");
     }
   };
 
   const loadUsageAnalytics = async () => {
     try {
-      const response = await fetch('/api/analytics/model-usage?timeRange=24h');
+      const response = await fetch("/api/analytics/model-usage?timeRange=24h");
       if (response.ok) {
         const data = await response.json();
         setUsageAnalytics(data.analytics);
       }
     } catch (err) {
-      console.error('Failed to load usage analytics:', err);
+      console.error("Failed to load usage analytics:", err);
     }
   };
 
-  const upgradeAssistant = async () => {
+  const applyRecommendedConfig = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      const response = await fetch('/api/assistants/update', {
-        method: 'POST'
+      const response = await fetch("/api/assistants/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "gpt-4.1-mini",
+          reason: "admin recommended config",
+        }),
       });
-      
+
       const data = await response.json();
-      
-      if (data.success) {
-        setAssistantInfo({
-          assistantId: data.assistantId,
-          model: data.model,
-          name: 'Michael - SQL Teaching Assistant',
-          tools: data.tools
-        });
-        alert(`Assistant successfully upgraded to ${data.model}`);
-      } else {
-        setError(data.error || 'Upgrade failed');
+      if (!data.success) {
+        throw new Error(data.error || "Config update failed");
       }
+
+      await loadRuntimeConfig();
+      alert(`Runtime model config updated to ${data?.config?.model || "gpt-4.1-mini"}`);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Config update failed");
     } finally {
       setLoading(false);
     }
@@ -107,53 +121,51 @@ export default function ModelManagement() {
   const runTest = async (testType: string) => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      const response = await fetch('/api/assistants/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ testType })
+      const response = await fetch("/api/assistants/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ testType }),
       });
-      
+
       const data = await response.json();
-      
-      if (data.success) {
-        setTestResults(data);
-      } else {
-        setError(data.error || 'Test failed');
+      if (!data.success) {
+        throw new Error(data.error || "Test failed");
       }
+
+      setTestResults(data as TestResult);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Test failed");
     } finally {
       setLoading(false);
     }
   };
 
-  const rollbackAssistant = async (reason: string) => {
-    if (!confirm(`Are you sure you want to rollback? Reason: ${reason}`)) {
+  const rollbackConfig = async (reason: string) => {
+    if (!confirm(`Rollback runtime config? Reason: ${reason}`)) {
       return;
     }
 
     setLoading(true);
     setError(null);
-    
+
     try {
-      const response = await fetch('/api/assistants/rollback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason })
+      const response = await fetch("/api/assistants/rollback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason, rollbackTo: "previous-stable" }),
       });
-      
+
       const data = await response.json();
-      
-      if (data.success) {
-        alert(`Rollback successful: ${data.message}`);
-        loadAssistantInfo(); // Refresh assistant info
-      } else {
-        setError(data.error || 'Rollback failed');
+      if (!data.success) {
+        throw new Error(data.error || "Rollback failed");
       }
+
+      await loadRuntimeConfig();
+      alert(`Rollback complete: ${data.message}`);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Rollback failed");
     } finally {
       setLoading(false);
     }
@@ -162,88 +174,102 @@ export default function ModelManagement() {
   return (
     <div className={styles.container}>
       <div className={styles.navigation}>
-        <button 
-          onClick={() => window.location.href = '/admin'}
-          className={styles.backButton}
-        >
+        <button onClick={() => (window.location.href = "/admin")} className={styles.backButton}>
           ← חזור לדשבורד ניהול
         </button>
       </div>
-      
+
       <div className={styles.header}>
         <h1>ניהול מודלי AI</h1>
-        <p>ניהול ובדיקת מודלים של מייקל - עוזר ה-SQL</p>
+        <p>ניהול קונפיגורציית Responses API עבור Michael (ללא lifecycle של Assistant objects)</p>
       </div>
-      
-      {error && (
-        <div className={styles.error}>
-          Error: {error}
-        </div>
-      )}
 
-      {/* Assistant Information */}
+      {error && <div className={styles.error}>Error: {error}</div>}
+
       <section className={styles.section}>
-        <h2>הגדרות עוזר AI נוכחיות</h2>
-        {assistantInfo ? (
+        <h2>קונפיגורציית Runtime נוכחית</h2>
+        {runtimeConfig ? (
           <div className={styles.info}>
-            <p><strong>מזהה עוזר:</strong> {assistantInfo.assistantId}</p>
-            <p><strong>מודל:</strong> {assistantInfo.model}</p>
-            <p><strong>שם:</strong> {assistantInfo.name}</p>
-            <p><strong>כלים:</strong> {assistantInfo.tools}</p>
+            <p>
+              <strong>API Mode:</strong> {apiMode}
+            </p>
+            <p>
+              <strong>Model:</strong> {runtimeConfig.model}
+            </p>
+            <p>
+              <strong>Enabled Tools:</strong> {runtimeConfig.toolsCount}
+            </p>
+            <p>
+              <strong>Config Source:</strong> {runtimeConfig.source || "default"}
+            </p>
+            <p>
+              <strong>Updated At:</strong> {runtimeConfig.updatedAt || "N/A"}
+            </p>
           </div>
         ) : (
-          <p>טוען מידע על העוזר...</p>
+          <p>טוען קונפיגורציה...</p>
         )}
-        
+
         <div className={styles.actions}>
-          <button 
-            onClick={upgradeAssistant}
-            disabled={loading}
-            className={styles.upgradeButton}
-          >
-            {loading ? 'משדרג...' : 'שדרג ל-GPT-5-nano'}
+          <button onClick={applyRecommendedConfig} disabled={loading} className={styles.upgradeButton}>
+            {loading ? "מעדכן..." : "Apply Recommended Config"}
           </button>
-          
-          <button 
-            onClick={() => rollbackAssistant('Manual rollback from admin panel')}
+
+          <button
+            onClick={() => rollbackConfig("Manual rollback from admin panel")}
             disabled={loading}
             className={styles.rollbackButton}
           >
-            {loading ? 'מחזיר...' : 'חזרה חירום'}
+            {loading ? "מחזיר..." : "Rollback to Previous Stable"}
           </button>
         </div>
       </section>
 
-      {/* Testing Section */}
       <section className={styles.section}>
-        <h2>בדיקות מודל</h2>
+        <h2>בדיקות Runtime</h2>
         <div className={styles.testButtons}>
-          <button onClick={() => runTest('basic')} disabled={loading}>
+          <button onClick={() => runTest("basic")} disabled={loading}>
             בדיקה בסיסית
           </button>
-          <button onClick={() => runTest('hebrew')} disabled={loading}>
+          <button onClick={() => runTest("hebrew")} disabled={loading}>
             בדיקת עברית
           </button>
-          <button onClick={() => runTest('function_calling')} disabled={loading}>
-            בדיקת פונקציות SQL
+          <button onClick={() => runTest("function_calling")} disabled={loading}>
+            בדיקת Tools
           </button>
-          <button onClick={() => runTest('complex_query')} disabled={loading}>
+          <button onClick={() => runTest("complex_query")} disabled={loading}>
             בדיקת שאילתות מורכבות
           </button>
         </div>
-        
+
         {testResults && (
           <div className={styles.testResults}>
             <h3>תוצאות בדיקה אחרונות</h3>
             <div className={`${styles.result} ${testResults.success ? styles.success : styles.failure}`}>
-              <p><strong>Test Type:</strong> {testResults.testType}</p>
-              <p><strong>Status:</strong> {testResults.runStatus}</p>
-              <p><strong>Execution Time:</strong> {testResults.executionTime}</p>
-              <p><strong>Response Quality:</strong> {testResults.results.responseQuality}</p>
-              <p><strong>Response Length:</strong> {testResults.results.responseLength} characters</p>
-              <p><strong>Contains Example:</strong> {testResults.results.containsExample ? 'Yes' : 'No'}</p>
-              <p><strong>Contains Hebrew:</strong> {testResults.results.containsHebrew ? 'Yes' : 'No'}</p>
-              
+              <p>
+                <strong>Test Type:</strong> {testResults.testType}
+              </p>
+              <p>
+                <strong>Model:</strong> {testResults.model}
+              </p>
+              <p>
+                <strong>Execution Time:</strong> {testResults.executionTimeMs}ms
+              </p>
+              <p>
+                <strong>Response Quality:</strong> {testResults.results.responseQuality}
+              </p>
+              <p>
+                <strong>Function Calling:</strong> {testResults.results.functionCalling}
+              </p>
+              <p>
+                <strong>Response Length:</strong> {testResults.results.responseLength} chars
+              </p>
+              {testResults.preview ? (
+                <p>
+                  <strong>Preview:</strong> {testResults.preview}
+                </p>
+              ) : null}
+
               {testResults.results.issues.length > 0 && (
                 <div className={styles.issues}>
                   <strong>Issues:</strong>
@@ -259,7 +285,6 @@ export default function ModelManagement() {
         )}
       </section>
 
-      {/* Usage Analytics */}
       <section className={styles.section}>
         <h2>ניתוח שימוש (24 שעות אחרונות)</h2>
         {usageAnalytics ? (
@@ -279,13 +304,14 @@ export default function ModelManagement() {
             <div className={styles.stat}>
               <strong>Avg Cost/Request:</strong> ${usageAnalytics.averageCostPerRequest.toFixed(4)}
             </div>
-            
+
             {Object.keys(usageAnalytics.modelBreakdown).length > 0 && (
               <div className={styles.modelBreakdown}>
                 <h4>Model Breakdown:</h4>
                 {Object.entries(usageAnalytics.modelBreakdown).map(([model, stats]: [string, any]) => (
                   <div key={model} className={styles.modelStat}>
-                    <strong>{model}:</strong> {stats.requests} requests, {stats.tokens} tokens, ${stats.cost.toFixed(4)}
+                    <strong>{model}:</strong> {stats.requests} requests, {stats.tokens} tokens, $
+                    {stats.cost.toFixed(4)}
                   </div>
                 ))}
               </div>

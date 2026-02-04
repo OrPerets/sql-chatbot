@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { openai } from "@/app/openai";
+import { extractOutputText } from "@/lib/openai/responses-client";
 import { getCurrentWeekContextNormalized } from "@/lib/content";
 import {
   getAllowedConceptsForWeek,
@@ -7,14 +8,18 @@ import {
 } from "@/lib/sql-curriculum";
 
 export const runtime = "nodejs";
-export const maxDuration = process.env.VERCEL ? 60 : 300;
+// Vercel Hobby plan max is 60s; upgrade plan for longer execution
+export const maxDuration = 60;
 
 const VECTOR_POLL_TIMEOUT_MS = 120_000;
-const RUN_POLL_TIMEOUT_MS = 180_000;
 const POLL_INTERVAL_MS = 1_500;
 
 const BASE_SYSTEM_INSTRUCTIONS = `
 You are Michael, an expert SQL instructor creating exams for this specific course.
+
+PURPOSE & DIFFICULTY:
+- Generate a slightly more challenging exam than typical past exams, while staying within the allowed curriculum.
+- Emphasize multi-step reasoning and careful use of joins/aggregations without introducing forbidden concepts.
 
 CRITICAL CURRICULUM SAFETY RULES:
 - NEVER provide SQL examples containing concepts from forbiddenConcepts.
@@ -28,7 +33,12 @@ CRITICAL CURRICULUM SAFETY RULES:
 PEDAGOGICAL STYLE:
 - Write in clear Hebrew.
 - Keep academic tone and learning-oriented clarity.
+- Do NOT add hints within any question.
 - Produce fully original content. Source exams are for style/difficulty calibration only.
+
+TABLE DEFINITIONS REQUIREMENTS:
+- Provide table definitions plus example data (sample rows) for each table.
+- Example data must be consistent, realistic, and sufficient for answering questions.
 
 ANTI-COPY RULES (MANDATORY):
 - Create a completely NEW end-to-end exam.
@@ -89,7 +99,9 @@ async function waitForVectorStoreFiles(
   while (Date.now() - startedAt < VECTOR_POLL_TIMEOUT_MS) {
     const statuses = await Promise.all(
       vectorFileIds.map((vectorFileId) =>
-        openai.vectorStores.files.retrieve(vectorStoreId, vectorFileId)
+        openai.vectorStores.files.retrieve(vectorFileId, {
+          vector_store_id: vectorStoreId,
+        })
       )
     );
 
@@ -109,50 +121,7 @@ async function waitForVectorStoreFiles(
   throw new Error("Timed out while processing uploaded PDFs.");
 }
 
-async function waitForRunCompletion(threadId: string, runId: string) {
-  const startedAt = Date.now();
-
-  while (Date.now() - startedAt < RUN_POLL_TIMEOUT_MS) {
-    const run = await openai.beta.threads.runs.retrieve(threadId, runId);
-    if (run.status === "completed") {
-      return run;
-    }
-    if (
-      run.status === "failed" ||
-      run.status === "cancelled" ||
-      run.status === "expired"
-    ) {
-      const errorMessage =
-        run.last_error?.message || `Assistant run ended with status: ${run.status}`;
-      throw new Error(errorMessage);
-    }
-
-    await sleep(POLL_INTERVAL_MS);
-  }
-
-  throw new Error("Timed out while generating the exam.");
-}
-
-function extractAssistantText(content: any[] | undefined): string {
-  if (!content || content.length === 0) {
-    return "";
-  }
-
-  return content
-    .map((item: any) => {
-      if (item.type !== "text") {
-        return "";
-      }
-      return item.text?.value || "";
-    })
-    .filter(Boolean)
-    .join("\n")
-    .trim();
-}
-
 export async function POST(request: NextRequest) {
-  let assistantId: string | null = null;
-  let threadId: string | null = null;
   let vectorStoreId: string | null = null;
   const uploadedFileIds: string[] = [];
 
@@ -193,26 +162,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const assistant = await openai.beta.assistants.create({
-      name: "Michael Exam Generator",
-      model: "gpt-4.1-mini",
-      tools: [{ type: "file_search" }],
-      instructions: BASE_SYSTEM_INSTRUCTIONS,
-    });
-    assistantId = assistant.id;
-
     const vectorStore = await openai.vectorStores.create({
       name: `exam-generator-${Date.now()}`,
     });
     vectorStoreId = vectorStore.id;
-
-    await openai.beta.assistants.update(assistantId, {
-      tool_resources: {
-        file_search: {
-          vector_store_ids: [vectorStoreId],
-        },
-      },
-    });
 
     const vectorFileIds: string[] = [];
     for (const file of files) {
@@ -230,27 +183,19 @@ export async function POST(request: NextRequest) {
 
     await waitForVectorStoreFiles(vectorStoreId, vectorFileIds);
 
-    const thread = await openai.beta.threads.create();
-    threadId = thread.id;
-
-    await openai.beta.threads.messages.create(threadId, {
-      role: "user",
-      content: generationPrompt,
+    const response = await (openai as any).responses.create({
+      model: "gpt-4.1-mini",
+      instructions: BASE_SYSTEM_INSTRUCTIONS,
+      tools: [{ type: "file_search", vector_store_ids: [vectorStoreId] }],
+      input: [
+        {
+          role: "user",
+          content: [{ type: "input_text", text: generationPrompt }],
+        },
+      ],
     });
 
-    const run = await openai.beta.threads.runs.create(threadId, {
-      assistant_id: assistantId,
-    });
-    await waitForRunCompletion(threadId, run.id);
-
-    const messages = await openai.beta.threads.messages.list(threadId, {
-      limit: 20,
-    });
-    const assistantMessage = messages.data.find(
-      (message) => message.role === "assistant"
-    );
-
-    const exam = extractAssistantText(assistantMessage?.content as any[]);
+    const exam = extractOutputText(response);
     if (!exam) {
       throw new Error("No exam content was returned by Michael.");
     }
@@ -268,25 +213,9 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    if (threadId) {
-      try {
-        await openai.beta.threads.del(threadId);
-      } catch (cleanupError) {
-        console.warn("Failed deleting temporary thread:", cleanupError);
-      }
-    }
-
-    if (assistantId) {
-      try {
-        await openai.beta.assistants.del(assistantId);
-      } catch (cleanupError) {
-        console.warn("Failed deleting temporary assistant:", cleanupError);
-      }
-    }
-
     if (vectorStoreId) {
       try {
-        await openai.vectorStores.del(vectorStoreId);
+        await openai.vectorStores.delete(vectorStoreId);
       } catch (cleanupError) {
         console.warn("Failed deleting vector store:", cleanupError);
       }
@@ -296,7 +225,7 @@ export async function POST(request: NextRequest) {
       await Promise.all(
         uploadedFileIds.map(async (fileId) => {
           try {
-            await openai.files.del(fileId);
+            await openai.files.delete(fileId);
           } catch (cleanupError) {
             console.warn(`Failed deleting file ${fileId}:`, cleanupError);
           }

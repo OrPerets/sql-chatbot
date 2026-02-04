@@ -1,195 +1,67 @@
-# Model Upgrade Configuration Guide
+# Responses Runtime Configuration Guide
 
-This document explains how to configure and manage the model upgrades implemented for the SQL Chatbot.
+This guide describes how to manage model/runtime configuration after the Responses API migration.
 
 ## Environment Variables
 
-Add these environment variables to your `.env.local` file:
+Add/update these values in `.env.local`:
 
 ```bash
-# Model Management Feature Flags
-USE_LATEST_MODEL=true        # Enable latest GPT-5-nano model
-USE_GPT5_ASSISTANT=false     # Enable GPT-5 when available (requires OPENAI_ASSISTANT_ID_GPT5)
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_API_MODE=responses
+OPENAI_MODEL=gpt-4.1-mini
+OPENAI_VECTOR_STORE_ID=
 
-# Future GPT-5 Assistant ID (when available)
-OPENAI_ASSISTANT_ID_GPT5=    # Leave empty until GPT-5 is available
-```
-
-## Implementation Summary
-
-The model upgrade implementation includes:
-
-### 1. Dynamic Assistant Configuration
-- **File**: `app/assistant-config.ts`
-- **Features**: 
-  - Dynamic assistant ID selection based on feature flags
-  - Support for future GPT-5 integration
-  - Backward compatibility with existing assistant
-
-### 2. Assistant Update Endpoint
-- **Endpoint**: `POST /api/assistants/update`
-- **Purpose**: Upgrade existing assistant to GPT-5-nano
-- **Features**:
-  - Preserves conversation history
-  - Enhanced SQL-specific function calling
-  - Improved instructions for educational context
-
-### 3. Enhanced Function Calling
-- **Endpoint**: `/api/assistants/functions/sql`
-- **Functions**:
-  - `execute_sql_query`: Safe SQL execution with educational context
-  - `get_database_schema`: Database structure analysis
-  - `analyze_query_performance`: Query optimization suggestions
-
-### 4. Usage Monitoring
-- **Endpoint**: `/api/analytics/model-usage`
-- **Features**:
-  - Token and cost tracking
-  - Anomaly detection
-  - Model performance analytics
-
-### 5. Rollback Strategy
-- **Endpoint**: `POST /api/assistants/rollback`
-- **Purpose**: Emergency rollback to stable model
-- **Features**:
-  - Instant model reversion
-  - Reason logging
-  - System health checks
-
-### 6. Testing Framework
-- **Endpoint**: `/api/assistants/test`
-- **Test Types**:
-  - Basic functionality
-  - Hebrew language support
-  - Function calling
-  - Complex query analysis
-
-### 7. Admin Interface
-- **Page**: `/admin/model-management`
-- **Features**:
-  - Visual model management
-  - One-click upgrades and rollbacks
-  - Test execution
-  - Usage analytics dashboard
-
-## Upgrade Process
-
-### Step 1: Enable Latest Model
-```bash
-# Set in .env.local
-USE_LATEST_MODEL=true
-```
-
-### Step 2: Upgrade Assistant
-```bash
-curl -X POST http://localhost:3000/api/assistants/update
-```
-
-### Step 3: Test Functionality
-```bash
-# Test basic functionality
-curl -X POST http://localhost:3000/api/assistants/test \
-  -H "Content-Type: application/json" \
-  -d '{"testType": "basic"}'
-
-# Test Hebrew support
-curl -X POST http://localhost:3000/api/assistants/test \
-  -H "Content-Type: application/json" \
-  -d '{"testType": "hebrew"}'
-```
-
-### Step 4: Monitor Usage
-Visit `/admin/model-management` to monitor performance and usage.
-
-## Rollback Process
-
-### Emergency Rollback
-```bash
-curl -X POST http://localhost:3000/api/assistants/rollback \
-  -H "Content-Type: application/json" \
-  -d '{"reason": "Performance issues detected"}'
-```
-
-### Environment Variable Rollback
-```bash
-# Set in .env.local
-USE_LATEST_MODEL=false
+# Optional compatibility/testing flags
+OPENAI_ASSISTANT_ID_GPT5=
 USE_GPT5_ASSISTANT=false
 ```
 
-## Future GPT-5 Integration
+Deprecated variables: `ASSISTANT_ID`, `OPENAI_ASSISTANT_ID`.
 
-When GPT-5 becomes available:
+## Runtime Management Endpoints
 
-1. Create new GPT-5 assistant:
+- `POST /api/assistants/update` - update active model/instructions/tools runtime config
+- `POST /api/assistants/test` - run live Responses validation tests
+- `POST /api/assistants/rollback` - rollback runtime config to a prior snapshot
+
+## Recommended Upgrade Flow
+
+1. Update config:
 ```bash
-curl -X POST http://localhost:3000/api/assistants/migrate
+curl -X POST http://localhost:3000/api/assistants/update \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gpt-4.1-mini"}'
 ```
 
-2. Update environment variables:
+2. Run validation tests:
 ```bash
-OPENAI_ASSISTANT_ID_GPT5=your_new_gpt5_assistant_id
-USE_GPT5_ASSISTANT=true
+curl -X POST http://localhost:3000/api/assistants/test \
+  -H "Content-Type: application/json" \
+  -d '{"testType":"basic"}'
+
+curl -X POST http://localhost:3000/api/assistants/test \
+  -H "Content-Type: application/json" \
+  -d '{"testType":"function-calls"}'
 ```
 
-3. Test thoroughly before production deployment
+3. Monitor in admin UI:
+- `/admin/model-management`
+- verify error rate, p95 latency, and tool-loop success rate
 
-## Monitoring and Alerts
+## Rollback
 
-### Usage Analytics
-- Track token consumption
-- Monitor cost per request
-- Analyze performance metrics
-- Detect anomalous usage patterns
+Emergency rollback example:
 
-### Health Checks
-- Assistant availability
-- Model response quality
-- Function calling success rate
-- System performance metrics
-
-## Best Practices
-
-1. **Gradual Rollout**: Test new models thoroughly before full deployment
-2. **Monitoring**: Keep track of usage patterns and performance metrics
-3. **Rollback Plan**: Always have a quick rollback strategy ready
-4. **Documentation**: Document any issues or optimizations discovered
-5. **User Feedback**: Collect feedback on model performance and accuracy
+```bash
+curl -X POST http://localhost:3000/api/assistants/rollback \
+  -H "Content-Type: application/json" \
+  -d '{"reason":"increased failure rate"}'
+```
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **Assistant Not Found**: Check `OPENAI_ASSISTANT_ID` environment variable
-2. **Function Calling Errors**: Verify function definitions in update endpoint
-3. **High Token Usage**: Review query complexity and response length
-4. **Hebrew Display Issues**: Check font support and character encoding
-
-### Debug Commands
-
-```bash
-# Check current assistant status
-curl http://localhost:3000/api/assistants/update
-
-# Get usage analytics
-curl http://localhost:3000/api/analytics/model-usage?timeRange=24h
-
-# Run system health check
-curl -X PATCH http://localhost:3000/api/assistants/rollback
-```
-
-## Cost Optimization
-
-1. **Smart Routing**: Use appropriate models based on query complexity
-2. **Caching**: Implement response caching for common questions
-3. **Batch Processing**: Use batch API for non-urgent operations
-4. **Usage Limits**: Set per-user usage quotas
-5. **Model Selection**: Choose GPT-4o-mini for simpler tasks when available
-
-## Security Considerations
-
-1. **Function Safety**: SQL execution functions include safety checks
-2. **Input Validation**: All endpoints validate input parameters
-3. **Rate Limiting**: Consider implementing rate limiting for API endpoints
-4. **Audit Logging**: Track all model upgrades and rollbacks
-5. **Access Control**: Restrict admin endpoints to authorized users
+1. Check `OPENAI_API_MODE` is `responses`
+2. Confirm OpenAI API key and project permissions
+3. Verify vector store configuration (`OPENAI_VECTOR_STORE_ID` or DB-backed config)
+4. Re-run `/api/assistants/test` and inspect failed test details

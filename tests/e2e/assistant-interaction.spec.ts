@@ -2,119 +2,48 @@ import { test, expect } from '@playwright/test'
 
 test.describe('Assistant Interaction', () => {
   test.beforeEach(async ({ page }) => {
-    // Mock authentication if needed
-    await page.goto('/entities/basic-chat') // Adjust URL based on your app structure
+    await page.route('/api/responses/sessions', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          mode: 'responses',
+          sessionId: 'sess_test123',
+          responseId: 'resp_bootstrap_1',
+        }),
+      });
+    });
+
+    await page.goto('/entities/basic-chat');
   })
 
   test('should load assistant chat interface', async ({ page }) => {
-    await expect(page.getByRole('textbox', { name: /message/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /send/i })).toBeVisible()
+    await expect(page.locator('textarea')).toBeVisible()
   })
 
   test('should send message to assistant', async ({ page }) => {
-    // Mock the OpenAI API response
-    await page.route('/api/assistants/threads/*/messages', async route => {
-      if (route.request().method() === 'POST') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            id: 'msg_test123',
-            object: 'thread.message',
-            created_at: Date.now(),
-            thread_id: 'thread_test123',
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: {
-                  value: 'Hello, assistant!',
-                  annotations: []
-                }
-              }
-            ]
-          })
-        })
-      } else {
-        // GET request for messages
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            object: 'list',
-            data: [
-              {
-                id: 'msg_test123',
-                object: 'thread.message',
-                created_at: Date.now(),
-                thread_id: 'thread_test123',
-                role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: {
-                      value: 'Hello, assistant!',
-                      annotations: []
-                    }
-                  }
-                ]
-              },
-              {
-                id: 'msg_test456',
-                object: 'thread.message',
-                created_at: Date.now() + 1000,
-                thread_id: 'thread_test123',
-                role: 'assistant',
-                content: [
-                  {
-                    type: 'text',
-                    text: {
-                      value: 'Hello! How can I help you today?',
-                      annotations: []
-                    }
-                  }
-                ]
-              }
-            ]
-          })
-        })
-      }
-    })
+    await page.route('/api/responses/messages', async route => {
+      const ndjson = [
+        JSON.stringify({ type: 'response.created', responseId: 'resp_test123' }),
+        JSON.stringify({ type: 'response.output_text.delta', delta: 'Hello! ' }),
+        JSON.stringify({ type: 'response.output_text.delta', delta: 'How can I help you today?' }),
+        JSON.stringify({
+          type: 'response.completed',
+          responseId: 'resp_test123',
+          outputText: 'Hello! How can I help you today?',
+        }),
+      ].join('\n') + '\n';
 
-    // Mock thread creation
-    await page.route('/api/assistants/threads', async route => {
       await route.fulfill({
         status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'thread_test123',
-          object: 'thread',
-          created_at: Date.now(),
-          metadata: {}
-        })
-      })
-    })
+        contentType: 'application/x-ndjson',
+        body: ndjson,
+      });
+    });
 
-    // Mock run creation and completion
-    await page.route('/api/assistants/threads/*/actions', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'run_test123',
-          object: 'thread.run',
-          created_at: Date.now(),
-          thread_id: 'thread_test123',
-          status: 'completed'
-        })
-      })
-    })
-
-    const messageInput = page.getByRole('textbox', { name: /message/i })
-    const sendButton = page.getByRole('button', { name: /send/i })
-
-    await messageInput.fill('Hello, assistant!')
-    await sendButton.click()
+    const messageInput = page.locator('textarea').first();
+    await messageInput.fill('Hello, assistant!');
+    await messageInput.press('Enter');
 
     // Wait for the message to appear in the chat
     await expect(page.getByText('Hello, assistant!')).toBeVisible()
@@ -122,28 +51,37 @@ test.describe('Assistant Interaction', () => {
   })
 
   test('should handle file upload', async ({ page }) => {
-    // Mock file upload API
-    await page.route('/api/assistants/files', async route => {
+    await page.goto('/entities/file-search');
+
+    await page.route('/api/responses/files', async route => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            mode: 'responses',
+            fileId: 'file_test123',
+            vectorStoreId: 'vs_test123',
+          }),
+        });
+        return;
+      }
+
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          id: 'file_test123',
-          object: 'file',
-          bytes: 1024,
-          created_at: Date.now(),
-          filename: 'test.txt',
-          purpose: 'assistants'
-        })
-      })
-    })
+          mode: 'responses',
+          files: [{ file_id: 'file_test123', filename: 'test.txt', status: 'completed' }],
+          vectorStoreId: 'vs_test123',
+        }),
+      });
+    });
 
     // Create a test file
     const fileContent = 'This is a test file content'
-    const fileChooserPromise = page.waitForEvent('filechooser')
-    
-    await page.getByRole('button', { name: /upload file/i }).click()
-    
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await page.getByText('Attach files').first().click();
     const fileChooser = await fileChooserPromise
     await fileChooser.setFiles({
       name: 'test.txt',
@@ -198,7 +136,7 @@ test.describe('Assistant Interaction', () => {
 
 test.describe('SQL Query Interface', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/entities/file-search') // Adjust based on your SQL interface
+    await page.goto('/entities/file-search')
   })
 
   test('should execute SQL queries', async ({ page }) => {
