@@ -2011,7 +2011,9 @@
 }
 
 .actionMenuIcon {
-  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
 }
 
@@ -2058,13 +2060,58 @@
 }
 
 .actionMenuItemIcon {
-  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
+  color: #1f2937;
 }
 
 .actionMenuItemText {
   font-weight: 600;
   letter-spacing: 0.2px;
+}
+
+.reasoningPanel {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.reasoningTitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 6px;
+}
+
+.reasoningList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reasoningItem {
+  font-size: 11px;
+  color: #475569;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.reasoningItem::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #94a3b8;
+  flex-shrink: 0;
 }
 
 /* Attachment Indicator Dot */
