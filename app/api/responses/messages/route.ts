@@ -19,6 +19,7 @@ type MessageRequestDto = ChatRequestDto & {
   stream?: boolean;
   homeworkRunner?: boolean;
   tutorMode?: boolean;
+  thinkingMode?: boolean;
 };
 
 type ResponseCreateLike = {
@@ -201,9 +202,13 @@ export async function POST(request: Request) {
     const textInput = content || "";
     const tutorIntent = hasTutorIntent(textInput, body.tutorMode, body.metadata);
     const responseFormat = tutorIntent ? getSqlTutorResponseFormat() : undefined;
+    const reasoningModeEnabled = body.thinkingMode !== false || tutorIntent;
+    const reasoningLanguageInstructions = reasoningModeEnabled
+      ? "\n\n[REASONING SUMMARY LANGUAGE]\nWhen generating reasoning summaries, always write them in Hebrew (עברית). Keep each summary concise and clear."
+      : "";
     const extraInstructions = tutorIntent
-      ? `${weeklyPolicy.extraInstructions}\n\n${tutorInstructions}`
-      : weeklyPolicy.extraInstructions;
+      ? `${weeklyPolicy.extraInstructions}\n\n${tutorInstructions}${reasoningLanguageInstructions}`
+      : `${weeklyPolicy.extraInstructions}${reasoningLanguageInstructions}`;
 
     if (textInput) {
       inputItems.push({ type: "input_text", text: textInput });
@@ -242,6 +247,7 @@ export async function POST(request: Request) {
         let previousResponseId = body.previousResponseId;
         let finalOutputText = "";
         let finalResponseId = "";
+        let includeReasoningSummary = reasoningModeEnabled;
 
         if (tutorIntent) {
           await writer.write(
@@ -250,20 +256,47 @@ export async function POST(request: Request) {
         }
 
         for (let iteration = 1; iteration <= maxIterations; iteration += 1) {
-          const stream = await streamResponse({
-            input: iterationInput,
-            previousResponseId,
-            tools,
-            toolChoice: iteration === 1 ? weeklyPolicy.forcedInitialToolChoice : undefined,
-            extraInstructions,
-            responseFormat,
-            metadata: {
-              ...(body.metadata || {}),
-              session_id: sessionId || "",
-              route: "/api/responses/messages",
-              tool_loop_iteration: String(iteration),
-            },
-          });
+          let stream: any;
+          try {
+            stream = await streamResponse({
+              input: iterationInput,
+              previousResponseId,
+              tools,
+              toolChoice: iteration === 1 ? weeklyPolicy.forcedInitialToolChoice : undefined,
+              extraInstructions,
+              responseFormat,
+              reasoning: includeReasoningSummary ? { summary: "detailed" } : undefined,
+              metadata: {
+                ...(body.metadata || {}),
+                session_id: sessionId || "",
+                route: "/api/responses/messages",
+                tool_loop_iteration: String(iteration),
+              },
+            });
+          } catch (error) {
+            const message = error instanceof Error ? error.message.toLowerCase() : "";
+            const canRetryWithoutReasoning =
+              includeReasoningSummary &&
+              (message.includes("reasoning") || message.includes("summary"));
+            if (!canRetryWithoutReasoning) {
+              throw error;
+            }
+            includeReasoningSummary = false;
+            stream = await streamResponse({
+              input: iterationInput,
+              previousResponseId,
+              tools,
+              toolChoice: iteration === 1 ? weeklyPolicy.forcedInitialToolChoice : undefined,
+              extraInstructions,
+              responseFormat,
+              metadata: {
+                ...(body.metadata || {}),
+                session_id: sessionId || "",
+                route: "/api/responses/messages",
+                tool_loop_iteration: String(iteration),
+              },
+            });
+          }
 
           let iterationResponseId = "";
           let iterationOutputText = "";
@@ -290,17 +323,47 @@ export async function POST(request: Request) {
                   `${JSON.stringify({ type: "response.output_text.delta", delta: event.delta })}\n`
                 )
               );
+            } else if (
+              event?.type === "response.reasoning_summary_text.delta" &&
+              typeof event.delta === "string"
+            ) {
+              await writer.write(
+                encoder.encode(
+                  `${JSON.stringify({
+                    type: "response.reasoning_summary_text.delta",
+                    delta: event.delta,
+                  })}\n`
+                )
+              );
+            } else if (
+              event?.type === "response.reasoning_summary_text.done" &&
+              typeof event.text === "string"
+            ) {
+              await writer.write(
+                encoder.encode(
+                  `${JSON.stringify({
+                    type: "response.reasoning_summary_text.done",
+                    text: event.text,
+                  })}\n`
+                )
+              );
             } else if (event?.type === "response.output_text.done" && typeof event.text === "string") {
               iterationOutputText = event.text;
             } else if (event?.type === "response.output_item.done" && event?.item?.type === "function_call") {
-              calls.push({
+              const toolCall = {
                 callId: String(event.item.call_id || ""),
                 name: String(event.item.name || ""),
                 argumentsJson:
                   typeof event.item.arguments === "string"
                     ? event.item.arguments
                     : JSON.stringify(event.item.arguments || {}),
-              });
+              };
+              calls.push(toolCall);
+              await writer.write(
+                encoder.encode(
+                  `${JSON.stringify({ type: "response.tool_call.started", name: toolCall.name })}\n`
+                )
+              );
             } else if (event?.type === "response.completed") {
               iterationResponseId = String(event.response?.id || iterationResponseId || "");
               iterationOutputText = extractOutputText(event.response);
@@ -327,6 +390,13 @@ export async function POST(request: Request) {
           }
 
           const toolResults = await Promise.all(calls.map((call) => executeToolCall(call)));
+          for (const call of calls) {
+            await writer.write(
+              encoder.encode(
+                `${JSON.stringify({ type: "response.tool_call.completed", name: call.name })}\n`
+              )
+            );
+          }
           iterationInput = toFunctionCallOutputs(calls, toolResults);
           previousResponseId = iterationResponseId;
         }

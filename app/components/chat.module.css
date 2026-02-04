@@ -2075,11 +2075,26 @@
 }
 
 .reasoningPanel {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 8px 10px;
-  animation: fadeIn 0.25s ease-out;
+  position: relative;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow:
+    0 8px 20px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  animation: reasoningPanelIn 0.35s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+@keyframes reasoningPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .reasoningToggle {
@@ -2097,6 +2112,7 @@
   font-size: 11px;
   font-weight: 700;
   color: #0f172a;
+  letter-spacing: 0.02em;
 }
 
 .reasoningChevron {
@@ -2111,18 +2127,20 @@
 .reasoningList {
   list-style: none;
   padding: 0;
-  margin: 6px 0 0;
+  margin: 8px 0 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .reasoningItem {
   font-size: 11px;
-  color: #475569;
+  color: #334155;
   display: flex;
   gap: 6px;
-  align-items: center;
+  align-items: flex-start;
+  line-height: 1.45;
+  animation: reasoningItemIn 0.3s ease-out both;
 }
 
 .reasoningItem::before {
@@ -2130,8 +2148,43 @@
   width: 6px;
   height: 6px;
   border-radius: 999px;
-  background: #94a3b8;
+  background: linear-gradient(135deg, #0ea5e9, #2563eb);
   flex-shrink: 0;
+  margin-top: 5px;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.14);
+}
+
+.reasoningItemStreaming {
+  color: #0f172a;
+}
+
+.reasoningItemStreaming::after {
+  content: "";
+  width: 1px;
+  height: 1em;
+  background: #0f172a;
+  margin-right: 4px;
+  animation: reasoningCaretBlink 0.9s steps(1, end) infinite;
+}
+
+@keyframes reasoningItemIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes reasoningCaretBlink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
 }
 
 /* Attachment Indicator Dot */

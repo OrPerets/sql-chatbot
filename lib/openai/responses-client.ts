@@ -18,6 +18,7 @@ type CreateResponseInput = {
   toolChoice?: unknown;
   parallelToolCalls?: boolean | null;
   responseFormat?: unknown;
+  reasoning?: unknown;
 };
 
 type ToolCallHandler = (toolCall: ToolCallRequest) => Promise<string>;
@@ -113,6 +114,9 @@ export async function createResponse(params: CreateResponseInput) {
     if (typeof params.responseFormat !== "undefined") {
       payload.text = { format: normalizeTextFormat(params.responseFormat) };
     }
+    if (typeof params.reasoning !== "undefined") {
+      payload.reasoning = params.reasoning;
+    }
 
     const response = await (openai as any).responses.create(payload);
 
@@ -165,6 +169,9 @@ export async function streamResponse(params: CreateResponseInput) {
 
     if (typeof params.responseFormat !== "undefined") {
       payload.text = { format: normalizeTextFormat(params.responseFormat) };
+    }
+    if (typeof params.reasoning !== "undefined") {
+      payload.reasoning = params.reasoning;
     }
 
     const stream = await (openai as any).responses.create(payload);

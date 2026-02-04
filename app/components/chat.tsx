@@ -522,7 +522,7 @@ const Chat = ({
       if (savedAvatarMode === 'voice' || savedAvatarMode === 'avatar') {
         setAvatarMode(savedAvatarMode);
       }
-      
+
       setIsHydrated(true);
     }
   }, []);
@@ -533,6 +533,7 @@ const Chat = ({
       localStorage.setItem('displayMode', displayMode);
     }
   }, [displayMode, isHydrated]);
+
   // Add sidebar visibility state
   // Check if we're on mobile to default sidebar to closed
   const [sidebarVisible, setSidebarVisible] = useState(() => {
@@ -567,10 +568,11 @@ const Chat = ({
   const streamingTextRef = useRef<string>("");
   const progressiveSpeechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [reasoningLogs, setReasoningLogs] = useState<string[]>([]);
+  const [reasoningDraft, setReasoningDraft] = useState("");
   const [isReasoningCollapsed, setIsReasoningCollapsed] = useState(false);
-  const [visibleReasoningCount, setVisibleReasoningCount] = useState(0);
-  const reasoningSeedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const reasoningRevealTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [reasoningLogsEnabledForResponse, setReasoningLogsEnabledForResponse] = useState(false);
+  const reasoningDraftRef = useRef("");
+  const tutorRawResponseRef = useRef("");
   
   // Add state for manual speech playback
   const [isManualSpeech, setIsManualSpeech] = useState(false);
@@ -868,46 +870,30 @@ const Chat = ({
     }
   }, []);
 
-  const addReasoningLog = useCallback((log: string, delayMs = 0) => {
-    const commitLog = () => {
-      setReasoningLogs((prev) => (prev.includes(log) ? prev : [...prev, log]));
-    };
-    if (delayMs <= 0) {
-      commitLog();
-      return;
-    }
-    setTimeout(commitLog, delayMs);
+  const addReasoningLog = useCallback((log: string) => {
+    const trimmed = log.trim();
+    if (!trimmed) return;
+    setReasoningLogs((prev) => {
+      const lastLog = prev[prev.length - 1];
+      if (lastLog === trimmed) return prev;
+      return [...prev, trimmed];
+    });
   }, []);
 
-  useEffect(() => {
-    if (reasoningLogs.length === 0) {
-      setVisibleReasoningCount(0);
-      if (reasoningRevealTimeoutRef.current) {
-        clearTimeout(reasoningRevealTimeoutRef.current);
-        reasoningRevealTimeoutRef.current = null;
-      }
-      return;
-    }
-
-    if (visibleReasoningCount >= reasoningLogs.length) return;
-
-    if (reasoningRevealTimeoutRef.current) {
-      clearTimeout(reasoningRevealTimeoutRef.current);
-    }
-    reasoningRevealTimeoutRef.current = setTimeout(() => {
-      setVisibleReasoningCount((prev) => Math.min(prev + 1, reasoningLogs.length));
-      reasoningRevealTimeoutRef.current = null;
-    }, 260);
-  }, [reasoningLogs.length, visibleReasoningCount]);
-
-  useEffect(() => () => {
-    if (reasoningSeedTimeoutRef.current) {
-      clearTimeout(reasoningSeedTimeoutRef.current);
-    }
-    if (reasoningRevealTimeoutRef.current) {
-      clearTimeout(reasoningRevealTimeoutRef.current);
-    }
+  const appendReasoningDelta = useCallback((delta: string) => {
+    if (!delta) return;
+    reasoningDraftRef.current += delta;
+    setReasoningDraft(reasoningDraftRef.current);
   }, []);
+
+  const flushReasoningDraft = useCallback(() => {
+    const trimmed = reasoningDraftRef.current.trim();
+    if (trimmed) {
+      addReasoningLog(trimmed);
+    }
+    reasoningDraftRef.current = "";
+    setReasoningDraft("");
+  }, [addReasoningLog]);
 
   const triggerConversationAnalysis = useCallback(async (sessionId) => {
     try {
@@ -1218,22 +1204,45 @@ const updateUserBalance = async (value) => {
         if (event.type === "response.tutor.mode") {
           tutorMode = event.enabled;
           if (event.enabled) {
-            addReasoningLog("מפעיל מצב מורה כדי להדגיש הסברים.");
+            setReasoningLogsEnabledForResponse(true);
+            addReasoningLog("מכין תשובה לימודית מסודרת...");
           }
           continue;
         }
 
+        if (event.type === "response.reasoning_summary_text.delta") {
+          appendReasoningDelta(event.delta);
+          continue;
+        }
+
+        if (event.type === "response.reasoning_summary_text.done") {
+          flushReasoningDraft();
+          continue;
+        }
+
+        if (event.type === "response.tool_call.started") {
+          flushReasoningDraft();
+          addReasoningLog(`מריץ כלי: ${event.name}`);
+          continue;
+        }
+
+        if (event.type === "response.tool_call.completed") {
+          addReasoningLog(`הכלי ${event.name} הסתיים.`);
+          continue;
+        }
+
         if (event.type === "response.output_text.delta") {
-          if (tutorMode) {
-            sawDelta = true;
-            continue;
-          }
           if (!createdAssistantMessage) {
             handleTextCreated();
             createdAssistantMessage = true;
+            setIsReasoningCollapsed(true);
           }
           sawDelta = true;
-          addReasoningLog("מנסח את התשובה בצורה ברורה.");
+          if (tutorMode) {
+            tutorRawResponseRef.current += event.delta;
+            setLastAssistantMessageText(buildTutorPreviewFromRaw(tutorRawResponseRef.current));
+            continue;
+          }
           handleTextDelta({ value: event.delta });
           continue;
         }
@@ -1245,18 +1254,19 @@ const updateUserBalance = async (value) => {
             handleTextCreated();
             createdAssistantMessage = true;
           }
-          addReasoningLog("מסיים את התגובה ומוודא דיוק.");
+          flushReasoningDraft();
           if (event.tutorResponse) {
-            setLastMessageTutorResponse(event.tutorResponse);
+            await setLastMessageTutorResponse(event.tutorResponse, true);
             continue;
           }
-          if ((tutorMode || !sawDelta) && event.outputText) {
-            appendToLastMessage(event.outputText);
+          if (!sawDelta && event.outputText) {
+            await appendToLastMessageProgressively(event.outputText);
           }
           continue;
         }
 
         if (event.type === "response.error") {
+          flushReasoningDraft();
           const failureKind = classifyStreamFailure(event.message);
           const failureText = renderStreamFailureMessage(failureKind);
           setStreamError(failureText);
@@ -1268,6 +1278,7 @@ const updateUserBalance = async (value) => {
     }
 
     if (!sawCompleted) {
+      flushReasoningDraft();
       const failureText = renderStreamFailureMessage("stream_interruption");
       setStreamError(failureText);
       appendMessage("assistant", failureText);
@@ -1279,14 +1290,11 @@ const updateUserBalance = async (value) => {
   const sendMessage = async (text) => { 
     setImageProcessing(true);
     setIsReasoningCollapsed(false);
-    setReasoningLogs(["מנתח את הבקשה ומבין את הבעיה."]);
-    if (reasoningSeedTimeoutRef.current) {
-      clearTimeout(reasoningSeedTimeoutRef.current);
-    }
-    reasoningSeedTimeoutRef.current = setTimeout(() => {
-      addReasoningLog("בודק הקשר רלוונטי ומכין דוגמאות.");
-      reasoningSeedTimeoutRef.current = null;
-    }, 420);
+    setReasoningLogsEnabledForResponse(false);
+    setReasoningLogs([]);
+    reasoningDraftRef.current = "";
+    tutorRawResponseRef.current = "";
+    setReasoningDraft("");
     
     // Notify parent component about user message for avatar interaction
     if (onUserMessage) {
@@ -1426,6 +1434,7 @@ const updateUserBalance = async (value) => {
             content: messageWithTags, // Send message with tags to AI
             imageData: imageData, // Send image data if available
             homeworkRunner: !!homeworkContext, // Allow all SQL (subqueries, CONCAT, ALL, TOP) in homework
+            thinkingMode: false,
             stream: true,
           }),
         }
@@ -1545,8 +1554,8 @@ const loadChatMessages = (chatId: string) => {
     setIsThinking(false); // Stop thinking when assistant starts responding
     setHasStartedSpeaking(false); // Reset for new message
     streamingTextRef.current = "";
+    tutorRawResponseRef.current = "";
     setStreamingText("");
-    addReasoningLog("מתחיל לנסח תשובה מפורטת.");
     // Create a stable message id for this assistant message
     setCurrentAssistantMessageId(`${Date.now()}-${Math.random().toString(36).slice(2)}`);
     // If voice is enabled and we are currently speaking, stop to avoid overlap with the new message
@@ -1578,6 +1587,30 @@ const loadChatMessages = (chatId: string) => {
       annotateLastMessage(delta.annotations);
     }
   };
+
+  const appendToLastMessageProgressively = useCallback(
+    async (text: string) => {
+      if (!text) return;
+      const step = text.length > 900 ? 8 : text.length > 450 ? 5 : 3;
+      for (let i = 0; i < text.length; i += step) {
+        const chunk = text.slice(i, i + step);
+        setMessages((prevMessages) => {
+          const lastMessage = prevMessages[prevMessages.length - 1];
+          if (!lastMessage) return prevMessages;
+          const updatedLastMessage = {
+            ...lastMessage,
+            text: lastMessage.text + chunk,
+          };
+          if (lastMessage.role === 'assistant') {
+            setLastAssistantMessage(updatedLastMessage.text);
+          }
+          return [...prevMessages.slice(0, -1), updatedLastMessage];
+        });
+        await new Promise((resolve) => setTimeout(resolve, 14));
+      }
+    },
+    []
+  );
 
    // New function to handle message changes
   const handleMessagesChange = useCallback(() => {
@@ -1615,12 +1648,10 @@ const loadChatMessages = (chatId: string) => {
     setInputDisabled(false);
     setIsThinking(false);
     setIsDone(true);
-    setReasoningLogs([]);
-    setVisibleReasoningCount(0);
-    if (reasoningSeedTimeoutRef.current) {
-      clearTimeout(reasoningSeedTimeoutRef.current);
-      reasoningSeedTimeoutRef.current = null;
-    }
+    setReasoningLogsEnabledForResponse(false);
+    setReasoningDraft("");
+    reasoningDraftRef.current = "";
+    tutorRawResponseRef.current = "";
     
     // Clear progressive speech timeout when stream ends
     if (progressiveSpeechTimeoutRef.current) {
@@ -1660,6 +1691,71 @@ const loadChatMessages = (chatId: string) => {
     return `**שאילתה**\n\`\`\`sql\n${tutorResponse.query}\n\`\`\`\n\n**הסבר**\n${tutorResponse.explanation}\n\n**טעויות נפוצות**\n${mistakesText}\n\n**אופטימיזציה**\n${tutorResponse.optimization}`;
   };
 
+  const decodeJsonString = (value: string) => {
+    try {
+      return JSON.parse(`"${value}"`);
+    } catch {
+      return value.replace(/\\n/g, "\n").replace(/\\"/g, "\"");
+    }
+  };
+
+  const extractPartialJsonStringField = (raw: string, field: string) => {
+    const escapedField = field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`"${escapedField}"\\s*:\\s*"((?:\\\\.|[^"\\\\])*)`);
+    const match = regex.exec(raw);
+    return match?.[1] ? decodeJsonString(match[1]) : "";
+  };
+
+  const extractPartialMistakes = (raw: string) => {
+    const arrayMatch = /"commonMistakes"\s*:\s*\[([\s\S]*?)(?:\]|$)/.exec(raw);
+    if (!arrayMatch?.[1]) return [];
+    const items: string[] = [];
+    const itemRegex = /"((?:\\.|[^"\\])*)"/g;
+    let match: RegExpExecArray | null = null;
+    while ((match = itemRegex.exec(arrayMatch[1])) !== null) {
+      items.push(decodeJsonString(match[1]));
+    }
+    return items;
+  };
+
+  const buildTutorPreviewFromRaw = (raw: string) => {
+    const query = extractPartialJsonStringField(raw, "query");
+    const explanation = extractPartialJsonStringField(raw, "explanation");
+    const optimization = extractPartialJsonStringField(raw, "optimization");
+    const commonMistakes = extractPartialMistakes(raw);
+
+    const blocks: string[] = [];
+    if (query) {
+      blocks.push(`**שאילתה**\n\`\`\`sql\n${query}\n\`\`\``);
+    }
+    if (explanation) {
+      blocks.push(`**הסבר**\n${explanation}`);
+    }
+    if (commonMistakes.length > 0) {
+      blocks.push(`**טעויות נפוצות**\n${commonMistakes.map((mistake) => `- ${mistake}`).join("\n")}`);
+    }
+    if (optimization) {
+      blocks.push(`**אופטימיזציה**\n${optimization}`);
+    }
+
+    return blocks.length > 0 ? blocks.join("\n\n") : "מנסח תשובה...";
+  };
+
+  const setLastAssistantMessageText = (text: string) => {
+    setMessages((prevMessages) => {
+      const lastMessage = prevMessages[prevMessages.length - 1];
+      if (!lastMessage) return prevMessages;
+      const updatedLastMessage = {
+        ...lastMessage,
+        text,
+      };
+      if (lastMessage.role === "assistant") {
+        setLastAssistantMessage(text);
+      }
+      return [...prevMessages.slice(0, -1), updatedLastMessage];
+    });
+  };
+
   const appendToLastMessage = (text) => {
     setMessages((prevMessages) => {
       const lastMessage = prevMessages[prevMessages.length - 1];
@@ -1677,13 +1773,44 @@ const loadChatMessages = (chatId: string) => {
     });
   };
 
-  const setLastMessageTutorResponse = (tutorResponse: SqlTutorResponse) => {
+  const setLastMessageTutorResponse = async (
+    tutorResponse: SqlTutorResponse,
+    progressive = false
+  ) => {
+    const formattedText = buildTutorResponseText(tutorResponse);
+
+    if (progressive) {
+      setMessages((prevMessages) => {
+        const lastMessage = prevMessages[prevMessages.length - 1];
+        if (!lastMessage) {
+          return prevMessages;
+        }
+        const updatedLastMessage = {
+          ...lastMessage,
+          text: "",
+          tutorResponse,
+        };
+
+        if (lastMessage.role === "assistant") {
+          setLastAssistantMessage("");
+        }
+
+        return [...prevMessages.slice(0, -1), updatedLastMessage];
+      });
+
+      await appendToLastMessageProgressively(formattedText);
+
+      if (onAssistantResponse) {
+        onAssistantResponse(formattedText);
+      }
+      return;
+    }
+
     setMessages((prevMessages) => {
       const lastMessage = prevMessages[prevMessages.length - 1];
       if (!lastMessage) {
         return prevMessages;
       }
-      const formattedText = buildTutorResponseText(tutorResponse);
       const updatedLastMessage = {
         ...lastMessage,
         text: formattedText,
@@ -1798,14 +1925,12 @@ const loadChatMessages = (chatId: string) => {
     setHasStartedSpeaking(false); // Reset progressive speech state
     setStreamingText("");
     streamingTextRef.current = "";
+    setReasoningLogsEnabledForResponse(false);
     setReasoningLogs([]);
-    setVisibleReasoningCount(0);
+    setReasoningDraft("");
+    reasoningDraftRef.current = "";
     autoScrollRef.current = true;
     setIsReasoningCollapsed(false);
-    if (reasoningSeedTimeoutRef.current) {
-      clearTimeout(reasoningSeedTimeoutRef.current);
-      reasoningSeedTimeoutRef.current = null;
-    }
     
     // Clear any pending progressive speech
     if (progressiveSpeechTimeoutRef.current) {
@@ -1867,6 +1992,42 @@ const embeddedStyles = embeddedMode ? {
   messages: { direction: 'rtl' as const },
 };
 
+const shouldShowReasoningPanel =
+  reasoningLogsEnabledForResponse && (reasoningLogs.length > 0 || reasoningDraft.length > 0);
+const hasStreamingAssistantMessage =
+  inputDisabled && messages.length > 0 && messages[messages.length - 1]?.role === "assistant";
+
+const reasoningPanel = shouldShowReasoningPanel ? (
+  <div className={styles.reasoningPanel}>
+    <button
+      type="button"
+      className={styles.reasoningToggle}
+      onClick={() => setIsReasoningCollapsed((prev) => !prev)}
+      aria-expanded={!isReasoningCollapsed}
+    >
+      <span className={styles.reasoningTitle}>יומן חשיבה</span>
+      <ChevronDown
+        size={14}
+        className={`${styles.reasoningChevron} ${isReasoningCollapsed ? styles.reasoningChevronCollapsed : ""}`}
+      />
+    </button>
+    {!isReasoningCollapsed && (
+      <ul className={styles.reasoningList}>
+        {reasoningLogs.map((log, index) => (
+          <li key={`${log}-${index}`} className={styles.reasoningItem}>
+            {log}
+          </li>
+        ))}
+        {reasoningDraft && (
+          <li className={`${styles.reasoningItem} ${styles.reasoningItemStreaming}`}>
+            {reasoningDraft}
+          </li>
+        )}
+      </ul>
+    )}
+  </div>
+) : null;
+
 return (
   <div 
     className={`${styles.main} ${!sidebarVisible || hideSidebar || minimalMode ? styles.mainFullWidth : ''}`}
@@ -1908,84 +2069,66 @@ return (
           ) : (
             <>
               {messages.map((msg, index) => (
-                <Message
-                  key={index}
-                  role={msg.role}
-                  text={msg.text}
-                  feedback={msg.feedback}
-                  hasImage={msg.hasImage}
-                  tutorResponse={msg.tutorResponse}
-                  onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
-                  autoPlaySpeech={msg.role === 'assistant' ? (enableVoice && autoPlaySpeech) : undefined}
-                  onPlayMessage={msg.role === 'assistant' ? () => {
-                    console.log('🎤 Playing individual message:', {
-                      messageText: msg.text.substring(0, 50) + '...',
-                      enableVoice,
-                      avatarMode,
-                      currentAvatarState: avatarState,
-                      lastAssistantMessage: lastAssistantMessage?.substring(0, 30) + '...'
-                    });
-                    if (!enableVoice) {
-                      console.log('❌ Voice is not enabled');
-                      return;
-                    }
-                    // Stop any current speech
-                    // AVATAR DISABLED: enhancedTTS.stop();
-                    // Reset speech states first
-                    setShouldSpeak(false);
-                    setIsAssistantMessageComplete(false);
-                    setHasStartedSpeaking(false);
-                    
-                    // Use setTimeout to ensure state changes are processed
-                    setTimeout(() => {
-                      // Set the text to the avatar for speaking
-                      setLastAssistantMessage(msg.text);
-                      // Set a new manual id and mark as spoken to avoid auto trigger
-                      const manualId = `manual-${Date.now()}`;
-                      setCurrentAssistantMessageId(manualId);
-                      setLastSpokenMessageId(manualId);
-                      setShouldSpeak(true);
-                      setIsAssistantMessageComplete(true);
-                      setHasStartedSpeaking(true);
-                      setIsManualSpeech(true);  // Mark as manual speech
-                      // Clear thinking state
-                      setIsThinking(false);
-                      console.log('🎤 Set speech state for avatar:', {
-                        shouldSpeak: true,
-                        isAssistantMessageComplete: true,
-                        text: msg.text.substring(0, 50) + '...'
+                <React.Fragment key={index}>
+                  {inputDisabled &&
+                    shouldShowReasoningPanel &&
+                    index === messages.length - 1 &&
+                    msg.role === "assistant" &&
+                    reasoningPanel}
+                  <Message
+                    role={msg.role}
+                    text={msg.text}
+                    feedback={msg.feedback}
+                    hasImage={msg.hasImage}
+                    tutorResponse={msg.tutorResponse}
+                    onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
+                    autoPlaySpeech={msg.role === 'assistant' ? (enableVoice && autoPlaySpeech) : undefined}
+                    onPlayMessage={msg.role === 'assistant' ? () => {
+                      console.log('🎤 Playing individual message:', {
+                        messageText: msg.text.substring(0, 50) + '...',
+                        enableVoice,
+                        avatarMode,
+                        currentAvatarState: avatarState,
+                        lastAssistantMessage: lastAssistantMessage?.substring(0, 30) + '...'
                       });
-                    }, 100);
-                  } : undefined}
-                />
+                      if (!enableVoice) {
+                        console.log('❌ Voice is not enabled');
+                        return;
+                      }
+                      // Stop any current speech
+                      // AVATAR DISABLED: enhancedTTS.stop();
+                      // Reset speech states first
+                      setShouldSpeak(false);
+                      setIsAssistantMessageComplete(false);
+                      setHasStartedSpeaking(false);
+                      
+                      // Use setTimeout to ensure state changes are processed
+                      setTimeout(() => {
+                        // Set the text to the avatar for speaking
+                        setLastAssistantMessage(msg.text);
+                        // Set a new manual id and mark as spoken to avoid auto trigger
+                        const manualId = `manual-${Date.now()}`;
+                        setCurrentAssistantMessageId(manualId);
+                        setLastSpokenMessageId(manualId);
+                        setShouldSpeak(true);
+                        setIsAssistantMessageComplete(true);
+                        setHasStartedSpeaking(true);
+                        setIsManualSpeech(true);  // Mark as manual speech
+                        // Clear thinking state
+                        setIsThinking(false);
+                        console.log('🎤 Set speech state for avatar:', {
+                          shouldSpeak: true,
+                          isAssistantMessageComplete: true,
+                          text: msg.text.substring(0, 50) + '...'
+                        });
+                      }, 100);
+                    } : undefined}
+                  />
+                </React.Fragment>
               ))}
               {inputDisabled && (
                 <div className={styles.assistantMessage}>
-                  {reasoningLogs.length > 0 && (
-                    <div className={styles.reasoningPanel}>
-                      <button
-                        type="button"
-                        className={styles.reasoningToggle}
-                        onClick={() => setIsReasoningCollapsed((prev) => !prev)}
-                        aria-expanded={!isReasoningCollapsed}
-                      >
-                        <span className={styles.reasoningTitle}>יומן חשיבה</span>
-                        <ChevronDown
-                          size={14}
-                          className={`${styles.reasoningChevron} ${isReasoningCollapsed ? styles.reasoningChevronCollapsed : ""}`}
-                        />
-                      </button>
-                      {!isReasoningCollapsed && (
-                        <ul className={styles.reasoningList}>
-                          {reasoningLogs.slice(0, visibleReasoningCount).map((log, index) => (
-                            <li key={`${log}-${index}`} className={styles.reasoningItem}>
-                              {log}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  )}
+                  {!hasStreamingAssistantMessage && reasoningPanel}
                   <div className={styles.typingIndicator}>
                     <div className={styles.dot}></div>
                     <div className={styles.dot}></div>
