@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import styles from "./chat.module.css";
 import "./mobile-optimizations.css";
 import Markdown from "react-markdown";
-import { ThumbsUp, ThumbsDown, ClipboardCopy, Plus, Sparkles, ImagePlus, Braces, BarChart3, ChevronDown } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ClipboardCopy, Plus, Sparkles, ImagePlus, Braces, BarChart3, ChevronDown, Mic, MicOff } from 'lucide-react';
 import Link from 'next/link';
 import Sidebar from './sidebar';
 import { useRouter } from 'next/navigation';
@@ -19,7 +19,7 @@ import VoiceModeCircle from "./VoiceModeCircle";
 import StaticLogoMode from "./StaticLogoMode";
 // import { AvatarIcon, MicIcon } from "./AvatarToggleIcons";
 // import Avatar3DErrorBoundary from "./michael-3d-visual-wrapper";
-// import { enhancedTTS } from "@/app/utils/enhanced-tts";
+import { enhancedTTS } from "@/app/utils/enhanced-tts";
 // import AvatarInteractionManager from "./AvatarInteractionManager";
 import { analyzeMessage } from "../utils/sql-query-analyzer";
 // import { avatarAnalytics } from "../utils/avatar-analytics";
@@ -526,6 +526,11 @@ const Chat = ({
         setAvatarMode(savedAvatarMode);
       }
 
+      const savedAutoPlaySpeech = localStorage.getItem('autoPlaySpeech');
+      if (savedAutoPlaySpeech === 'true' || savedAutoPlaySpeech === 'false') {
+        setAutoPlaySpeech(savedAutoPlaySpeech === 'true');
+      }
+
       setIsHydrated(true);
     }
   }, []);
@@ -536,6 +541,12 @@ const Chat = ({
       localStorage.setItem('displayMode', displayMode);
     }
   }, [displayMode, isHydrated]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && isHydrated) {
+      localStorage.setItem('autoPlaySpeech', String(autoPlaySpeech));
+    }
+  }, [autoPlaySpeech, isHydrated]);
 
   // Add sidebar visibility state
   // Check if we're on mobile to default sidebar to closed
@@ -552,6 +563,7 @@ const Chat = ({
   const [shouldSpeak, setShouldSpeak] = useState(false);
   const [lastSpokenMessageId, setLastSpokenMessageId] = useState<string>("");
   const [currentAssistantMessageId, setCurrentAssistantMessageId] = useState<string>("");
+  const lastFallbackSpokenMessageIdRef = useRef<string>("");
 
   const getStoredUser = useCallback(() => {
     if (typeof window === "undefined") return null;
@@ -1261,7 +1273,7 @@ const updateUserBalance = async (value) => {
   // Cleanup speech and typing detection on unmount
   useEffect(() => {
     return () => {
-      // AVATAR DISABLED: enhancedTTS.stop();
+      enhancedTTS.stop();
       
       if (userTypingTimeoutRef.current) {
         clearTimeout(userTypingTimeoutRef.current);
@@ -1273,6 +1285,36 @@ const updateUserBalance = async (value) => {
       }
     };
   }, [currentChatId, triggerConversationAnalysis]);
+
+  useEffect(() => {
+    if (!enableVoice || !autoPlaySpeech || !isDone) return;
+    if (!lastAssistantMessage?.trim()) return;
+
+    const avatarSpeechActive = displayMode === 'avatar' && enableAvatar;
+    if (avatarSpeechActive) return;
+
+    const messageId = currentAssistantMessageId || `fallback-${lastAssistantMessage.slice(0, 64)}`;
+    if (lastFallbackSpokenMessageIdRef.current === messageId) return;
+    lastFallbackSpokenMessageIdRef.current = messageId;
+
+    enhancedTTS.speak(lastAssistantMessage, {
+      voice: 'onyx',
+      speed: 0.95,
+      useOpenAI: true,
+      characterStyle: 'university_ta',
+      enhanceProsody: true,
+    }).catch((error) => {
+      console.error('Fallback speech failed:', error);
+    });
+  }, [
+    autoPlaySpeech,
+    currentAssistantMessageId,
+    displayMode,
+    enableAvatar,
+    enableVoice,
+    isDone,
+    lastAssistantMessage,
+  ]);
 
   // Modified useEffect for progressive speech
   useEffect(() => {
@@ -2666,6 +2708,28 @@ return (
                   )}
                 </button>
               </div>
+              {enableVoice && (
+                <div className={styles.avatarModeToggle}>
+                  <button
+                    className={`${styles.modeToggleButton} ${autoPlaySpeech ? styles.voiceActive : ''}`}
+                    onClick={() => {
+                      const next = !autoPlaySpeech;
+                      setAutoPlaySpeech(next);
+                      if (!next) {
+                        enhancedTTS.stop();
+                        setShouldSpeak(false);
+                        setIsAssistantMessageComplete(false);
+                        setHasStartedSpeaking(false);
+                        setIsManualSpeech(false);
+                      }
+                    }}
+                    title={autoPlaySpeech ? 'כבה הקראה קולית' : 'הפעל הקראה קולית'}
+                    aria-label={autoPlaySpeech ? 'Turn voice off' : 'Turn voice on'}
+                  >
+                    {autoPlaySpeech ? <Mic size={16} /> : <MicOff size={16} />}
+                  </button>
+                </div>
+              )}
             </div>
             
             {/* User info below the avatar */}

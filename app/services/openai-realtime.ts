@@ -172,7 +172,11 @@ export class OpenAIRealtimeService {
         throw new Error('Failed to transcribe audio');
       }
 
-      const { text } = await response.json();
+      const payload = await response.json();
+      const text = payload?.text || payload?.transcription || '';
+      if (!text) {
+        throw new Error('Transcription response is missing text');
+      }
       console.log('📝 Transcribed:', text);
       
       // Update transcription
@@ -287,12 +291,12 @@ export class OpenAIRealtimeService {
         }),
       });
 
-      // Handle disabled feature gracefully (200 with enabled: false) - don't treat as error
-      if (response.status === 200) {
-        const responseData = await response.json().catch(() => ({}));
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const responseData = await response.clone().json().catch(() => ({}));
         if (responseData.enabled === false) {
           console.log('⚠️ Voice feature is disabled, skipping TTS');
-          return; // Silently skip TTS if feature is disabled
+          return;
         }
       }
 

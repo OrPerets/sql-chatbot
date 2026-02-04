@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { createHash } from 'node:crypto';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -9,6 +10,45 @@ const openai = new OpenAI({
 const activeRequests = new Map<string, Promise<NextResponse>>();
 
 const ALLOWED_VOICES = new Set(['onyx','echo','fable','alloy','nova','shimmer']);
+const ALLOWED_FORMATS = new Set(['mp3', 'wav', 'opus', 'aac', 'flac', 'pcm']);
+const DEFAULT_TTS_MODEL = process.env.OPENAI_TTS_MODEL?.trim() || 'gpt-4o-mini-tts';
+const MAX_INPUT_CHARS = Number(process.env.OPENAI_TTS_MAX_INPUT_CHARS || 3800);
+
+function hashForDedup(parts: string[]): string {
+  return createHash('sha256').update(parts.join('|')).digest('hex');
+}
+
+function normalizeSpeechText(text: string, contentType: string): string {
+  let processedText = text
+    .replace(/```[\s\S]*?```/g, ' [code block] ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (contentType === 'sql') {
+    processedText = enhanceSQLPronunciation(processedText);
+  } else if (contentType === 'explanation') {
+    processedText = addNaturalPauses(processedText);
+  }
+
+  if (processedText.length > MAX_INPUT_CHARS) {
+    processedText = `${processedText.slice(0, MAX_INPUT_CHARS).trim()}...`;
+  }
+
+  return processedText;
+}
+
+function buildVoiceInstructions(emotion: string, characterStyle: string, enhanceProsody: boolean): string {
+  const pacing = enhanceProsody
+    ? 'Use natural pacing with short pauses at sentence boundaries.'
+    : 'Use steady pacing without dramatic pauses.';
+  return [
+    'You are Michael, a clear and friendly SQL teaching assistant.',
+    `Character style: ${characterStyle}.`,
+    `Emotional tone: ${emotion}.`,
+    pacing,
+    'Pronounce technical terms clearly, especially SQL keywords.',
+  ].join(' ');
+}
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -16,12 +56,10 @@ export async function POST(request: NextRequest) {
   try {
     const featureVoiceEnabled = process.env.FEATURE_VOICE === '1';
     if (!featureVoiceEnabled) {
-      // Return 200 with disabled message - no error, just feature not available
-      // This prevents error logs and client retries
       return NextResponse.json({ 
         enabled: false,
         message: 'Voice feature is disabled'
-      }, { status: 200 });
+      }, { status: 503 });
     }
 
     if (!process.env.OPENAI_API_KEY) {
@@ -44,46 +82,57 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No text provided' }, { status: 400 });
     }
 
+    if (!ALLOWED_FORMATS.has(format)) {
+      return NextResponse.json({ error: 'Unsupported audio format' }, { status: 400 });
+    }
+
     const hasHebrew = /[\u0590-\u05FF]/.test(text);
     let voice = hasHebrew ? 'nova' : 'onyx';
     if (requestedVoice && ALLOWED_VOICES.has(requestedVoice)) {
       voice = requestedVoice;
     }
 
-    // Enhanced dedup key with new parameters
-    const requestKey = `${voice}_${format}_${Math.round(speed * 100)}_${emotion}_${content_type}_${text}`;
+    const normalizedSpeed = Math.max(0.5, Math.min(1.5, Number(speed) || 1.0));
+    const speechText = normalizeSpeechText(text, content_type);
+    const instructions = buildVoiceInstructions(emotion, character_style, enhance_prosody);
+
+    // Enhanced dedup key with bounded memory footprint
+    const requestKey = hashForDedup([
+      voice,
+      format,
+      String(Math.round(normalizedSpeed * 100)),
+      emotion,
+      content_type,
+      character_style,
+      speechText,
+    ]);
     if (activeRequests.has(requestKey)) {
       return await activeRequests.get(requestKey)!;
     }
 
     const processingPromise = (async (): Promise<NextResponse> => {
       try {
-        // Enhanced text processing with content-type awareness
-        let processedText = text
-          .replace(/```[\s\S]*?```/g, ' [code block] ')
-          .replace(/\s+/g, ' ')
-          .trim();
-
-        // Apply content-type specific processing
-        if (content_type === 'sql') {
-          processedText = enhanceSQLPronunciation(processedText);
-        } else if (content_type === 'explanation') {
-          processedText = addNaturalPauses(processedText);
+        let resp;
+        try {
+          resp = await openai.audio.speech.create({
+            model: DEFAULT_TTS_MODEL,
+            voice: voice as any,
+            input: speechText,
+            speed: normalizedSpeed,
+            response_format: format as any,
+            instructions,
+          });
+        } catch (primaryError) {
+          // Fallback for environments still pinned to legacy TTS model behavior
+          resp = await openai.audio.speech.create({
+            model: 'tts-1',
+            voice: voice as any,
+            input: speechText,
+            speed: normalizedSpeed,
+            response_format: format as any,
+          });
+          console.warn('Falling back to tts-1 for speech synthesis:', primaryError);
         }
-
-        // Apply emotion-based text enhancement
-        if (emotion !== 'neutral') {
-          processedText = applyEmotionEnhancement(processedText, emotion);
-        }
-
-        // Call OpenAI speech API with enhanced parameters
-        const resp = await openai.audio.speech.create({
-          model: 'tts-1',
-          voice: voice as any,
-          input: processedText,
-          speed: Math.max(0.5, Math.min(1.5, Number(speed) || 1.0)),
-          response_format: format as any,
-        });
 
         const arrayBuf = await resp.arrayBuffer();
         const buffer = Buffer.from(arrayBuf);
@@ -103,7 +152,8 @@ export async function POST(request: NextRequest) {
             'X-TTS-Processing-Time': processingTime.toString(),
             'X-TTS-Voice': voice,
             'X-TTS-Emotion': emotion,
-            'X-TTS-Content-Type': content_type
+            'X-TTS-Content-Type': content_type,
+            'X-TTS-Model': DEFAULT_TTS_MODEL,
           },
         });
       } catch (err) {
@@ -154,26 +204,10 @@ function addNaturalPauses(text: string): string {
     .replace(/,/g, ', '); // Add pause after commas
 }
 
-// Helper function to apply emotion enhancement
-function applyEmotionEnhancement(text: string, emotion: string): string {
-  switch (emotion) {
-    case 'excited':
-      return text.replace(/!/g, '! ').replace(/\./g, '. ');
-    case 'calm':
-      return text.replace(/\./g, '. ').replace(/!/g, '.');
-    case 'happy':
-      return text.replace(/\./g, '. ').replace(/!/g, '! ');
-    case 'sad':
-      return text.replace(/\./g, '... ').replace(/!/g, '.');
-    default:
-      return text;
-  }
-}
-
 export async function GET() {
   return NextResponse.json({
     voices: ['onyx','echo','fable','alloy','nova','shimmer'],
-    models: ['tts-1'],
-    formats: ['mp3','opus'],
+    models: [DEFAULT_TTS_MODEL, 'tts-1'],
+    formats: ['mp3', 'wav', 'opus', 'aac', 'flac', 'pcm'],
   });
 }

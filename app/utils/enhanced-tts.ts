@@ -208,6 +208,7 @@ class EnhancedTTSService {
   private requestQueue: Array<() => Promise<void>> = [];
   private cacheSizeLimit = 50; // Maximum number of cached audio files
   private maxCacheAge = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+  private currentRequestAbortController: AbortController | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -507,7 +508,42 @@ class EnhancedTTSService {
 
   // Get cache key for audio
   private getCacheKey(text: string, options: TTSOptions): string {
-    return `${text}-${JSON.stringify(options)}`;
+    const normalized = this.normalizeTextForSpeech(text);
+    const stableOptions = {
+      voice: options.voice || 'onyx',
+      speed: Number(options.speed || 1.0).toFixed(2),
+      characterStyle: options.characterStyle || 'university_ta',
+      enhanceProsody: options.enhanceProsody !== false,
+      emotion: options.emotion || 'neutral',
+      contentType: options.contentType || 'general',
+    };
+    return this.hashKey(`${normalized}::${JSON.stringify(stableOptions)}`);
+  }
+
+  private hashKey(input: string): string {
+    let hash = 2166136261;
+    for (let i = 0; i < input.length; i++) {
+      hash ^= input.charCodeAt(i);
+      hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+    }
+    return (hash >>> 0).toString(16);
+  }
+
+  private normalizeTextForSpeech(text: string): string {
+    return text
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/\[(.*?)\]\((.*?)\)/g, '$1')
+      .replace(/[*_~`>#-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 5000);
+  }
+
+  private async parseDisabledFeature(response: Response): Promise<boolean> {
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) return false;
+    const payload = await response.clone().json().catch(() => null);
+    return payload?.enabled === false;
   }
 
   // Detect text language
@@ -621,7 +657,9 @@ class EnhancedTTSService {
     const selectedVoice = this.selectVoice(language, options);
     
     // Create request key for client-side deduplication
-    const requestKey = `${text}_${selectedVoice}_${options.speed || 1.0}_${options.enhanceProsody !== false}_${options.characterStyle || 'university_ta'}`;
+    const requestKey = this.hashKey(
+      `${this.normalizeTextForSpeech(text)}_${selectedVoice}_${options.speed || 1.0}_${options.enhanceProsody !== false}_${options.characterStyle || 'university_ta'}`
+    );
     
     // Try IndexedDB cache first
     const cacheKey = this.getCacheKey(text, { ...options, voice: selectedVoice });
@@ -674,11 +712,13 @@ class EnhancedTTSService {
             const primaryUrl = `${base}/api/audio/tts`;
             this.dlog('🔈 TTS fetch →', primaryUrl);
             
+            this.currentRequestAbortController = new AbortController();
             let response = await fetch(primaryUrl, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
+              signal: this.currentRequestAbortController.signal,
               body: JSON.stringify({
                 text,
                 voice: selectedVoice,
@@ -691,13 +731,9 @@ class EnhancedTTSService {
               }),
             });
             
-            // Handle disabled feature gracefully (200 with enabled: false) - don't retry
-            if (response.status === 200) {
-              const responseData = await response.json().catch(() => ({}));
-              if (responseData.enabled === false) {
-                this.dlog('⚠️ Voice feature is disabled, skipping TTS');
-                throw new Error('Voice feature disabled');
-              }
+            if (await this.parseDisabledFeature(response)) {
+              this.dlog('⚠️ Voice feature is disabled, skipping TTS');
+              throw new Error('Voice feature disabled');
             }
             
             // Fallback to local route if server base failed
@@ -709,6 +745,7 @@ class EnhancedTTSService {
                 response = await fetch(localUrl, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
+                  signal: this.currentRequestAbortController.signal,
                   body: JSON.stringify({
                     text,
                     voice: selectedVoice,
@@ -721,13 +758,9 @@ class EnhancedTTSService {
                   }),
                 });
                 
-                // Check if local also returns disabled
-                if (response.status === 200) {
-                  const responseData = await response.json().catch(() => ({}));
-                  if (responseData.enabled === false) {
-                    this.dlog('⚠️ Voice feature is disabled, skipping TTS');
-                    throw new Error('Voice feature disabled');
-                  }
+                if (await this.parseDisabledFeature(response)) {
+                  this.dlog('⚠️ Voice feature is disabled, skipping TTS');
+                  throw new Error('Voice feature disabled');
                 }
               } catch {}
             }
@@ -823,6 +856,7 @@ class EnhancedTTSService {
         
         throw error;
       } finally {
+        this.currentRequestAbortController = null;
         // Clean up pending request and release request slot
         this.pendingRequests.delete(requestKey);
         this.releaseRequestSlot();
@@ -1325,6 +1359,8 @@ class EnhancedTTSService {
   // Stop current speech
   stop(): void {
     this.dlog('🛑 Enhanced TTS: Stop requested');
+    this.currentRequestAbortController?.abort();
+    this.currentRequestAbortController = null;
     
     // Reset progressive state
     this.resetProgressiveState();
