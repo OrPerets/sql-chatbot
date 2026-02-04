@@ -2077,8 +2077,114 @@
   letter-spacing: 0.2px;
 }
 
+.sqlTutorModal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: min(560px, 88vw);
+  padding: 4px 6px;
+}
+
+.sqlTutorTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  text-align: right;
+}
+
+.sqlTutorDescription {
+  margin: 0;
+  font-size: 14px;
+  color: #4b5563;
+  text-align: right;
+}
+
+.sqlTutorOperation {
+  display: flex;
+  gap: 8px;
+}
+
+.sqlTutorOperationButton {
+  flex: 1;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #374151;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sqlTutorOperationButtonActive {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+
+.sqlTutorInput,
+.sqlTutorTextarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #111827;
+  background: #ffffff;
+}
+
+.sqlTutorTextarea {
+  resize: vertical;
+  min-height: 110px;
+}
+
+.sqlTutorInput:focus,
+.sqlTutorTextarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.sqlTutorActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.sqlTutorCancelButton,
+.sqlTutorSubmitButton {
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sqlTutorCancelButton {
+  border: 1px solid #d1d5db;
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.sqlTutorSubmitButton {
+  border: none;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.sqlTutorSubmitButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .reasoningPanel {
   position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-self: flex-start;
+  width: fit-content;
+  max-width: min(100%, 560px);
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 12px;
@@ -2087,6 +2193,10 @@
     0 8px 20px rgba(15, 23, 42, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
   animation: reasoningPanelIn 0.35s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.reasoningPanelCollapsed {
+  max-width: 240px;
 }
 
 @keyframes reasoningPanelIn {
