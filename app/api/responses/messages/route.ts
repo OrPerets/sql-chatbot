@@ -104,7 +104,15 @@ function buildWeeklyPolicy(homeworkRunner: boolean): WeeklyPolicy {
   return {
     extraInstructions: `[WEEK POLICY]
 When SQL curriculum timing matters for an answer, call get_course_week_context first and use its tool output as the source of truth.
-Never rely on guessed week numbers. Follow sqlRestrictions.allowedConcepts and sqlRestrictions.forbiddenConcepts from the tool output.`,
+Never rely on guessed week numbers. Follow sqlRestrictions.allowedConcepts and sqlRestrictions.forbiddenConcepts from the tool output.
+
+[CURRICULUM SQL SAFETY RULES]
+- Never generate SQL that uses forbidden concepts for the current week.
+- Explicitly avoid WITH (CTE) when it is forbidden.
+- Explicitly avoid window functions (OVER, PARTITION BY, RANK, ROW_NUMBER) when forbidden.
+- Explicitly avoid CASE-WHEN when forbidden.
+- If a user asks for a forbidden concept, explain briefly in Hebrew that it is outside current course scope and provide an allowed alternative.
+- Before returning SQL, run a final self-check that no forbidden keyword/concept appears in the answer.`,
     forcedInitialToolChoice: {
       type: "function",
       name: "get_course_week_context",
@@ -214,7 +222,7 @@ export async function POST(request: Request) {
     const responseFormat = tutorIntent ? getSqlTutorResponseFormat() : undefined;
     const reasoningModeEnabled = body.thinkingMode !== false || tutorIntent;
     const reasoningLanguageInstructions = reasoningModeEnabled
-      ? "\n\n[REASONING SUMMARY LANGUAGE]\nWhen generating reasoning summaries, always write them in Hebrew (עברית). Keep each summary concise and clear."
+      ? "\n\n[REASONING SUMMARY LANGUAGE]\nWhen generating reasoning summaries, always write them in natural Hebrew (עברית) only. Keep each summary concise, student-friendly, and focused on what helps the user. Do not mention tools, function calls, APIs, or internal system actions. If a draft appears in English, rewrite it to Hebrew before returning it."
       : "";
     const extraInstructions = tutorIntent
       ? `${weeklyPolicy.extraInstructions}\n\n${tutorInstructions}${reasoningLanguageInstructions}`

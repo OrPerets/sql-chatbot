@@ -24,7 +24,6 @@ import StaticLogoMode from "./StaticLogoMode";
 import { analyzeMessage } from "../utils/sql-query-analyzer";
 // import { avatarAnalytics } from "../utils/avatar-analytics";
 import PracticeModal from "./PracticeModal";
-import SqlQueryBuilder from "./SqlQueryBuilder/SqlQueryBuilder";
 import type { ResponseStreamEvent, SqlTutorResponse } from "@/lib/openai/contracts";
 
 export const maxDuration = 50;
@@ -457,8 +456,10 @@ const Chat = ({
   const [streamError, setStreamError] = useState<string | null>(null);
   const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false); // Add loading state
-  // Add SQL Query Builder state
-  const [sqlBuilderOpen, setSqlBuilderOpen] = useState(false);
+  const [sqlTutorModalOpen, setSqlTutorModalOpen] = useState(false);
+  const [sqlTutorOperation, setSqlTutorOperation] = useState<"create" | "insert">("create");
+  const [sqlTutorTableName, setSqlTutorTableName] = useState("");
+  const [sqlTutorColumns, setSqlTutorColumns] = useState("");
   // Add audio and speech state
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
   const [autoPlaySpeech, setAutoPlaySpeech] = useState(false);
@@ -572,7 +573,6 @@ const Chat = ({
   const [reasoningLogs, setReasoningLogs] = useState<string[]>([]);
   const [reasoningDraft, setReasoningDraft] = useState("");
   const [isReasoningCollapsed, setIsReasoningCollapsed] = useState(false);
-  const [reasoningLogsEnabledForResponse, setReasoningLogsEnabledForResponse] = useState(false);
   const reasoningDraftRef = useRef("");
   const tutorRawResponseRef = useRef("");
   
@@ -692,10 +692,44 @@ const Chat = ({
       setShowModal(!showModal);
     };
 
-  // Handle SQL Query Builder
-  const handleQueryGenerated = (query: string) => {
-    setUserInput(prev => prev + (prev ? '\n' : '') + query);
-    setSqlBuilderOpen(false);
+  const resetSqlTutorForm = () => {
+    setSqlTutorOperation("create");
+    setSqlTutorTableName("");
+    setSqlTutorColumns("");
+  };
+
+  const closeSqlTutorModal = () => {
+    setSqlTutorModalOpen(false);
+    resetSqlTutorForm();
+  };
+
+  const buildSqlTutorRequest = () => {
+    const tableName = sqlTutorTableName.trim();
+    const normalizedColumns = sqlTutorColumns
+      .split(/\n|,/)
+      .map((col) => col.trim())
+      .filter(Boolean)
+      .join(", ");
+
+    if (!tableName || !normalizedColumns) return "";
+
+    if (sqlTutorOperation === "create") {
+      return [
+        "Michael, provide only SQL (no explanation).",
+        "I need a CREATE TABLE statement.",
+        `Table name: ${tableName}`,
+        `Columns: ${normalizedColumns}`,
+        "If a column type is missing, choose a sensible SQL type. Do not use CHECK constraints."
+      ].join("\n");
+    }
+
+    return [
+      "Michael, provide only SQL (no explanation).",
+      "I need an INSERT statement.",
+      `Table name: ${tableName}`,
+      `Columns: ${normalizedColumns}`,
+      "Use one realistic sample row of values matching the columns. Do not use CHECK constraints."
+    ].join("\n");
   };
 
   // Handle audio transcription
@@ -842,6 +876,7 @@ const Chat = ({
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const autoScrollRef = useRef(true);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previousScrollTopRef = useRef(0);
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
   }, []);
@@ -851,6 +886,15 @@ const Chat = ({
       if (scrollTimeoutRef.current) return;
       scrollTimeoutRef.current = setTimeout(() => {
         scrollTimeoutRef.current = null;
+        const container = messagesContainerRef.current;
+        if (!container) return;
+        const threshold = 120;
+        const distanceFromBottom =
+          container.scrollHeight - container.scrollTop - container.clientHeight;
+        if (distanceFromBottom >= threshold) {
+          autoScrollRef.current = false;
+          return;
+        }
         scrollToBottom(behavior);
       }, 120);
     },
@@ -859,9 +903,32 @@ const Chat = ({
   const handleMessagesScroll = useCallback(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
+    const didScrollUp = container.scrollTop < previousScrollTopRef.current;
+    previousScrollTopRef.current = container.scrollTop;
+    if (didScrollUp) {
+      autoScrollRef.current = false;
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = null;
+      }
+      return;
+    }
     const threshold = 120;
     const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
     autoScrollRef.current = distanceFromBottom < threshold;
+    if (!autoScrollRef.current && scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = null;
+    }
+  }, []);
+  const handleMessagesWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
+    if (event.deltaY < 0) {
+      autoScrollRef.current = false;
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = null;
+      }
+    }
   }, []);
   useEffect(() => {
     scheduleScrollToBottom("smooth");
@@ -908,6 +975,11 @@ const Chat = ({
       .replace(/^\s*[-*]\s*/g, "")
       .replace(/tool call/giu, "שלב עיבוד")
       .replace(/calling tool/giu, "אוסף מידע רלוונטי")
+      .replace(/using tool/giu, "נעזר במידע רלוונטי")
+      .replace(/function call/giu, "שלב בדיקה")
+      .replace(/checking schema|schema check/giu, "בודק את מבנה הנתונים כדי לדייק את הפתרון")
+      .replace(/running query|execute query/giu, "בודק את השאילתה כדי לוודא תוצאה נכונה")
+      .replace(/course week|curriculum context/giu, "מוודא שההסבר מתאים לחומר שנלמד")
       .replace(/tool completed|tool call completed/giu, "המידע נקלט, ממשיך בתשובה")
       .replace(/analy(?:s|z)ing (your )?request/giu, "מנתח את הבקשה")
       .replace(/thinking|reasoning/giu, "מחשב את הדרך הטובה ביותר לענות")
@@ -917,10 +989,69 @@ const Chat = ({
       .trim();
 
     if (/[A-Za-z]/.test(normalized) && !/[\u0590-\u05FF]/.test(normalized)) {
-      return "מעבד את הבקשה ומרכיב תשובה...";
+      const english = normalized.toLowerCase();
+
+      if (english.includes("explaining sql query structure")) {
+        return "מפרק את מבנה השאילתה: טבלאות, קשרים וסוגי JOIN מתאימים.";
+      }
+
+      if (english.includes("identifying common sql mistakes")) {
+        return "מאתר טעויות SQL נפוצות כדי לעזור לך להימנע מהן.";
+      }
+
+      if (english.includes("preparing a step-by-step explanation")) {
+        return "מארגן הסבר מסודר שלב-אחר-שלב שיהיה קל ליישם.";
+      }
+
+      if (english.includes("inner join") || english.includes("left join") || english.includes("join")) {
+        return "בודק איזה JOIN יתן את התוצאה הנכונה בהתאם לקשרים בין הטבלאות.";
+      }
+
+      if (english.includes("where") && english.includes("on")) {
+        return "מדייק את תנאי הסינון כדי שהתוצאה תהיה נכונה וברורה.";
+      }
+
+      if (english.includes("performance") || english.includes("index")) {
+        return "בודק גם ביצועים כדי להציע ניסוח יעיל יותר לשאילתה.";
+      }
+
+      if (english.includes("test") || english.includes("dataset") || english.includes("duplicate")) {
+        return "מריץ בדיקה לוגית על הדוגמה כדי לוודא שאין כפילויות או חריגות.";
+      }
+
+      return "מעבד את הבקשה ומרכיב עבורך הסבר ברור.";
     }
 
     return normalized || "מעדכן את ההתקדמות...";
+  }, []);
+
+  const getToolProgressLog = useCallback((toolName: string, phase: "started" | "completed") => {
+    const key = (toolName || "").trim().toLowerCase();
+    const toolCopy: Record<string, { started: string; completed: string }> = {
+      get_course_week_context: {
+        started: "בודק את ההקשר של החומר שנלמד כדי לבנות תשובה מתאימה.",
+        completed: "ההקשר הלימודי ברור, ממשיך לפתרון המדויק עבורך.",
+      },
+      get_database_schema: {
+        started: "בודק את מבנה הטבלאות והעמודות כדי לדייק את השאילתה.",
+        completed: "מבנה הנתונים ברור, משלב את זה בהסבר פשוט עבורך.",
+      },
+      execute_sql_query: {
+        started: "מריץ בדיקה מהירה על השאילתה כדי לוודא שהתוצאה נכונה.",
+        completed: "הבדיקה הסתיימה, משלב את הממצאים בתשובה הסופית.",
+      },
+      analyze_query_performance: {
+        started: "בודק יעילות וביצועים כדי להציע גרסה טובה יותר לשאילתה.",
+        completed: "ניתוח הביצועים מוכן, מוסיף המלצות שיפור ברורות.",
+      },
+    };
+
+    const fallback =
+      phase === "started"
+        ? "אוסף מידע רלוונטי כדי לדייק עבורך את התשובה."
+        : "המידע נאסף, מסכם לך אותו בצורה ברורה.";
+
+    return toolCopy[key]?.[phase] || fallback;
   }, []);
 
   const addReasoningLog = useCallback((log: string) => {
@@ -1280,32 +1411,33 @@ const updateUserBalance = async (value) => {
         if (event.type === "response.tutor.mode") {
           tutorMode = event.enabled;
           if (event.enabled) {
-            setReasoningLogsEnabledForResponse(true);
             addReasoningLog("מכין הסבר ברור ומסודר לפי הבקשה שלך...");
           }
           continue;
         }
 
         if (event.type === "response.reasoning_summary_text.delta") {
-          setReasoningLogsEnabledForResponse(true);
           appendReasoningDelta(event.delta);
           continue;
         }
 
         if (event.type === "response.reasoning_summary_text.done") {
-          setReasoningLogsEnabledForResponse(true);
-          flushReasoningDraft();
+          if (reasoningDraftRef.current.trim()) {
+            flushReasoningDraft();
+          } else if (event.text) {
+            addReasoningLog(event.text);
+          }
           continue;
         }
 
         if (event.type === "response.tool_call.started") {
           flushReasoningDraft();
-          addReasoningLog("אוסף מידע רלוונטי לשאלה שלך...");
+          addReasoningLog(getToolProgressLog(event.name, "started"));
           continue;
         }
 
         if (event.type === "response.tool_call.completed") {
-          addReasoningLog("המידע מוכן, מרכיב תשובה מדויקת ונוחה להבנה.");
+          addReasoningLog(getToolProgressLog(event.name, "completed"));
           continue;
         }
 
@@ -1333,6 +1465,7 @@ const updateUserBalance = async (value) => {
             createdAssistantMessage = true;
           }
           flushReasoningDraft();
+          setIsReasoningCollapsed(true);
           if (event.tutorResponse) {
             await setLastMessageTutorResponse(event.tutorResponse, true);
             continue;
@@ -1365,10 +1498,9 @@ const updateUserBalance = async (value) => {
     endStreamResponse();
   };
 
-  const sendMessage = async (text) => { 
+  const sendMessage = async (text, image: File | null = selectedImage) => { 
     setImageProcessing(true);
     setIsReasoningCollapsed(false);
-    setReasoningLogsEnabledForResponse(false);
     setReasoningLogs([]);
     reasoningDraftRef.current = "";
     tutorRawResponseRef.current = "";
@@ -1415,7 +1547,7 @@ const updateUserBalance = async (value) => {
       /\b(think|thinking|reason|reasoning|analyze|analysis|step by step)\b|חשיבה|תחשוב|לחשוב|תהליך חשיבה/iu;
     const hasThinkingIntent = thinkingIntentPattern.test(text);
 
-    // Message text is used as-is (SQL queries are now added directly by SqlQueryBuilder)
+    // Message text is used as-is.
     let messageWithTags = text;
 
     if (formattedHomeworkContext) {
@@ -1424,9 +1556,9 @@ const updateUserBalance = async (value) => {
 
     // Process image if one is selected
     let imageData = null;
-    if (selectedImage) {
+    if (image) {
       try {
-        imageData = await fileToBase64(selectedImage);
+        imageData = await fileToBase64(image);
       } catch (error) {
         console.error("Error converting image to base64:", error);
         setImageProcessing(false);
@@ -1559,6 +1691,35 @@ const updateUserBalance = async (value) => {
 
   };
 
+  const submitMessage = (messageText: string, displayText?: string, image: File | null = null) => {
+    const trimmed = messageText.trim();
+    if (!trimmed) return;
+
+    if (userTypingTimeoutRef.current) {
+      clearTimeout(userTypingTimeoutRef.current);
+    }
+    setIsUserTyping(false);
+    console.log('📤 User submitted message, clearing typing state');
+
+    sendMessage(trimmed, image);
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      { role: "user", text: displayText ?? trimmed, hasImage: !!image },
+    ]);
+    setUserInput("");
+    setInputDisabled(true);
+    setIsThinking(true);
+    autoScrollRef.current = true;
+    scheduleScrollToBottom("smooth");
+  };
+
+  const handleSqlTutorRequest = () => {
+    const prompt = buildSqlTutorRequest();
+    if (!prompt || inputDisabled || imageProcessing) return;
+    closeSqlTutorModal();
+    submitMessage(prompt);
+  };
+
   const keepOneInstance = (arr, key) => {
     const seen = new Set();
     return arr.filter(obj => {
@@ -1598,13 +1759,6 @@ const loadChatMessages = (chatId: string) => {
     e.preventDefault();
     if (!userInput.trim() && !selectedImage) return;
     
-    // Clear typing state when user submits message
-    if (userTypingTimeoutRef.current) {
-      clearTimeout(userTypingTimeoutRef.current);
-    }
-    setIsUserTyping(false);
-    console.log('📤 User submitted message, clearing typing state');
-    
     // Display message with image info if present
     const displayText = selectedImage 
       ? `${userInput}${userInput ? '\n' : ''}[תמונה מצורפת: ${selectedImage.name}]`
@@ -1616,17 +1770,7 @@ const loadChatMessages = (chatId: string) => {
       return;
     }
     
-    sendMessage(userInput);
-    // Always show the user message in the UI, regardless of balance
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      { role: "user", text: displayText, hasImage: !!selectedImage },
-    ]);
-    setUserInput("");
-    setInputDisabled(true);
-    setIsThinking(true);
-    autoScrollRef.current = true;
-    scheduleScrollToBottom("smooth");
+    submitMessage(userInput, displayText, selectedImage);
   };
 
   /* Stream Event Handlers */
@@ -1731,7 +1875,6 @@ const loadChatMessages = (chatId: string) => {
     setInputDisabled(false);
     setIsThinking(false);
     setIsDone(true);
-    setReasoningLogsEnabledForResponse(false);
     setReasoningDraft("");
     reasoningDraftRef.current = "";
     tutorRawResponseRef.current = "";
@@ -2008,7 +2151,6 @@ const loadChatMessages = (chatId: string) => {
     setHasStartedSpeaking(false); // Reset progressive speech state
     setStreamingText("");
     streamingTextRef.current = "";
-    setReasoningLogsEnabledForResponse(false);
     setReasoningLogs([]);
     setReasoningDraft("");
     reasoningDraftRef.current = "";
@@ -2078,20 +2220,19 @@ const embeddedStyles = embeddedMode ? {
   messages: { direction: 'rtl' as const },
 };
 
-const shouldShowReasoningPanel =
-  reasoningLogsEnabledForResponse && (reasoningLogs.length > 0 || reasoningDraft.length > 0);
+const shouldShowReasoningPanel = reasoningLogs.length > 0 || reasoningDraft.length > 0;
 const hasStreamingAssistantMessage =
   inputDisabled && messages.length > 0 && messages[messages.length - 1]?.role === "assistant";
 
 const reasoningPanel = shouldShowReasoningPanel ? (
-  <div className={styles.reasoningPanel}>
+  <div className={`${styles.reasoningPanel} ${isReasoningCollapsed ? styles.reasoningPanelCollapsed : ""}`}>
     <button
       type="button"
       className={styles.reasoningToggle}
       onClick={() => setIsReasoningCollapsed((prev) => !prev)}
       aria-expanded={!isReasoningCollapsed}
     >
-      <span className={styles.reasoningTitle}>מה קורה עכשיו</span>
+      <span className={styles.reasoningTitle}>דרכי פעולה</span>
       <ChevronDown
         size={14}
         className={`${styles.reasoningChevron} ${isReasoningCollapsed ? styles.reasoningChevronCollapsed : ""}`}
@@ -2149,6 +2290,7 @@ return (
           style={embeddedStyles.messages}
           ref={messagesContainerRef}
           onScroll={handleMessagesScroll}
+          onWheel={handleMessagesWheel}
         >
           {loadingMessages ? (
             <div className={styles.loadingIndicator}></div>
@@ -2156,8 +2298,7 @@ return (
             <>
               {messages.map((msg, index) => (
                 <React.Fragment key={index}>
-                  {inputDisabled &&
-                    shouldShowReasoningPanel &&
+                  {shouldShowReasoningPanel &&
                     index === messages.length - 1 &&
                     msg.role === "assistant" &&
                     reasoningPanel}
@@ -2364,13 +2505,13 @@ return (
                     className={styles.actionMenuItem}
                     onClick={() => {
                       setIsActionMenuOpen(false);
-                      setSqlBuilderOpen(true);
+                      setSqlTutorModalOpen(true);
                     }}
-                    title="בנה שאילתת SQL"
+                    title="קבל שאילתת CREATE/INSERT ממייקל"
                     role="menuitem"
                   >
                     <Braces className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
-                    <span className={styles.actionMenuItemText}>בונה SQL</span>
+                    <span className={styles.actionMenuItemText}>מייקל: CREATE/INSERT</span>
                   </button>
 
                   <button
@@ -2748,12 +2889,65 @@ return (
       userId={user?.email || 'anonymous'}
     />
 
-    {/* SQL Query Builder Modal */}
-    <SqlQueryBuilder
-      isOpen={sqlBuilderOpen}
-      onClose={() => setSqlBuilderOpen(false)}
-      onQueryGenerated={handleQueryGenerated}
-    />
+    <Modal isOpen={sqlTutorModalOpen} onClose={closeSqlTutorModal}>
+      <div className={styles.sqlTutorModal}>
+        <h3 className={styles.sqlTutorTitle}>מייקל: צור שאילתת SQL</h3>
+        <p className={styles.sqlTutorDescription}>
+          מלא שם טבלה ועמודות, ומייקל יחזיר שאילתת SQL מוכנה.
+        </p>
+
+        <div className={styles.sqlTutorOperation}>
+          <button
+            type="button"
+            className={`${styles.sqlTutorOperationButton} ${sqlTutorOperation === "create" ? styles.sqlTutorOperationButtonActive : ""}`}
+            onClick={() => setSqlTutorOperation("create")}
+          >
+            CREATE TABLE
+          </button>
+          <button
+            type="button"
+            className={`${styles.sqlTutorOperationButton} ${sqlTutorOperation === "insert" ? styles.sqlTutorOperationButtonActive : ""}`}
+            onClick={() => setSqlTutorOperation("insert")}
+          >
+            INSERT
+          </button>
+        </div>
+
+        <input
+          type="text"
+          className={styles.sqlTutorInput}
+          value={sqlTutorTableName}
+          onChange={(e) => setSqlTutorTableName(e.target.value)}
+          placeholder="Table name (e.g. students)"
+        />
+
+        <textarea
+          className={styles.sqlTutorTextarea}
+          value={sqlTutorColumns}
+          onChange={(e) => setSqlTutorColumns(e.target.value)}
+          placeholder="Columns (comma or line-separated), e.g. id INT, full_name VARCHAR(100), grade INT"
+          rows={5}
+        />
+
+        <div className={styles.sqlTutorActions}>
+          <button
+            type="button"
+            className={styles.sqlTutorCancelButton}
+            onClick={closeSqlTutorModal}
+          >
+            ביטול
+          </button>
+          <button
+            type="button"
+            className={styles.sqlTutorSubmitButton}
+            onClick={handleSqlTutorRequest}
+            disabled={!sqlTutorTableName.trim() || !sqlTutorColumns.trim() || inputDisabled || imageProcessing}
+          >
+            שלח למייקל
+          </button>
+        </div>
+      </div>
+    </Modal>
   </div>
 );
 };
