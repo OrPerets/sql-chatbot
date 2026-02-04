@@ -15,6 +15,7 @@ declare global {
 }
 
 const maxConnectionAttempts = 3;
+const DB_DEBUG = process.env.DB_DEBUG === 'true';
 
 // Connection statistics tracking (using globalThis for serverless)
 const getClientInstanceCount = () => {
@@ -33,8 +34,9 @@ const getTotalConnectionsCreated = () => {
 
 
 const POOL_CONFIG = {
-  minPoolSize: Number(process.env.DB_MIN_POOL_SIZE ?? 10), // Maintain warm connections for faster response
-  maxPoolSize: Number(process.env.DB_MAX_POOL_SIZE ?? 40), // Increased to 40: M0 supports 500 total, safe for ~12 concurrent instances
+  // Keep defaults conservative for Atlas shared tiers and serverless fanout.
+  minPoolSize: Number(process.env.DB_MIN_POOL_SIZE ?? 0),
+  maxPoolSize: Number(process.env.DB_MAX_POOL_SIZE ?? 10),
 };
 
 /**
@@ -64,6 +66,7 @@ async function getConnectionPoolStats(client: MongoClient): Promise<{
  * Log connection pool statistics and warn if approaching limits
  */
 async function logConnectionStats(client: MongoClient): Promise<void> {
+  if (!DB_DEBUG) return;
   try {
     const stats = await getConnectionPoolStats(client);
     if (stats) {
@@ -102,11 +105,15 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
           setTimeout(() => reject(new Error('Ping timeout')), 5000)
         )
       ]);
-      console.log('♻️ Reusing existing MongoDB connection (from globalThis)');
+      if (DB_DEBUG) {
+        console.log('♻️ Reusing existing MongoDB connection (from globalThis)');
+      }
       await logConnectionStats(globalThis._mongoClient);
       return { client: globalThis._mongoClient, db: globalThis._mongoDb };
     } catch (error) {
-      console.log('🔄 Cached connection failed, creating new connection...', error);
+      if (DB_DEBUG) {
+        console.log('🔄 Cached connection failed, creating new connection...', error);
+      }
       // Clear cached connection if ping fails
       globalThis._mongoClient = undefined;
       globalThis._mongoDb = undefined;
@@ -121,11 +128,13 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
   while (globalThis._mongoConnectionAttempts < maxConnectionAttempts) {
     try {
       globalThis._mongoConnectionAttempts++;
-      console.log(`🔌 Creating new MongoDB connection (attempt ${globalThis._mongoConnectionAttempts}/${maxConnectionAttempts})...`);
+      if (DB_DEBUG) {
+        console.log(`🔌 Creating new MongoDB connection (attempt ${globalThis._mongoConnectionAttempts}/${maxConnectionAttempts})...`);
+      }
       
       // Warn if creating multiple client instances (this should be rare with globalThis)
       const instanceCount = getClientInstanceCount();
-      if (instanceCount > 0) {
+      if (instanceCount > 0 && DB_DEBUG) {
         console.warn(
           `⚠️ Creating new MongoClient instance (${instanceCount + 1} total). This may indicate connection leaks!`
         );
@@ -141,6 +150,7 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
         },
         maxPoolSize: POOL_CONFIG.maxPoolSize,
         minPoolSize: POOL_CONFIG.minPoolSize,
+        maxConnecting: Number(process.env.DB_MAX_CONNECTING ?? 2),
         maxIdleTimeMS: 30000, // Close idle connections after 30s
         connectTimeoutMS: 30000, // Increased from 10s to 30s for SSL handshake
         serverSelectionTimeoutMS: 30000, // Increased from 15s to 30s
@@ -160,9 +170,11 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
       globalThis._mongoClientInstanceCount = (globalThis._mongoClientInstanceCount || 0) + 1;
       globalThis._mongoTotalConnectionsCreated = (globalThis._mongoTotalConnectionsCreated || 0) + 1;
       
-      console.log(
-        `✅ Successfully connected to MongoDB! (pool: min=${POOL_CONFIG.minPoolSize}, max=${POOL_CONFIG.maxPoolSize}, instances=${getClientInstanceCount()})`
-      );
+      if (DB_DEBUG) {
+        console.log(
+          `✅ Successfully connected to MongoDB! (pool: min=${POOL_CONFIG.minPoolSize}, max=${POOL_CONFIG.maxPoolSize}, instances=${getClientInstanceCount()})`
+        );
+      }
       
       // Cache the connection in globalThis (persists across serverless invocations)
       globalThis._mongoClient = client;
@@ -187,14 +199,16 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
           `❌ MongoDB SSL/TLS connection error (attempt ${globalThis._mongoConnectionAttempts}/${maxConnectionAttempts}):`,
           error?.cause?.message || error?.message || 'Unknown SSL error'
         );
-        console.log('💡 This may be a transient network issue. Retrying with longer delay...');
+        if (DB_DEBUG) {
+          console.log('💡 This may be a transient network issue. Retrying with longer delay...');
+        }
       } else {
         console.error(`❌ MongoDB connection attempt ${globalThis._mongoConnectionAttempts} failed:`, error);
       }
       
       if (globalThis._mongoConnectionAttempts >= maxConnectionAttempts) {
         console.error(`❌ Failed to connect after ${maxConnectionAttempts} attempts`);
-        if (isSSLError) {
+        if (isSSLError && DB_DEBUG) {
           console.error('💡 SSL/TLS errors often indicate:');
           console.error('   1. Network connectivity issues');
           console.error('   2. Firewall blocking MongoDB Atlas');
@@ -224,6 +238,17 @@ export async function executeWithRetry<T>(
   operation: (db: Db) => Promise<T>,
   maxRetries: number = 3
 ): Promise<T> {
+  const shouldResetConnection = (error: any): boolean => {
+    const message = String(error?.message || '').toLowerCase();
+    return (
+      message.includes('pool') ||
+      message.includes('connection') ||
+      message.includes('topology') ||
+      message.includes('not connected') ||
+      message.includes('socket')
+    );
+  };
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const { db } = await connectToDatabase();
@@ -232,11 +257,7 @@ export async function executeWithRetry<T>(
       console.error(`Database operation attempt ${attempt} failed:`, error);
       
       // If it's a connection error and we have retries left, reset the connection
-      if (attempt < maxRetries && (
-        error.message?.includes('pool') ||
-        error.message?.includes('connection') ||
-        error.message?.includes('timeout')
-      )) {
+      if (attempt < maxRetries && shouldResetConnection(error)) {
         globalThis._mongoClient = undefined;
         globalThis._mongoDb = undefined;
         await new Promise(resolve => setTimeout(resolve, 1000 * attempt));

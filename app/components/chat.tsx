@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import styles from "./chat.module.css";
 import "./mobile-optimizations.css";
 import Markdown from "react-markdown";
-import { ThumbsUp, ThumbsDown, ClipboardCopy, Plus, Sparkles, ImagePlus, Braces, BarChart3 } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ClipboardCopy, Plus, Sparkles, ImagePlus, Braces, BarChart3, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import Sidebar from './sidebar';
 import { useRouter } from 'next/navigation';
@@ -116,6 +116,15 @@ const AssistantMessage = ({
   const [copied, setCopied] = useState(false);  // Tooltip state
   const [copiedText, setCopiedText] =  useState("העתק שאילתה")
   const [playTooltipText, setPlayTooltipText] = useState("השמע הודעה זו");
+  const compactText = useMemo(() => {
+    const segments = text.split(/(```[\s\S]*?```)/g);
+    return segments
+      .map((segment) => {
+        if (segment.startsWith("```")) return segment;
+        return segment.replace(/\n{3,}/g, "\n\n");
+      })
+      .join("");
+  }, [text]);
 
 
   const handleLike = () => {
@@ -251,10 +260,10 @@ const renderers = {
         : "—";
     return (
       <div className={styles.tutorResponse}>
-        {renderTutorSection("Query", `\`\`\`sql\n${response.query}\n\`\`\``)}
-        {renderTutorSection("Explanation", response.explanation || "—")}
-        {renderTutorSection("Common mistakes", mistakes)}
-        {renderTutorSection("Optimization", response.optimization || "—")}
+        {renderTutorSection("שאילתה", `\`\`\`sql\n${response.query}\n\`\`\``)}
+        {renderTutorSection("הסבר", response.explanation || "—")}
+        {renderTutorSection("טעויות נפוצות", mistakes)}
+        {renderTutorSection("אופטימיזציה", response.optimization || "—")}
       </div>
     );
   };
@@ -294,7 +303,7 @@ const copyQueryToClipboard = (text) => {
   return (
     <div className={styles.assistantMessage}>
       <div className={styles.messageContent}>
-        {tutorResponse ? renderTutorResponse(tutorResponse) : <Markdown components={renderers}>{text}</Markdown>}
+        {tutorResponse ? renderTutorResponse(tutorResponse) : <Markdown components={renderers}>{compactText}</Markdown>}
       </div>
       <div className={styles.feedbackButtons}>
         {!autoPlaySpeech && (
@@ -558,6 +567,10 @@ const Chat = ({
   const streamingTextRef = useRef<string>("");
   const progressiveSpeechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [reasoningLogs, setReasoningLogs] = useState<string[]>([]);
+  const [isReasoningCollapsed, setIsReasoningCollapsed] = useState(false);
+  const [visibleReasoningCount, setVisibleReasoningCount] = useState(0);
+  const reasoningSeedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reasoningRevealTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Add state for manual speech playback
   const [isManualSpeech, setIsManualSpeech] = useState(false);
@@ -852,6 +865,47 @@ const Chat = ({
   useEffect(() => () => {
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
+    }
+  }, []);
+
+  const addReasoningLog = useCallback((log: string, delayMs = 0) => {
+    const commitLog = () => {
+      setReasoningLogs((prev) => (prev.includes(log) ? prev : [...prev, log]));
+    };
+    if (delayMs <= 0) {
+      commitLog();
+      return;
+    }
+    setTimeout(commitLog, delayMs);
+  }, []);
+
+  useEffect(() => {
+    if (reasoningLogs.length === 0) {
+      setVisibleReasoningCount(0);
+      if (reasoningRevealTimeoutRef.current) {
+        clearTimeout(reasoningRevealTimeoutRef.current);
+        reasoningRevealTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    if (visibleReasoningCount >= reasoningLogs.length) return;
+
+    if (reasoningRevealTimeoutRef.current) {
+      clearTimeout(reasoningRevealTimeoutRef.current);
+    }
+    reasoningRevealTimeoutRef.current = setTimeout(() => {
+      setVisibleReasoningCount((prev) => Math.min(prev + 1, reasoningLogs.length));
+      reasoningRevealTimeoutRef.current = null;
+    }, 260);
+  }, [reasoningLogs.length, visibleReasoningCount]);
+
+  useEffect(() => () => {
+    if (reasoningSeedTimeoutRef.current) {
+      clearTimeout(reasoningSeedTimeoutRef.current);
+    }
+    if (reasoningRevealTimeoutRef.current) {
+      clearTimeout(reasoningRevealTimeoutRef.current);
     }
   }, []);
 
@@ -1164,11 +1218,7 @@ const updateUserBalance = async (value) => {
         if (event.type === "response.tutor.mode") {
           tutorMode = event.enabled;
           if (event.enabled) {
-            setReasoningLogs((prev) =>
-              prev.includes("מפעיל מצב מורה כדי להדגיש הסברים.")
-                ? prev
-                : [...prev, "מפעיל מצב מורה כדי להדגיש הסברים."]
-            );
+            addReasoningLog("מפעיל מצב מורה כדי להדגיש הסברים.");
           }
           continue;
         }
@@ -1183,11 +1233,7 @@ const updateUserBalance = async (value) => {
             createdAssistantMessage = true;
           }
           sawDelta = true;
-          setReasoningLogs((prev) =>
-            prev.includes("מנסח את התשובה בצורה ברורה.")
-              ? prev
-              : [...prev, "מנסח את התשובה בצורה ברורה."]
-          );
+          addReasoningLog("מנסח את התשובה בצורה ברורה.");
           handleTextDelta({ value: event.delta });
           continue;
         }
@@ -1199,11 +1245,7 @@ const updateUserBalance = async (value) => {
             handleTextCreated();
             createdAssistantMessage = true;
           }
-          setReasoningLogs((prev) =>
-            prev.includes("מסיים את התגובה ומוודא דיוק.")
-              ? prev
-              : [...prev, "מסיים את התגובה ומוודא דיוק."]
-          );
+          addReasoningLog("מסיים את התגובה ומוודא דיוק.");
           if (event.tutorResponse) {
             setLastMessageTutorResponse(event.tutorResponse);
             continue;
@@ -1236,10 +1278,15 @@ const updateUserBalance = async (value) => {
 
   const sendMessage = async (text) => { 
     setImageProcessing(true);
-    setReasoningLogs([
-      "מנתח את הבקשה ומבין את הבעיה.",
-      "בודק הקשר רלוונטי ומכין דוגמאות.",
-    ]);
+    setIsReasoningCollapsed(false);
+    setReasoningLogs(["מנתח את הבקשה ומבין את הבעיה."]);
+    if (reasoningSeedTimeoutRef.current) {
+      clearTimeout(reasoningSeedTimeoutRef.current);
+    }
+    reasoningSeedTimeoutRef.current = setTimeout(() => {
+      addReasoningLog("בודק הקשר רלוונטי ומכין דוגמאות.");
+      reasoningSeedTimeoutRef.current = null;
+    }, 420);
     
     // Notify parent component about user message for avatar interaction
     if (onUserMessage) {
@@ -1499,11 +1546,7 @@ const loadChatMessages = (chatId: string) => {
     setHasStartedSpeaking(false); // Reset for new message
     streamingTextRef.current = "";
     setStreamingText("");
-    setReasoningLogs((prev) =>
-      prev.includes("מתחיל לנסח תשובה מפורטת.")
-        ? prev
-        : [...prev, "מתחיל לנסח תשובה מפורטת."]
-    );
+    addReasoningLog("מתחיל לנסח תשובה מפורטת.");
     // Create a stable message id for this assistant message
     setCurrentAssistantMessageId(`${Date.now()}-${Math.random().toString(36).slice(2)}`);
     // If voice is enabled and we are currently speaking, stop to avoid overlap with the new message
@@ -1573,6 +1616,11 @@ const loadChatMessages = (chatId: string) => {
     setIsThinking(false);
     setIsDone(true);
     setReasoningLogs([]);
+    setVisibleReasoningCount(0);
+    if (reasoningSeedTimeoutRef.current) {
+      clearTimeout(reasoningSeedTimeoutRef.current);
+      reasoningSeedTimeoutRef.current = null;
+    }
     
     // Clear progressive speech timeout when stream ends
     if (progressiveSpeechTimeoutRef.current) {
@@ -1609,7 +1657,7 @@ const loadChatMessages = (chatId: string) => {
       tutorResponse.commonMistakes?.length > 0
         ? tutorResponse.commonMistakes.map((mistake) => `- ${mistake}`).join("\n")
         : "- —";
-    return `**Query**\n\`\`\`sql\n${tutorResponse.query}\n\`\`\`\n\n**Explanation**\n${tutorResponse.explanation}\n\n**Common mistakes**\n${mistakesText}\n\n**Optimization**\n${tutorResponse.optimization}`;
+    return `**שאילתה**\n\`\`\`sql\n${tutorResponse.query}\n\`\`\`\n\n**הסבר**\n${tutorResponse.explanation}\n\n**טעויות נפוצות**\n${mistakesText}\n\n**אופטימיזציה**\n${tutorResponse.optimization}`;
   };
 
   const appendToLastMessage = (text) => {
@@ -1751,7 +1799,13 @@ const loadChatMessages = (chatId: string) => {
     setStreamingText("");
     streamingTextRef.current = "";
     setReasoningLogs([]);
+    setVisibleReasoningCount(0);
     autoScrollRef.current = true;
+    setIsReasoningCollapsed(false);
+    if (reasoningSeedTimeoutRef.current) {
+      clearTimeout(reasoningSeedTimeoutRef.current);
+      reasoningSeedTimeoutRef.current = null;
+    }
     
     // Clear any pending progressive speech
     if (progressiveSpeechTimeoutRef.current) {
@@ -1909,14 +1963,27 @@ return (
                 <div className={styles.assistantMessage}>
                   {reasoningLogs.length > 0 && (
                     <div className={styles.reasoningPanel}>
-                      <div className={styles.reasoningTitle}>יומן חשיבה</div>
-                      <ul className={styles.reasoningList}>
-                        {reasoningLogs.map((log, index) => (
-                          <li key={`${log}-${index}`} className={styles.reasoningItem}>
-                            {log}
-                          </li>
-                        ))}
-                      </ul>
+                      <button
+                        type="button"
+                        className={styles.reasoningToggle}
+                        onClick={() => setIsReasoningCollapsed((prev) => !prev)}
+                        aria-expanded={!isReasoningCollapsed}
+                      >
+                        <span className={styles.reasoningTitle}>יומן חשיבה</span>
+                        <ChevronDown
+                          size={14}
+                          className={`${styles.reasoningChevron} ${isReasoningCollapsed ? styles.reasoningChevronCollapsed : ""}`}
+                        />
+                      </button>
+                      {!isReasoningCollapsed && (
+                        <ul className={styles.reasoningList}>
+                          {reasoningLogs.slice(0, visibleReasoningCount).map((log, index) => (
+                            <li key={`${log}-${index}`} className={styles.reasoningItem}>
+                              {log}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                   )}
                   <div className={styles.typingIndicator}>
