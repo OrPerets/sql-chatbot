@@ -2,6 +2,11 @@ import { Db, ObjectId } from 'mongodb'
 import { connectToDatabase, executeWithRetry, COLLECTIONS } from './database'
 import OpenAI from 'openai'
 
+const DEFAULT_ANALYSIS_MODEL = process.env.OPENAI_MODEL || 'gpt-5-mini'
+const DEFAULT_MAX_MESSAGES = 80
+const DEFAULT_MAX_CHARS_PER_MESSAGE = 1200
+const DEFAULT_MAX_TOTAL_CHARS = 48000
+
 export interface ConversationSummary {
   _id?: ObjectId
   userId: string
@@ -231,64 +236,70 @@ export class ConversationSummaryService {
     confidenceScore: number
     recommendedActions: string[]
   }> {
-    const prompt = `
-Analyze the following SQL learning conversation and provide insights about the student's learning patterns.
+    const model = (process.env.OPENAI_CONVERSATION_ANALYSIS_MODEL || DEFAULT_ANALYSIS_MODEL).trim()
+    const systemPrompt = 'You are an expert SQL educator and learning analyst. Analyze student conversations to identify learning patterns, challenges, and opportunities for improvement. Provide specific, actionable insights.'
+    const prompt = this.buildAnalysisPrompt(conversationText, request)
 
-CONVERSATION:
-${conversationText}
-
-SESSION METADATA:
-- Duration: ${request.sessionDuration} minutes
-- Message Count: ${request.messages.length}
-- Session Title: ${request.sessionTitle}
-
-Please provide your analysis in the following JSON format:
-{
-  "summaryPoints": [
-    "2-3 key bullet points about the student's learning behavior, challenges, or progress",
-    "Focus on specific observations about their SQL understanding",
-    "Include any notable patterns or insights"
-  ],
-  "keyTopics": [
-    "List of SQL topics discussed (e.g., 'SELECT queries', 'JOINs', 'aggregations')"
-  ],
-  "learningIndicators": {
-    "comprehensionLevel": "low|medium|high",
-    "helpSeekingBehavior": "low|medium|high", 
-    "engagementLevel": "low|medium|high",
-    "challengeAreas": ["specific areas where student struggled"]
-  },
-  "complexityLevel": "basic|intermediate|advanced",
-  "confidenceScore": 85,
-  "recommendedActions": [
-    "Specific recommendations for helping this student improve"
-  ]
-}
-
-Focus on:
-1. Student's understanding level and comprehension
-2. Areas where they struggled or excelled
-3. Their help-seeking behavior and engagement
-4. Specific SQL concepts that need attention
-5. Actionable insights for educators
-`
-
-    try {
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+    const createAnalysis = async (analysisPrompt: string) => {
+      const basePayload = {
+        model,
         messages: [
           {
-            role: 'system',
-            content: 'You are an expert SQL educator and learning analyst. Analyze student conversations to identify learning patterns, challenges, and opportunities for improvement. Provide specific, actionable insights.'
+            role: 'system' as const,
+            content: systemPrompt
           },
           {
-            role: 'user',
-            content: prompt
+            role: 'user' as const,
+            content: analysisPrompt
           }
-        ],
-        temperature: 0.3,
-        max_tokens: 1500
-      })
+        ]
+      }
+
+      try {
+        return await this.openai.chat.completions.create({
+          ...basePayload,
+          max_completion_tokens: 1500
+        })
+      } catch (error: any) {
+        const message = String(error?.message || '').toLowerCase()
+        const unsupportedMaxCompletionTokens =
+          error?.code === 'unsupported_parameter' &&
+          (error?.param === 'max_completion_tokens' || message.includes('max_completion_tokens'))
+
+        if (!unsupportedMaxCompletionTokens) {
+          throw error
+        }
+
+        return this.openai.chat.completions.create({
+          ...basePayload,
+          max_tokens: 1500
+        })
+      }
+    }
+
+    try {
+      let response: OpenAI.Chat.Completions.ChatCompletion
+      try {
+        response = await createAnalysis(prompt)
+      } catch (error: any) {
+        const message = String(error?.message || '').toLowerCase()
+        const isContextTooLarge =
+          error?.code === 'context_length_exceeded' ||
+          message.includes('maximum context length') ||
+          message.includes('context length')
+
+        if (!isContextTooLarge) {
+          throw error
+        }
+
+        const fallbackConversationText = this.prepareConversationForAnalysis(request.messages, {
+          maxMessages: 24,
+          maxCharsPerMessage: 500,
+          maxTotalChars: 12000
+        })
+        const fallbackPrompt = this.buildAnalysisPrompt(fallbackConversationText, request)
+        response = await createAnalysis(fallbackPrompt)
+      }
 
       const analysisText = response.choices[0]?.message?.content || 'No analysis available'
       
@@ -337,14 +348,87 @@ Focus on:
     }
   }
 
+  private buildAnalysisPrompt(conversationText: string, request: ConversationAnalysisRequest): string {
+    return `
+Analyze the following SQL learning conversation and provide insights about the student's learning patterns.
+
+CONVERSATION:
+${conversationText}
+
+SESSION METADATA:
+- Duration: ${request.sessionDuration} minutes
+- Message Count: ${request.messages.length}
+- Session Title: ${request.sessionTitle}
+
+Please provide your analysis in the following JSON format:
+{
+  "summaryPoints": [
+    "2-3 key bullet points about the student's learning behavior, challenges, or progress",
+    "Focus on specific observations about their SQL understanding",
+    "Include any notable patterns or insights"
+  ],
+  "keyTopics": [
+    "List of SQL topics discussed (e.g., 'SELECT queries', 'JOINs', 'aggregations')"
+  ],
+  "learningIndicators": {
+    "comprehensionLevel": "low|medium|high",
+    "helpSeekingBehavior": "low|medium|high", 
+    "engagementLevel": "low|medium|high",
+    "challengeAreas": ["specific areas where student struggled"]
+  },
+  "complexityLevel": "basic|intermediate|advanced",
+  "confidenceScore": 85,
+  "recommendedActions": [
+    "Specific recommendations for helping this student improve"
+  ]
+}
+
+Focus on:
+1. Student's understanding level and comprehension
+2. Areas where they struggled or excelled
+3. Their help-seeking behavior and engagement
+4. Specific SQL concepts that need attention
+5. Actionable insights for educators
+`
+  }
+
   /**
    * Prepare conversation text for analysis
    */
-  private prepareConversationForAnalysis(messages: Array<{role: string, text: string, timestamp: Date}>): string {
-    return messages.map((msg, index) => {
+  private prepareConversationForAnalysis(
+    messages: Array<{role: string, text: string, timestamp: Date}>,
+    limits?: { maxMessages?: number; maxCharsPerMessage?: number; maxTotalChars?: number }
+  ): string {
+    const maxMessages = limits?.maxMessages ?? DEFAULT_MAX_MESSAGES
+    const maxCharsPerMessage = limits?.maxCharsPerMessage ?? DEFAULT_MAX_CHARS_PER_MESSAGE
+    const maxTotalChars = limits?.maxTotalChars ?? DEFAULT_MAX_TOTAL_CHARS
+    const selected = messages.slice(-maxMessages)
+    let truncatedAnyMessage = false
+
+    let formatted = selected.map((msg, index) => {
       const timestamp = new Date(msg.timestamp).toLocaleTimeString()
-      return `${index + 1}. [${timestamp}] ${msg.role.toUpperCase()}: ${msg.text}`
+      const normalizedText = String(msg.text || '').replace(/\s+/g, ' ').trim()
+      const clippedText =
+        normalizedText.length > maxCharsPerMessage
+          ? `${normalizedText.slice(0, maxCharsPerMessage)}… [truncated]`
+          : normalizedText
+      if (clippedText !== normalizedText) {
+        truncatedAnyMessage = true
+      }
+      return `${index + 1}. [${timestamp}] ${msg.role.toUpperCase()}: ${clippedText}`
     }).join('\n\n')
+
+    let headTruncated = false
+    if (formatted.length > maxTotalChars) {
+      formatted = formatted.slice(formatted.length - maxTotalChars)
+      headTruncated = true
+    }
+
+    if (headTruncated || truncatedAnyMessage || selected.length < messages.length) {
+      return `[Conversation truncated for analysis: showing recent context only]\n\n${formatted}`
+    }
+
+    return formatted
   }
 
   /**

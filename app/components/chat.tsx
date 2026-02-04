@@ -436,6 +436,8 @@ const Chat = ({
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [sessionId, setSessionId] = useState("");
   const [previousResponseId, setPreviousResponseId] = useState("");
+  const sessionIdRef = useRef("");
+  const createSessionPromiseRef = useRef<Promise<string> | null>(null);
   const [user, setUser] = useState(null);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
@@ -1015,6 +1017,10 @@ const updateUserBalance = async (value) => {
   }
 
   useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
+
+  useEffect(() => {
     const storedUser = getStoredUser();
     if (storedUser) {
       setUser(storedUser);
@@ -1027,21 +1033,40 @@ const updateUserBalance = async (value) => {
     setUser(null);
   }, [embeddedMode, getStoredUser]);
 
-  const createSession = useCallback(async () => {
-    const res = await fetch(`/api/responses/sessions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({}),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data?.error || "Failed to create responses session");
+  const createSession = useCallback(async (forceNew = false) => {
+    if (!forceNew) {
+      if (sessionIdRef.current) {
+        return sessionIdRef.current;
+      }
+      if (createSessionPromiseRef.current) {
+        return createSessionPromiseRef.current;
+      }
     }
-    setSessionId(data.sessionId || "");
-    setPreviousResponseId(data.responseId || "");
-    return data.sessionId || "";
+
+    const promise = (async () => {
+      const res = await fetch(`/api/responses/sessions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to create responses session");
+      }
+
+      const nextSessionId = data.sessionId || "";
+      sessionIdRef.current = nextSessionId;
+      setSessionId(nextSessionId);
+      setPreviousResponseId(data.responseId || "");
+      return nextSessionId;
+    })().finally(() => {
+      createSessionPromiseRef.current = null;
+    });
+
+    createSessionPromiseRef.current = promise;
+    return promise;
   }, []);
 
   useEffect(() => {
@@ -1165,9 +1190,9 @@ const updateUserBalance = async (value) => {
   };
 
   const ensureResponseSession = useCallback(async () => {
-    if (sessionId) return sessionId;
+    if (sessionIdRef.current) return sessionIdRef.current;
     return createSession();
-  }, [createSession, sessionId]);
+  }, [createSession]);
 
   const consumeResponseStream = async (stream: ReadableStream<Uint8Array>) => {
     const reader = stream.getReader();
@@ -1211,11 +1236,13 @@ const updateUserBalance = async (value) => {
         }
 
         if (event.type === "response.reasoning_summary_text.delta") {
+          setReasoningLogsEnabledForResponse(true);
           appendReasoningDelta(event.delta);
           continue;
         }
 
         if (event.type === "response.reasoning_summary_text.done") {
+          setReasoningLogsEnabledForResponse(true);
           flushReasoningDraft();
           continue;
         }
@@ -1333,6 +1360,10 @@ const updateUserBalance = async (value) => {
       }
     }
     
+    const thinkingIntentPattern =
+      /\b(think|thinking|reason|reasoning|analyze|analysis|step by step)\b|חשיבה|תחשוב|לחשוב|תהליך חשיבה/iu;
+    const hasThinkingIntent = thinkingIntentPattern.test(text);
+
     // Message text is used as-is (SQL queries are now added directly by SqlQueryBuilder)
     let messageWithTags = text;
 
@@ -1434,7 +1465,8 @@ const updateUserBalance = async (value) => {
             content: messageWithTags, // Send message with tags to AI
             imageData: imageData, // Send image data if available
             homeworkRunner: !!homeworkContext, // Allow all SQL (subqueries, CONCAT, ALL, TOP) in homework
-            thinkingMode: false,
+            tutorMode: hasThinkingIntent,
+            thinkingMode: hasThinkingIntent,
             stream: true,
           }),
         }
@@ -1938,7 +1970,10 @@ const loadChatMessages = (chatId: string) => {
       progressiveSpeechTimeoutRef.current = null;
     }
 
-    createSession().catch((error) => {
+    sessionIdRef.current = "";
+    setSessionId("");
+    setPreviousResponseId("");
+    createSession(true).catch((error) => {
       console.error("Failed to refresh responses session:", error);
       setStreamError("לא הצלחנו לפתוח סשן חדש. נסו שוב.");
     });
