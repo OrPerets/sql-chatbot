@@ -38,6 +38,7 @@ export function StudentEntryClient() {
   const [error, setError] = useState("");
   const [homework, setHomework] = useState<HomeworkSet | null>(null);
   const [isStarting, setIsStarting] = useState(false);
+  const [showConsentModal, setShowConsentModal] = useState(false);
 
   // Sync URL setId into selected when URL changes
   useEffect(() => {
@@ -228,6 +229,10 @@ export function StudentEntryClient() {
       }
       
       setHomework(data);
+      const consentKey = `homeworkConsent_${userData.id}`;
+      if (typeof window !== "undefined" && !localStorage.getItem(consentKey)) {
+        setShowConsentModal(true);
+      }
       setStep("instructions");
     } catch (err) {
       console.error("Error loading homework:", err);
@@ -319,16 +324,52 @@ export function StudentEntryClient() {
         <div className={styles.card}>
           <div className={styles.loading}>
             <div className={styles.spinner} />
-            <p style={{ color: "#64748b", fontSize: "15px" }}>טוען את שיעור הבית...</p>
+            <p style={{ color: "#64748b", fontSize: "15px" }}>טוען...</p>
           </div>
         </div>
       </div>
     );
   }
 
+  const handleConsentApprove = () => {
+    if (studentId && typeof window !== "undefined") {
+      localStorage.setItem(`homeworkConsent_${studentId}`, "true");
+    }
+    setShowConsentModal(false);
+  };
+
+  const handleConsentReject = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("currentUser");
+    }
+    setShowConsentModal(false);
+    setStep("id");
+    setStudentId("");
+    setStudentName("");
+    setPassword("");
+    setHomework(null);
+    setError("נדרשת הסכמה כדי להמשיך למערכת.");
+  };
+
   if (step === "instructions" && homework) {
     return (
       <div className={styles.container} dir="rtl">
+        {showConsentModal && (
+          <div className={styles.consentOverlay} role="dialog" aria-modal="true" aria-labelledby="consent-title">
+            <div className={styles.consentModal}>
+              <h2 id="consent-title" className={styles.consentTitle}>הסכמה</h2>
+              <p className={styles.consentText}>בכניסה למערכת זו, אני מאשר ..</p>
+              <div className={styles.consentButtons}>
+                <button type="button" className={styles.consentButtonSecondary} onClick={handleConsentReject}>
+                  לא מאשר
+                </button>
+                <button type="button" className={styles.consentButton} onClick={handleConsentApprove}>
+                  אני מאשר
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className={styles.card}>
           <div className={styles.instructionsContent}>
             {studentName && (
@@ -436,7 +477,7 @@ export function StudentEntryClient() {
           <div className={styles.icon}>
             <Play size={40} />
           </div>
-          <h1 className={styles.title}>שיעורי בית SQL</h1>
+          <h1 className={styles.title}>הכנה למבחן</h1>
           <p className={styles.subtitle}>נא להזין את כתובת האימייל והסיסמה שלך להתחברות</p>
           {publishedSets.length > 1 && chosenSet && (
             <p className={styles.chosenSet}>

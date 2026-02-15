@@ -9,12 +9,13 @@ import { isHomeworkAccessible } from "@/lib/deadline-utils";
 import { getUsersService } from "@/lib/users";
 
 interface RouteParams {
-  params: { setId: string };
+  params: Promise<{ setId: string }>;
 }
 
 export async function GET(request: Request, { params }: RouteParams) {
   try {
-    const homeworkSet = await getHomeworkSetById(params.setId);
+    const { setId } = await params;
+    const homeworkSet = await getHomeworkSetById(setId);
     if (!homeworkSet) {
       return NextResponse.json({ message: "Homework set not found" }, { status: 404 });
     }
@@ -72,8 +73,9 @@ export async function GET(request: Request, { params }: RouteParams) {
 
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
+    const { setId } = await params;
     const body = await request.json();
-    const homeworkSet = await updateHomeworkSet(params.setId, body);
+    const homeworkSet = await updateHomeworkSet(setId, body);
     
     if (!homeworkSet) {
       return NextResponse.json({ message: "Homework set not found" }, { status: 404 });
@@ -91,7 +93,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
 export async function DELETE(_request: Request, { params }: RouteParams) {
   try {
-    const success = await deleteHomeworkSet(params.setId);
+    const { setId } = await params;
+    const success = await deleteHomeworkSet(setId);
     if (!success) {
       return NextResponse.json({ message: "Homework set not found" }, { status: 404 });
     }
@@ -108,6 +111,7 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 // Publish/unpublish endpoint
 export async function PATCH(request: Request, { params }: RouteParams) {
   try {
+    const { setId } = await params;
     const body = await request.json();
     const { published } = body;
     
@@ -118,7 +122,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       );
     }
     
-    const homeworkSet = await publishHomeworkSet(params.setId, published);
+    const homeworkSet = await publishHomeworkSet(setId, published);
     
     if (!homeworkSet) {
       return NextResponse.json({ message: "Homework set not found" }, { status: 404 });

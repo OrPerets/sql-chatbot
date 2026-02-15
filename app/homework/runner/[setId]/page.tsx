@@ -8,8 +8,8 @@ import { getUsersService } from "@/lib/users";
 import { redirect } from "next/navigation";
 
 interface RunnerPageProps {
-  params: { setId: string };
-  searchParams?: { studentId?: string };
+  params: Promise<{ setId: string }>;
+  searchParams?: Promise<{ studentId?: string }>;
 }
 
 export const metadata: Metadata = {
@@ -17,10 +17,12 @@ export const metadata: Metadata = {
 };
 
 export default async function RunnerPage({ params, searchParams }: RunnerPageProps) {
-  const studentId = searchParams?.studentId ?? "student-demo";
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams ?? {};
+  const studentId = resolvedSearchParams.studentId ?? "student-demo";
   
   // Get homework set and check deadline
-  const homeworkSet = await getHomeworkSetById(params.setId);
+  const homeworkSet = await getHomeworkSetById(resolvedParams.setId);
   if (!homeworkSet) {
     redirect("/homework/start");
   }
@@ -41,12 +43,12 @@ export default async function RunnerPage({ params, searchParams }: RunnerPagePro
 
   // Check if homework is still accessible
   if (!isHomeworkAccessible(homeworkSet.dueAt, userEmail)) {
-    redirect(`/homework/start?setId=${params.setId}&error=deadline_passed`);
+    redirect(`/homework/start?setId=${resolvedParams.setId}&error=deadline_passed`);
   }
   
   // Check if submission is already submitted
   try {
-    const submission = await getSubmissionForStudent(params.setId, studentId);
+    const submission = await getSubmissionForStudent(resolvedParams.setId, studentId);
     
     if (submission && (submission.status === "submitted" || submission.status === "graded")) {
       return (
@@ -63,5 +65,5 @@ export default async function RunnerPage({ params, searchParams }: RunnerPagePro
     console.error("Error checking submission status:", error);
   }
   
-  return <RunnerClient setId={params.setId} studentId={studentId} />;
+  return <RunnerClient setId={resolvedParams.setId} studentId={studentId} />;
 }

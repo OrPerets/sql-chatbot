@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { getDatasetById, deleteDataset, updateDataset } from "@/lib/datasets";
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
-    const dataset = await getDatasetById(params.id);
+    const { id } = await params;
+    const dataset = await getDatasetById(id);
     if (!dataset) {
       return NextResponse.json({ message: "Dataset not found" }, { status: 404 });
     }
@@ -23,8 +24,9 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
+    const { id } = await params;
     const body = await request.json();
-    const dataset = await updateDataset(params.id, body);
+    const dataset = await updateDataset(id, body);
     
     if (!dataset) {
       return NextResponse.json({ message: "Dataset not found" }, { status: 404 });
@@ -42,7 +44,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
 export async function DELETE(_request: Request, { params }: RouteParams) {
   try {
-    const success = await deleteDataset(params.id);
+    const { id } = await params;
+    const success = await deleteDataset(id);
     if (!success) {
       return NextResponse.json({ message: "Dataset not found" }, { status: 404 });
     }

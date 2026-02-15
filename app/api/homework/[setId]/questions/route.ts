@@ -7,12 +7,13 @@ import {
 import type { Question } from "@/app/homework/types";
 
 interface RouteParams {
-  params: { setId: string };
+  params: Promise<{ setId: string }>;
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
-    const questions = await getQuestionsByHomeworkSet(params.setId);
+    const { setId } = await params;
+    const questions = await getQuestionsByHomeworkSet(setId);
     return NextResponse.json(questions);
   } catch (error) {
     console.error('Error fetching questions:', error);
@@ -25,10 +26,11 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
 export async function POST(request: Request, { params }: RouteParams) {
   try {
+    const { setId } = await params;
     const body = await request.json();
     
     const questionData: Omit<Question, 'id'> & { homeworkSetId: string } = {
-      homeworkSetId: params.setId,
+      homeworkSetId: setId,
       prompt: body.prompt || "",
       instructions: body.instructions || "",
       starterSql: body.starterSql,
@@ -53,8 +55,9 @@ export async function POST(request: Request, { params }: RouteParams) {
 
 export async function DELETE(_request: Request, { params }: RouteParams) {
   try {
+    const { setId } = await params;
     const service = await getQuestionsService();
-    const deletedCount = await service.deleteQuestionsByHomeworkSet(params.setId);
+    const deletedCount = await service.deleteQuestionsByHomeworkSet(setId);
     return NextResponse.json({ 
       message: `Deleted ${deletedCount} questions`,
       deletedCount 

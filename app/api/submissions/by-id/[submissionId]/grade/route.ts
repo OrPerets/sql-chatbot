@@ -2,14 +2,15 @@ import { NextResponse } from "next/server";
 import { gradeSubmission } from "@/lib/submissions";
 
 interface RouteParams {
-  params: { submissionId: string };
+  params: Promise<{ submissionId: string }>;
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
   try {
+    const { submissionId } = await params;
     const payload = await request.json();
     
-    console.log(`[API Grade] Received grade request for submission ${params.submissionId}`);
+    console.log(`[API Grade] Received grade request for submission ${submissionId}`);
     
     // Log what we received
     if (payload.answers) {
@@ -39,9 +40,9 @@ export async function POST(request: Request, { params }: RouteParams) {
       }
     }
     
-    const updated = await gradeSubmission(params.submissionId, payload);
+    const updated = await gradeSubmission(submissionId, payload);
     if (!updated) {
-      console.error(`[API Grade] gradeSubmission returned null for ${params.submissionId}`);
+      console.error(`[API Grade] gradeSubmission returned null for ${submissionId}`);
       return NextResponse.json({ message: "Submission not found" }, { status: 404 });
     }
     
@@ -49,11 +50,11 @@ export async function POST(request: Request, { params }: RouteParams) {
     const returnedAnswersWithNotes = Object.entries(updated.answers || {}).filter(([_, ans]: [string, any]) => 
       ans.feedback?.instructorNotes?.trim()
     );
-    console.log(`[API Grade] Successfully graded submission ${params.submissionId}: ${returnedAnswersWithNotes.length} answers with instructorNotes returned`);
+    console.log(`[API Grade] Successfully graded submission ${submissionId}: ${returnedAnswersWithNotes.length} answers with instructorNotes returned`);
     
     return NextResponse.json(updated);
   } catch (error) {
-    console.error(`[API Grade] Error grading submission ${params.submissionId}:`, error);
+    console.error(`[API Grade] Error grading submission ${submissionId}:`, error);
     return NextResponse.json(
       { error: "Failed to grade submission", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }

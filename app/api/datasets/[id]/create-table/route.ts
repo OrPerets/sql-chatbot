@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { getDatasetService } from "@/lib/datasets";
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const { tableName, columns } = body;
 
@@ -21,7 +22,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     // Get dataset
     const datasetService = await getDatasetService();
-    const dataset = await datasetService.getDatasetById(params.id);
+    const dataset = await datasetService.getDatasetById(id);
 
     if (!dataset) {
       return NextResponse.json(
@@ -43,7 +44,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     // For SQL.js sandbox, the table will be created when the dataset is first used
     
     // Update dataset with table creation SQL
-    const updatedDataset = await datasetService.updateDataset(params.id, {
+    const updatedDataset = await datasetService.updateDataset(id, {
       story: (dataset.story || '') + `\n\nTable Creation SQL:\n${createTableSQL}`,
     });
 

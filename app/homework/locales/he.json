@@ -95,6 +95,7 @@
   "runner.nav.status.new": "חדש",
   "runner.nav.fallback": "שאלה",
   "runner.question.placeholder": "בחרו שאלה",
+  "runner.question.outputDisplay": "תצוגת תוצאה",
   "runner.progress.summary": "{answered} מתוך {total} הושלמו",
   "runner.progress.attempts": "נותרו {count} ניסיונות",
   "runner.progress.attempts.one": "נותר ניסיון אחד",

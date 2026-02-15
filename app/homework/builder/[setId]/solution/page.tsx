@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { use, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Code2, FileText, ArrowRight, Sparkles } from "lucide-react";
 import { useHomeworkDraft } from "@/app/homework/hooks/useHomeworkDraft";
@@ -9,7 +9,7 @@ import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider
 import styles from "./solution.module.css";
 
 interface SolutionPageProps {
-  params: { setId: string };
+  params: Promise<{ setId: string }>;
 }
 
 interface AIGenerateSolutionsResponse {
@@ -26,7 +26,8 @@ interface AIGenerateSolutionsResponse {
 }
 
 export default function SolutionHomeworkPage({ params }: SolutionPageProps) {
-  const { draft, isLoading, error } = useHomeworkDraft(params.setId);
+  const { setId } = use(params);
+  const { draft, isLoading, error } = useHomeworkDraft(setId);
   const { t, direction } = useHomeworkLocale();
   const queryClient = useQueryClient();
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -39,7 +40,7 @@ export default function SolutionHomeworkPage({ params }: SolutionPageProps) {
       setIsAIGenerating(true);
       setAIGenerationProgress({ current: 0, total: 0 });
       
-      const response = await fetch(`/api/homework/${params.setId}/ai-generate-solutions`, {
+      const response = await fetch(`/api/homework/${setId}/ai-generate-solutions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ overwrite }),
@@ -59,8 +60,8 @@ export default function SolutionHomeworkPage({ params }: SolutionPageProps) {
       }
 
       // Refresh the draft to show new solutions
-      queryClient.invalidateQueries({ queryKey: ["homework", params.setId] });
-      queryClient.invalidateQueries({ queryKey: ["homework", params.setId, "questions"] });
+      queryClient.invalidateQueries({ queryKey: ["homework", setId] });
+      queryClient.invalidateQueries({ queryKey: ["homework", setId, "questions"] });
 
       const successCount = data.totalSaved;
       const totalCount = data.totalGenerated;
@@ -176,7 +177,7 @@ export default function SolutionHomeworkPage({ params }: SolutionPageProps) {
             </button>
           )}
           
-          <Link href={`/homework/builder/${params.setId}`} className={styles.backLink}>
+          <Link href={`/homework/builder/${setId}`} className={styles.backLink}>
             <ArrowRight size={18} />
             חזרה לעריכה
           </Link>

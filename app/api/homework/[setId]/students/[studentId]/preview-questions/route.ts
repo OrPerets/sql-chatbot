@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getQuestionGenerator } from '@/lib/question-generator';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     setId: string;
     studentId: string;
-  };
+  }>;
 }
 
 /**
@@ -13,6 +13,7 @@ interface RouteParams {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
+    const { setId, studentId } = await params;
     const body = await request.json();
     
     if (!body.templateIds || !Array.isArray(body.templateIds) || body.templateIds.length === 0) {
@@ -27,8 +28,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const generator = await getQuestionGenerator();
     const previews = await generator.previewQuestionsForStudent(
-      params.setId,
-      params.studentId,
+      setId,
+      studentId,
       body.templateIds
     );
     

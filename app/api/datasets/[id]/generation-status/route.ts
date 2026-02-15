@@ -2,16 +2,17 @@ import { NextResponse } from "next/server";
 import { getDataGenerationService } from "@/lib/data-generation";
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
+    const { id } = await params;
     const service = await getDataGenerationService();
     
     // Get all generation statuses for this dataset
     const allStatuses = Array.from(service['generationStatus'].values())
-      .filter(status => status.datasetId === params.id)
+      .filter(status => status.datasetId === id)
       .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
     
     if (allStatuses.length === 0) {
@@ -22,7 +23,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     }
     
     return NextResponse.json({
-      datasetId: params.id,
+      datasetId: id,
       statuses: allStatuses
     });
   } catch (error: any) {

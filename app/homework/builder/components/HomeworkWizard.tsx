@@ -44,7 +44,7 @@ function parseSchema(input: string): Array<{ column: string; type: string }> {
 function buildQuestionsPayload(draft: HomeworkDraftState): Question[] {
   return draft.questions.map((question) => ({
     id: question.id,
-    prompt: question.instructions, // Use instructions as prompt since we removed the separate prompt field
+    prompt: question.prompt,
     instructions: question.instructions,
     starterSql: question.starterSql,
     expectedResultSchema: parseSchema(question.expectedResultSchema),

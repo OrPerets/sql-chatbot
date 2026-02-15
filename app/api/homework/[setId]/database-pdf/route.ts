@@ -5,11 +5,12 @@ import { join } from "path";
 export const dynamic = "force-dynamic";
 
 interface RouteParams {
-  params: { setId: string };
+  params: Promise<{ setId: string }>;
 }
 
 export async function GET(request: Request, { params }: RouteParams) {
   try {
+    const { setId } = await params;
     // Read the static PDF file from the public folder
     const pdfPath = join(process.cwd(), "public", "db.pdf");
     const pdfBuffer = readFileSync(pdfPath);
@@ -18,7 +19,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="database-${params.setId}.pdf"`,
+        "Content-Disposition": `attachment; filename="database-${setId}.pdf"`,
       },
     });
   } catch (error: any) {

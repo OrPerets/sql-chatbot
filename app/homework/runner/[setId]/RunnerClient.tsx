@@ -832,9 +832,30 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
 
           <div className={styles.questionContent}>
             <h3>{activeQuestion?.prompt ?? t("runner.question.placeholder")}</h3>
-            {activeQuestion?.instructions && (
-              <p className={styles.instructions}>{activeQuestion.instructions}</p>
-            )}
+            {(() => {
+              // Subheader = what to display as output (not duplicate of question)
+              const schema = activeQuestion?.expectedResultSchema;
+              const hasOutputColumns = Array.isArray(schema) && schema.length > 0;
+              const outputLabel = hasOutputColumns
+                ? schema!.map((c) => c.column).join(", ")
+                : null;
+              const instructions = activeQuestion?.instructions?.trim();
+              const prompt = activeQuestion?.prompt?.trim();
+              const instructionsDifferent = instructions && instructions !== prompt;
+              if (outputLabel) {
+                return (
+                  <p className={styles.questionOutputSubheader}>
+                    {t("runner.question.outputDisplay")}: {outputLabel}
+                  </p>
+                );
+              }
+              if (instructionsDifferent) {
+                return (
+                  <p className={styles.instructions}>{activeQuestion!.instructions}</p>
+                );
+              }
+              return null;
+            })()}
           </div>
         
         </header>
@@ -1081,13 +1102,16 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               <p className={styles.solutionModalPrompt}>{solutionModalQuestion.prompt}</p>
             ) : null}
 
-            {solutionModalSql ? (
-              <pre className={styles.solutionCode}>
-                <code>{solutionModalSql}</code>
-              </pre>
-            ) : (
-              <p className={styles.solutionEmpty}>טרם הוגדרה תשובה לשאלה זו.</p>
-            )}
+            <div className={styles.solutionModalBody}>
+              <span className={styles.solutionModalLabel}>שאילתת הפתרון:</span>
+              {solutionModalSql ? (
+                <pre className={styles.solutionCode}>
+                  <code>{solutionModalSql}</code>
+                </pre>
+              ) : (
+                <p className={styles.solutionEmpty}>טרם הוגדרה תשובה לשאלה זו.</p>
+              )}
+            </div>
 
             <div className={styles.solutionModalActions}>
               {solutionModalSql && (

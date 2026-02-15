@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { getSubmissionProgress } from "@/lib/submissions";
 
 interface RouteParams {
-  params: { submissionId: string };
+  params: Promise<{ submissionId: string }>;
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
-    const progress = await getSubmissionProgress(params.submissionId);
+    const { submissionId } = await params;
+    const progress = await getSubmissionProgress(submissionId);
     if (!progress) {
       return NextResponse.json({ message: "Not found" }, { status: 404 });
     }

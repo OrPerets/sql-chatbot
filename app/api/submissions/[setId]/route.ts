@@ -8,25 +8,26 @@ import {
 import type { SaveSubmissionDraftPayload } from "@/app/homework/types";
 
 interface RouteParams {
-  params: { setId: string };
+  params: Promise<{ setId: string }>;
 }
 
 export async function GET(request: Request, { params }: RouteParams) {
   try {
+    const { setId } = await params;
     const { searchParams } = new URL(request.url);
     const role = searchParams.get("role");
 
     if (role === "builder") {
-      const summaries = await getSubmissionSummaries(params.setId);
+      const summaries = await getSubmissionSummaries(setId);
       return NextResponse.json(summaries);
     }
 
     const studentId = searchParams.get("studentId") ?? "student-demo";
-    let submission = await getSubmissionForStudent(params.setId, studentId);
+    let submission = await getSubmissionForStudent(setId, studentId);
     
     // If no submission exists, create a new one
     if (!submission) {
-      submission = await saveSubmissionDraft(params.setId, {
+      submission = await saveSubmissionDraft(setId, {
         studentId,
         answers: {},
       });
@@ -44,6 +45,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 
 export async function POST(request: Request, { params }: RouteParams) {
   try {
+    const { setId } = await params;
     const body = await request.json();
     const { action, studentId, ...payload } = body;
 
@@ -52,12 +54,12 @@ export async function POST(request: Request, { params }: RouteParams) {
         studentId: studentId || "student-demo",
         ...payload,
       };
-      const submission = await saveSubmissionDraft(params.setId, submissionData);
+      const submission = await saveSubmissionDraft(setId, submissionData);
       return NextResponse.json(submission);
     }
 
     if (action === 'submit') {
-      const submission = await submitSubmission(params.setId, studentId || "student-demo");
+      const submission = await submitSubmission(setId, studentId || "student-demo");
       if (!submission) {
         return NextResponse.json({ message: "Submission not found" }, { status: 404 });
       }

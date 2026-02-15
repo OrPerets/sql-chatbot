@@ -1,6 +1,9 @@
 import { createRequire } from 'module';
+import path from 'path';
+import { fileURLToPath } from 'url';
 const require = createRequire(import.meta.url);
 const webpack = require('webpack');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -91,8 +94,12 @@ const nextConfig = {
       })
     );
     
+    // Use in-memory alasql build (alasql.js) instead of Node/RN fs build (alasql.fs.js)
+    // to avoid pulling in react-native-fs and react-native-fetch-blob in Next.js
+    const alasqlBase = path.resolve(__dirname, 'node_modules/alasql/dist/alasql.js');
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
+      alasql: alasqlBase,
       'react-native': false,
       'react-native-fs': false,
       'react-native-fetch-blob': false,

@@ -8,11 +8,12 @@ import { generateSubmissionPdf } from "@/lib/submission-pdf";
 import { isHomeworkAccessible } from "@/lib/deadline-utils";
 
 interface RouteParams {
-  params: { setId: string };
+  params: Promise<{ setId: string }>;
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
   try {
+    const { setId } = await params;
     const contentType = request.headers.get("content-type") ?? "";
     let finalStudentId: string | undefined;
     let aiCommitment: any = undefined;
@@ -49,7 +50,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       : undefined;
 
     // Check deadline before allowing submission
-    const homeworkSet = await getHomeworkSetById(params.setId);
+    const homeworkSet = await getHomeworkSetById(setId);
     if (!homeworkSet) {
       return NextResponse.json({ message: "Homework set not found" }, { status: 404 });
     }
@@ -79,7 +80,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     // Submit the homework
-    const submission = await submitSubmission(params.setId, finalStudentIdValue, commitmentPayload);
+    const submission = await submitSubmission(setId, finalStudentIdValue, commitmentPayload);
     if (!submission) {
       return NextResponse.json({ message: "Submission not found" }, { status: 404 });
     }
@@ -120,7 +121,7 @@ export async function POST(request: Request, { params }: RouteParams) {
             
             if (!studentEmail) {
               console.error(`❌ Could not find user email for studentId: ${studentIdToLookup} or ${finalStudentIdValue}, skipping email`);
-              console.error(`   Submission ID: ${submission.id}, Homework Set: ${params.setId}`);
+              console.error(`   Submission ID: ${submission.id}, Homework Set: ${setId}`);
             }
           }
         }
@@ -128,7 +129,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         // Send email if we have a valid email
           if (studentEmail && studentEmail.includes("@")) {
             const homeworkTitle = homeworkSet.title || "שיעורי בית";
-            const questions = await getQuestionsByHomeworkSet(params.setId);
+            const questions = await getQuestionsByHomeworkSet(setId);
             
             const attachments: Array<{ filename: string; content: Buffer; contentType?: string }> = [];
             

@@ -2,22 +2,23 @@ import { NextResponse } from "next/server";
 import { getDataGenerationService } from "@/lib/data-generation";
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
+    const { id } = await params;
     const service = await getDataGenerationService();
     
     // Get generated data from the service
     const generatedData = await service['db']
       .collection('generated_data')
-      .findOne({ datasetId: params.id });
+      .findOne({ datasetId: id });
     
     if (!generatedData) {
       return NextResponse.json({
         message: 'No generated data found for this dataset',
-        datasetId: params.id,
+        datasetId: id,
       });
     }
     
@@ -31,7 +32,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     }
     
     return NextResponse.json({
-      datasetId: params.id,
+      datasetId: id,
       totalTables: Object.keys(generatedData.data).length,
       totalRows: Object.values(generatedData.data).reduce((sum: number, tableData: any) => 
         sum + (Array.isArray(tableData) ? tableData.length : 0), 0),

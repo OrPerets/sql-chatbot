@@ -17,7 +17,7 @@ function createBaseRubric(): RubricCriterion[] {
 export function createQuestionDraft(partial?: Partial<QuestionDraft>): QuestionDraft {
   return {
     id: generateTempId("question"),
-    prompt: "", // Keep for compatibility, but will be populated from instructions
+    prompt: "",
     instructions: "",
     starterSql: "",
     expectedResultSchema: "[]",

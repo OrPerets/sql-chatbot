@@ -6,7 +6,7 @@ import { getHomeworkSetById } from "@/lib/homework";
 import type { Question } from "@/app/homework/types";
 
 interface RouteParams {
-  params: { setId: string };
+  params: Promise<{ setId: string }>;
 }
 
 interface AIGenerateSolutionsRequest {
@@ -31,7 +31,7 @@ export async function POST(request: Request, { params }: RouteParams) {
   try {
     const body = (await request.json()) as AIGenerateSolutionsRequest;
     const { questionIds, overwrite = false } = body;
-    const { setId } = params;
+    const { setId } = await params;
 
     if (!setId) {
       return NextResponse.json(

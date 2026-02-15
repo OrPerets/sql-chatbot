@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { publishGradesForSet } from "../../../_mock/homeworkStore";
 
 interface RouteParams {
-  params: { setId: string };
+  params: Promise<{ setId: string }>;
 }
 
 export async function POST(_request: Request, { params }: RouteParams) {
-  const result = publishGradesForSet(params.setId);
+  const { setId } = await params;
+  const result = publishGradesForSet(setId);
   return NextResponse.json(result);
 }

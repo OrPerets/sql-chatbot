@@ -6,12 +6,13 @@ import {
 } from "@/lib/questions";
 
 interface RouteParams {
-  params: { setId: string; questionId: string };
+  params: Promise<{ setId: string; questionId: string }>;
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
-    const question = await getQuestionById(params.questionId);
+    const { questionId } = await params;
+    const question = await getQuestionById(questionId);
     if (!question) {
       return NextResponse.json({ message: "Question not found" }, { status: 404 });
     }
@@ -27,8 +28,9 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
+    const { questionId } = await params;
     const body = await request.json();
-    const question = await updateQuestion(params.questionId, body);
+    const question = await updateQuestion(questionId, body);
     
     if (!question) {
       return NextResponse.json({ message: "Question not found" }, { status: 404 });
@@ -46,7 +48,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
 export async function DELETE(_request: Request, { params }: RouteParams) {
   try {
-    const success = await deleteQuestion(params.questionId);
+    const { questionId } = await params;
+    const success = await deleteQuestion(questionId);
     if (!success) {
       return NextResponse.json({ message: "Question not found" }, { status: 404 });
     }
