@@ -605,8 +605,9 @@ export class SubmissionsService {
         };
       }
       
-      // Use alasql for server-side SQL execution (works better in Node.js than sql.js)
-      const alasql = (await import('alasql')).default;
+      // Use in-memory alasql via wrapper (alasql package default is alasql.fs.js which pulls in react-native-fs)
+      const alasqlModule = await import('./alasql-server.cjs');
+      const alasql = alasqlModule.default ?? alasqlModule;
       
       // Helper function to calculate date difference in days (MySQL DATEDIFF compatibility)
       const calculateDateDiff = (date1: string | Date, date2: string | Date): number => {

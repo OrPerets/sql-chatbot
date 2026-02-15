@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTemplateService } from '@/lib/template-service';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 /**
@@ -12,8 +12,9 @@ interface RouteParams {
  */
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   try {
+    const { id } = await params;
     const service = await getTemplateService();
-    const template = await service.getTemplateById(params.id);
+    const template = await service.getTemplateById(id);
     
     if (!template) {
       return NextResponse.json(
@@ -47,10 +48,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
  */
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
+    const { id } = await params;
     const body = await request.json();
     
     const service = await getTemplateService();
-    const template = await service.updateTemplate(params.id, body);
+    const template = await service.updateTemplate(id, body);
     
     if (!template) {
       return NextResponse.json(
@@ -84,8 +86,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   try {
+    const { id } = await params;
     const service = await getTemplateService();
-    const deleted = await service.deleteTemplate(params.id);
+    const deleted = await service.deleteTemplate(id);
     
     if (!deleted) {
       return NextResponse.json(

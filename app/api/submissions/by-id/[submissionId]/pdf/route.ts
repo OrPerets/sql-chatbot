@@ -5,12 +5,13 @@ import { getQuestionsByHomeworkSet } from "@/lib/questions";
 import { generateSubmissionPdf } from "@/lib/submission-pdf";
 
 interface RouteParams {
-  params: { submissionId: string };
+  params: Promise<{ submissionId: string }>;
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
-    const submission = await getSubmissionById(params.submissionId);
+    const { submissionId } = await params;
+    const submission = await getSubmissionById(submissionId);
     if (!submission) {
       return NextResponse.json({ message: "Submission not found" }, { status: 404 });
     }

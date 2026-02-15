@@ -3,11 +3,12 @@ import { connectToDatabase, COLLECTIONS } from "@/lib/database";
 import { ObjectId } from "mongodb";
 
 interface RouteParams {
-  params: { setId: string };
+  params: Promise<{ setId: string }>;
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
   try {
+    const { setId } = await params;
     const { studentId } = (await request.json()) as { studentId?: string };
     if (!studentId) {
       return NextResponse.json({ error: "studentId is required" }, { status: 400 });
@@ -21,7 +22,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       .collection(COLLECTIONS.SUBMISSIONS)
       .findOneAndUpdate(
         { 
-          homeworkSetId: params.setId,
+          homeworkSetId: setId,
           studentId: studentId
         },
         { 

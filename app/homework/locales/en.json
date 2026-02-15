@@ -74,6 +74,7 @@
   "runner.nav.status.new": "New",
   "runner.nav.fallback": "Question",
   "runner.question.placeholder": "Select a question",
+  "runner.question.outputDisplay": "Output display",
   "runner.progress.summary": "{answered}/{total} complete",
   "runner.progress.attempts": "{count} attempts remaining",
   "runner.progress.attempts.one": "{count} attempt remaining",

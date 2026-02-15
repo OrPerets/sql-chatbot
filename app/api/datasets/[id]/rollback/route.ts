@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { rollbackDataGeneration } from "@/lib/data-generation";
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function POST(_request: Request, { params }: RouteParams) {
   try {
-    const success = await rollbackDataGeneration(params.id);
+    const { id } = await params;
+    const success = await rollbackDataGeneration(id);
     
     if (!success) {
       return NextResponse.json(
@@ -18,7 +19,7 @@ export async function POST(_request: Request, { params }: RouteParams) {
     
     return NextResponse.json({
       message: 'Dataset rolled back successfully',
-      datasetId: params.id,
+      datasetId: id,
     });
   } catch (error: any) {
     console.error('Error rolling back dataset:', error);

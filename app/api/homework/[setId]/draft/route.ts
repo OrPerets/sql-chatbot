@@ -5,24 +5,25 @@ import { globalKeyedMutex } from "@/lib/mutex";
 import type { SaveHomeworkDraftPayload } from "@/app/homework/services/homeworkService";
 
 interface RouteParams {
-  params: { setId: string };
+  params: Promise<{ setId: string }>;
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
   try {
+    const { setId } = await params;
     const payload = (await request.json()) as SaveHomeworkDraftPayload;
     const { questions, ...homeworkData } = payload;
     
     console.log('Draft save request:', {
-      setId: params.setId,
+      setId,
       questionsCount: questions?.length || 0,
       homeworkData: Object.keys(homeworkData)
     });
     
     // Serialize per-set saves to avoid overlapping delete/recreate sequences
-    const result = await globalKeyedMutex.runExclusive(params.setId, async () => {
+    const result = await globalKeyedMutex.runExclusive(setId, async () => {
       // Update the homework set metadata first
-      const updated = await updateHomeworkSet(params.setId, homeworkData);
+      const updated = await updateHomeworkSet(setId, homeworkData);
       if (!updated) {
         return { status: 404 as const, body: { message: "Not found" } };
       }
@@ -37,7 +38,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       // Delete all existing questions for this set
       try {
         const service = await getQuestionsService();
-        const deletedCount = await service.deleteQuestionsByHomeworkSet(params.setId);
+        const deletedCount = await service.deleteQuestionsByHomeworkSet(setId);
         console.log('Deleted existing questions:', deletedCount);
       } catch (error) {
         console.error('Error deleting existing questions:', error);
@@ -53,7 +54,7 @@ export async function POST(request: Request, { params }: RouteParams) {
             instructions: question.instructions?.substring(0, 50) + '...'
           });
 
-          await upsertQuestion(params.setId, {
+          await upsertQuestion(setId, {
             ...question,
             evaluationMode: question.evaluationMode || "auto",
           });
@@ -64,11 +65,11 @@ export async function POST(request: Request, { params }: RouteParams) {
       }
 
       // Read back authoritative questions from DB and set order accordingly
-      const finalQuestions = await getQuestionsByHomeworkSet(params.setId);
+      const finalQuestions = await getQuestionsByHomeworkSet(setId);
       const finalOrder = finalQuestions.map((q) => q.id);
       console.log('Updating questionOrder (authoritative):', finalOrder);
 
-      const finalUpdated = await updateHomeworkSet(params.setId, {
+      const finalUpdated = await updateHomeworkSet(setId, {
         questionOrder: finalOrder,
       });
 

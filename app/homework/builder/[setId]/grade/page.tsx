@@ -1,9 +1,10 @@
 import { GradeHomeworkClient } from "./GradeHomeworkClient";
 
 interface GradePageProps {
-  params: { setId: string };
+  params: Promise<{ setId: string }>;
 }
 
-export default function GradeHomeworkPage({ params }: GradePageProps) {
-  return <GradeHomeworkClient setId={params.setId} />;
+export default async function GradeHomeworkPage({ params }: GradePageProps) {
+  const { setId } = await params;
+  return <GradeHomeworkClient setId={setId} />;
 }

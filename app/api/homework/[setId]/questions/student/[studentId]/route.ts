@@ -4,10 +4,10 @@ import { getHomeworkService } from '@/lib/homework';
 import { getQuestionsService } from '@/lib/questions';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     setId: string;
     studentId: string;
-  };
+  }>;
 }
 
 /**
@@ -16,7 +16,7 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { setId, studentId } = params;
+    const { setId, studentId } = await params;
     
     console.log(`🎓 Getting questions for student ${studentId} in homework set ${setId}`);
     

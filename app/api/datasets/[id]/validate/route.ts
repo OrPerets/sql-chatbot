@@ -2,15 +2,16 @@ import { NextResponse } from "next/server";
 import { validateGeneratedData } from "@/lib/data-generation";
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
-    const validation = await validateGeneratedData(params.id);
+    const { id } = await params;
+    const validation = await validateGeneratedData(id);
     
     return NextResponse.json({
-      datasetId: params.id,
+      datasetId: id,
       ...validation,
       timestamp: new Date().toISOString(),
     });

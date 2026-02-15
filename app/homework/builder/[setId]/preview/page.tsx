@@ -1,18 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { use, useMemo } from "react";
 import { Eye, Play, FileText, Code2, BarChart3 } from "lucide-react";
 import { useHomeworkDraft } from "@/app/homework/hooks/useHomeworkDraft";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 import styles from "./preview.module.css";
 
 interface PreviewPageProps {
-  params: { setId: string };
+  params: Promise<{ setId: string }>;
 }
 
 export default function PreviewHomeworkPage({ params }: PreviewPageProps) {
-  const { draft, isLoading, error } = useHomeworkDraft(params.setId);
+  const { setId } = use(params);
+  const { draft, isLoading, error } = useHomeworkDraft(setId);
   const { t, direction } = useHomeworkLocale();
 
   const stats = useMemo(() => {
@@ -90,7 +91,7 @@ export default function PreviewHomeworkPage({ params }: PreviewPageProps) {
           </div>
         )}
 
-        <Link href={`/homework/runner/${params.setId}`} className={styles.runnerLink}>
+        <Link href={`/homework/runner/${setId}`} className={styles.runnerLink}>
           <Play size={18} />
           {t("builder.preview.openRunner")}
         </Link>

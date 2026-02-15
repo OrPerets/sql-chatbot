@@ -6,7 +6,7 @@ import { getQuestionsService } from '@/lib/questions';
 import type { AnalysisRequest } from '@/lib/ai-analysis';
 
 interface RouteParams {
-  params: { setId: string };
+  params: Promise<{ setId: string }>;
 }
 
 /**
@@ -15,7 +15,7 @@ interface RouteParams {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { setId } = params;
+    const { setId } = await params;
     
     if (!setId) {
       return NextResponse.json(
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { setId } = params;
+    const { setId } = await params;
     
     if (!setId) {
       return NextResponse.json(

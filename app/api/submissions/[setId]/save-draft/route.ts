@@ -5,16 +5,17 @@ import { findUserByIdOrEmail } from "@/lib/users";
 import { isHomeworkAccessible } from "@/lib/deadline-utils";
 
 interface RouteParams {
-  params: { setId: string };
+  params: Promise<{ setId: string }>;
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
   try {
+    const { setId } = await params;
     const payload = await request.json();
-    console.log('💾 Save draft called for setId:', params.setId, 'studentId:', payload.studentId);
+    console.log('💾 Save draft called for setId:', setId, 'studentId:', payload.studentId);
     
     // Check deadline before allowing draft save
-    const homeworkSet = await getHomeworkSetById(params.setId);
+    const homeworkSet = await getHomeworkSetById(setId);
     if (!homeworkSet) {
       return NextResponse.json({ message: "Homework set not found" }, { status: 404 });
     }
@@ -43,7 +44,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
     
-    const submission = await saveSubmissionDraft(params.setId, payload);
+    const submission = await saveSubmissionDraft(setId, payload);
     
     if (!submission) {
       console.error('❌ Save draft failed - no submission returned');

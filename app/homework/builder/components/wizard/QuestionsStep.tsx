@@ -31,7 +31,7 @@ export function QuestionsStep({ questions, onChange, onBack, onNext, primaryData
       if (question.isParametric) {
         return question.templateId && question.templateId.trim().length > 0;
       } else {
-        return question.instructions.trim().length > 0;
+        return question.prompt.trim().length > 0 && question.instructions.trim().length > 0;
       }
     });
 
@@ -152,15 +152,27 @@ export function QuestionsStep({ questions, onChange, onBack, onNext, primaryData
                   )}
                 </div>
               ) : (
-                <div className={styles.field}>
-                  <label htmlFor={`instructions-${question.id}`}>{t("builder.questions.instructions")}</label>
-                  <textarea
-                    id={`instructions-${question.id}`}
-                    value={question.instructions}
-                    onChange={(event) => handleQuestionChange(question.id, { instructions: event.target.value })}
-                    placeholder={t("builder.questions.instructionsPlaceholder")}
-                  />
-                </div>
+                <>
+                  <div className={styles.field}>
+                    <label htmlFor={`prompt-${question.id}`}>{t("builder.questions.prompt")}</label>
+                    <textarea
+                      id={`prompt-${question.id}`}
+                      value={question.prompt}
+                      onChange={(event) => handleQuestionChange(question.id, { prompt: event.target.value })}
+                      placeholder={t("builder.questions.promptPlaceholder")}
+                      rows={3}
+                    />
+                  </div>
+                  <div className={styles.field}>
+                    <label htmlFor={`instructions-${question.id}`}>{t("builder.questions.instructions")}</label>
+                    <textarea
+                      id={`instructions-${question.id}`}
+                      value={question.instructions}
+                      onChange={(event) => handleQuestionChange(question.id, { instructions: event.target.value })}
+                      placeholder={t("builder.questions.instructionsPlaceholder")}
+                    />
+                  </div>
+                </>
               )}
 
               <div className={styles.fieldRow}>

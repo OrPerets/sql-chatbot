@@ -3,11 +3,12 @@ import { startDataGeneration } from "@/lib/data-generation";
 import type { DataGenerationConfig } from "@/lib/data-generation";
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
   try {
+    const { id } = await params;
     const body = await request.json();
     
     // Validate request body
@@ -36,7 +37,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    const generationId = await startDataGeneration(params.id, config);
+    const generationId = await startDataGeneration(id, config);
     
     return NextResponse.json({
       generationId,
