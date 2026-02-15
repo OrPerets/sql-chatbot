@@ -358,7 +358,7 @@ export function StudentEntryClient() {
           <div className={styles.consentOverlay} role="dialog" aria-modal="true" aria-labelledby="consent-title">
             <div className={styles.consentModal}>
               <h2 id="consent-title" className={styles.consentTitle}>הסכמה</h2>
-              <p className={styles.consentText}>בכניסה למערכת זו, אני מאשר ..</p>
+              <p className={styles.consentText}>בשימוש במערכת זו אני מאשר כי המידע שמוזן נשמר במערכת, וכי והסכמתי לתנאי השימוש.</p>
               <div className={styles.consentButtons}>
                 <button type="button" className={styles.consentButtonSecondary} onClick={handleConsentReject}>
                   לא מאשר
