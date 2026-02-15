@@ -6,8 +6,10 @@ interface RouteParams {
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
+  let submissionId: string | undefined;
   try {
-    const { submissionId } = await params;
+    const resolved = await params;
+    submissionId = resolved.submissionId;
     const payload = await request.json();
     
     console.log(`[API Grade] Received grade request for submission ${submissionId}`);
@@ -54,7 +56,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     
     return NextResponse.json(updated);
   } catch (error) {
-    console.error(`[API Grade] Error grading submission ${submissionId}:`, error);
+    console.error(`[API Grade] Error grading submission ${submissionId ?? "(unknown)"}:`, error);
     return NextResponse.json(
       { error: "Failed to grade submission", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
