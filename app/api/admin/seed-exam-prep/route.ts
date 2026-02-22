@@ -29,7 +29,7 @@ export async function POST() {
 1) Exams (ExamID, CourseCode, ExamDate, DurationMinutes, Room)
 2) Students (StudentID, FirstName, LastName, Major, Year)
 3) Registrations (RegistrationID, StudentID, ExamID, RegisteredAt, Status)
-4) Scores (StudentID, ExamID, Score, GradedAt, FirstExamDate)
+4) Scores (StudentID, ExamID, Score, GradedAt, FirstExamDate - תאריך הבחינה הראשונה)
 
 המטרה היא לכתוב שאילתות שמסייעות להערכת היערכות למבחן והבנת דפוסי רישום והישגים.`;
 
