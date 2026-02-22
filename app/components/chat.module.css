@@ -782,6 +782,7 @@
   border: 1px solid rgba(0, 0, 0, 0.05); /* Even lighter border */
   backdrop-filter: blur(16px);
   white-space: normal;
+  color: #1f2937; /* Dark text so Michael's reply is readable (was light gray) */
 }
 
 .assistantMessage:hover {
@@ -795,6 +796,7 @@
 /* Message content wrapper for better spacing control */
 .messageContent {
   margin-bottom: 0; /* No gap - feedback buttons appear on hover */
+  color: inherit; /* Use assistantMessage dark color for readability */
 }
 
 .tutorResponse {
@@ -3392,6 +3394,12 @@
     background: #374151;
     color: #f9fafb;
     border-color: #4b5563;
+  }
+  
+  /* Michael/assistant reply text readable in dark mode */
+  .assistantMessage,
+  .assistantMessage .messageContent {
+    color: #e5e7eb;
   }
 }
 

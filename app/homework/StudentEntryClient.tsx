@@ -357,8 +357,18 @@ export function StudentEntryClient() {
         {showConsentModal && (
           <div className={styles.consentOverlay} role="dialog" aria-modal="true" aria-labelledby="consent-title">
             <div className={styles.consentModal}>
-              <h2 id="consent-title" className={styles.consentTitle}>הסכמה</h2>
-              <p className={styles.consentText}>בשימוש במערכת זו אני מאשר כי המידע שמוזן נשמר במערכת, וכי והסכמתי לתנאי השימוש.</p>
+              <h2 id="consent-title" className={styles.consentTitle}>הסכמה לשימוש בנתונים לצורכי מחקר אקדמי</h2>
+              <div className={styles.consentText}>
+                <p>ידוע לי כי נתונים הנוגעים לשימוש באסיסטנט ה-SQL בקורס (לרבות הגשות, השתתפות ונתוני ביצוע) עשויים לשמש לצורכי מחקר אקדמי.</p>
+                <p>אני מבין/ה כי:</p>
+                <ul>
+                  <li>הנתונים יעובדו באופן אנונימי וללא זיהוי אישי.</li>
+                  <li>השימוש בנתונים ייעשה לצורכי מחקר בלבד.</li>
+                  <li>השתתפותי היא וולונטרית, ואני רשאי/ת לבטל את הסכמתי בכל עת ללא כל השלכה אקדמית.</li>
+                  <li>להסכמתי או לאי-הסכמתי לא תהיה השפעה על ציוניי או על מעמדי האקדמי.</li>
+                </ul>
+                <p>באישור מסמך זה אני מסכים/ה לשימוש בנתונים האנונימיים כאמור לעיל.</p>
+              </div>
               <div className={styles.consentButtons}>
                 <button type="button" className={styles.consentButtonSecondary} onClick={handleConsentReject}>
                   לא מאשר
