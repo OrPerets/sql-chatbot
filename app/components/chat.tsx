@@ -2804,7 +2804,7 @@ return (
                     className={styles.showSolutionButton}
                     onClick={showSolution}
                   >
-                    הצג פתרון
+                    הצג חלופה לפתרון
                   </button>
                 )}
               </div>

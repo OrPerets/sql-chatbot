@@ -134,16 +134,16 @@ const DATABASE_SAMPLE_DATA: Record<string, { columns: string[]; rows: Record<str
   Students: {
     columns: ["StudentID", "FirstName", "LastName", "Major", "Year"],
     rows: [
-      { StudentID: 1001, FirstName: "אלי", LastName: "כהן", Major: "CS", Year: 2 },
-      { StudentID: 1002, FirstName: "מיה", LastName: "לוי", Major: "Math", Year: 2 },
-      { StudentID: 1003, FirstName: "דוד", LastName: "ישראלי", Major: "CS", Year: 3 },
-      { StudentID: 1004, FirstName: "שרה", LastName: "מזרחי", Major: "Math", Year: 2 },
-      { StudentID: 1005, FirstName: "יוסי", LastName: "אברהם", Major: "CS", Year: 3 },
-      { StudentID: 1006, FirstName: "רונית", LastName: "דהן", Major: "Math", Year: 1 },
-      { StudentID: 1007, FirstName: "עמית", LastName: "בן דוד", Major: "CS", Year: 2 },
-      { StudentID: 1008, FirstName: "נועה", LastName: "שמעון", Major: "Biology", Year: 1 },
-      { StudentID: 1009, FirstName: "תום", LastName: "גל", Major: "CS", Year: 4 },
-      { StudentID: 1010, FirstName: "הילה", LastName: "אדרי", Major: "Math", Year: 3 },
+      { StudentID: 1001, FirstName: "Eli", LastName: "Cohen", Major: "CS", Year: 2 },
+      { StudentID: 1002, FirstName: "Maya", LastName: "Levy", Major: "Math", Year: 2 },
+      { StudentID: 1003, FirstName: "David", LastName: "Israeli", Major: "CS", Year: 3 },
+      { StudentID: 1004, FirstName: "Sarah", LastName: "Mizrahi", Major: "Math", Year: 2 },
+      { StudentID: 1005, FirstName: "Yossi", LastName: "Avraham", Major: "CS", Year: 3 },
+      { StudentID: 1006, FirstName: "Ronit", LastName: "Dahan", Major: "Math", Year: 1 },
+      { StudentID: 1007, FirstName: "Amit", LastName: "Ben-David", Major: "CS", Year: 2 },
+      { StudentID: 1008, FirstName: "Noa", LastName: "Shimon", Major: "Biology", Year: 1 },
+      { StudentID: 1009, FirstName: "Tom", LastName: "Gal", Major: "CS", Year: 4 },
+      { StudentID: 1010, FirstName: "Hila", LastName: "Adari", Major: "Math", Year: 3 },
     ],
   },
   Registrations: {
@@ -171,23 +171,23 @@ const DATABASE_SAMPLE_DATA: Record<string, { columns: string[]; rows: Record<str
     ],
   },
   Scores: {
-    columns: ["ScoreID", "StudentID", "ExamID", "Score", "GradedAt", "Attempt"],
+    columns: ["StudentID", "ExamID", "Score", "GradedAt", "FirstExamDate"],
     rows: [
-      { ScoreID: 1, StudentID: 1001, ExamID: 1, Score: 85, GradedAt: "2026-02-16", Attempt: 1 },
-      { ScoreID: 2, StudentID: 1001, ExamID: 2, Score: 90, GradedAt: "2026-02-19", Attempt: 1 },
-      { ScoreID: 3, StudentID: 1002, ExamID: 1, Score: 78, GradedAt: "2026-02-16", Attempt: 1 },
-      { ScoreID: 4, StudentID: 1003, ExamID: 1, Score: 92, GradedAt: "2026-02-16", Attempt: 1 },
-      { ScoreID: 5, StudentID: 1003, ExamID: 2, Score: 88, GradedAt: "2026-02-19", Attempt: 1 },
-      { ScoreID: 6, StudentID: 1003, ExamID: 3, Score: 95, GradedAt: "2026-02-23", Attempt: 1 },
-      { ScoreID: 7, StudentID: 1004, ExamID: 2, Score: 72, GradedAt: "2026-02-19", Attempt: 1 },
-      { ScoreID: 8, StudentID: 1005, ExamID: 1, Score: 80, GradedAt: "2026-02-16", Attempt: 1 },
-      { ScoreID: 9, StudentID: 1005, ExamID: 3, Score: 84, GradedAt: "2026-02-23", Attempt: 1 },
-      { ScoreID: 10, StudentID: 1007, ExamID: 1, Score: 91, GradedAt: "2026-02-16", Attempt: 1 },
-      { ScoreID: 11, StudentID: 1007, ExamID: 2, Score: 87, GradedAt: "2026-02-19", Attempt: 1 },
-      { ScoreID: 12, StudentID: 1008, ExamID: 4, Score: 75, GradedAt: "2026-02-26", Attempt: 1 },
-      { ScoreID: 13, StudentID: 1009, ExamID: 5, Score: 89, GradedAt: "2026-03-02", Attempt: 1 },
-      { ScoreID: 14, StudentID: 1009, ExamID: 8, Score: 86, GradedAt: "2026-03-12", Attempt: 1 },
-      { ScoreID: 15, StudentID: 1010, ExamID: 6, Score: 82, GradedAt: "2026-03-06", Attempt: 1 },
+      { StudentID: 1001, ExamID: 1, Score: 85, GradedAt: "2026-02-16", FirstExamDate: "2026-02-15" },
+      { StudentID: 1001, ExamID: 2, Score: 90, GradedAt: "2026-02-19", FirstExamDate: "2026-02-18" },
+      { StudentID: 1002, ExamID: 1, Score: 78, GradedAt: "2026-02-16", FirstExamDate: "2026-02-15" },
+      { StudentID: 1003, ExamID: 1, Score: 92, GradedAt: "2026-02-16", FirstExamDate: "2026-02-15" },
+      { StudentID: 1003, ExamID: 2, Score: 88, GradedAt: "2026-02-19", FirstExamDate: "2026-02-18" },
+      { StudentID: 1003, ExamID: 3, Score: 95, GradedAt: "2026-02-23", FirstExamDate: "2026-02-22" },
+      { StudentID: 1004, ExamID: 2, Score: 72, GradedAt: "2026-02-19", FirstExamDate: "2026-02-18" },
+      { StudentID: 1005, ExamID: 1, Score: 80, GradedAt: "2026-02-16", FirstExamDate: "2026-02-15" },
+      { StudentID: 1005, ExamID: 3, Score: 84, GradedAt: "2026-02-23", FirstExamDate: "2026-02-22" },
+      { StudentID: 1007, ExamID: 1, Score: 91, GradedAt: "2026-02-16", FirstExamDate: "2026-02-15" },
+      { StudentID: 1007, ExamID: 2, Score: 87, GradedAt: "2026-02-19", FirstExamDate: "2026-02-18" },
+      { StudentID: 1008, ExamID: 4, Score: 75, GradedAt: "2026-02-26", FirstExamDate: "2026-02-25" },
+      { StudentID: 1009, ExamID: 5, Score: 89, GradedAt: "2026-03-02", FirstExamDate: "2026-03-01" },
+      { StudentID: 1009, ExamID: 8, Score: 86, GradedAt: "2026-03-12", FirstExamDate: "2026-03-11" },
+      { StudentID: 1010, ExamID: 6, Score: 82, GradedAt: "2026-03-06", FirstExamDate: "2026-03-05" },
     ],
   },
 };
@@ -244,16 +244,28 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     return map;
   }, [questionsQuery.data]);
 
+  // Sync editor from submission only on initial load or when switching question, to avoid cursor jumping while typing
+  const lastSyncedSubmissionIdRef = useRef<string | null>(null);
+  const lastSyncedActiveQuestionIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!submissionQuery.data) return;
-    setEditorValues((prev) => {
-      const next: Record<string, string> = { ...prev };
-      Object.entries(submissionQuery.data!.answers ?? {}).forEach(([questionId, answer]) => {
-        next[questionId] = typeof answer?.sql === "string" ? answer.sql : "";
+    const submissionId = submissionQuery.data.id;
+    const isInitialLoad = lastSyncedSubmissionIdRef.current !== submissionId;
+    const isQuestionSwitch = activeQuestionId !== null && lastSyncedActiveQuestionIdRef.current !== activeQuestionId;
+
+    if (isInitialLoad || isQuestionSwitch) {
+      lastSyncedSubmissionIdRef.current = submissionId;
+      lastSyncedActiveQuestionIdRef.current = activeQuestionId;
+      setEditorValues((prev) => {
+        const next: Record<string, string> = { ...prev };
+        Object.entries(submissionQuery.data!.answers ?? {}).forEach(([questionId, answer]) => {
+          next[questionId] = typeof answer?.sql === "string" ? answer.sql : "";
+        });
+        return next;
       });
-      return next;
-    });
-  }, [submissionQuery.data]);
+    }
+  }, [submissionQuery.data, activeQuestionId]);
 
   // Set first question as active when questions load
   useEffect(() => {
@@ -934,7 +946,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   onClick={() => activeQuestionId && handleShowAnswer(activeQuestionId)}
                   disabled={!activeQuestionId}
                 >
-                  👀 הצג פתרון
+                  👀 הצג חלופה לפתרון
                 </button>
               </div>
               

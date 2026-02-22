@@ -29,7 +29,7 @@ export async function POST() {
 1) Exams (ExamID, CourseCode, ExamDate, DurationMinutes, Room)
 2) Students (StudentID, FirstName, LastName, Major, Year)
 3) Registrations (RegistrationID, StudentID, ExamID, RegisteredAt, Status)
-4) Scores (ScoreID, StudentID, ExamID, Score, GradedAt, Attempt)
+4) Scores (StudentID, ExamID, Score, GradedAt, FirstExamDate - תאריך הבחינה הראשונה)
 
 המטרה היא לכתוב שאילתות שמסייעות להערכת היערכות למבחן והבנת דפוסי רישום והישגים.`;
 
@@ -98,7 +98,7 @@ export async function POST() {
           },
           {
             name: "Scores",
-            columns: ["ScoreID", "StudentID", "ExamID", "Score", "GradedAt", "Attempt"],
+            columns: ["StudentID", "ExamID", "Score", "GradedAt", "FirstExamDate"],
           },
         ],
         tags: ["הכנה למבחן", "מבחנים", "רישומים", "ציונים"],
@@ -109,7 +109,7 @@ export async function POST() {
       {
         prompt: "הציגו את כל המבחנים שמתקיימים בשבועיים הקרובים יחד עם מספר הנרשמים המאושרים לכל מבחן. כללו רק הרשמות בסטטוס 'approved'. מיינו לפי תאריך מבחן מהקרוב לרחוק.",
         instructions: "סכמה: מזהה מבחן, קוד קורס, תאריך מבחן, כמות נרשמים מאושרים",
-        starterSql: "",
+        starterSql: "SELECT e.ExamID, e.CourseCode, e.ExamDate, COUNT(r.RegistrationID) AS approved_count FROM Exams e LEFT JOIN Registrations r ON r.ExamID = e.ExamID AND r.Status = 'approved' WHERE DATEDIFF(e.ExamDate, CURDATE()) >= 0 AND DATEDIFF(e.ExamDate, CURDATE()) <= 14 GROUP BY e.ExamID, e.CourseCode, e.ExamDate ORDER BY e.ExamDate",
         expectedResultSchema: [
           { column: "מזהה מבחן", type: "number" },
           { column: "קוד קורס", type: "string" },
@@ -200,20 +200,6 @@ export async function POST() {
           { column: "קוד קורס", type: "string" },
           { column: "תאריך מבחן", type: "date" },
           { column: "סטטוס", type: "string" },
-        ],
-        points: 10,
-        maxAttempts: 3,
-        evaluationMode: "auto" as const,
-      },
-      {
-        prompt: "הציגו לכל סטודנט את תאריך ההרשמה האחרון שלו למבחן ואת סטטוס ההרשמה האחרון. הציגו גם סטודנטים שלא נרשמו, עם ערכים ריקים. מיינו לפי שם מלא.",
-        instructions: "סכמה: תעודת סטודנט, שם מלא, תאריך הרשמה אחרון, סטטוס הרשמה אחרון",
-        starterSql: "",
-        expectedResultSchema: [
-          { column: "תעודת סטודנט", type: "number" },
-          { column: "שם מלא", type: "string" },
-          { column: "תאריך הרשמה אחרון", type: "date" },
-          { column: "סטטוס הרשמה אחרון", type: "string" },
         ],
         points: 10,
         maxAttempts: 3,
