@@ -782,7 +782,7 @@
   border: 1px solid rgba(0, 0, 0, 0.05); /* Even lighter border */
   backdrop-filter: blur(16px);
   white-space: normal;
-  color: #1f2937; /* Dark text so Michael's reply is readable (was light gray) */
+  color: #0f172a; /* Dark blue–black: always readable in all OS modes */
 }
 
 .assistantMessage:hover {
@@ -796,7 +796,7 @@
 /* Message content wrapper for better spacing control */
 .messageContent {
   margin-bottom: 0; /* No gap - feedback buttons appear on hover */
-  color: inherit; /* Use assistantMessage dark color for readability */
+  color: #0f172a; /* Dark blue–black: always readable in all OS modes */
 }
 
 .tutorResponse {
@@ -1626,11 +1626,11 @@
   }
 }
 
-/* Enhanced Message Typography - Ultra-Compact & Refined Spacing */
+/* Enhanced Message Typography - Ultra-Compact & Refined Spacing (agent text: dark blue–black) */
 .messageHeader1 {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1f2937;
+  color: #0f172a;
   margin: 0.5rem 0 0.375rem 0; /* Ultra-compact margins */
   line-height: 1.2;
   border-bottom: 1px solid #e5e7eb;
@@ -1640,7 +1640,7 @@
 .messageHeader2 {
   font-size: 1.05rem;
   font-weight: 600;
-  color: #374151;
+  color: #0f172a;
   margin: 0.5rem 0 0.3rem 0; /* Ultra-compact margins */
   line-height: 1.25;
 }
@@ -1648,7 +1648,7 @@
 .messageHeader3 {
   font-size: 0.98rem;
   font-weight: 600;
-  color: #4b5563;
+  color: #1e293b;
   margin: 0.4rem 0 0.2rem 0; /* Ultra-compact margins */
   line-height: 1.25;
 }
@@ -1656,7 +1656,7 @@
 .messageParagraph {
   margin: 0.25rem 0; /* Ultra-compact spacing */
   line-height: 1.45; /* Tighter for cleaner look */
-  color: #374151;
+  color: #0f172a;
   font-size: 0.94rem;
 }
 
@@ -1683,18 +1683,18 @@
 .messageListItem {
   margin: 0.1rem 0; /* Minimal spacing between list items */
   line-height: 1.45;
-  color: #374151;
+  color: #0f172a;
   font-size: 0.94rem;
 }
 
 .messageStrong {
   font-weight: 600;
-  color: #1f2937;
+  color: #020617;
 }
 
 .messageEmphasis {
   font-style: italic;
-  color: #4b5563;
+  color: #1e293b;
 }
 
 .messageBlockquote {
@@ -1703,7 +1703,7 @@
   border-right: 3px solid #3b82f6;
   background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
   border-radius: 8px;
-  color: #1e40af;
+  color: #1e3a5f;
   font-style: italic;
   direction: rtl;
   line-height: 1.45;
@@ -3371,35 +3371,45 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .messageHeader1,
-  .messageHeader2,
-  .messageHeader3 {
-    color: #f9fafb;
+  /* Agent/assistant bubble: keep light background so dark text stays readable */
+  .assistantMessage {
+    background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 30%, #e2e8f0 100%) !important;
+    color: #0f172a !important;
   }
-  
-  .messageParagraph,
-  .messageListItem {
-    color: #e5e7eb;
-  }
-  
-  .messageStrong {
-    color: #f3f4f6;
-  }
-  
-  .messageEmphasis {
-    color: #d1d5db;
-  }
-  
-  .inlineCode {
-    background: #374151;
-    color: #f9fafb;
-    border-color: #4b5563;
-  }
-  
-  /* Michael/assistant reply text readable in dark mode */
-  .assistantMessage,
+
   .assistantMessage .messageContent {
-    color: #e5e7eb;
+    color: #0f172a !important;
+  }
+
+  /* All agent message text stays dark blue–black in dark mode */
+  .assistantMessage .messageHeader1,
+  .assistantMessage .messageHeader2,
+  .assistantMessage .messageHeader3 {
+    color: #0f172a !important;
+  }
+
+  .assistantMessage .messageParagraph,
+  .assistantMessage .messageListItem {
+    color: #0f172a !important;
+  }
+
+  .assistantMessage .messageStrong {
+    color: #020617 !important;
+  }
+
+  .assistantMessage .messageEmphasis {
+    color: #1e293b !important;
+  }
+
+  .assistantMessage .messageBlockquote {
+    color: #1e3a5f !important;
+  }
+
+  /* Inline code inside assistant message: dark text on light chip */
+  .assistantMessage .inlineCode {
+    background: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
   }
 }
 

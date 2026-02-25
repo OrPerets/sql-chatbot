@@ -2206,14 +2206,14 @@
 
 .chatContent :global(.assistantMessage) {
   background: #f1f5f9 !important;
-  color: #000000 !important;
+  color: #0f172a !important;
   align-self: flex-start !important;
   margin-left: 4px !important;
   margin-right: auto !important;
   border: none !important;
 }
 
-/* Make all text in chat darker (black) for better readability in homework runner */
+/* Agent text: dark blue–black in all modes for readability */
 .chatContent :global(.messageParagraph),
 .chatContent :global(.messageHeader1),
 .chatContent :global(.messageHeader2),
@@ -2221,14 +2221,13 @@
 .chatContent :global(.messageListItem),
 .chatContent :global(.messageStrong),
 .chatContent :global(.messageEmphasis) {
-  color: #000000 !important;
+  color: #0f172a !important;
 }
 
 .chatContent :global(.messageBlockquote) {
-  color: #000000 !important;
+  color: #1e3a5f !important;
 }
 
-/* Ensure all text elements inside messages are dark */
 .chatContent :global(.assistantMessage) p,
 .chatContent :global(.assistantMessage) div,
 .chatContent :global(.assistantMessage) span,
@@ -2239,25 +2238,26 @@
 .chatContent :global(.assistantMessage) h4,
 .chatContent :global(.assistantMessage) h5,
 .chatContent :global(.assistantMessage) h6 {
-  color: #000000 !important;
+  color: #0f172a !important;
 }
 
-/* Force all text inside assistant messages to be black - most specific override */
 .chatContent :global(.assistantMessage) * {
-  color: #000000 !important;
+  color: #0f172a !important;
 }
 
-/* Override any markdown-specific classes that might have gray colors */
 .chatContent :global(.assistantMessage) .messageParagraph,
 .chatContent :global(.assistantMessage) .messageListItem,
 .chatContent :global(.assistantMessage) .messageEmphasis,
 .chatContent :global(.assistantMessage) .messageStrong {
-  color: #000000 !important;
+  color: #0f172a !important;
 }
 
-/* CRITICAL: Override dark mode text colors that may cause light/invisible text */
+/* Dark mode: keep agent bubble light and text dark so it stays readable on all OS */
 @media (prefers-color-scheme: dark) {
-  .chatContent,
+  .chatContent :global(.assistantMessage) {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+  }
   .chatContent :global(.messageParagraph),
   .chatContent :global(.messageListItem),
   .chatContent :global(.messageHeader1),
@@ -2271,7 +2271,7 @@
   .chatContent :global(.assistantMessage) div,
   .chatContent :global(.assistantMessage) span,
   .chatContent :global(.assistantMessage) li {
-    color: #000000 !important;
+    color: #0f172a !important;
   }
 }
 
