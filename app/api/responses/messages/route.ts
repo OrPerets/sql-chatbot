@@ -11,6 +11,8 @@ import {
 } from "@/lib/openai/responses-client";
 import { executeToolCall } from "@/lib/openai/tools";
 import { buildFileSearchTool, getOrCreateAppVectorStoreId } from "@/lib/openai/vector-store";
+import { chargeMichaelMessage, getCoinsConfig } from "@/lib/coins";
+import { insufficientCoinsResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const maxDuration = 50;
@@ -217,12 +219,28 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as MessageRequestDto;
     const { sessionId, content, imageData } = body ?? {};
+    const userEmail = typeof body?.userEmail === "string" ? body.userEmail.trim() : "";
 
     if (!content && !imageData) {
       return Response.json(
         { mode, error: "Either content or imageData is required." },
         { status: 400 }
       );
+    }
+
+    const coinsConfig = await getCoinsConfig();
+    if (coinsConfig.status === "ON") {
+      if (!userEmail) {
+        return Response.json(
+          { mode, error: "userEmail required when coins are ON" },
+          { status: 400 }
+        );
+      }
+
+      const billingResult = await chargeMichaelMessage(userEmail);
+      if (billingResult.ok === false) {
+        return insufficientCoinsResponse(billingResult.balance, billingResult.required);
+      }
     }
 
     const inputItems: Array<{ type: "input_text" | "input_image"; text?: string; file_id?: string }> = [];

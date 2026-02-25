@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { updateCoinsBalance, getAllCoins, getCoinsStatus, setCoinsStatus } from '@/lib/coins'
+import { adjustBalanceAdmin, getAllCoins, getCoinsStatus, setCoinsConfig } from '@/lib/coins'
+import { AdminAuthError, requireAdmin } from '@/lib/admin-auth'
 
 export async function GET(request: Request) {
   try {
@@ -7,6 +8,7 @@ export async function GET(request: Request) {
     const all = searchParams.get('all')
     const status = searchParams.get('status')
     if (all === '1') {
+      await requireAdmin(request)
       const coins = await getAllCoins()
       return NextResponse.json(coins)
     }
@@ -17,6 +19,9 @@ export async function GET(request: Request) {
     }
     return NextResponse.json({ error: 'Specify ?all=1 or ?status=1' }, { status: 400 })
   } catch (error) {
+    if (error instanceof AdminAuthError) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
     console.error('Error getting coins data:', error)
     return NextResponse.json({ error: 'Failed' }, { status: 500 })
   }
@@ -24,20 +29,23 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const { email: adminEmail } = await requireAdmin(request)
     const body = await request.json()
     if (body.users && typeof body.amount === 'number') {
-      const result = await updateCoinsBalance(body.users, body.amount)
+      const result = await adjustBalanceAdmin(body.users, body.amount, adminEmail)
       return NextResponse.json(result)
     }
     if (body.newStatus !== undefined) {
-      const result = await setCoinsStatus(body.newStatus)
+      const result = await setCoinsConfig({ status: body.newStatus }, adminEmail)
       return NextResponse.json(result)
     }
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   } catch (error) {
+    if (error instanceof AdminAuthError) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
     console.error('Error updating coins data:', error)
     return NextResponse.json({ error: 'Failed' }, { status: 500 })
   }
 }
-
 

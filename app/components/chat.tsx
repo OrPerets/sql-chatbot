@@ -90,6 +90,13 @@ type HomeworkChatContext = {
   studentTableData?: Record<string, any[]>;
 };
 
+type InsufficientCoinsClientBody = {
+  error?: string;
+  message?: string;
+  balance?: number;
+  required?: number;
+};
+
 const UserMessage = ({ text }: { text: string }) => {
   return <div className={styles.userMessage}>{text}</div>;
 };
@@ -453,6 +460,7 @@ const Chat = ({
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [currentBalance, setCurrentBalance] = useState(0);
   const [balanceError, setBalanceError] = useState(false);
+  const [balanceErrorMessage, setBalanceErrorMessage] = useState<string | null>(null);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false); // Add loading state
@@ -582,6 +590,7 @@ const Chat = ({
   // State for user typing detection
   const [isUserTyping, setIsUserTyping] = useState(false);
   const userTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const balanceErrorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Exercise-related state
   const [currentExercise, setCurrentExercise] = useState(null);
@@ -863,6 +872,87 @@ const Chat = ({
     loadUserPoints();
   }, [getStoredUser]);
 
+  const setCurrentBalanceFromServer = useCallback((value: number) => {
+    const normalized = Number.isFinite(value) ? value : 0;
+    setCurrentBalance(normalized);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("currentBalance", String(normalized));
+    }
+  }, []);
+
+  const clearBalanceErrorNotice = useCallback(() => {
+    setBalanceError(false);
+    setBalanceErrorMessage(null);
+    if (balanceErrorTimeoutRef.current) {
+      clearTimeout(balanceErrorTimeoutRef.current);
+      balanceErrorTimeoutRef.current = null;
+    }
+  }, []);
+
+  const showBalanceErrorNotice = useCallback((message: string) => {
+    setBalanceError(true);
+    setBalanceErrorMessage(message);
+    if (balanceErrorTimeoutRef.current) {
+      clearTimeout(balanceErrorTimeoutRef.current);
+    }
+    balanceErrorTimeoutRef.current = setTimeout(() => {
+      setBalanceError(false);
+      setBalanceErrorMessage(null);
+      balanceErrorTimeoutRef.current = null;
+    }, 4000);
+  }, []);
+
+  const normalizeBalanceValue = useCallback((payload: any): number | null => {
+    if (Array.isArray(payload)) {
+      const coins = Number(payload[0]?.coins);
+      return Number.isFinite(coins) ? coins : 0;
+    }
+    if (payload && typeof payload === "object") {
+      const candidates = [payload.coins, payload.balance, payload.currentBalance];
+      for (const candidate of candidates) {
+        const value = Number(candidate);
+        if (Number.isFinite(value)) {
+          return value;
+        }
+      }
+    }
+    return null;
+  }, []);
+
+  const refreshCoinsStatus = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/users/coins?status=1`);
+      if (!response.ok) return null;
+      const data = await response.json();
+      const statusIsOn = data?.status === "ON";
+      setIsTokenBalanceVisible(statusIsOn);
+      return statusIsOn;
+    } catch (error) {
+      console.error("Failed to refresh coins status:", error);
+      return null;
+    }
+  }, []);
+
+  const refreshBalanceFromServer = useCallback(
+    async (emailOverride?: string | null) => {
+      const email = emailOverride ?? getStoredUser()?.email ?? null;
+      if (!email) return;
+
+      try {
+        const response = await fetch(`${UPDATE_BALANCE}?email=${encodeURIComponent(email)}`);
+        if (!response.ok) return;
+        const data = await response.json();
+        const nextBalance = normalizeBalanceValue(data);
+        if (nextBalance !== null) {
+          setCurrentBalanceFromServer(nextBalance);
+        }
+      } catch (error) {
+        console.error("Failed to refresh balance:", error);
+      }
+    },
+    [getStoredUser, normalizeBalanceValue, setCurrentBalanceFromServer]
+  );
+
   // Toggle sidebar visibility
   const toggleSidebar = () => {
     setSidebarVisible(prev => !prev);
@@ -1129,10 +1219,39 @@ const Chat = ({
     }
     setCurrentBalance(Number(localStorage.getItem("currentBalance")) || 0);
 
-    fetch(`/api/users/coins?status=1`).then(response => response.json())
-    .then(data => setIsTokenBalanceVisible(data["status"] === "ON"))
+    (async () => {
+      const statusIsOn = await refreshCoinsStatus();
+      if (statusIsOn && storedUser?.email) {
+        await refreshBalanceFromServer(storedUser.email);
+      }
+    })();
+  }, [getStoredUser, refreshBalanceFromServer, refreshCoinsStatus]);
 
-  }, [getStoredUser]);
+  useEffect(() => {
+    if (!isTokenBalanceVisible) {
+      return;
+    }
+
+    const activeEmail = user?.email ?? getStoredUser()?.email;
+    if (!activeEmail) {
+      return;
+    }
+
+    const pollCoinsState = async () => {
+      const statusIsOn = await refreshCoinsStatus();
+      if (statusIsOn) {
+        await refreshBalanceFromServer(activeEmail);
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void pollCoinsState();
+    }, 10000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [getStoredUser, isTokenBalanceVisible, refreshBalanceFromServer, refreshCoinsStatus, user?.email]);
 
   // Add this useEffect to load chat sessions when the component mounts
 useEffect(() => {
@@ -1184,19 +1303,13 @@ useEffect(() => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-const updateUserBalance = async (value) => {
-  if (!user?.email) return;
-  await fetch(UPDATE_BALANCE, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      email: user.email,
-      currentBalance: value
-    })
-  });
-  }
+  useEffect(() => {
+    return () => {
+      if (balanceErrorTimeoutRef.current) {
+        clearTimeout(balanceErrorTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     sessionIdRef.current = sessionId;
@@ -1500,6 +1613,7 @@ const updateUserBalance = async (value) => {
 
   const sendMessage = async (text, image: File | null = selectedImage) => { 
     setImageProcessing(true);
+    clearBalanceErrorNotice();
     setIsReasoningCollapsed(false);
     setReasoningLogs([]);
     reasoningDraftRef.current = "";
@@ -1566,18 +1680,9 @@ const updateUserBalance = async (value) => {
       }
     }
 
-    // if (currentBalance - estimatedCost < 0) {
-    //   setBalanceError(true)
-    //   setUserInput("")
-    //   setTimeout(() => {  // Set timeout to clear error after 3 seconds
-    //     setBalanceError(false);
-    //   }, 3000);
-    // } else {
-      updateUserBalance(currentBalance - estimatedCost)
-      setCurrentBalance(currentBalance - estimatedCost)
-      const storedUser = getStoredUser();
-      const userEmail = storedUser?.email;
-      let today = new Date().toISOString().slice(0, 10);
+    const storedUser = getStoredUser();
+    const userEmail = storedUser?.email;
+    let today = new Date().toISOString().slice(0, 10);
     if (!currentChatId) {
       // Trigger conversation analysis for the previous session if it exists
       const previousSessionId = localStorage.getItem('previousSessionId');
@@ -1647,6 +1752,7 @@ const updateUserBalance = async (value) => {
             previousResponseId: previousResponseId || undefined,
             content: messageWithTags, // Send message with tags to AI
             imageData: imageData, // Send image data if available
+            userEmail: userEmail ?? undefined,
             homeworkRunner: !!homeworkContext, // Allow all SQL (subqueries, CONCAT, ALL, TOP) in homework
             tutorMode: hasThinkingIntent,
             thinkingMode: hasThinkingIntent,
@@ -1655,6 +1761,35 @@ const updateUserBalance = async (value) => {
         }
       );
       
+      if (response.status === 402) {
+        let insufficientBody: InsufficientCoinsClientBody | null = null;
+        try {
+          insufficientBody = await response.json();
+        } catch (error) {
+          console.error("Failed to parse 402 response body:", error);
+        }
+
+        if (insufficientBody?.error === "INSUFFICIENT_COINS") {
+          const balance = Number(insufficientBody.balance);
+          const required = Number(insufficientBody.required);
+
+          if (Number.isFinite(balance)) {
+            setCurrentBalanceFromServer(balance);
+          }
+
+          const hebrewMessage =
+            Number.isFinite(balance) && Number.isFinite(required)
+              ? `אין מספיק מטבעות. יתרה: ${balance}, נדרש: ${required}.`
+              : "אין מספיק מטבעות. נסה שוב אחרי שתתעדכן היתרה.";
+
+          showBalanceErrorNotice(hebrewMessage);
+          setInputDisabled(false);
+          setIsThinking(false);
+          setImageProcessing(false);
+          return;
+        }
+      }
+
       // Check if response is ok and has a body
       if (!response.ok) {
         console.error('❌ Failed to send message:', response.status, response.statusText);
@@ -1672,6 +1807,10 @@ const updateUserBalance = async (value) => {
         setIsThinking(false);
         setImageProcessing(false);
         return;
+      }
+
+      if (userEmail) {
+        void refreshBalanceFromServer(userEmail);
       }
 
       await consumeResponseStream(response.body);
@@ -2576,11 +2715,11 @@ return (
                 עורך שאילתות
               </button> */}
     </div>
-    {/* {balanceError && (
-  <div className={styles.balanceError}>
-    No enough tokens
-  </div>
-)} */}
+    {balanceError && balanceErrorMessage && (
+      <div className={styles.balanceError} role="alert" dir="rtl">
+        {balanceErrorMessage}
+      </div>
+    )}
     
     {/* Right Column - Avatar Section */}
     {!hideAvatar && !minimalMode && (
