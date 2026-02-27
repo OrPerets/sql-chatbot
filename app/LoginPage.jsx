@@ -84,6 +84,8 @@ const LoginPage = () => {
 
   const fetchUsers = async () => {
     setIsFetchingUsers(true);
+    let fetchedUsers = [];
+
     try {
       const response = await fetchWithTimeout(SERVER, {
         method: 'GET',
@@ -92,15 +94,14 @@ const LoginPage = () => {
         }
       });
       const data = await response.json();
-      setUsers(data);
+      fetchedUsers = Array.isArray(data) ? data : [];
+      setUsers(fetchedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
       const message = error?.name === 'AbortError'
         ? 'Fetching users timed out. Please try again.'
         : 'Failed to fetch users. Please try again.';
       setError(message);
-    } finally {
-      setIsFetchingUsers(false);
     }
     
     try {
@@ -121,7 +122,11 @@ const LoginPage = () => {
       setError(message);
       // Keep login available even if status endpoint is temporarily unavailable.
       setStatus('ON');
+    } finally {
+      setIsFetchingUsers(false);
     }
+
+    return fetchedUsers;
   };
 
   const storeUserInfo = (user) => {
@@ -136,7 +141,12 @@ const LoginPage = () => {
     setIsLoading(true);
     setError('');
 
-    const user = users.find(item => item.email === email);
+    let availableUsers = users;
+    if (availableUsers.length === 0) {
+      availableUsers = await fetchUsers();
+    }
+
+    const user = availableUsers.find(item => item.email === email);
 
     if (loginMode === 'admin') {
       const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il"];
@@ -271,16 +281,6 @@ const LoginPage = () => {
     }
   };
 
-  if (isFetchingUsers) {
-    return (
-      <div className={styles.loginContainer}>
-        <div className={styles.loadingOverlay}>
-          <Loader className={styles.loadingSpinner} size={48} />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className={styles.loginContainer}>
       {status === "OFF" && (
@@ -352,8 +352,8 @@ const LoginPage = () => {
                 
                 
                 
-                <button type="submit" className={styles.button} disabled={isLoading}>
-                  {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : (loginMode === 'admin' ? 'כניסה כמנהל' : 'אישור')}
+                <button type="submit" className={styles.button} disabled={isLoading || isFetchingUsers}>
+                  {isLoading || isFetchingUsers ? <Loader className={styles.loadingSpinner} size={18} /> : (loginMode === 'admin' ? 'כניסה כמנהל' : 'אישור')}
                 </button>
                 {!changePassword && (
                   <div style={{ textAlign: 'center', marginTop: '10px' }}>
