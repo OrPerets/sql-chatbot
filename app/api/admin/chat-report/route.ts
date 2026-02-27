@@ -318,6 +318,9 @@ export async function GET(request: NextRequest) {
           chatId: { $in: sessionIds },
           timestamp: { $gte: startDate, $lte: endDate }
         })
+        // This query can span many sessions and exceed MongoDB's in-memory sort limit.
+        // Allowing disk use prevents QueryExceededMemoryLimitNoDiskUseAllowed errors.
+        .allowDiskUse(true)
         .sort({ timestamp: 1 })
         .toArray()
 

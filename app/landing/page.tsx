@@ -15,7 +15,8 @@ const LandingPage = () => {
     // Check if user is logged in
     const storedUser = localStorage.getItem("currentUser");
     if (!storedUser) {
-      router.push('/');
+      setIsLoading(false);
+      router.replace('/');
       return;
     }
 
