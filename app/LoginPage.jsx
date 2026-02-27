@@ -17,7 +17,7 @@ const LoginPage = () => {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingUsers, setIsFetchingUsers] = useState(true);
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState('ON');
   const [loginMode, setLoginMode] = useState('user'); // 'user' or 'admin'
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -119,6 +119,8 @@ const LoginPage = () => {
         ? 'Fetching status timed out. Please try again.'
         : 'Failed to fetch status. Please try again.';
       setError(message);
+      // Keep login available even if status endpoint is temporarily unavailable.
+      setStatus('ON');
     }
   };
 
