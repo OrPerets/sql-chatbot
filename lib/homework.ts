@@ -4,10 +4,73 @@ import { generateId } from './models';
 import type { 
   HomeworkSet, 
   HomeworkSummary, 
-  HomeworkQueryParams,
+  HomeworkEntryMode,
   PaginatedResponse 
 } from '@/app/homework/types';
 import type { HomeworkSetModel } from './models';
+
+const DEFAULT_ENTRY_MODE: HomeworkEntryMode = 'listed';
+
+function normalizeHomeworkSetRecord(homework: HomeworkSetModel): HomeworkSet {
+  const id = homework._id?.toString() || homework.id;
+  const availableUntil = homework.availableUntil || homework.dueAt;
+  const availableFrom = homework.availableFrom || homework.createdAt || new Date(0).toISOString();
+
+  return {
+    id,
+    title: homework.title,
+    courseId: homework.courseId,
+    dueAt: homework.dueAt || availableUntil,
+    availableFrom,
+    availableUntil,
+    published: homework.published,
+    entryMode: homework.entryMode || DEFAULT_ENTRY_MODE,
+    datasetPolicy: homework.datasetPolicy,
+    questionOrder: homework.questionOrder,
+    visibility: homework.visibility,
+    createdBy: homework.createdBy,
+    createdAt: homework.createdAt,
+    updatedAt: homework.updatedAt,
+    overview: homework.overview,
+    selectedDatasetId: homework.selectedDatasetId,
+    backgroundStory: homework.backgroundStory,
+    dataStructureNotes: homework.dataStructureNotes,
+  };
+}
+
+function normalizeHomeworkCreateInput(
+  homeworkData: Omit<HomeworkSet, 'id' | 'createdAt' | 'updatedAt'>
+): Omit<HomeworkSetModel, '_id' | 'id' | 'createdAt' | 'updatedAt'> {
+  const now = new Date().toISOString();
+  const availableUntil = homeworkData.availableUntil || homeworkData.dueAt || now;
+  const availableFrom = homeworkData.availableFrom || now;
+
+  return {
+    ...homeworkData,
+    dueAt: homeworkData.dueAt || availableUntil,
+    availableFrom,
+    availableUntil,
+    entryMode: homeworkData.entryMode || DEFAULT_ENTRY_MODE,
+  };
+}
+
+function normalizeHomeworkUpdateInput(
+  updates: Partial<Omit<HomeworkSet, 'id' | 'createdAt'>>
+): Partial<Omit<HomeworkSetModel, '_id' | 'id' | 'createdAt' | 'updatedAt'>> {
+  const normalizedUpdates: Partial<Omit<HomeworkSetModel, '_id' | 'id' | 'createdAt' | 'updatedAt'>> = { ...updates };
+
+  if (updates.availableUntil && !updates.dueAt) {
+    normalizedUpdates.dueAt = updates.availableUntil;
+  } else if (updates.dueAt && !updates.availableUntil) {
+    normalizedUpdates.availableUntil = updates.dueAt;
+  }
+
+  if (updates.entryMode === undefined) {
+    delete normalizedUpdates.entryMode;
+  }
+
+  return normalizedUpdates;
+}
 
 /**
  * Homework service for database operations
@@ -78,22 +141,10 @@ export class HomeworkService {
     const homeworkSummaries = await Promise.all(
       homeworkSets.map(async (homework) => {
         const submissionStats = await this.getSubmissionStats(homework.id);
+        const normalizedHomework = normalizeHomeworkSetRecord(homework);
 
         return {
-          id: homework._id?.toString() || homework.id,
-          title: homework.title,
-          courseId: homework.courseId,
-          dueAt: homework.dueAt,
-          published: homework.published,
-          datasetPolicy: homework.datasetPolicy,
-          questionOrder: homework.questionOrder,
-          visibility: homework.visibility,
-          createdBy: homework.createdBy,
-          createdAt: homework.createdAt,
-          updatedAt: homework.updatedAt,
-          overview: homework.overview,
-          selectedDatasetId: homework.selectedDatasetId,
-          backgroundStory: homework.backgroundStory,
+          ...normalizedHomework,
           draftQuestionCount: homework.questionOrder?.length || 0,
           submissionCount: submissionStats.total,
           averageScore: submissionStats.averageScore,
@@ -126,22 +177,7 @@ export class HomeworkService {
 
     if (!homework) return null;
 
-    return {
-      id: homework._id?.toString() || homework.id,
-      title: homework.title,
-      courseId: homework.courseId,
-      dueAt: homework.dueAt,
-      published: homework.published,
-      datasetPolicy: homework.datasetPolicy,
-      questionOrder: homework.questionOrder,
-      visibility: homework.visibility,
-      createdBy: homework.createdBy,
-      createdAt: homework.createdAt,
-      updatedAt: homework.updatedAt,
-      overview: homework.overview,
-      selectedDatasetId: homework.selectedDatasetId,
-      backgroundStory: homework.backgroundStory,
-    };
+    return normalizeHomeworkSetRecord(homework);
   }
 
   /**
@@ -150,22 +186,18 @@ export class HomeworkService {
   async createHomeworkSet(homeworkData: Omit<HomeworkSet, 'id' | 'createdAt' | 'updatedAt'>): Promise<HomeworkSet> {
     const id = generateId();
     const now = new Date().toISOString();
+    const normalizedHomeworkData = normalizeHomeworkCreateInput(homeworkData);
     
     const homework: HomeworkSetModel = {
       id,
-      ...homeworkData,
+      ...normalizedHomeworkData,
       createdAt: now,
       updatedAt: now,
     };
 
     await this.db.collection<HomeworkSetModel>(COLLECTIONS.HOMEWORK_SETS).insertOne(homework);
 
-    return {
-      id,
-      ...homeworkData,
-      createdAt: now,
-      updatedAt: now,
-    };
+    return normalizeHomeworkSetRecord(homework);
   }
 
   /**
@@ -174,7 +206,7 @@ export class HomeworkService {
   async updateHomeworkSet(id: string, updates: Partial<Omit<HomeworkSet, 'id' | 'createdAt'>>): Promise<HomeworkSet | null> {
     const now = new Date().toISOString();
     const updateData = {
-      ...updates,
+      ...normalizeHomeworkUpdateInput(updates),
       updatedAt: now,
     };
 
@@ -195,22 +227,7 @@ export class HomeworkService {
 
     if (!result) return null;
 
-    return {
-      id: result._id?.toString() || result.id,
-      title: result.title,
-      courseId: result.courseId,
-      dueAt: result.dueAt,
-      published: result.published,
-      datasetPolicy: result.datasetPolicy,
-      questionOrder: result.questionOrder,
-      visibility: result.visibility,
-      createdBy: result.createdBy,
-      createdAt: result.createdAt,
-      updatedAt: result.updatedAt,
-      overview: result.overview,
-      selectedDatasetId: result.selectedDatasetId,
-      backgroundStory: result.backgroundStory,
-    };
+    return normalizeHomeworkSetRecord(result);
   }
 
   /**

@@ -3,25 +3,29 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Edit3, Eye, GraduationCap, CheckCircle, Clock, AlertCircle, Archive, Send, BookOpen } from "lucide-react";
+import { Plus, Edit3, Eye, GraduationCap, CheckCircle, Clock, AlertCircle, Archive, Send, BookOpen, Copy, ExternalLink } from "lucide-react";
 import { useHomeworkSets } from "@/app/homework/hooks/useHomeworkSets";
-import type { HomeworkStatusFilter, HomeworkSummary } from "@/app/homework/types";
+import type { HomeworkAvailabilityInfo, HomeworkSummary } from "@/app/homework/types";
 import styles from "./dashboard.module.css";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
+import { resolveBuilderDashboardStatus, type BuilderDashboardStatus } from "./components/wizard/validation";
 
-const statusFilters: HomeworkStatusFilter[] = ["draft", "scheduled", "published", "archived"];
+type BuilderHomeworkSummary = HomeworkSummary & Partial<HomeworkAvailabilityInfo>;
+
+const statusFilters: BuilderDashboardStatus[] = ["draft", "upcoming", "open", "closed", "archived"];
 
 // Status icon mapping
 const statusIcons = {
   draft: AlertCircle,
-  scheduled: Clock,
-  published: CheckCircle,
+  upcoming: Clock,
+  open: CheckCircle,
+  closed: Clock,
   archived: Archive,
 };
 
 // Calculate progress percentage
 function calculateProgress(set: HomeworkSummary): number {
-  const totalQuestions = 10; // Fixed as per requirements
+  const totalQuestions = Math.max(set.draftQuestionCount, 1);
   const completedQuestions = set.draftQuestionCount;
   return Math.min(Math.round((completedQuestions / totalQuestions) * 100), 100);
 }
@@ -34,10 +38,10 @@ const cardActions = [
   { key: "grade", icon: GraduationCap, isPrimary: false },
 ];
 
-function groupByStatus(items: HomeworkSummary[]) {
-  return items.reduce<Record<HomeworkStatusFilter, HomeworkSummary[]>>(
+function groupByStatus(items: BuilderHomeworkSummary[]) {
+  return items.reduce<Record<BuilderDashboardStatus, BuilderHomeworkSummary[]>>(
     (acc, item) => {
-      const status = (item.visibility === "draft" && item.published ? "scheduled" : item.visibility) as HomeworkStatusFilter;
+      const status = resolveBuilderDashboardStatus(item);
       if (!acc[status]) {
         acc[status] = [];
       }
@@ -46,22 +50,28 @@ function groupByStatus(items: HomeworkSummary[]) {
     },
     {
       draft: [],
-      scheduled: [],
-      published: [],
+      upcoming: [],
+      open: [],
+      closed: [],
       archived: [],
     },
   );
 }
 
 export default function BuilderDashboardPage() {
-  const [activeFilter, setActiveFilter] = useState<HomeworkStatusFilter | "all">("all");
+  const [activeFilter, setActiveFilter] = useState<BuilderDashboardStatus | "all">("all");
   const [isSeedingExamPrep, setIsSeedingExamPrep] = useState(false);
   const queryClient = useQueryClient();
-  const { data, isLoading, error } = useHomeworkSets(activeFilter === "all" ? undefined : { status: [activeFilter] });
-  const { t, formatNumber, direction } = useHomeworkLocale();
+  const { data, isLoading, error } = useHomeworkSets({ role: "builder" });
+  const { t, formatNumber, formatDateTime, direction } = useHomeworkLocale();
 
-  const grouped = useMemo(() => groupByStatus(data?.items ?? []), [data]);
-  const totalCount = useMemo(() => data?.items?.length ?? 0, [data?.items]);
+  const allItems = useMemo(() => (data?.items ?? []) as BuilderHomeworkSummary[], [data?.items]);
+  const grouped = useMemo(() => groupByStatus(allItems), [allItems]);
+  const filteredItems = useMemo(
+    () => (activeFilter === "all" ? allItems : grouped[activeFilter] ?? []),
+    [activeFilter, allItems, grouped],
+  );
+  const totalCount = useMemo(() => allItems.length, [allItems]);
 
   const handleSeedExamPrep = async () => {
     if (!confirm('האם ליצור את סט "הכנה למבחן"? אם כבר קיים, השאלות יוחלפו.')) return;
@@ -80,6 +90,11 @@ export default function BuilderDashboardPage() {
     } finally {
       setIsSeedingExamPrep(false);
     }
+  };
+
+  const handleCopyLink = async (setId: string) => {
+    const entryUrl = `${window.location.origin}/homework/start/${setId}`;
+    await navigator.clipboard.writeText(entryUrl);
   };
 
   return (
@@ -131,7 +146,7 @@ export default function BuilderDashboardPage() {
               disabled={count === 0 && !isLoading}
             >
               <Icon size={14} />
-              {t(`builder.dashboard.filter.${filter}`)}
+              {t(`builder.dashboard.filter.${filter}`, undefined, filter)}
               <span className={styles.count}>{formatNumber(count)}</span>
             </button>
           );
@@ -147,10 +162,11 @@ export default function BuilderDashboardPage() {
       )}
 
       <div className={styles.grid}>
-        {(data?.items ?? []).map((set) => {
+        {filteredItems.map((set) => {
           const progress = calculateProgress(set);
-          const status = set.visibility === "draft" && set.published ? "scheduled" : set.visibility;
+          const status = resolveBuilderDashboardStatus(set);
           const StatusIcon = statusIcons[status as keyof typeof statusIcons];
+          const entryHref = `/homework/start/${set.id}`;
 
           return (
             <article key={set.id} className={styles.card}>
@@ -169,36 +185,54 @@ export default function BuilderDashboardPage() {
                 <span 
                   className={styles.status} 
                   data-status={status}
-                  aria-label={t(`builder.dashboard.status.${status}`)}
+                  aria-label={t(`builder.dashboard.status.${status}`, undefined, status)}
                 >
                   <StatusIcon size={12} />
-                  {t(`builder.dashboard.filter.${status}`)}
+                  {t(`builder.dashboard.filter.${status}`, undefined, status)}
                 </span>
               </header>
             <dl className={styles.meta}>
               <div className={styles.metaItem}>
                 <dt>{t("builder.dashboard.card.questions")}</dt>
                 <dd>
-                  {formatNumber(set.draftQuestionCount)}/{formatNumber(set.draftQuestionCount)}
-                  {progress < 100 && (
-                    <small> ({formatNumber(100 - progress)}% נותר)</small>
-                  )}
+                  {formatNumber(set.draftQuestionCount)}
                 </dd>
               </div>
               <div className={styles.metaItem}>
-                <dt>{t("builder.dashboard.card.submissions")}</dt>
-                <dd>{formatNumber(set.submissionCount)}</dd>
+                <dt>פתיחה</dt>
+                <dd>{set.availableFrom ? formatDateTime(set.availableFrom, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</dd>
               </div>
               <div className={styles.metaItem}>
-                <dt>{t("builder.dashboard.card.average")}</dt>
+                <dt>סגירה</dt>
                 <dd>
-                  {typeof set.averageScore === "number" 
-                    ? `${formatNumber(set.averageScore)}%` 
-                    : "—"
-                  }
+                  {set.availableUntil ? formatDateTime(set.availableUntil, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
                 </dd>
               </div>
             </dl>
+              <dl className={styles.detailMeta}>
+                <div className={styles.detailMetaItem}>
+                  <dt>{t("builder.dashboard.card.submissions")}</dt>
+                  <dd>{formatNumber(set.submissionCount)}</dd>
+                </div>
+                <div className={styles.detailMetaItem}>
+                  <dt>{t("builder.dashboard.card.average")}</dt>
+                  <dd>{typeof set.averageScore === "number" ? `${formatNumber(set.averageScore)}%` : "—"}</dd>
+                </div>
+                <div className={styles.detailMetaItem}>
+                  <dt>קישור ישיר</dt>
+                  <dd>/{`homework/start/${set.id}`}</dd>
+                </div>
+              </dl>
+              <div className={styles.linkRow}>
+                <Link href={entryHref} className={styles.entryLink}>
+                  <ExternalLink size={14} />
+                  קישור לסטודנט
+                </Link>
+                <button type="button" className={styles.copyButton} onClick={() => handleCopyLink(set.id)}>
+                  <Copy size={14} />
+                  העתקת קישור
+                </button>
+              </div>
               <footer className={styles.cardActions}>
                 {cardActions.map(({ key, icon: Icon, isPrimary }) => (
                   <Link

@@ -1,0 +1,36 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
+import "./common/theme.css";
+import styles from "./module.module.css";
+import { HomeworkQueryProvider } from "./context/HomeworkQueryProvider";
+import { HomeworkLocaleProvider } from "./context/HomeworkLocaleProvider";
+import { HomeworkHeader } from "./components/HomeworkHeader";
+
+export default function HomeworkLayoutClient({
+  children,
+  initialLocale,
+}: {
+  children: ReactNode;
+  initialLocale?: string | null;
+}) {
+  const pathname = usePathname();
+
+  const isBuilderRoute = pathname?.startsWith("/homework/builder");
+  const isQuestionsRoute = pathname?.startsWith("/homework/questions");
+  const showAdminHeader = isBuilderRoute || isQuestionsRoute;
+
+  return (
+    <HomeworkLocaleProvider initialLocale={initialLocale}>
+      <HomeworkQueryProvider>
+        <div className={`${styles.adminContainer} ${!showAdminHeader ? styles.runnerLayout : ""}`}>
+          {showAdminHeader && <HomeworkHeader />}
+          <main className={`${styles.mainContent} ${!showAdminHeader ? styles.runnerMainContent : ""}`}>
+            {children}
+          </main>
+        </div>
+      </HomeworkQueryProvider>
+    </HomeworkLocaleProvider>
+  );
+}

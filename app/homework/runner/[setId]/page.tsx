@@ -42,8 +42,8 @@ export default async function RunnerPage({ params, searchParams }: RunnerPagePro
   }
 
   // Check if homework is still accessible
-  if (!isHomeworkAccessible(homeworkSet.dueAt, userEmail)) {
-    redirect(`/homework/start?setId=${resolvedParams.setId}&error=deadline_passed`);
+  if (!isHomeworkAccessible(homeworkSet, userEmail)) {
+    redirect(`/homework/start/${resolvedParams.setId}`);
   }
   
   // Check if submission is already submitted

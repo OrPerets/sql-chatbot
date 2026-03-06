@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, Lock, Loader, Shield, UserCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import styles from './login.module.css';
@@ -9,6 +9,8 @@ const GET_COINS_BALANCE = `/api/users/balance`;
 const REQUEST_TIMEOUT_MS = 8000;
 
 const LoginPage = () => {
+  const isMountedRef = useRef(true);
+  const pageLeavingRef = useRef(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -38,8 +40,40 @@ const LoginPage = () => {
   }
 
   useEffect(() => {
+    isMountedRef.current = true;
+    pageLeavingRef.current = false;
+
+    const markPageLeaving = () => {
+      pageLeavingRef.current = true;
+    };
+
+    window.addEventListener('pagehide', markPageLeaving);
+    window.addEventListener('beforeunload', markPageLeaving);
     fetchUsers();
+
+    return () => {
+      isMountedRef.current = false;
+      pageLeavingRef.current = true;
+      window.removeEventListener('pagehide', markPageLeaving);
+      window.removeEventListener('beforeunload', markPageLeaving);
+    };
   }, []);
+
+  const isTransientRequestFailure = (error) => {
+    if (!isMountedRef.current) {
+      return true;
+    }
+
+    if (error?.name === 'AbortError') {
+      return true;
+    }
+
+    if (pageLeavingRef.current && error?.message === 'Failed to fetch') {
+      return true;
+    }
+
+    return false;
+  };
 
   const fetchWithTimeout = async (url, options = {}) => {
     const controller = new AbortController();
@@ -72,13 +106,20 @@ const LoginPage = () => {
         localStorage.setItem("currentBalance", String(data.coins));
       }
     } catch (error) {
+      if (isTransientRequestFailure(error)) {
+        return;
+      }
       console.error('Error fetching balance:', error);
       const message = error?.name === 'AbortError'
         ? 'Fetching balance timed out. Please try again.'
         : 'Failed to fetch balance. Please try again.';
-      setError(message);
+      if (isMountedRef.current) {
+        setError(message);
+      }
     } finally {
-      setIsFetchingUsers(false);
+      if (isMountedRef.current) {
+        setIsFetchingUsers(false);
+      }
     }
   }
 
@@ -95,13 +136,20 @@ const LoginPage = () => {
       });
       const data = await response.json();
       fetchedUsers = Array.isArray(data) ? data : [];
-      setUsers(fetchedUsers);
+      if (isMountedRef.current) {
+        setUsers(fetchedUsers);
+      }
     } catch (error) {
+      if (isTransientRequestFailure(error)) {
+        return fetchedUsers;
+      }
       console.error('Error fetching users:', error);
       const message = error?.name === 'AbortError'
         ? 'Fetching users timed out. Please try again.'
         : 'Failed to fetch users. Please try again.';
-      setError(message);
+      if (isMountedRef.current) {
+        setError(message);
+      }
     }
     
     try {
@@ -113,17 +161,28 @@ const LoginPage = () => {
       });
       const data = await response.json();
       // setStatus(data["status"]);
-      setStatus("ON");
+      if (isMountedRef.current) {
+        setStatus("ON");
+      }
     } catch (error) {
+      if (isTransientRequestFailure(error)) {
+        return fetchedUsers;
+      }
       console.error('Error fetching status:', error);
       const message = error?.name === 'AbortError'
         ? 'Fetching status timed out. Please try again.'
         : 'Failed to fetch status. Please try again.';
-      setError(message);
+      if (isMountedRef.current) {
+        setError(message);
+      }
       // Keep login available even if status endpoint is temporarily unavailable.
-      setStatus('ON');
+      if (isMountedRef.current) {
+        setStatus('ON');
+      }
     } finally {
-      setIsFetchingUsers(false);
+      if (isMountedRef.current) {
+        setIsFetchingUsers(false);
+      }
     }
 
     return fetchedUsers;

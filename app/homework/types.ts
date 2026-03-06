@@ -1,4 +1,6 @@
 export type HomeworkVisibility = "draft" | "published" | "archived";
+export type HomeworkEntryMode = "direct" | "listed" | "hidden";
+export type HomeworkAvailabilityState = "upcoming" | "open" | "closed";
 
 export interface DatasetTablePreview {
   name: string;
@@ -29,6 +31,7 @@ export interface Question {
   id: string;
   prompt: string;
   instructions: string;
+  expectedOutputDescription?: string;
   starterSql?: string;
   expectedResultSchema: Array<{ column: string; type: string }>;
   gradingRubric: RubricCriterion[];
@@ -47,7 +50,10 @@ export interface HomeworkSet {
   title: string;
   courseId: string;
   dueAt: string;
+  availableFrom?: string;
+  availableUntil?: string;
   published: boolean;
+  entryMode?: HomeworkEntryMode;
   datasetPolicy: "shared" | "custom";
   questionOrder: string[];
   visibility: HomeworkVisibility;
@@ -57,6 +63,14 @@ export interface HomeworkSet {
   overview?: string;
   selectedDatasetId?: string;
   backgroundStory?: string;
+  dataStructureNotes?: string;
+}
+
+export interface HomeworkAvailabilityInfo {
+  availabilityState: HomeworkAvailabilityState;
+  accessible: boolean;
+  availabilityMessage: string;
+  effectiveAvailableUntil: string;
 }
 
 export interface SqlResultRow {
@@ -208,6 +222,10 @@ export interface HomeworkSummary extends HomeworkSet {
   draftQuestionCount: number;
   submissionCount: number;
   averageScore?: number;
+  availabilityState?: HomeworkAvailabilityState;
+  accessible?: boolean;
+  availabilityMessage?: string;
+  effectiveAvailableUntil?: string;
 }
 
 export type HomeworkStatusFilter = "draft" | "scheduled" | "published" | "archived";

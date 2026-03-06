@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { saveSubmissionDraft } from "@/lib/submissions";
 import { getHomeworkSetById } from "@/lib/homework";
 import { findUserByIdOrEmail } from "@/lib/users";
-import { isHomeworkAccessible } from "@/lib/deadline-utils";
+import { getHomeworkAvailabilityInfo, isHomeworkAccessible } from "@/lib/deadline-utils";
 
 interface RouteParams {
   params: Promise<{ setId: string }>;
@@ -34,11 +34,15 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     // Check if homework is still accessible
-    if (!isHomeworkAccessible(homeworkSet.dueAt, userEmail)) {
+    const availability = getHomeworkAvailabilityInfo(homeworkSet, userEmail);
+    if (!isHomeworkAccessible(homeworkSet, userEmail)) {
       return NextResponse.json(
         { 
-          error: "תאריך ההגשה חלף. שיעור הבית כבר לא זמין להגשה.",
-          dueAt: homeworkSet.dueAt
+          error: availability.availabilityMessage,
+          dueAt: homeworkSet.dueAt,
+          availableFrom: homeworkSet.availableFrom,
+          availableUntil: homeworkSet.availableUntil,
+          availabilityState: availability.availabilityState,
         },
         { status: 403 }
       );

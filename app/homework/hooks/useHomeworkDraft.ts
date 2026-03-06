@@ -5,6 +5,18 @@ import { useQuery } from "@tanstack/react-query";
 import { getHomeworkQuestions, getHomeworkSet } from "@/app/homework/services/homeworkService";
 import type { HomeworkDraftState } from "@/app/homework/builder/components/wizard/types";
 import type { Question } from "@/app/homework/types";
+import { buildExpectedOutputDescription } from "@/app/homework/utils/question-output";
+
+function toDateTimeLocalValue(value?: string): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value.slice(0, 16);
+  }
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60 * 1000);
+  return local.toISOString().slice(0, 16);
+}
 
 function toDraft(set: Awaited<ReturnType<typeof getHomeworkSet>>, questions: Question[]): HomeworkDraftState {
   console.log('toDraft called with:', {
@@ -34,10 +46,12 @@ function toDraft(set: Awaited<ReturnType<typeof getHomeworkSet>>, questions: Que
     metadata: {
       title: set.title,
       courseId: set.courseId,
-      dueAt: set.dueAt,
+      availableFrom: toDateTimeLocalValue(set.availableFrom || set.createdAt),
+      availableUntil: toDateTimeLocalValue(set.availableUntil || set.dueAt),
       visibility: set.visibility,
       datasetPolicy: set.datasetPolicy,
       overview: set.overview,
+      dataStructureNotes: set.dataStructureNotes,
     },
     dataset: {
       selectedDatasetId: set.selectedDatasetId || orderedQuestions.find((question) => Boolean(question.datasetId))?.datasetId,
@@ -48,6 +62,10 @@ function toDraft(set: Awaited<ReturnType<typeof getHomeworkSet>>, questions: Que
     questions: orderedQuestions.map((question) => ({
       id: question.id,
       prompt: question.prompt,
+      expectedOutputDescription: buildExpectedOutputDescription(
+        question.expectedOutputDescription,
+        question.expectedResultSchema,
+      ),
       instructions: question.instructions,
       starterSql: question.starterSql ?? "",
       expectedResultSchema: JSON.stringify(question.expectedResultSchema ?? [], null, 2),
@@ -62,9 +80,12 @@ function toDraft(set: Awaited<ReturnType<typeof getHomeworkSet>>, questions: Que
 }
 
 export function useHomeworkDraft(setId: string) {
-  const setQuery = useQuery({ queryKey: ["homework", setId], queryFn: () => getHomeworkSet(setId) });
+  const setQuery = useQuery({
+    queryKey: ["homework", setId, "builder"],
+    queryFn: () => getHomeworkSet(setId, "builder"),
+  });
   const questionsQuery = useQuery({
-    queryKey: ["homework", setId, "questions"],
+    queryKey: ["homework", setId, "questions", "builder"],
     queryFn: () => getHomeworkQuestions(setId),
     enabled: Boolean(setId),
   });

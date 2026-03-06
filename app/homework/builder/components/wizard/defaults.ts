@@ -18,6 +18,7 @@ export function createQuestionDraft(partial?: Partial<QuestionDraft>): QuestionD
   return {
     id: generateTempId("question"),
     prompt: "",
+    expectedOutputDescription: "",
     instructions: "",
     starterSql: "",
     expectedResultSchema: "[]",
@@ -31,10 +32,15 @@ export function createQuestionDraft(partial?: Partial<QuestionDraft>): QuestionD
 }
 
 export function createMetadataDraft(partial?: Partial<MetadataDraft>): MetadataDraft {
+  const now = new Date();
+  const availableFrom = now.toISOString().slice(0, 16);
+  const availableUntil = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+
   return {
     title: "מטלת בית ללא כותרת", // "Untitled Homework Set"
     courseId: "",
-    dueAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+    availableFrom,
+    availableUntil,
     visibility: "draft",
     ...partial,
   };
@@ -46,6 +52,7 @@ export function createInitialDraft(partial?: Partial<HomeworkDraftState>): Homew
     dataset: {
       selectedDatasetId: undefined,
       backgroundStory: "",
+      tags: [],
       ...partial?.dataset,
     },
     questions: Array.from({ length: 3 }, () => createQuestionDraft()),

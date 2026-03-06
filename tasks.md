@@ -1,299 +1,589 @@
-# Responses API Migration Plan (`Assistants API` -> `Responses API`)
+# Homework Module Upgrade Plan
 
-## Why this migration now
-- OpenAI's migration guide recommends moving new + existing assistant workloads to `responses`.
-- The Assistants API deprecation timeline is tied to full parity, with a target sunset in the first half of 2026.
-- This app currently depends heavily on `openai.beta.assistants`, `threads`, and `runs`, so we need a structured phased migration.
+## Goal
+להפוך את מודול ה־`homework` למערכת יציבה, נוחה לניהול, ותומכת בכמה תרגילי בית פתוחים במקביל, עם חלונות זמינות ברורים, מסלולי כניסה ייעודיים, ותצוגת runner ברורה יותר לסטודנטים.
 
-## Scope
-- Migrate all assistant flows in:
-  - `app/api/assistants/**`
-  - `app/components/chat.tsx`
-  - `app/components/chat-english.tsx`
-  - `app/components/file-viewer.tsx`
-  - `app/admin/model-management/page.tsx`
-  - `app/api/admin/exam-generator/route.ts`
-  - tests/docs that reference `/api/assistants/*` and `openai.beta.*`
-- Keep behavior parity for:
-  - streaming text responses
-  - tool/function calling (`get_course_week_context`, SQL tools)
-  - file/vector-store search flow
-  - Hebrew + English chat UX
+המסמך הזה מתמקד ביישום מעשי בתוך הקוד הקיים, ולא רק בתיאור מוצר. הוא מתייחס במיוחד לאזורים הבאים:
+- `app/homework/start`
+- `app/homework/runner/[setId]`
+- `app/homework/builder`
+- `app/api/homework`
+- `lib/homework.ts`
+- `app/homework/types.ts`
+- בדיקות ב־`__tests__` ו־`tests/e2e`
 
 ---
 
-## Sprint 0 - Discovery, design, and safety rails (1-2 days)
+## Product Decisions To Lock Before Coding
 
-### TODO
-- [x] Create migration RFC in `docs/responses-api-migration-rfc.md` with:
-  - current architecture map (client -> route -> OpenAI call)
-  - target architecture
-  - risk register and rollback strategy
-- [x] Freeze API surface by defining v2 routes under `/api/responses/*` (do not delete old routes yet).
-- [x] Add feature flag:
-  - `OPENAI_API_MODE=assistants|responses`
-  - default to `assistants` for safe rollout
-- [ ] Baseline tests before changes:
-  - [x] `npm run test:api`
-  - [x] `npm run test -- __tests__/mcp-michael.test.ts`
-  - `npm run test:e2e -- tests/e2e/assistant-interaction.spec.ts`
-- [ ] Capture baseline latency + error metrics for chat endpoints (for parity comparison later).
+### 1. Dedicated student entry path per homework
+החלטה מומלצת:
+- להשאיר את ` /homework/start ` כדף מרכזי שמציג את כל התרגילים הזמינים כרגע.
+- להוסיף נתיב ייעודי ` /homework/start/[setId] ` עבור קישור ישיר לתרגיל ספציפי.
+- כל תרגיל יקבל לינק קבוע שאפשר לשתף עם הסטודנטים.
 
-### Exit criteria
-- [ ] RFC approved.
-- [ ] Flag-based routing decision agreed.
-- [ ] Baseline test + performance snapshot saved in `docs/responses-migration-baseline.md`.
+למה:
+- פותר את הבעיה של "אפשר רק תרגיל אחד".
+- מאפשר לפתוח כמה תרגילים במקביל.
+- לא שוברים לינקים קיימים אם שומרים תאימות ל־`?setId=...`.
 
-### Implementation notes (2026-02-03)
-- Added migration RFC: `docs/responses-api-migration-rfc.md`.
-- Added v2 Responses route surface (compatibility-first):
-  - `app/api/responses/sessions/route.ts`
-  - `app/api/responses/messages/route.ts`
-  - `app/api/responses/files/route.ts`
-- Added mode helper with safe default:
-  - `lib/openai/api-mode.ts`
-  - default mode resolves to `assistants` when env var is missing/invalid.
-- Added env documentation updates in `.env.example`:
-  - `OPENAI_ASSISTANT_ID`
-  - `OPENAI_API_MODE="assistants"`
-- Baseline report added: `docs/responses-migration-baseline.md`.
-- Current blockers/gaps:
-  - E2E baseline (`assistant-interaction.spec.ts`) did not complete due local web server bind/interrupt.
-  - Chat endpoint latency/error baseline instrumentation still pending.
+### 2. Availability window
+לכל Homework Set חייבים להיות:
+- `availableFrom`
+- `availableUntil`
 
----
+כלל זמינות:
+- לפני `availableFrom` התרגיל לא זמין לסטודנט.
+- בין `availableFrom` ל־`availableUntil` התרגיל זמין.
+- אחרי `availableUntil` התרגיל לא זמין.
 
-## Sprint 1 - Core backend foundation (Responses adapter + config) (2-3 days)
+החלטה מומלצת:
+- `dueAt` יהפוך לשדה legacy בלבד או יוחלף לחלוטין ב־`availableUntil`.
+- אם יש תלות קיימת ב־`dueAt`, לשמור תאימות זמנית ולמפות:
+  - `availableUntil ?? dueAt`
 
-### TODO
-- [x] Upgrade `openai` SDK in `package.json` to a current version that fully supports the migration path.
-- [x] Create a single OpenAI adapter:
-  - `lib/openai/responses-client.ts`
-  - exposes typed helpers: `createResponse`, `streamResponse`, `runToolLoop`, `extractOutputText`
-- [x] Replace assistant-centric config:
-  - refactor `app/assistant-config.ts` -> `app/agent-config.ts` (or equivalent)
-  - store model, instructions, tool definitions, and feature flags (not assistant IDs)
-- [x] Define shared tool schema module:
-  - `lib/openai/tools.ts`
-  - includes `get_course_week_context`, SQL tools, and any optional tools
-- [x] Add request/response DTOs:
-  - `lib/openai/contracts.ts`
-  - normalize chat payload, tool outputs, and stream events
-- [x] Add structured logging + tracing IDs in adapter calls.
+### 3. Question content model
+לכל שאלה צריך להיות מפורש:
+- `prompt`: מה השאלה עצמה
+- `expectedOutputDescription`: מה הפלט הרצוי
 
-### Exit criteria
-- [x] No business route directly calls `openai.beta.*` in new code paths.
-- [x] `responses` adapter is unit-tested.
+לא להסתפק בשדה חופשי אחד.
 
-### Implementation notes (2026-02-03)
-- Upgraded package dependency target in `package.json`:
-  - `openai` -> `^6.0.0`
-- Added Responses adapter foundation:
-  - `lib/openai/responses-client.ts` (`createResponse`, `streamResponse`, `runToolLoop`, `extractOutputText`)
-  - includes structured JSON logs with `trace_id` metadata and duration metrics.
-- Added shared contracts + tool schemas:
-  - `lib/openai/contracts.ts`
-  - `lib/openai/tools.ts` (course week tool + SQL tools + optional weather tool)
-- Added agent-centric config:
-  - `app/agent-config.ts`
-  - `app/assistant-config.ts` now acts as legacy compatibility wrapper.
-- Updated new Responses routes to consume adapter in `responses` mode:
-  - `app/api/responses/sessions/route.ts`
-  - `app/api/responses/messages/route.ts`
-- Added adapter unit tests:
-  - `__tests__/lib/responses-client.test.ts`
-  - validated tool-loop chaining (`previous_response_id`) and output extraction.
+### 4. Homework-level data structure explanation
+ההסבר על מבנה הנתונים צריך להיות זמין גם בתוך ה־runner, לא רק ב־`/homework/start`.
+
+החלטה מומלצת:
+- לשמור את ההסבר ברמת ה־Homework Set או Dataset linkage, ולא רק כטקסט חופשי בתצוגת פתיחה.
+- להציג אותו בפאנל הימני מעל רשימת הטבלאות ב־runner.
 
 ---
 
-## Sprint 2 - API routes migration (chat, tools, files) (3-4 days)
+## Current Gaps In The Existing Code
 
-### TODO
-- [x] Implement new routes:
-  - `app/api/responses/sessions/route.ts` (conversation/session bootstrap)
-  - `app/api/responses/messages/route.ts` (send user input + stream model output)
-  - `app/api/responses/files/route.ts` (upload/list/delete for file search support)
-- [x] Migrate logic from:
-  - `app/api/assistants/threads/route.ts`
-  - `app/api/assistants/threads/[threadId]/messages/route.ts`
-  - `app/api/assistants/threads/[threadId]/actions/route.ts`
-  into one server-side tool loop.
-- [x] Move function-call handling to server loop:
-  - detect `function_call` output items
-  - execute existing handlers (`/api/assistants/functions/course-context`, `/api/assistants/functions/sql`) or internalize them as services
-  - send `function_call_output` back using `previous_response_id` chain
-- [x] Replace assistant-bound file-search linkage:
-  - stop relying on `assistant.tool_resources.file_search.vector_store_ids`
-  - persist vector store IDs in app config/DB and pass them in each responses request tool config
-- [x] Keep old `/api/assistants/*` endpoints as wrappers while flag is enabled (temporary compatibility layer).
+### Data model gaps
+- ב־`app/homework/types.ts` יש `dueAt` אך אין `availableFrom` / `availableUntil`.
+- אין שדה מסודר עבור `expectedOutputDescription` ברמת שאלה.
+- יש `backgroundStory`, אבל אין הבחנה ברורה בין:
+  - intro / overview
+  - dataset structure explanation
+  - student instructions
 
-### Exit criteria
-- [x] End-to-end chat works via `/api/responses/*` with streaming + tool calls + image/file input.
-- [x] Legacy endpoints still functional under compatibility mode.
+### Access control gaps
+- ב־`lib/deadline-utils.ts` הפונקציה `isHomeworkAccessible()` כרגע תמיד מחזירה `true`.
+- אין אכיפה אמיתית של חלון זמן.
+- אין סטטוס ברור של homework מסוג:
+  - draft
+  - scheduled
+  - open
+  - closed
+  - archived
 
-### Implementation notes (2026-02-03)
-- Completed Responses API route behavior in Sprint 2:
-  - `app/api/responses/messages/route.ts` now supports server-side tool loop + NDJSON streaming events (`response.created`, `response.output_text.delta`, `response.completed`).
-  - `app/api/responses/files/route.ts` now supports upload/list/delete in Responses mode (and shared vector-store ownership).
-  - `app/api/responses/sessions/route.ts` remains session bootstrap entry.
-- Added shared vector store ownership/config:
-  - `lib/openai/vector-store.ts`
-  - uses `OPENAI_VECTOR_STORE_ID` when configured, otherwise persists created ID under `semester_config` in DB.
-  - passes file-search tool config into responses requests (with `vector_store_ids`).
-- Added temporary Assistants compatibility wrappers for Responses mode:
-  - `app/api/assistants/threads/route.ts`
-  - `app/api/assistants/threads/[threadId]/messages/route.ts`
-  - `app/api/assistants/threads/[threadId]/actions/route.ts`
-  - `app/api/assistants/files/route.tsx`
-  - wrapper message route converts Responses output into Assistant-compatible stream events for existing frontend flow.
+### Student entry gaps
+- `StudentEntryClient.tsx` עדיין עובד סביב set selection בסיסי ו־query param.
+- אין route ייעודי לכל תרגיל.
+- הסינון של תרגילים פתוחים/סגורים חלקי בלבד ומבוסס על `published`.
+
+### Runner UX gaps
+- ב־runner אין הצגה ברורה של:
+  - הסבר על מבנה הנתונים
+  - prompt של השאלה
+  - expected output נפרד וברור
+- נדרש לחדד את המידע שמופיע באזור העליון של העמודה המרכזית.
+
+### Builder/Admin gaps
+- ב־builder יש כרגע `dueAt`, אבל לא טווח זמינות מלא.
+- חסר מסך ניהול טוב לראות כמה תרגילים פתוחים במקביל.
+- חסרות ולידציות פרסום חזקות לפני publish.
 
 ---
 
-## Sprint 3 - Frontend migration (stream protocol + endpoint switch) (2-3 days)
+## Sprint 1: Data Model And Backend Contracts
 
-### TODO
-- [x] Update `app/components/chat.tsx`:
-  - remove `AssistantStream` and Assistants event typings
-  - consume new stream/event contract from `/api/responses/messages`
-  - remove separate `/actions` submit flow (server handles tool loop)
-- [x] Apply same changes to `app/components/chat-english.tsx`.
-- [x] Update thread/session creation in both chat components:
-  - replace `/api/assistants/threads` with `/api/responses/sessions`
-- [x] Update file UI:
-  - `app/components/file-viewer.tsx` -> `/api/responses/files`
-- [x] Update type imports in:
-  - `app/entities/function-calling/page.tsx`
-  - any `openai/resources/beta/...` references
-- [x] Add user-facing error states for:
-  - tool execution timeout
-  - stream interruption
-  - invalid function args
+### Objective
+להניח בסיס יציב ב־types, persistence ו־API כדי לאפשר כמה תרגילים פתוחים במקביל עם חלונות זמינות אמיתיים.
 
-### Exit criteria
-- [x] Hebrew and English chat UIs run fully on Responses API routes.
-- [x] No frontend import from `openai/lib/AssistantStream` or `openai/resources/beta/*`.
+### Tasks
 
-### Implementation notes (2026-02-03)
-- Migrated both chat components to Responses stream/session flow:
-  - `app/components/chat.tsx`
-  - `app/components/chat-english.tsx`
-  - `/api/responses/sessions` bootstrap + `/api/responses/messages` NDJSON event parsing (`response.created`, `response.output_text.delta`, `response.completed`, `response.error`).
-- Removed Assistants client stream dependencies in frontend:
-  - no `openai/lib/AssistantStream` usage
-  - no `openai/resources/beta/*` imports in `app/components/*` and `app/entities/*`.
-- Removed client `/actions` tool-submit flow; frontend now relies on server-side tool loop in Responses route.
-- Added user-facing stream/tool error states (timeout, invalid function args, stream interruption) via inline chat banner + assistant fallback message.
-- Updated file management UI route:
-  - `app/components/file-viewer.tsx` now uses `/api/responses/files` and updated list response parsing (`data.files`).
-- Updated legacy type import usage:
-  - `app/entities/function-calling/page.tsx` now uses a local lightweight tool-call type instead of beta SDK types.
+#### 1. Extend HomeworkSet schema
+לעדכן את `app/homework/types.ts` ואת המודלים בשרת כך של־HomeworkSet יהיו:
+- `availableFrom: string`
+- `availableUntil: string`
+- `slug?: string` או להשתמש ב־`setId` כנתיב canonical
+- `entryMode?: "direct" | "listed" | "hidden"`
+- `dataStructureNotes?: string`
 
----
+DONE:
+- הוחלט להשתמש ב־`setId` כנתיב canonical, ללא `slug` בשלב זה.
+- נוספו שדות availability / entry mode / data structure notes בצורה backward-compatible ב־types ובמודלי השרת.
+- נוספו fallback-ים לרשומות ישנות (`availableUntil ?? dueAt`, ו־`availableFrom` מתוך `createdAt` או ברירת מחדל בטוחה).
 
-## Sprint 4 - Admin and secondary flows migration (2-3 days)
+#### 2. Extend Question schema
+לעדכן את `Question` ב־`app/homework/types.ts`:
+- להשאיר `prompt`
+- להשאיר/לצמצם `instructions`
+- להוסיף `expectedOutputDescription: string`
 
-### TODO
-- [x] Redesign assistant management endpoints:
-  - `app/api/assistants/update/route.ts`
-  - `app/api/assistants/test/route.ts`
-  - `app/api/assistants/rollback/route.ts`
-  into model/config management for Responses API.
-- [x] Update admin UI:
-  - `app/admin/model-management/page.tsx`
-  - endpoint calls + labels should no longer assume "assistant object" lifecycle.
-- [x] Migrate `app/api/admin/exam-generator/route.ts`:
-  - remove temporary assistant create/update/delete lifecycle
-  - generate exams using `responses` with explicit instructions + tools
-  - keep vector store lifecycle and cleanup
-- [x] Validate `app/services/openai-realtime.ts`:
-  - currently posts to `/api/assistants`; migrate to a valid responses endpoint or disable path until aligned.
+DONE:
+- נוסף `expectedOutputDescription` לשכבת ה־Question וה־API של יצירת שאלות.
+- בוצע fallback לרשומות ישנות כדי שלא יישברו שאלות קיימות.
+- ההבחנה שנקבעה במימוש:
+  - `prompt` = נוסח המשימה
+  - `expectedOutputDescription` = מבנה/תיאור הפלט המצופה
+  - `instructions` = הנחיות משלימות בלבד
 
-### Exit criteria
-- [x] Admin operations (upgrade/test/rollback equivalent) work with Responses model config.
-- [x] Exam generator no longer depends on `openai.beta.assistants.*`.
+#### 3. Update persistence layer
+לעדכן את `lib/homework.ts` ואת כל mapping השכבות:
+- create
+- read
+- update
+- list
 
-### Implementation notes (2026-02-03)
-- Reworked admin management endpoints to Responses runtime config flows:
-  - `app/api/assistants/update/route.ts` now reads/updates model + instructions + enabled tools in DB-backed runtime config.
-  - `app/api/assistants/test/route.ts` now executes live Responses validation tests (including tool-loop tests).
-  - `app/api/assistants/rollback/route.ts` now performs model/config rollback and health checks without Assistants API objects.
-- Added shared runtime config persistence:
-  - `lib/openai/runtime-config.ts`
-  - stores active model/instruction/tool configuration (and bounded history) in `semester_config`.
-- Integrated runtime config into main Responses adapter:
-  - `lib/openai/responses-client.ts` now resolves model/instructions/tools from runtime config before each call.
-- Updated admin model-management UI for Responses lifecycle language and endpoints:
-  - `app/admin/model-management/page.tsx`
-- Migrated exam generation from temporary assistant lifecycle to direct Responses calls:
-  - `app/api/admin/exam-generator/route.ts`
-  - keeps vector store + uploaded file lifecycle cleanup.
-- Updated realtime voice fallback flow to Responses routes:
-  - `app/services/openai-realtime.ts` now uses `/api/responses/sessions` + `/api/responses/messages` NDJSON stream parsing.
+DONE:
+- שכבת ה־persistence עודכנה כך שכל השדות החדשים נשמרים ונשלפים ב־create/read/update/list.
+- נוספה שכבת normalization ל־HomeworkSet ול־Question עבור migration logic ורשומות legacy.
+- נשמרה תאימות ל־sets קיימים דרך `dueAt` כשדה legacy ממופה ל־`availableUntil`.
 
----
+#### 4. Replace deadline-only logic with availability window logic
+לעדכן `lib/deadline-utils.ts`:
+- להחליף `isHomeworkAccessible(dueAt, userEmail)` למודל שעובד עם:
+  - `availableFrom`
+  - `availableUntil`
+  - הארכות פרטניות אם עדיין צריך
 
-## Sprint 5 - Tests, docs, rollout, and cleanup (2 days)
+DONE:
+- נוספו הפונקציות:
+  - `getAvailabilityState(homework, userEmail)`
+  - `isHomeworkAccessible(homework, userEmail)`
+  - `getAvailabilityMessage(homework, userEmail)`
+  - `getHomeworkAvailabilityInfo(homework, userEmail)`
+- הוגדרו states:
+  - `upcoming`
+  - `open`
+  - `closed`
+- נשמרה תמיכה בהארכות פרטניות על סוף חלון הזמינות.
 
-### TODO
-- [x] Update unit/API tests:
-  - `__tests__/api/assistants.test.ts` -> new responses tests (`__tests__/api/responses.test.ts`)
-  - `__tests__/utils/testUtils.ts` OpenAI mocks from `beta` to `responses`
-- [x] Update E2E:
-  - `tests/e2e/assistant-interaction.spec.ts` route mocks to `/api/responses/*` and new stream payload shape
-- [x] Documentation updates:
-  - `README.md`
-  - `docs/model-upgrade-configuration.md`
-  - `docs/assistant-context-verification.md`
-  - add `docs/responses-api-runbook.md` (ops + rollback)
-- [x] Env var migration:
-  - deprecate assistant-ID vars
-  - document new vars (`OPENAI_MODEL`, `OPENAI_API_MODE`, vector store config, etc.)
-- [x] Rollout plan:
-  - canary by admin/users
-  - monitor error rate, p95 latency, tool-call success rate
-  - switch default flag to `responses`
-  - remove old `/api/assistants/*` routes after stable window
+#### 5. Update API contracts
+לעדכן:
+- `app/api/homework/route.ts`
+- `app/api/homework/[setId]/route.ts`
 
-### Exit criteria
-- [ ] CI green (unit + API + E2E).
-- [x] Responses mode is default in production.
-- [x] Legacy assistants code paths removed.
+DONE:
+- `GET /api/homework` מחזיר availability metadata לכל set.
+- `GET /api/homework/[setId]` אוכף גישה לסטודנט לפי חלון זמן, published/archived ו־entry mode.
+- builder/admin/instructor עוקפים חסימות זמן וגישה של סטודנטים.
+- נוסף filter של `availableOnly=true` עבור "רק תרגילים זמינים כרגע".
 
-### Implementation notes (2026-02-03)
-- Updated API/unit test coverage for Responses migration:
-  - replaced legacy `__tests__/api/assistants.test.ts` with `__tests__/api/responses.test.ts`
-  - updated `__tests__/utils/testUtils.ts` OpenAI mocks and fixtures to Responses-first shapes.
-- Updated E2E route mocks to Responses protocol:
-  - `tests/e2e/assistant-interaction.spec.ts` now mocks `/api/responses/sessions`, `/api/responses/messages` NDJSON stream events, and `/api/responses/files`.
-- Switched default API mode and removed Assistants runtime code paths:
-  - `lib/openai/api-mode.ts` default now `responses`
-  - removed legacy Assistants thread/files/create routes:
-    - `app/api/assistants/route.ts`
-    - `app/api/assistants/files/route.tsx`
-    - `app/api/assistants/threads/route.ts`
-    - `app/api/assistants/threads/[threadId]/messages/route.ts`
-    - `app/api/assistants/threads/[threadId]/actions/route.ts`
-  - removed Assistants fallback branches from:
-    - `app/api/responses/sessions/route.ts`
-    - `app/api/responses/messages/route.ts`
-- Updated docs + env migration artifacts:
-  - `README.md`
-  - `docs/model-upgrade-configuration.md`
-  - `docs/assistant-context-verification.md`
-  - `docs/responses-api-runbook.md`
-  - `.env.example` (Responses-first defaults + assistant-ID deprecation note)
+### Acceptance Criteria
+- [x] אפשר לשמור Homework Set עם `availableFrom` ו־`availableUntil`.
+- [x] ה־API מחזיר סטטוס זמינות עקבי.
+- [x] Homework סגור אינו נגיש לסטודנט דרך ה־API.
+- [x] Homework עתידי אינו נגיש לסטודנט לפני זמן הפתיחה.
 
 ---
 
-## Definition of Done (global)
-- [x] No production code uses `openai.beta.assistants`, `threads`, or `runs`.
-- [ ] All user chat flows (Hebrew/English, image/file, tool calling) are behaviorally equivalent or improved.
-- [ ] Admin and exam-generator flows run on Responses API.
-- [ ] Observability dashboards include Responses-specific failures and tool-loop metrics.
-- [x] Runbook and rollback steps are documented and tested.
+## Sprint 2: Student Entry Flow And Multi-Homework Support
 
-## Suggested execution order (team parallelization)
-- Backend stream/tool-loop track: Sprint 1 + Sprint 2
-- Frontend chat track: Sprint 3
-- Admin/exam track: Sprint 4
-- QA/docs/release track: Sprint 5
+### Objective
+לאפשר כמה תרגילים פתוחים בו־זמנית, עם כניסה דרך דף רשימה ודרך לינק ישיר.
+
+### Tasks
+
+#### 1. Add dedicated route for specific homework
+להוסיף:
+- `app/homework/start/[setId]/page.tsx`
+
+DONE:
+- לטעון את התרגיל הספציפי לפי `setId`.
+- להציג הודעת מצב אם התרגיל:
+  - טרם נפתח
+  - נסגר
+  - לא פורסם
+  - לא נמצא
+- לשמר flow של login ואז entry ל־runner.
+
+Implementation notes:
+- נוסף route ייעודי `app/homework/start/[setId]/page.tsx`.
+- ה־route טוען את `StudentEntryClient` במצב direct-entry לפי `setId`.
+- העמוד מציג הודעת מצב מפורטת עבור:
+  - homework עתידי
+  - homework סגור
+  - homework לא זמין לסטודנטים
+  - homework שלא נמצא
+- כאשר homework פתוח, ה־flow נשאר: login -> מסך פתיחה/הנחיות -> runner.
+
+#### 2. Upgrade `/homework/start`
+לעדכן `app/homework/start/page.tsx` + `app/homework/StudentEntryClient.tsx`
+
+DONE:
+- להפוך את הדף לרשימת תרגילים זמינים כרגע.
+- להציג לכל כרטיס:
+  - שם התרגיל
+  - קורס
+  - חלון זמינות
+  - סטטוס: נפתח בקרוב / פתוח / נסגר
+  - כפתור כניסה
+- אם יש רק תרגיל אחד פתוח, לא להניח שהוא היחיד בעולם; עדיין להציג מודל אחיד.
+
+Implementation notes:
+- `StudentEntryClient` הוסב ממסך בחירה ישן למסך רשימת מטלות עם כרטיסים.
+- כל כרטיס מציג:
+  - שם המטלה
+  - קורס
+  - חלון זמינות
+  - מספר שאלות
+  - סטטוס זמינות
+  - כפתור מעבר לעמוד הייעודי
+- הסדר ברשימה הוא:
+  - open
+  - upcoming
+  - closed
+- גם אם יש רק תרגיל אחד פתוח, עדיין מוצג אותו מודל רשימה אחיד.
+
+#### 3. Keep backward compatibility
+DONE:
+- לתמוך זמנית גם ב־`/homework/start?setId=...`.
+- להפנות בהמשך ל־route החדש.
+
+Implementation notes:
+- `app/homework/start/page.tsx` תומך זמנית ב־`?setId=...`.
+- בקשה כזו עושה redirect מיידי ל־`/homework/start/[setId]`.
+- redirect-ים מתוך ה־runner עודכנו גם הם ל־route החדש.
+
+#### 4. Clarify student-facing messaging
+DONE:
+- אם homework עוד לא נפתח, להראות תאריך פתיחה מדויק.
+- אם homework נסגר, להראות תאריך סגירה מדויק.
+- להציג תאריכים בפורמט עברי ברור.
+
+Implementation notes:
+- הודעות החסימה לסטודנט נשענות על ה־availability message מה־API.
+- חלונות הזמינות מוצגים בפורמט `he-IL` עם תאריך ושעה.
+- בעמוד הישיר של מטלה סגורה/עתידית מוצגת גם הודעת מצב וגם חלון הזמינות.
+
+### Acceptance Criteria
+- [x] יכולים להיות כמה Homework Sets published/open במקביל.
+- [x] לכל אחד יש לינק ייעודי עובד.
+- [x] `/homework/start` מציג רשימה אמיתית של available homeworks.
+- [x] סטודנט לא נכנס בטעות לתרגיל סגור/עתידי.
+
+---
+
+## Sprint 3: Runner Information Architecture
+
+### Objective
+לשפר את חוויית הסטודנט בתוך ` /homework/runner/[setId] ` כך שהמידע הקריטי יופיע במקום הנכון.
+
+### Tasks
+
+#### 1. Add homework data structure explanation above tables
+לעדכן:
+- `app/homework/runner/[setId]/RunnerClient.tsx`
+- `app/homework/runner/[setId]/InstructionsSection.tsx`
+
+DONE:
+- להציג בפאנל הימני, מעל רשימת הטבלאות:
+  - `dataStructureNotes` או equivalent
+- אם אין הסבר ייעודי, להשתמש fallback מתוך `backgroundStory`.
+- להפריד ויזואלית בין:
+  - הסבר על מבנה הנתונים
+  - רשימת הטבלאות
+
+Implementation notes:
+- נוסף בלוק "מבנה הנתונים" מעל טבלאות הדוגמה בתוך ה־runner.
+- הבלוק משתמש קודם ב־`dataStructureNotes`, ואם הוא חסר מבצע fallback ל־`backgroundStory`.
+- לטבלאות נוספה כותרת נפרדת כך שההבחנה בין הסבר מבני לבין נתוני הדוגמה ברורה יותר.
+
+#### 2. Redesign question header area in center column
+DONE:
+- בחלק העליון של העמודה המרכזית להציג בבירור:
+  - מספר שאלה
+  - `prompt`
+  - `expectedOutputDescription`
+  - instructions משלימות אם קיימות
+- ה־progress bar לא אמור להיות המקום היחיד לטקסט המשימה.
+- ליצור layout עקבי בין כל השאלות.
+
+Implementation notes:
+- אזור הכותרת במרכז הוסב לגריד של כרטיסי מידע קבועים לכל שאלה.
+- כל שאלה מציגה כעת באופן עקבי:
+  - מספר שאלה
+  - נוסח המשימה (`prompt`)
+  - תיאור הפלט המצופה (`expectedOutputDescription`)
+  - הנחיות משלימות אם קיימות
+- ה־stepper נשאר רכיב ניווט בלבד.
+
+#### 3. Improve question metadata model in UI
+DONE:
+- להפסיק להעמיס את כל התוכן לתוך `instructions`.
+- לבנות קומפוננטות קטנות:
+  - `QuestionPromptCard`
+  - `ExpectedOutputCard`
+  - `QuestionTipsCard` אם צריך
+
+Implementation notes:
+- נוספו קומפוננטות ייעודיות עבור `prompt`, `expected output` ו־`tips`.
+- ה־runner בונה כעת את אזור המידע של השאלה מתוך קומפוננטות קטנות וברורות במקום בלוק טקסט יחיד.
+
+#### 4. Improve empty/fallback states
+DONE:
+- אם חסר `expectedOutputDescription`, להציג placeholder ברור למרצה במצב preview/builder.
+- לסטודנט לא להציג UI שבור או ריק.
+
+Implementation notes:
+- כאשר `expectedOutputDescription` חסר, נעשה fallback לסכמת התוצאה אם קיימת.
+- במצב `student-demo` מוצג placeholder ברור יותר שמאותת למרצה שחסר תיאור פלט מפורש.
+- לסטודנט מוצג טקסט fallback שימושי במקום אזור ריק.
+
+### Acceptance Criteria
+- [x] הסטודנט רואה בצד ימין גם הסבר על מבנה הנתונים וגם טבלאות.
+- [x] הסטודנט רואה במרכז למעלה גם את השאלה וגם את תיאור הפלט הרצוי.
+- [x] כל שאלה נראית עקבית וברורה יותר.
+
+---
+
+## Sprint 4: Builder UX And Instructor Workflow
+
+### Objective
+להפוך את ה־builder לכלי נוח לניהול אינטנסיבי של כמה תרגילים במקביל לאורך הסמסטר.
+
+### Tasks
+
+#### 1. Add availability fields to builder metadata
+לעדכן:
+- `app/homework/builder/components/wizard/types.ts`
+- `app/homework/builder/components/wizard/MetadataStep.tsx`
+- `app/homework/builder/components/wizard/PublishStep.tsx`
+
+DONE:
+- להחליף `dueAt` ב־:
+  - `availableFrom`
+  - `availableUntil`
+- להוסיף ולידציה:
+  - start < end
+  - אי אפשר publish בלי חלון תקין
+
+Implementation notes:
+- שכבת ה־draft של ה־builder הוסבה ל־`availableFrom` / `availableUntil`, תוך שמירה על `dueAt` רק כ־payload legacy לשרת.
+- נוספה ולידציית client-side שמונעת התקדמות/פרסום כאשר חלון הזמינות חסר או לא תקין.
+- מסך הפרסום מציג כעת את חלון הזמינות במקום תאריך הגשה יחיד.
+
+#### 2. Add data structure explanation field in builder
+DONE:
+- לאפשר למרצה להגדיר בנפרד:
+  - intro / overview
+  - data structure notes
+- להציג preview של איך זה ייראה ב־runner.
+
+Implementation notes:
+- נוספה ב־metadata שדה נפרד עבור `dataStructureNotes`.
+- ב־metadata step נוסף preview מובנה שמראה את ההבחנה בין פתיח המטלה לבין פאנל "מבנה הנתונים" ב־runner.
+- תצוגת ה־preview של המטלה מציגה עכשיו גם את הפתיח וגם את הסבר מבנה הנתונים כפי שהסטודנט יראה אותם.
+
+#### 3. Improve question authoring
+DONE:
+- לחייב לכל שאלה:
+  - `prompt`
+  - `expectedOutputDescription`
+- להבדיל בטופס העריכה בין:
+  - מה הסטודנט צריך לעשות
+  - מה הפלט שהוא צריך לקבל
+  - הנחיות נוספות
+
+Implementation notes:
+- `QuestionDraft` עודכן כך שיכלול `expectedOutputDescription`.
+- טופס יצירת השאלות הופרד בפועל לשלושה אזורים: ניסוח המשימה, תיאור הפלט הצפוי, והנחיות משלימות.
+- המעבר קדימה והפרסום נחסמים כאשר חסר `prompt`, חסר `expectedOutputDescription`, או אין ניקוד תקין.
+
+#### 4. Improve builder dashboard
+לעדכן `app/homework/builder/page.tsx` ואולי גם `app/admin/homework/page.tsx`
+
+DONE:
+- להוסיף עמודות/פילטרים:
+  - upcoming
+  - open
+  - closed
+  - archived
+- להציג:
+  - start date
+  - end date
+  - direct link
+  - count submissions
+- לאפשר copy link לתרגיל.
+
+Implementation notes:
+- לוח הבנייה עבר לסינון לפי סטטוסי availability אמיתיים: `draft`, `upcoming`, `open`, `closed`, `archived`.
+- כל כרטיס מציג כעת תאריך פתיחה, תאריך סגירה, ספירת הגשות, ציון ממוצע וקישור ישיר לכניסת הסטודנט.
+- נוסף כפתור העתקת קישור ישיר ל־`/homework/start/[setId]`.
+
+#### 5. Publish safety checks
+DONE:
+- לפני publish לבצע validation summary:
+  - יש חלון זמינות תקין
+  - יש dataset / tables
+  - לכל שאלה יש prompt
+  - לכל שאלה יש expected output
+  - אין question בלי ניקוד
+
+Implementation notes:
+- נוספה שכבת validation מרוכזת ל־builder שמייצרת `blockers` ו־`warnings` לפני פרסום.
+- מסך ה־wizard ומסך ה־publish הייעודי משתמשים באותה בדיקת בטיחות כדי למנוע publish לא תקין.
+- נוספו בדיקות unit חדשות ל־validation של sprint 4.
+
+### Acceptance Criteria
+- [x] מרצה יכול לנהל כמה תרגילים במקביל בלי בלבול.
+- [x] ברור מה פתוח עכשיו, מה עתידי ומה נסגר.
+- [x] ברור מה הסטודנטים יראו בכל תרגיל.
+
+---
+
+## Sprint 5: Tests, Migration, And Hardening
+
+### Objective
+לסגור פינות כדי שהמודול יוכל לשמש בעומס אמיתי לאורך סמסטר.
+
+### Tasks
+
+#### 1. Unit tests
+להוסיף/לעדכן:
+- `__tests__/homework/homeworkStore.test.ts`
+- tests חדשים ל־availability logic
+
+DONE:
+- בדיקות ל־open/upcoming/closed.
+- בדיקות ל־fallback של `dueAt`.
+- בדיקות ל־multi-homework listing.
+
+Implementation notes:
+- `__tests__/lib/deadline-utils.test.ts` הורחב כדי לכסות `upcoming`, `open`, `closed`, fallback של `dueAt`, ו־fallback של `createdAt`.
+- `__tests__/homework/homeworkStore.test.ts` הורחב כדי לוודא ששכבת ה־mock store שומרת availability fields, `entryMode` ו־`expectedOutputDescription`.
+- נוסף גם `__tests__/lib/homework-migration.test.ts` כדי לכסות את ה־backfill logic של migration לנתוני homework legacy.
+
+#### 2. API tests
+DONE:
+- לבדוק שסטודנט לא מקבל Homework מחוץ לחלון הזמן.
+- לבדוק ש־builder כן יכול לטעון לצורך preview/edit.
+
+Implementation notes:
+- `__tests__/api/homework.route.test.ts` מכסה כעת:
+  - חסימה לסטודנט עבור homework עתידי
+  - חסימה לסטודנט עבור homework סגור
+  - גישת builder ל־preview/edit גם כאשר homework מחוץ לחלון הזמן
+  - החזרת `studentAccess` context כדי להסביר למרצה למה סטודנט חסום
+
+#### 3. E2E tests
+לעדכן/להוסיף:
+- `tests/e2e/homework-runner.spec.ts`
+- `tests/e2e/homework-grading.spec.ts`
+
+DONE:
+- תרחיש של שני תרגילים פתוחים במקביל.
+- תרחיש של homework עתידי.
+- תרחיש של homework סגור.
+- תרחיש שבו ב־runner מופיעים:
+  - data structure notes
+  - prompt
+  - expected output
+
+Implementation notes:
+- `tests/e2e/homework-runner.spec.ts` הורחב עם mocks ל־`/api/homework` ו־`/api/homework/[setId]` כדי לבדוק באופן דטרמיניסטי:
+  - רשימת מטלות עם כמה סטטוסים במקביל
+  - direct-entry עבור homework עתידי/סגור
+  - נוכחות אזורי `מבנה הנתונים`, `מה צריך לעשות?`, `מה אמור להתקבל?`
+- `tests/e2e/homework-grading.spec.ts` נשאר smoke test עבור מסך grading כדי לצמצם regression בזרימת המרצה.
+
+#### 4. Data migration / seed backfill
+DONE:
+- לקבוע default values ל־homeworks קיימים.
+- לכתוב סקריפט migration אם צריך.
+- לוודא שלא נעלמים תרגילים ישנים מהדשבורד.
+
+Implementation notes:
+- נוסף helper ייעודי ב־`lib/homework-migration.ts` ליצירת ערכי backfill עקביים עבור:
+  - `availableFrom`
+  - `availableUntil`
+  - `dueAt`
+  - `entryMode`
+- נוסף סקריפט `scripts/backfill-homework-availability.ts` עם dry-run כברירת מחדל ו־`--write` לעדכון בפועל.
+- שכבת ה־mock store הוקשחה כדי לשמר את שדות Sprint 1-4 גם בנתוני seed/mock, וכך למנוע "היעלמות" מטלות ישנות בגלל רשומות חלקיות.
+
+#### 5. Observability and admin support
+DONE:
+- לשפר לוגים עבור access denied בגלל חלון זמן.
+- להקל על debugging של "למה הסטודנט לא רואה את התרגיל".
+
+Implementation notes:
+- `app/api/homework/[setId]/route.ts` לוגם כעת denied access עם `reason` ו־context מובנה.
+- תגובת ה־API כוללת גם `studentAccess` context שמאפשר למרצה/בונה להבין אם החסימה נובעת מ:
+  - availability window
+  - unpublished
+  - archived
+  - hidden entry mode
+
+### Acceptance Criteria
+- [x] יש כיסוי בדיקות למסלולים הקריטיים.
+- [x] אין regression בכניסה, ריצה והגשה.
+- [x] אפשר להסביר בקלות למה תרגיל זמין או לא זמין.
+
+---
+
+## Cross-Cutting Refactors
+
+### A. Normalize terminology
+להחליט על שמות עקביים:
+- `availableFrom` / `availableUntil`
+- `dataStructureNotes`
+- `expectedOutputDescription`
+
+לא לערבב כמה שמות שונים לאותו רעיון.
+
+### B. Separate student content layers
+להפריד בין:
+- overview של התרגיל
+- הסבר על מבנה הנתונים
+- prompt של שאלה
+- expected output של שאלה
+- instructions משלימות
+
+### C. Reduce hidden logic in free-text fields
+כרגע יש יותר מדי לוגיקה שנשענת על טקסט חופשי, כולל transform מיוחד ב־`StudentEntryClient.tsx`.
+
+TODO:
+- לצמצם hardcoded transforms.
+- להעביר תוכן מובנה לשדות מפורשים.
+- לשמור parsing fallback רק לנתונים ישנים.
+
+---
+
+## Suggested Implementation Order
+
+1. Types + DB/service layer
+2. Availability utilities + API enforcement
+3. Dedicated start route + listing of multiple open homeworks
+4. Runner UI restructuring
+5. Builder metadata/question forms
+6. Dashboard improvements
+7. Tests + migration
+
+---
+
+## Definition Of Done
+
+העבודה תיחשב גמורה רק אם כל הסעיפים הבאים מתקיימים:
+- יש תמיכה בכמה תרגילי בית פתוחים במקביל.
+- לכל תרגיל יש לינק ייעודי עובד.
+- לכל תרגיל יש זמן פתיחה וזמן סגירה אמיתיים ומאוכפים.
+- ב־runner מופיע הסבר מבנה הנתונים מעל הטבלאות.
+- בכל שאלה מופיעים גם נוסח השאלה וגם תיאור הפלט הרצוי.
+- builder מאפשר לנהל את כל זה בלי לעקוף ידנית את המערכת.
+- יש בדיקות שמכסות את התרחישים הקריטיים.
+
+---
+
+## Nice To Have After Core Delivery
+
+- `slug` אנושי לתרגיל, לא רק `setId`
+- duplicate homework / clone previous semester
+- bulk schedule publish
+- archive automation אחרי סיום חלון
+- תצוגת calendar של חלונות תרגילים
+- preview as student מתוך builder
