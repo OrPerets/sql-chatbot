@@ -43,8 +43,7 @@ async function main(): Promise<void> {
       console.log(`⏭️  ${name}: not present, skipping`);
       continue;
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dropping collections by name from config list
-    const coll = db.collection(name as any);
+    const coll = db.collection(name);
     const count = await coll.countDocuments();
 
     if (dryRun) {

@@ -67,8 +67,7 @@ function getUsageFiles(collectionName: string): string[] {
 }
 
 async function getLastActivity(db: Db, collectionName: string): Promise<string | null> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- report script lists all DB collections by name
-  const coll = db.collection(collectionName as any);
+  const coll = db.collection(collectionName);
   const dateFields = ['updatedAt', 'createdAt', 'modifiedAt', 'timestamp', 'expiresAt'];
   for (const field of dateFields) {
     try {
@@ -103,8 +102,7 @@ async function gatherStats(db: Db): Promise<CollectionStats[]> {
   const results: CollectionStats[] = [];
 
   for (const name of names.sort()) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- report script lists all DB collections by name
-    const coll = db.collection(name as any);
+    const coll = db.collection(name);
     let count = 0;
     try {
       count = await coll.countDocuments();
