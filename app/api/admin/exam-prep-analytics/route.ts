@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb';
 import { connectToDatabase, COLLECTIONS } from '@/lib/database';
 import type { QuestionAnalyticsModel } from '@/lib/models';
 import type { SubmissionModel } from '@/lib/models';
+import type { UserModel } from '@/lib/users';
 
 const DEFAULT_SET_ID = '697b602f8d8cd886902367b1';
 
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
     const { db } = await connectToDatabase();
     const submissionsCol = db.collection<SubmissionModel>(COLLECTIONS.SUBMISSIONS);
     const qaCol = db.collection<QuestionAnalyticsModel>(COLLECTIONS.QUESTION_ANALYTICS);
-    const usersCol = db.collection(COLLECTIONS.USERS);
+    const usersCol = db.collection<UserModel>(COLLECTIONS.USERS);
     const questionsCol = db.collection(COLLECTIONS.QUESTIONS);
 
     const setQuery = buildSetIdQuery(setId);
@@ -94,7 +95,7 @@ export async function GET(request: NextRequest) {
       .toArray();
 
     const userMap = new Map<string, { name?: string; studentIdNumber?: string }>();
-    users.forEach((u: { email?: string; id?: string; name?: string; firstName?: string; lastName?: string; studentIdNumber?: string }) => {
+    users.forEach((u) => {
       const key = u.email || u.id || '';
       userMap.set(key, {
         name: u.name || (u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : undefined),
