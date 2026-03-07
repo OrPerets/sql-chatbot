@@ -14,7 +14,6 @@ import {
   Send,
   Copy,
   ExternalLink,
-  Wand2,
   FileText,
   BarChart3,
   CalendarRange,
@@ -68,8 +67,6 @@ function groupByStatus(items: BuilderHomeworkSummary[]) {
 export default function BuilderDashboardPage() {
   const [activeFilter, setActiveFilter] = useState<BuilderDashboardStatus | "all">("all");
   const [copiedSetId, setCopiedSetId] = useState<string | null>(null);
-  const [aiBusySetId, setAiBusySetId] = useState<string | null>(null);
-  const [aiFeedback, setAiFeedback] = useState<Record<string, string>>({});
   const { data, isLoading, error } = useHomeworkSets({ role: "builder" });
   const { t, formatNumber, formatDateTime, direction } = useHomeworkLocale();
 
@@ -99,35 +96,6 @@ export default function BuilderDashboardPage() {
     window.setTimeout(() => {
       setCopiedSetId((current) => (current === setId ? null : current));
     }, 1800);
-  };
-
-  const handleGenerateSolutions = async (setId: string) => {
-    setAiBusySetId(setId);
-    setAiFeedback((current) => ({ ...current, [setId]: t("builder.dashboard.ai.generating") }));
-    try {
-      const response = await fetch(`/api/homework/${setId}/ai-generate-solutions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ overwrite: false }),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || result.details || "Failed to generate solutions");
-      }
-
-      const message =
-        result.totalGenerated > 0
-          ? t("builder.dashboard.ai.success", { count: String(result.totalSaved ?? result.totalGenerated) })
-          : result.message || t("builder.dashboard.ai.noop");
-      setAiFeedback((current) => ({ ...current, [setId]: message }));
-    } catch (err) {
-      setAiFeedback((current) => ({
-        ...current,
-        [setId]: err instanceof Error ? err.message : t("builder.dashboard.ai.error"),
-      }));
-    } finally {
-      setAiBusySetId(null);
-    }
   };
 
   return (
@@ -231,8 +199,6 @@ export default function BuilderDashboardPage() {
         {filteredItems.map((set) => {
           const status = resolveBuilderDashboardStatus(set);
           const StatusIcon = statusIcons[status as keyof typeof statusIcons];
-          const isGenerating = aiBusySetId === set.id;
-
           return (
             <article key={set.id} className={styles.card} data-status={status}>
               {/* Card header: title + status */}
@@ -290,24 +256,6 @@ export default function BuilderDashboardPage() {
                   {copiedSetId === set.id ? t("builder.dashboard.card.copied") : t("builder.dashboard.card.copy")}
                 </button>
               </div>
-
-              {/* AI row */}
-              {set.draftQuestionCount > 0 && (
-                <div className={styles.cardAi}>
-                  <button
-                    type="button"
-                    className={styles.aiBtn}
-                    onClick={() => handleGenerateSolutions(set.id)}
-                    disabled={isGenerating}
-                  >
-                    <Wand2 size={14} />
-                    {isGenerating ? t("builder.dashboard.ai.generating") : t("builder.dashboard.card.aiCta")}
-                  </button>
-                  {aiFeedback[set.id] && (
-                    <span className={styles.aiFeedback}>{aiFeedback[set.id]}</span>
-                  )}
-                </div>
-              )}
 
               {/* Action buttons */}
               <div className={styles.cardActions}>
