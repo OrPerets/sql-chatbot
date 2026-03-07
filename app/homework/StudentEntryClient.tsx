@@ -492,6 +492,17 @@ export function StudentEntryClient({ forcedSetId }: StudentEntryClientProps) {
   }
 
   if (step === "instructions" && selectedHomework) {
+    const overviewParagraphs = (selectedHomework.overview ?? "")
+      .split(/\n+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    const storyText = transformBackgroundStory(selectedHomework.backgroundStory, selectedHomework.title);
+    const storyParagraphs = storyText
+      .split(/\n+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
     return (
       <div className={styles.container} dir="rtl">
         {showConsentModal && (
@@ -525,49 +536,68 @@ export function StudentEntryClient({ forcedSetId }: StudentEntryClientProps) {
 
         <div className={styles.card}>
           <div className={styles.instructionsContent}>
-            {studentName ? (
-              <div className={styles.welcomeMessage}>
-                <span>👋</span>
-                <span>שלום {studentName}!</span>
+            {/* Top bar: welcome + homework title */}
+            <div className={styles.instrTopBar}>
+              <div className={styles.instrTopBarLeft}>
+                <h2 className={styles.instrHwTitle}>{selectedHomework.title}</h2>
+                {studentName ? (
+                  <span className={styles.instrWelcome}>שלום, {studentName}</span>
+                ) : null}
               </div>
-            ) : null}
-
-            <div className={styles.homeworkInfo}>
-              <h2 className={styles.homeworkTitle}>{selectedHomework.title}</h2>
-              <div className={styles.homeworkMeta}>
-                <div className={styles.metaItem}>
-                  <span>📝</span>
+              <div className={styles.instrTopBarRight}>
+                <div className={styles.instrMetaChip}>
+                  <BookOpen size={14} />
                   <span>{selectedHomework.questionOrder.length} שאלות</span>
                 </div>
-                <div className={styles.metaItem}>
-                  <span>📅</span>
+                <div className={styles.instrMetaChip}>
+                  <CalendarClock size={14} />
                   <span>{formatAvailabilityWindow(selectedHomework)}</span>
                 </div>
               </div>
             </div>
 
-            {selectedHomework.overview ? (
-              <div className={styles.instructionsBox}>
-                <h3 className={styles.instructionsTitle}>
-                  <span>📋</span>
-                  הנחיות לתרגיל
-                </h3>
-                <div className={styles.instructionsText}>{selectedHomework.overview}</div>
-              </div>
-            ) : null}
-
-            {selectedHomework.backgroundStory ? (
-              <div className={styles.instructionsBox}>
-                <h3 className={styles.instructionsTitle}>
-                  <span>📖</span>
-                  סיפור הרקע
-                </h3>
-                <div className={styles.instructionsText}>
-                  {transformBackgroundStory(selectedHomework.backgroundStory, selectedHomework.title)}
+            {/* Instructions section */}
+            {overviewParagraphs.length > 0 && (
+              <div className={styles.instrSection}>
+                <div className={styles.instrSectionHeader}>
+                  <div className={styles.instrSectionIcon}>
+                    <BookOpen size={18} />
+                  </div>
+                  <h3 className={styles.instrSectionTitle}>הנחיות לתרגיל</h3>
+                </div>
+                <div className={styles.instrSectionBody}>
+                  <ol className={styles.instrList}>
+                    {overviewParagraphs.map((paragraph, idx) => (
+                      <li key={idx} className={styles.instrListItem}>
+                        <span className={styles.instrListNum}>{idx + 1}</span>
+                        <span className={styles.instrListText}>{paragraph}</span>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
               </div>
-            ) : null}
+            )}
 
+            {/* Background story section */}
+            {storyParagraphs.length > 0 && (
+              <div className={styles.instrSection}>
+                <div className={styles.instrSectionHeaderAlt}>
+                  <div className={styles.instrSectionIconAlt}>
+                    <Play size={18} />
+                  </div>
+                  <h3 className={styles.instrSectionTitle}>סיפור הרקע</h3>
+                </div>
+                <div className={styles.instrSectionBody}>
+                  <div className={styles.storyContent}>
+                    {storyParagraphs.map((paragraph, idx) => (
+                      <p key={idx} className={styles.storyParagraph}>{paragraph}</p>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action buttons */}
             <div className={styles.buttonGroup}>
               <button className={styles.buttonSecondary} onClick={handleBack} disabled={isStarting}>
                 חזרה
@@ -580,8 +610,8 @@ export function StudentEntryClient({ forcedSetId }: StudentEntryClientProps) {
                   </>
                 ) : (
                   <>
-                    התחל
-                    <ArrowRight size={20} />
+                    התחל את התרגיל
+                    <ArrowRight size={18} />
                   </>
                 )}
               </button>
