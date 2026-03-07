@@ -818,8 +818,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     );
   }
 
-  const statusLabel = submission?.status ? t(`runner.status.${submission.status}`) : t("runner.status.in_progress");
-  const autosaveLabel = t(`runner.progress.autosave.${autosaveState}`);
+  void (submission?.status ? t(`runner.status.${submission.status}`) : t("runner.status.in_progress"));
 
   return (
     <div className={styles.runner} dir={direction}>
@@ -846,27 +845,24 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               className={styles.databaseViewerButton}
               onClick={() => setShowDatabaseViewer(!showDatabaseViewer)}
             >
-              <span>🗃️</span>
-              {showDatabaseViewer ? "הסתר נתוני דוגמא" : "הצג נתוני דוגמא מהטבלאות"}
+              <span className={styles.databaseViewerButtonIcon}>{showDatabaseViewer ? "▾" : "▸"}</span>
+              {showDatabaseViewer ? "הסתר נתוני דוגמא" : "הצג נתוני דוגמא"}
             </button>
             
             {showDatabaseViewer && (
               <div className={styles.databaseViewer}>
-                <p className={styles.databaseViewerNote}>
-                  להלן נתונים לדוגמא מכל טבלה בבסיס הנתונים:
-                </p>
                 {Object.entries(sidebarTables).map(([tableName, tableData]) => (
                   <div key={tableName} className={styles.tableSection}>
                     <button
                       type="button"
-                      className={styles.tableHeader}
+                      className={`${styles.tableHeader} ${expandedTables[tableName] ? styles.tableHeaderExpanded : ''}`}
                       onClick={() => toggleTableExpanded(tableName)}
                     >
                       <span className={styles.tableToggle}>
-                        {expandedTables[tableName] ? "▼" : "▶"}
+                        {expandedTables[tableName] ? "▾" : "▸"}
                       </span>
                       <span className={styles.tableName}>{tableName}</span>
-                      <span className={styles.tableRowCount}>({tableData.rows.length} שורות)</span>
+                      <span className={styles.tableColumnCount}>{tableData.columns.length} עמודות</span>
                     </button>
                     
                     {expandedTables[tableName] && (
@@ -902,26 +898,30 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       {/* Middle Section: Question + SQL Editor */}
       <section className={styles.workspace}>
         <header className={styles.workspaceHeader}>
-          {/* Question Stepper - full width with proper padding */}
+          {/* Question Stepper */}
           <div className={styles.questionStepperWrapper}>
             <div className={styles.questionStepper}>
               {questions.map((question, index) => {
                 const qId = question.id;
                 const isActive = qId === activeQuestionId;
                 const answer = answers[qId];
+                const hasAnswer = Boolean(answer?.sql?.trim());
                 const isCompleted = Boolean(answer?.feedback?.score);
                 const questionNum = index + 1;
 
                 return (
                   <div key={qId} className={styles.stepperItem}>
-                    <div
-                      className={`${styles.stepperCircle} ${isActive ? styles.stepperCircleActive : ''} ${isCompleted ? styles.stepperCircleCompleted : ''}`}
+                    <button
+                      type="button"
+                      className={`${styles.stepperCircle} ${isActive ? styles.stepperCircleActive : ''} ${isCompleted ? styles.stepperCircleCompleted : ''} ${hasAnswer && !isCompleted ? styles.stepperCircleDraft : ''}`}
                       onClick={() => setActiveQuestionId(qId)}
-                      title={getVisibleQuestionText(question)}
-                      aria-label={getVisibleQuestionText(question)}
+                      title={`שאלה ${questionNum}`}
+                      aria-label={`שאלה ${questionNum}`}
                     >
-                      {isCompleted ? '⚡' : questionNum}
-                    </div>
+                      {isCompleted ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      ) : questionNum}
+                    </button>
                     {index < questions.length - 1 && (
                       <div className={`${styles.stepperLine} ${isCompleted ? styles.stepperLineCompleted : ''}`} />
                     )}
@@ -934,66 +934,59 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           <div className={styles.questionContent}>
             {activeQuestion ? (
               <div className={styles.questionSummaryCard}>
-                <div className={styles.questionSummaryHeader}>
-                  <span className={styles.questionSummaryBadge}>שאלה {questionNumber}</span>
-                </div>
+                {/* <span className={styles.questionSummaryBadge}>שאלה {questionNumber}</span> */}
                 <p className={styles.questionSummaryPrompt}>{activeQuestionText}</p>
-                <p
-                  className={`${styles.questionSummaryOutput} ${
-                    isExpectedOutputPlaceholder ? styles.questionSummaryOutputPlaceholder : ""
-                  }`}
-                >
-                  {resolvedExpectedOutputDescription}
-                </p>
+                {resolvedExpectedOutputDescription && (
+                  <p
+                    className={`${styles.questionSummaryOutput} ${
+                      isExpectedOutputPlaceholder ? styles.questionSummaryOutputPlaceholder : ""
+                    }`}
+                  >
+                    {resolvedExpectedOutputDescription}
+                  </p>
+                )}
               </div>
             ) : (
               <h3>{t("runner.question.placeholder")}</h3>
             )}
           </div>
-        
         </header>
 
         <div className={styles.editorSection}>
           <div className={styles.editorContainer}>
-            <div 
-              onClick={(e) => {
-                console.log("🔵 Editor container clicked", { 
-                  target: e.target, 
-                  currentTarget: e.currentTarget,
-                  activeQuestionId,
-                  editorValues: editorValues[activeQuestionId || '']
-                });
-              }}
-              style={{ width: '100%', height: '300px' }}
-            >
-              {/* Force LTR direction for Monaco to ensure native keybindings and input work reliably even in RTL layouts */}
+            <div className={styles.editorLabel}>
+              <span>SQL</span>
+              <span className={styles.autosaveIndicator}>
+                {autosaveState === "saving" ? "שומר..." : autosaveState === "saved" ? "נשמר ✓" : ""}
+              </span>
+            </div>
+            <div style={{ width: '100%', height: '260px' }}>
               <div dir="ltr" style={{ width: '100%', height: '100%' }}>
-              <Editor
-              height="300px"
-              value={activeQuestionId ? (editorValues[activeQuestionId] || "") : ""}
-              defaultLanguage="sql"
-              options={{
-                fontSize: 16,
-                fontFamily: "ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace",
-              }}
-              onChange={(value) => {
-                console.log("🟢 Monaco onChange triggered:", { 
-                  activeQuestionId, 
-                  valueLength: value?.length
-                });
-                if (activeQuestionId) {
-                  handleSqlChange(activeQuestionId, value || "");
-                }
-              }}
-              onMount={(editor) => {
-                console.log("🟡 Monaco editor mounted successfully");
-                editor.focus();
-              }}
-              />
+                <Editor
+                  height="260px"
+                  value={activeQuestionId ? (editorValues[activeQuestionId] || "") : ""}
+                  defaultLanguage="sql"
+                  options={{
+                    fontSize: 15,
+                    fontFamily: "ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace",
+                    minimap: { enabled: false },
+                    lineNumbers: "on",
+                    scrollBeyondLastLine: false,
+                    padding: { top: 12 },
+                    renderLineHighlight: "gutter",
+                  }}
+                  onChange={(value) => {
+                    if (activeQuestionId) {
+                      handleSqlChange(activeQuestionId, value || "");
+                    }
+                  }}
+                  onMount={(editor) => {
+                    editor.focus();
+                  }}
+                />
               </div>
             </div>
-          <div className={styles.editorActions}>
-            {/* Navigation Buttons */}
+            <div className={styles.editorActions}>
               <div className={styles.navigationButtons}>
                 <button
                   type="button"
@@ -1006,7 +999,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   }}
                   disabled={questions.findIndex(q => q.id === activeQuestionId) <= 0}
                 >
-                  ← שאלה קודמת
+                  → הקודמת
                 </button>
                 <button
                   type="button"
@@ -1019,7 +1012,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   }}
                   disabled={questions.findIndex(q => q.id === activeQuestionId) >= questions.length - 1}
                 >
-                  שאלה הבאה →
+                  הבאה ←
                 </button>
                 <button
                   type="button"
@@ -1027,7 +1020,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   onClick={() => activeQuestionId && handleShowAnswer(activeQuestionId)}
                   disabled={!activeQuestionId}
                 >
-                  👀 הצג חלופה לפתרון
+                  הצג פתרון
                 </button>
               </div>
               
@@ -1037,7 +1030,11 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 onClick={handleExecute}
                 disabled={executeMutation.isPending || !activeQuestionId}
               >
-                <span className={styles.runIcon}>{executeMutation.isPending ? "⏳" : "▶"}</span>
+                {executeMutation.isPending ? (
+                  <span className={styles.runButtonSpinner} />
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                )}
                 {executeMutation.isPending ? t("runner.actions.running") : t("runner.actions.run")}
               </button>
             </div>
@@ -1046,10 +1043,15 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           <div className={styles.feedbackPanel}>
             <div className={styles.feedbackHeader}>
               <h4 className={styles.feedbackTitle}>{t("runner.results.heading")}</h4>
+              {activeAnswer?.resultPreview && (
+                <span className={styles.resultCount}>
+                  {activeAnswer.resultPreview.rows.length} שורות
+                  {activeAnswer.resultPreview.truncated ? " (חלקי)" : ""}
+                </span>
+              )}
             </div>
             {executeMutation.isError && <p className={styles.errorText}>{t("runner.results.error")}</p>}
             
-            {/* Schema Error Notification - Show when there's a table/column not found error */}
             {activeAnswer?.feedback?.autoNotes && activeAnswer.feedback.score === 0 && (() => {
               const schemaError = parseSchemaError(activeAnswer.feedback.autoNotes);
               const isSchemaError = schemaError.type !== null || 
@@ -1076,7 +1078,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                       </p>
                     )}
                     <div className={styles.schemaHelpSection}>
-                      <p className={styles.schemaHelpTitle}>📋 הטבלאות והעמודות הזמינות:</p>
+                      <p className={styles.schemaHelpTitle}>הטבלאות והעמודות הזמינות:</p>
                       <div className={styles.schemaTablesList}>
                         {Object.entries(sidebarTables).map(([tableName, tableData]) => (
                           <div key={tableName} className={styles.schemaTableItem}>
@@ -1131,23 +1133,16 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         </div>
       </section>
 
-      {/* Right Sidebar: Michael Chat */}
+      {/* Left Sidebar: Michael Chat */}
       <aside className={styles.chatSidebar}>
         <div className={styles.chatHeader}>
-          <span className={styles.chatIcon}>💬</span>
-          <h3 className={styles.chatTitle}>שאל את Michael</h3>
+          <div className={styles.chatAvatarSmall}>M</div>
+          <div className={styles.chatHeaderText}>
+            <h3 className={styles.chatTitle}>שאל את Michael</h3>
+            <span className={styles.chatSubtitle}>עוזר AI לשאלות SQL</span>
+          </div>
         </div>
-        <div 
-          className={styles.chatContent}
-          style={{
-            flex: '1 1 0',
-            minHeight: 0,
-            height: 0,
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
+        <div className={styles.chatContent}>
           <Chat
             chatId={null}
             hideSidebar={true}
@@ -1159,15 +1154,21 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         </div>
       </aside>
 
-      {/* Submit Button - Fixed Bottom Right */}
+      {/* Submit Button - Fixed Bottom */}
       <button
         type="button"
         className={styles.submitButtonFixed}
         onClick={handleSubmitClick}
         disabled={submitMutation.isPending || submission?.status === "submitted" || submission?.status === "graded"}
       >
-        <span>{submitMutation.isPending ? "⏳" : submission?.status === "submitted" ? "✅" : "📤"}</span>
-        {submitMutation.isPending ? "מסיים..." : "סיום"}
+        {submitMutation.isPending ? (
+          <span className={styles.runButtonSpinner} />
+        ) : submission?.status === "submitted" ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        )}
+        {submitMutation.isPending ? "שולח..." : "הגש מטלה"}
       </button>
 
       {solutionModalQuestionId && (

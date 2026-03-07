@@ -7,6 +7,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  outputFileTracingRoot: __dirname,
+  allowedDevOrigins: ['localhost', '127.0.0.1', '10.0.0.8'],
   // Security headers for production
   async headers() {
     return [
@@ -65,7 +67,9 @@ const nextConfig = {
   // Next.js 16: moved out of experimental
   serverExternalPackages: ['pdfkit'],
   // Next.js 16 defaults to Turbopack for build; keep explicit to avoid mixed-config error
-  turbopack: {},
+  turbopack: {
+    root: __dirname,
+  },
   // Image optimization
   images: {
     domains: ['localhost'],
