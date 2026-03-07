@@ -1193,6 +1193,64 @@
   transform: translateY(-1px);
 }
 
+.composerToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.thinkingModeButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 999px;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.thinkingModeButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.thinkingModeButtonEnabled {
+  background: rgba(37, 99, 235, 0.1);
+  border-color: rgba(37, 99, 235, 0.18);
+  color: #1d4ed8;
+}
+
+.thinkingModeButtonDisabled {
+  background: rgba(148, 163, 184, 0.14);
+  border-color: rgba(100, 116, 139, 0.18);
+  color: #475569;
+}
+
+.thinkingModeButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.thinkingModeLabel {
+  letter-spacing: 0.02em;
+}
+
+.thinkingModeValue {
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.72);
+  color: inherit;
+}
+
+.thinkingModeHint {
+  font-size: 12px;
+  color: #64748b;
+}
+
 .toggleButton {
   position: fixed;
   bottom: 6.5%;
@@ -2596,6 +2654,19 @@
     padding: 12px;
     gap: 8px;
   }
+
+  .composerToolbar {
+    gap: 8px;
+  }
+
+  .thinkingModeButton {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .thinkingModeHint {
+    font-size: 11px;
+  }
   
   .input,
   .textarea {
@@ -2706,6 +2777,10 @@
     width: 32px;
     height: 32px;
     right: 6px;
+  }
+
+  .composerToolbar {
+    align-items: flex-start;
   }
   
   .actionButton {

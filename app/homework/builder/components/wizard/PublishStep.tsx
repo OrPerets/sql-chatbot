@@ -4,11 +4,13 @@ import Link from "next/link";
 import styles from "./Wizard.module.css";
 import type { DatasetDraft, MetadataDraft, QuestionDraft, WizardStepId } from "./types";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
+import type { DraftValidationSummary } from "./validation";
 
 interface PublishStepProps {
   metadata: MetadataDraft;
   dataset: DatasetDraft;
   questions: QuestionDraft[];
+  validationSummary: DraftValidationSummary;
   onBack: (step: WizardStepId) => void;
   onPublish: () => void;
   publishDisabled: boolean;
@@ -23,6 +25,7 @@ export function PublishStep({
   metadata,
   dataset,
   questions,
+  validationSummary,
   onBack,
   onPublish,
   publishDisabled,
@@ -30,7 +33,7 @@ export function PublishStep({
   autoSaveState,
   onRefresh,
 }: PublishStepProps) {
-  const { t } = useHomeworkLocale();
+  const { t, formatDateTime } = useHomeworkLocale();
   
   return (
     <div className={styles.stepContainer}>
@@ -48,8 +51,12 @@ export function PublishStep({
             <span>{metadata.courseId || "—"}</span>
           </div>
           <div className={styles.field}>
-            <label>תאריך הגשה</label>
-            <span>{metadata.dueAt ? new Date(metadata.dueAt).toLocaleString('he-IL') : "—"}</span>
+            <label>פתיחה לסטודנטים</label>
+            <span>{metadata.availableFrom ? formatDateTime(metadata.availableFrom) : "—"}</span>
+          </div>
+          <div className={styles.field}>
+            <label>סגירה לסטודנטים</label>
+            <span>{metadata.availableUntil ? formatDateTime(metadata.availableUntil) : "—"}</span>
           </div>
           <div className={styles.field}>
             <label>מצב פרסום</label>
@@ -72,9 +79,45 @@ export function PublishStep({
           </div>
         </div>
 
+        <div className={styles.fieldRow}>
+          <div className={styles.field}>
+            <label>תיאור כללי לסטודנט</label>
+            <span>{metadata.overview?.trim() || "—"}</span>
+          </div>
+          <div className={styles.field}>
+            <label>מבנה הנתונים ב-runner</label>
+            <span>{metadata.dataStructureNotes?.trim() || dataset.backgroundStory?.trim() || "—"}</span>
+          </div>
+        </div>
+
+        <div className={styles.section}>
+          <h4>בדיקות בטיחות לפני פרסום</h4>
+          <ul className={styles.list}>
+            {validationSummary.blockers.length === 0 ? (
+              <li className={styles.card}>
+                <strong>כל בדיקות החובה עברו.</strong>
+                <p className={styles.mutedText}>אפשר לפרסם את המטלה לסטודנטים.</p>
+              </li>
+            ) : (
+              validationSummary.blockers.map((issue) => (
+                <li key={issue} className={styles.card}>
+                  <strong>חסם פרסום</strong>
+                  <p className={styles.mutedText}>{issue}</p>
+                </li>
+              ))
+            )}
+            {validationSummary.warnings.map((issue) => (
+              <li key={issue} className={styles.card}>
+                <strong>אזהרה</strong>
+                <p className={styles.mutedText}>{issue}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+
         <div className={styles.section}>
           <h4>כיסוי שאלות</h4>
-          <p className={styles.mutedText}>ודאו שלכל שאלה יש הנחיות, SQL התחלתי, תוצאות צפויות וקריטריוני רובריקה.</p>
+          <p className={styles.mutedText}>ודאו שלכל שאלה יש ניסוח ברור, תיאור פלט צפוי, SQL התחלתי וקריטריוני רובריקה.</p>
           <ul className={styles.list}>
             {questions.map((question, index) => (
               <li key={question.id} className={styles.card}>
@@ -82,7 +125,11 @@ export function PublishStep({
                   <strong>שאלה {index + 1}</strong>
                   <span className={styles.badge}>{question.rubric.length} פריטי רובריקה</span>
                 </div>
-                <p className={styles.mutedText}>{question.instructions.slice(0, 160) || "לא סופקו הנחיות"}</p>
+                <p className={styles.mutedText}>{question.prompt.slice(0, 160) || "לא סופק ניסוח משימה"}</p>
+                <p className={styles.mutedText}>{question.expectedOutputDescription.slice(0, 160) || "לא סופק תיאור פלט צפוי"}</p>
+                {question.instructions.trim() ? (
+                  <p className={styles.mutedText}>{question.instructions.slice(0, 160)}</p>
+                ) : null}
                 <p className={styles.mutedText}>נקודות: {question.points} • ניסיונות מקסימליים: {question.maxAttempts}</p>
               </li>
             ))}

@@ -55,6 +55,13 @@ const navigationItems: NavigationItem[] = [
     route: '/admin/weekly-analytics'
   },
   {
+    id: 'exam-prep-analytics',
+    label: 'אנליטיקת הכנה למבחן',
+    icon: BarChart3,
+    type: 'route',
+    route: '/admin/exam-prep-analytics'
+  },
+  {
     id: 'overview',
     label: 'סקירה כללית',
     icon: BarChart3,

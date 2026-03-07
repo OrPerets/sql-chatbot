@@ -438,6 +438,7 @@ const Chat = ({
   const sessionIdRef = useRef("");
   const createSessionPromiseRef = useRef<Promise<string> | null>(null);
   const [user, setUser] = useState(null);
+  const [authResolved, setAuthResolved] = useState(false);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isDone, setIsDone] = useState(false);
@@ -473,6 +474,7 @@ const Chat = ({
   // Add hydration state to prevent layout shift
   const [isHydrated, setIsHydrated] = useState(false);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
+  const [isThinkingModeEnabled, setIsThinkingModeEnabled] = useState(true);
   
   // Debug logging for production
   useEffect(() => {
@@ -526,6 +528,11 @@ const Chat = ({
         setAvatarMode(savedAvatarMode);
       }
 
+      const savedThinkingMode = localStorage.getItem('thinkingModeEnabled');
+      if (savedThinkingMode === 'true' || savedThinkingMode === 'false') {
+        setIsThinkingModeEnabled(savedThinkingMode === 'true');
+      }
+
       setIsHydrated(true);
     }
   }, []);
@@ -536,6 +543,12 @@ const Chat = ({
       localStorage.setItem('displayMode', displayMode);
     }
   }, [displayMode, isHydrated]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && isHydrated) {
+      localStorage.setItem('thinkingModeEnabled', String(isThinkingModeEnabled));
+    }
+  }, [isHydrated, isThinkingModeEnabled]);
 
   // Add sidebar visibility state
   // Check if we're on mobile to default sidebar to closed
@@ -1206,13 +1219,16 @@ const updateUserBalance = async (value) => {
     const storedUser = getStoredUser();
     if (storedUser) {
       setUser(storedUser);
+      setAuthResolved(true);
       return;
     }
     if (embeddedMode) {
       setUser({ email: "homework-student", name: "Student" });
+      setAuthResolved(true);
       return;
     }
     setUser(null);
+    setAuthResolved(true);
   }, [embeddedMode, getStoredUser]);
 
   const createSession = useCallback(async (forceNew = false) => {
@@ -1543,10 +1559,6 @@ const updateUserBalance = async (value) => {
       }
     }
     
-    const thinkingIntentPattern =
-      /\b(think|thinking|reason|reasoning|analyze|analysis|step by step)\b|חשיבה|תחשוב|לחשוב|תהליך חשיבה/iu;
-    const hasThinkingIntent = thinkingIntentPattern.test(text);
-
     // Message text is used as-is.
     let messageWithTags = text;
 
@@ -1648,8 +1660,7 @@ const updateUserBalance = async (value) => {
             content: messageWithTags, // Send message with tags to AI
             imageData: imageData, // Send image data if available
             homeworkRunner: !!homeworkContext, // Allow all SQL (subqueries, CONCAT, ALL, TOP) in homework
-            tutorMode: hasThinkingIntent,
-            thinkingMode: hasThinkingIntent,
+            thinkingMode: isThinkingModeEnabled,
             stream: true,
           }),
         }
@@ -1887,11 +1898,14 @@ const loadChatMessages = (chatId: string) => {
   };
 
   useEffect(() => {
+    if (!authResolved) {
+      return;
+    }
     const storedUser = getStoredUser();
     if (!storedUser && !embeddedMode) {
-      router.push('/login'); // Redirect to login if no user is found
+      router.replace('/'); // Redirect to login entry if no user is found
     }
-  }, [router, embeddedMode, getStoredUser]);
+  }, [authResolved, router, embeddedMode, getStoredUser]);
 
   const handleLogout = () => {
     localStorage.removeItem("currentUser");
@@ -1899,8 +1913,23 @@ const loadChatMessages = (chatId: string) => {
     router.push('/');
   };
 
+  if (!authResolved) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div className={styles.loadingIndicator}></div>
+      </div>
+    );
+  }
+
   if (!user) {
-    return null; // Or you could return a loading indicator here
+    return null;
   }
 
   /*
@@ -2385,7 +2414,23 @@ return (
                 {streamError}
               </div>
             )}
-            
+
+            <div className={styles.composerToolbar}>
+              <button
+                type="button"
+                className={`${styles.thinkingModeButton} ${isThinkingModeEnabled ? styles.thinkingModeButtonEnabled : styles.thinkingModeButtonDisabled}`}
+                onClick={() => setIsThinkingModeEnabled((prev) => !prev)}
+                disabled={inputDisabled || imageProcessing}
+                aria-pressed={isThinkingModeEnabled}
+                title={isThinkingModeEnabled ? "כיבוי מצב חשיבה" : "הפעלת מצב חשיבה"}
+              >
+                <span className={styles.thinkingModeLabel}>Thinking</span>
+                <span className={styles.thinkingModeValue}>{isThinkingModeEnabled ? "On" : "Off"}</span>
+              </button>
+              <span className={styles.thinkingModeHint}>
+                {isThinkingModeEnabled ? "תשובות עם תהליך חשיבה" : "תשובות מהירות יותר"}
+              </span>
+            </div>
 
             <textarea
               className={styles.input}

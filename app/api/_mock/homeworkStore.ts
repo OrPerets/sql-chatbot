@@ -22,6 +22,50 @@ interface HomeworkRecord {
   questions: Question[];
 }
 
+function normalizeHomeworkSet(
+  payload: Partial<HomeworkSet> & { id: string; createdAt: string; updatedAt: string },
+): HomeworkSet {
+  const availableUntil = payload.availableUntil ?? payload.dueAt ?? payload.updatedAt;
+  const availableFrom = payload.availableFrom ?? payload.createdAt;
+
+  return {
+    id: payload.id,
+    title: payload.title ?? "Untitled Homework",
+    courseId: payload.courseId ?? "",
+    dueAt: payload.dueAt ?? availableUntil,
+    availableFrom,
+    availableUntil,
+    published: payload.published ?? false,
+    entryMode: payload.entryMode ?? "listed",
+    datasetPolicy: payload.datasetPolicy ?? "shared",
+    questionOrder: payload.questionOrder ?? [],
+    visibility: payload.visibility ?? "draft",
+    createdBy: payload.createdBy ?? "instructor-1",
+    createdAt: payload.createdAt,
+    updatedAt: payload.updatedAt,
+    overview: payload.overview,
+    selectedDatasetId: payload.selectedDatasetId,
+    backgroundStory: payload.backgroundStory,
+    dataStructureNotes: payload.dataStructureNotes,
+  };
+}
+
+function normalizeQuestion(question: Partial<Question>): Question {
+  return {
+    id: question.id ?? generateTempId("question"),
+    prompt: question.prompt ?? "",
+    instructions: question.instructions ?? "",
+    expectedOutputDescription: question.expectedOutputDescription ?? "",
+    starterSql: question.starterSql ?? "",
+    expectedResultSchema: question.expectedResultSchema ?? [],
+    gradingRubric: question.gradingRubric ?? [],
+    datasetId: question.datasetId,
+    maxAttempts: question.maxAttempts ?? 3,
+    points: question.points ?? 10,
+    evaluationMode: question.evaluationMode,
+  };
+}
+
 const datasets: Dataset[] = [
   {
     id: "dataset-retail",
@@ -52,25 +96,30 @@ const datasets: Dataset[] = [
 const homeworkRecords: HomeworkRecord[] = [
   {
     set: {
-      id: "hw-set-analytics",
-      title: "Analytics Fundamentals — Window Functions",
-      courseId: "CS305",
-      dueAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-      published: false,
-      datasetPolicy: "shared",
-      questionOrder: ["q1", "q2", "q3"],
-      visibility: "draft",
-      createdBy: "instructor-1",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      overview:
-        "Work through the analytics scenarios below. Each question allows three attempts and expects ANSI SQL compatible with our sandboxed executor.",
+      ...normalizeHomeworkSet({
+        id: "hw-set-analytics",
+        title: "Analytics Fundamentals — Window Functions",
+        courseId: "CS305",
+        dueAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+        published: false,
+        datasetPolicy: "shared",
+        questionOrder: ["q1", "q2", "q3"],
+        visibility: "draft",
+        createdBy: "instructor-1",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        overview:
+          "Work through the analytics scenarios below. Each question allows three attempts and expects ANSI SQL compatible with our sandboxed executor.",
+        dataStructureNotes:
+          "Use the orders and customers tables together. `orders.customer_id` joins to `customers.customer_id`.",
+      }),
     },
     questions: [
       {
         id: "q1",
         prompt: "Identify top three customers by total spend",
         instructions: "Join orders and customers tables, aggregate total_amount, order desc.",
+        expectedOutputDescription: "Return the customer name and total spend for the top three customers.",
         starterSql: "SELECT c.name, SUM(o.total_amount) AS total_spend FROM orders o JOIN customers c ON o.customer_id = c.customer_id GROUP BY 1 ORDER BY 2 DESC LIMIT 3;",
         expectedResultSchema: [
           { column: "name", type: "string" },
@@ -101,6 +150,7 @@ const homeworkRecords: HomeworkRecord[] = [
         id: "q2",
         prompt: "Calculate 7-day moving average of total sales",
         instructions: "Use window functions over orders table grouped by date.",
+        expectedOutputDescription: "Return each order date with its 7-day moving average of total sales.",
         starterSql: "",
         expectedResultSchema: [
           { column: "order_date", type: "date" },
@@ -131,6 +181,7 @@ const homeworkRecords: HomeworkRecord[] = [
         id: "q3",
         prompt: "Flag customers with month-over-month growth over 20%",
         instructions: "Combine aggregation with window lag comparison.",
+        expectedOutputDescription: "Return customer IDs whose month-over-month growth exceeds 20%, with the growth rate.",
         starterSql: "",
         expectedResultSchema: [
           { column: "customer_id", type: "string" },
@@ -333,6 +384,9 @@ export function listHomeworkSets(params?: HomeworkQueryParams & { page?: number;
   const page = params?.page ?? 1;
   const filtered = homeworkRecords
     .filter((record) => {
+      if (params?.courseId && record.set.courseId !== params.courseId) {
+        return false;
+      }
       if (!params?.status) return true;
       const status = record.set.visibility === "draft" && record.set.published ? "scheduled" : record.set.visibility;
       return params.status.includes(status as HomeworkQueryParams["status"] extends Array<infer T> ? T : never);
@@ -372,21 +426,15 @@ export function createHomework(payload: Partial<HomeworkSet> & { questions?: Que
   const now = new Date().toISOString();
   const id = payload.id ?? generateTempId("hw");
   const record: HomeworkRecord = {
-    set: {
+    set: normalizeHomeworkSet({
+      ...payload,
       id,
-      title: payload.title ?? "Untitled Homework",
-      courseId: payload.courseId ?? "",
-      dueAt: payload.dueAt ?? now,
-      published: payload.published ?? false,
-      datasetPolicy: payload.datasetPolicy ?? "shared",
       questionOrder: payload.questionOrder ?? payload.questions?.map((question) => question.id) ?? [],
-      visibility: payload.visibility ?? "draft",
-      createdBy: "instructor-1",
+      createdBy: payload.createdBy ?? "instructor-1",
       createdAt: now,
       updatedAt: now,
-      overview: payload.overview,
-    },
-    questions: payload.questions ?? [],
+    }),
+    questions: (payload.questions ?? []).map((question) => normalizeQuestion(question)),
   };
   homeworkRecords.push(record);
   return record.set;
@@ -395,29 +443,33 @@ export function createHomework(payload: Partial<HomeworkSet> & { questions?: Que
 export function updateHomework(setId: string, payload: Partial<HomeworkSet>) {
   const record = homeworkRecords.find((entry) => entry.set.id === setId);
   if (!record) return undefined;
-  record.set = { ...record.set, ...payload, updatedAt: new Date().toISOString() };
+  const updatedAt = new Date().toISOString();
+  record.set = normalizeHomeworkSet({
+    ...record.set,
+    ...payload,
+    id: record.set.id,
+    createdAt: record.set.createdAt,
+    updatedAt,
+  });
   return record.set;
 }
 
 export function saveDraft(setId: string, payload: SaveHomeworkDraftPayload) {
   const record = homeworkRecords.find((entry) => entry.set.id === setId);
   if (!record) return undefined;
-  record.set = {
+  record.set = normalizeHomeworkSet({
     ...record.set,
-    title: payload.title ?? record.set.title,
-    courseId: payload.courseId ?? record.set.courseId,
-    dueAt: payload.dueAt ?? record.set.dueAt,
-    datasetPolicy: payload.datasetPolicy ?? record.set.datasetPolicy,
+    ...payload,
+    id: record.set.id,
+    dueAt: payload.dueAt ?? payload.availableUntil ?? record.set.dueAt,
+    availableFrom: payload.availableFrom ?? record.set.availableFrom,
+    availableUntil: payload.availableUntil ?? payload.dueAt ?? record.set.availableUntil,
     questionOrder: payload.questionOrder ?? record.set.questionOrder,
-    visibility: payload.visibility ?? record.set.visibility,
-    overview: payload.overview ?? record.set.overview,
+    createdAt: record.set.createdAt,
     updatedAt: new Date().toISOString(),
-  };
+  });
   if (payload.questions) {
-    record.questions = payload.questions.map((question) => ({
-      ...question,
-      id: question.id ?? generateTempId("question"),
-    }));
+    record.questions = payload.questions.map((question) => normalizeQuestion(question));
   }
   return record.set;
 }
@@ -426,18 +478,7 @@ export function upsertQuestion(setId: string, question: Partial<Question>) {
   const record = homeworkRecords.find((entry) => entry.set.id === setId);
   if (!record) return undefined;
   const existingIndex = question.id ? record.questions.findIndex((item) => item.id === question.id) : -1;
-  const normalized: Question = {
-    id: question.id ?? generateTempId("question"),
-    prompt: question.prompt ?? "",
-    instructions: question.instructions ?? "",
-    starterSql: question.starterSql ?? "",
-    expectedResultSchema: question.expectedResultSchema ?? [],
-    gradingRubric: question.gradingRubric ?? [],
-    datasetId: question.datasetId,
-    maxAttempts: question.maxAttempts ?? 3,
-    points: question.points ?? 10,
-    evaluationMode: question.evaluationMode,
-  };
+  const normalized = normalizeQuestion(question);
   if (existingIndex >= 0) {
     record.questions[existingIndex] = normalized;
   } else {

@@ -97,6 +97,8 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
   const speakingAnimationRef = useRef<NodeJS.Timeout | null>(null);
   const currentStateRef = useRef<string>('idle'); // Track current state for intervals
   const previousTalkingHeadRef = useRef<any>(null); // Track TalkingHead object changes
+  const isMountedRef = useRef(false);
+  const initRequestRef = useRef(0);
 
   // Progressive speech state (simplified)
   const [currentlySpeakingText, setCurrentlySpeakingText] = useState<string>('');
@@ -118,6 +120,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
   };
 
   const initializeAvatar = useCallback(async () => {
+    const requestId = ++initRequestRef.current;
     const avatarFeature = typeof window !== 'undefined' && (process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1' || process.env.NODE_ENV === 'development');
     if (!avatarFeature) {
       console.log('⚠️ Avatar feature disabled via flag');
@@ -206,34 +209,15 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
       headRef.current = head;
       console.log('✅ headRef set');
 
-      // Prefer a robust ReadyPlayer.me avatar with ARKit morph targets
-      console.log('🎭 Loading ReadyPlayer.me avatar with ARKit morph targets...');
-      try {
-        await head.showAvatar({ 
-          url: 'https://models.readyplayer.me/68496fdfb85cb0b4ed9555ee.glb?morphTargets=ARKit,Oculus+Visemes&textureSizeLimit=1024&textureFormat=webp',
-          body: 'M',
-          avatarMood: 'neutral'
-        });
-        console.log('✅ RPM avatar loaded');
-      } catch (rpmErr) {
-        console.warn('⚠️ RPM load failed, trying local avatar with blink disabled', rpmErr);
+      await loadAvatarWithFallbacks(head);
+
+      if (!isMountedRef.current || initRequestRef.current !== requestId) {
         try {
-          await head.showAvatar({ url: '/michael.glb', body: 'M', avatarMood: 'neutral' });
-          // Disable blink morph usage to prevent eyeBlinkLeft/Right errors on models lacking these targets
-          try {
-            (head as any).enableEyeBlink = false as any;
-            if ((head as any).limits) {
-              (head as any).limits.eyeBlinkLeft = () => ({ value: 0 });
-              (head as any).limits.eyeBlinkRight = () => ({ value: 0 });
-            }
-          } catch {}
-          console.log('✅ Local avatar loaded with blink disabled');
-        } catch (localErr) {
-          console.error('💥 Local avatar load failed, falling back to default:', localErr);
-          await head.showAvatar({ body: 'M', avatarMood: 'neutral' });
-          try { (head as any).enableEyeBlink = false as any; } catch {}
-        }
+          head.stop?.();
+        } catch {}
+        return;
       }
+
       console.log('✅ Avatar loading completed successfully!');
 
       if (head.scene && typeof head.scene.traverse === 'function') {
@@ -336,6 +320,9 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
       console.log('🎉 Michael avatar initialized successfully!');
       
     } catch (err) {
+      if (!isMountedRef.current || initRequestRef.current !== requestId) {
+        return;
+      }
       console.error('💥 Failed to initialize Michael avatar:', err);
       console.error('💥 Error details:', {
         message: err.message,
@@ -351,44 +338,39 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
 
   const loadAvatarWithFallbacks = async (head: any) => {
     const strategies = [
-      // Strategy 1: ReadyPlayer.me avatar with optimal gesture support
+      // Strategy 1: Local avatar avoids first-load failures caused by external model fetches.
       async () => {
-        console.log('🎯 Trying strategy 1: ReadyPlayer.me avatar with gesture support...');
-        await head.showAvatar({ 
-          url: 'https://models.readyplayer.me/68496fdfb85cb0b4ed9555ee.glb?morphTargets=ARKit,Oculus+Visemes&textureSizeLimit=1024&textureFormat=webp',
-          body: 'M', // Ensure male body for gesture compatibility
-          lipsyncLang: 'en',
-          avatarMood: 'neutral',
-          modelDynamicBones: true // Enable dynamic bones for better gestures
-        });
-        console.log('✅ ReadyPlayer.me avatar with gesture support loaded successfully!');
-      },
-      
-      // Strategy 2: Simplified ReadyPlayer.me avatar with ARKit support
-      async () => {
-        console.log('🎯 Trying strategy 2: Simplified ReadyPlayer.me avatar...');
-        await head.showAvatar({ 
-          url: 'https://models.readyplayer.me/68496fdfb85cb0b4ed9555ee.glb?morphTargets=ARKit&textureSizeLimit=1024&textureFormat=png',
-          body: 'M',
-          avatarMood: 'neutral'
-        });
-        console.log('✅ Simplified ReadyPlayer.me avatar loaded!');
-      },
-      
-      // Strategy 3: Local Michael avatar with proper configuration
-      async () => {
-        console.log('🎯 Trying strategy 3: Local Michael avatar...');
+        console.log('🎯 Trying strategy 1: Local Michael avatar...');
         await head.showAvatar({ 
           url: '/michael.glb',
           body: 'M',
           avatarMood: 'neutral'
         });
+        try {
+          (head as any).enableEyeBlink = false as any;
+          if ((head as any).limits) {
+            (head as any).limits.eyeBlinkLeft = () => ({ value: 0 });
+            (head as any).limits.eyeBlinkRight = () => ({ value: 0 });
+          }
+        } catch {}
         console.log('✅ Local Michael avatar loaded!');
       },
       
-      // Strategy 4: Backup ReadyPlayer.me avatar
+      // Strategy 2: Backup local avatar path used in other deployments.
       async () => {
-        console.log('🎯 Trying strategy 4: Backup avatar...');
+        console.log('🎯 Trying strategy 2: Public avatars path...');
+        await head.showAvatar({ 
+          url: '/avatars/michael.glb',
+          body: 'M',
+          avatarMood: 'neutral'
+        });
+        try { (head as any).enableEyeBlink = false as any; } catch {}
+        console.log('✅ Public avatars path loaded!');
+      },
+      
+      // Strategy 3: Known-good ReadyPlayer model if local assets fail.
+      async () => {
+        console.log('🎯 Trying strategy 3: Backup ReadyPlayer avatar...');
         await head.showAvatar({ 
           url: 'https://models.readyplayer.me/64f1a714ce16e342a8cddd5d.glb?morphTargets=ARKit,Oculus+Visemes&textureSizeLimit=1024&textureFormat=png',
           body: 'M',
@@ -397,25 +379,15 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
         console.log('✅ Backup avatar loaded!');
       },
       
-      // Strategy 5: Alternative ReadyPlayer.me avatar (different model)
+      // Strategy 4: Secondary ReadyPlayer model.
       async () => {
-        console.log('🎯 Trying strategy 5: Alternative avatar...');
+        console.log('🎯 Trying strategy 4: Alternative avatar...');
         await head.showAvatar({ 
           url: 'https://models.readyplayer.me/668c7f110b64c8bc6b1b0a65.glb?morphTargets=ARKit,Oculus+Visemes&textureSizeLimit=1024&textureFormat=webp',
           body: 'M',
           avatarMood: 'neutral'
         });
         console.log('✅ Alternative avatar loaded!');
-      },
-      
-      // Strategy 6: Fallback to default avatar with gesture support
-      async () => {
-        console.log('🎯 Trying strategy 6: Default avatar with gestures...');
-        await head.showAvatar({
-          body: 'M',
-          avatarMood: 'neutral'
-        });
-        console.log('✅ Default avatar with gestures loaded!');
       }
     ];
 
@@ -1483,6 +1455,7 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
   // Initialize on mount
   useEffect(() => {
     console.log('🌟 MichaelAvatarDirect useEffect mounted!');
+    isMountedRef.current = true;
     
     let handleVoicesChanged: (() => void) | null = null;
     
@@ -1498,6 +1471,8 @@ const MichaelAvatarDirect = forwardRef<MichaelAvatarDirectRef, MichaelAvatarDire
     // Cleanup function
     return () => {
       console.log('🧹 Cleaning up MichaelAvatarDirect...');
+      isMountedRef.current = false;
+      initRequestRef.current += 1;
       
       // Clear animation intervals
       if (thinkingAnimationRef.current) {

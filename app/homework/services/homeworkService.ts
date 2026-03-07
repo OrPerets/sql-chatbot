@@ -11,7 +11,7 @@ import type {
 const BASE_PATH = "/api/homework";
 
 export async function listHomeworkSets(
-  params?: HomeworkQueryParams & { page?: number; pageSize?: number },
+  params?: HomeworkQueryParams & { page?: number; pageSize?: number; role?: string },
 ): Promise<PaginatedResponse<HomeworkSummary>> {
   return http(`${BASE_PATH}`, {
     params: params as Record<string, string | number | boolean | undefined>,

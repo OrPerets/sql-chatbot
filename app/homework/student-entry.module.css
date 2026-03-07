@@ -209,6 +209,159 @@
   text-decoration: underline;
 }
 
+.homeworkGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.homeworkCard {
+  border: 2px solid #dbeafe;
+  border-radius: 20px;
+  padding: 24px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 10px 30px rgba(37, 99, 235, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.homeworkCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.homeworkCardTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.homeworkCardCourse {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.homeworkCardMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.homeworkMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #334155;
+  font-size: 14px;
+}
+
+.homeworkCardMessage {
+  margin: 0;
+  color: #475569;
+  line-height: 1.6;
+  min-height: 48px;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.statusOpen {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.statusUpcoming {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.statusClosed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.selectedHomeworkMeta {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.selectedHomeworkMeta p {
+  margin: 0;
+  font-size: 14px;
+  color: #475569;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 24px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 20px;
+  color: #64748b;
+  text-align: center;
+}
+
+.statusPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+  padding: 12px 0;
+}
+
+.statusWindow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 20px;
+  width: 100%;
+  max-width: 540px;
+}
+
+.statusWindow p {
+  margin: 0;
+  color: #334155;
+  font-weight: 600;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #0f62fe;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
 /* Step 2: Instructions */
 .instructionsContent {
   display: flex;
@@ -669,8 +822,11 @@
     font-size: 32px;
   }
 
+  .homeworkCardHeader {
+    flex-direction: column;
+  }
+
   .buttonGroup {
     flex-direction: column;
   }
 }
-

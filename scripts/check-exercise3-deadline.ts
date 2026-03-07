@@ -39,14 +39,14 @@ async function checkExercise3Deadline() {
     console.log(`   Difference: ${(deadlineDate.getTime() - now.getTime()) / 1000 / 60} minutes`);
     
     // Check accessibility
-    const isAccessible = isHomeworkAccessible(exercise3Set.dueAt, null);
+    const isAccessible = isHomeworkAccessible(exercise3Set, null);
     console.log(`\n🔍 Is accessible (standard user): ${isAccessible ? '✅ YES' : '❌ NO'}`);
     
     // Check with extended deadline users
     const extendedUsers = ['nakash.tal@gmail.com', 'sagimor202@gmail.com'];
     for (const email of extendedUsers) {
       const effectiveDeadline = getEffectiveDeadline(exercise3Set.dueAt, email);
-      const isAccessibleExtended = isHomeworkAccessible(exercise3Set.dueAt, email);
+      const isAccessibleExtended = isHomeworkAccessible(exercise3Set, email);
       console.log(`\n🔍 Is accessible (${email}): ${isAccessibleExtended ? '✅ YES' : '❌ NO'}`);
       console.log(`   Effective deadline: ${effectiveDeadline.toISOString()}`);
       console.log(`   Local time: ${effectiveDeadline.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}`);

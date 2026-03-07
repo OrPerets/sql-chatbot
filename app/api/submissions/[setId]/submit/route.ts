@@ -5,7 +5,7 @@ import { findUserByIdOrEmail } from "@/lib/users";
 import { sendEmail } from "@/app/utils/email-service";
 import { getQuestionsByHomeworkSet } from "@/lib/questions";
 import { generateSubmissionPdf } from "@/lib/submission-pdf";
-import { isHomeworkAccessible } from "@/lib/deadline-utils";
+import { getHomeworkAvailabilityInfo, isHomeworkAccessible } from "@/lib/deadline-utils";
 
 interface RouteParams {
   params: Promise<{ setId: string }>;
@@ -69,11 +69,15 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     // Check if homework is still accessible
-    if (!isHomeworkAccessible(homeworkSet.dueAt, userEmail)) {
+    const availability = getHomeworkAvailabilityInfo(homeworkSet, userEmail);
+    if (!isHomeworkAccessible(homeworkSet, userEmail)) {
       return NextResponse.json(
         { 
-          error: "תאריך ההגשה חלף. שיעור הבית כבר לא זמין להגשה.",
-          dueAt: homeworkSet.dueAt
+          error: availability.availabilityMessage,
+          dueAt: homeworkSet.dueAt,
+          availableFrom: homeworkSet.availableFrom,
+          availableUntil: homeworkSet.availableUntil,
+          availabilityState: availability.availabilityState,
         },
         { status: 403 }
       );

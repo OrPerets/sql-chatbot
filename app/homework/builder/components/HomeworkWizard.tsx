@@ -20,6 +20,7 @@ import { RubricStep } from "./wizard/RubricStep";
 import { PublishStep } from "./wizard/PublishStep";
 import type { Question } from "@/app/homework/types";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
+import { validateHomeworkDraft } from "./wizard/validation";
 
 const stepConfig: Array<{ id: WizardStepId; labelKey: string }> = [
   { id: "metadata", labelKey: "builder.wizard.step.metadata" },
@@ -28,6 +29,17 @@ const stepConfig: Array<{ id: WizardStepId; labelKey: string }> = [
   { id: "rubric", labelKey: "builder.wizard.step.rubric" },
   { id: "publish", labelKey: "builder.wizard.step.publish" },
 ];
+
+function toDateTimeLocalValue(value?: string): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value.slice(0, 16);
+  }
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60 * 1000);
+  return local.toISOString().slice(0, 16);
+}
 
 function parseSchema(input: string): Array<{ column: string; type: string }> {
   try {
@@ -45,6 +57,7 @@ function buildQuestionsPayload(draft: HomeworkDraftState): Question[] {
   return draft.questions.map((question) => ({
     id: question.id,
     prompt: question.prompt,
+    expectedOutputDescription: question.expectedOutputDescription,
     instructions: question.instructions,
     starterSql: question.starterSql,
     expectedResultSchema: parseSchema(question.expectedResultSchema),
@@ -60,10 +73,13 @@ function buildDraftPayload(draft: HomeworkDraftState): SaveHomeworkDraftPayload 
   return {
     title: draft.metadata.title,
     courseId: draft.metadata.courseId,
-    dueAt: draft.metadata.dueAt,
+    dueAt: draft.metadata.availableUntil,
+    availableFrom: draft.metadata.availableFrom,
+    availableUntil: draft.metadata.availableUntil,
     visibility: draft.metadata.visibility,
     datasetPolicy: draft.metadata.datasetPolicy,
     overview: draft.metadata.overview,
+    dataStructureNotes: draft.metadata.dataStructureNotes,
     selectedDatasetId: draft.dataset.selectedDatasetId,
     backgroundStory: draft.dataset.backgroundStory,
     questionOrder: draft.questions.map((question) => question.id),
@@ -122,6 +138,7 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
     () => stepConfig.findIndex((step) => step.id === controller.step),
     [controller.step],
   );
+  const validationSummary = useMemo(() => validateHomeworkDraft(controller.draft), [controller.draft]);
 
   const canNavigateBack = currentStepIndex > 0;
 
@@ -152,10 +169,12 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
           metadata: {
             title: serverSet.title,
             courseId: serverSet.courseId,
-            dueAt: serverSet.dueAt,
+            availableFrom: toDateTimeLocalValue(serverSet.availableFrom || serverSet.createdAt),
+            availableUntil: toDateTimeLocalValue(serverSet.availableUntil || serverSet.dueAt),
             visibility: serverSet.visibility,
             datasetPolicy: serverSet.datasetPolicy,
             overview: serverSet.overview,
+            dataStructureNotes: serverSet.dataStructureNotes,
           },
           dataset: {
             selectedDatasetId: serverSet.selectedDatasetId || ordered.find((q) => Boolean(q.datasetId))?.datasetId,
@@ -166,6 +185,7 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
           questions: ordered.map((q) => ({
             id: q.id,
             prompt: q.prompt,
+            expectedOutputDescription: q.expectedOutputDescription ?? "",
             instructions: q.instructions,
             starterSql: q.starterSql ?? "",
             expectedResultSchema: JSON.stringify(q.expectedResultSchema ?? [], null, 2),
@@ -278,11 +298,11 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
   };
 
   const handlePublish = async () => {
-    if (!controller.setId) return;
+    if (!controller.setId || !validationSummary.canPublish) return;
     await publishMutation.mutateAsync({ setId: controller.setId, published: true });
   };
 
-  const publishDisabled = publishMutation.isPending || !controller.setId;
+  const publishDisabled = publishMutation.isPending || !controller.setId || !validationSummary.canPublish;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }} dir={direction}>
@@ -335,6 +355,7 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
           metadata={controller.draft.metadata}
           dataset={controller.draft.dataset}
           questions={controller.draft.questions}
+          validationSummary={validationSummary}
           onBack={navigateToStep}
           onPublish={handlePublish}
           publishDisabled={publishDisabled}

@@ -17,6 +17,7 @@ import styles from "./runner.module.css";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 import { SubmittedPage } from "./SubmittedPage";
 import Chat from "@/app/components/chat";
+import { InstructionsSection } from "./InstructionsSection";
 
 import Editor from "@monaco-editor/react";
 
@@ -655,6 +656,23 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const attemptsRemaining = activeQuestion?.maxAttempts
     ? Math.max(0, activeQuestion.maxAttempts - (activeAnswer?.executionCount ?? 0))
     : undefined;
+  const activeQuestionIndex = activeQuestion
+    ? Math.max(0, questions.findIndex((question) => question.id === activeQuestion.id))
+    : -1;
+  const questionNumber = activeQuestionIndex >= 0 ? activeQuestionIndex + 1 : 0;
+  const dataStructureNotes = homework?.dataStructureNotes?.trim() || homework?.backgroundStory?.trim() || "";
+  const questionInstructions = activeQuestion?.instructions?.trim() ?? "";
+  const expectedOutputDescription = activeQuestion?.expectedOutputDescription?.trim() ?? "";
+  const isPreviewContext = studentId === "student-demo";
+  const schemaColumnSummary = activeQuestion?.expectedResultSchema?.length
+    ? activeQuestion.expectedResultSchema.map((column) => column.column).join(", ")
+    : "";
+  const resolvedExpectedOutputDescription = expectedOutputDescription
+    || (schemaColumnSummary ? `הפלט צריך לכלול את העמודות: ${schemaColumnSummary}.` : "")
+    || (isPreviewContext
+      ? "לא הוגדר עדיין תיאור פלט צפוי. במצב תצוגה מקדימה כדאי להוסיף expectedOutputDescription לשאלה."
+      : "לא הוגדר תיאור מפורש לפלט הצפוי. הסתמכו על נוסח השאלה ועל תוצאות השאילתה הנכונות.");
+  const isExpectedOutputPlaceholder = !expectedOutputDescription;
 
   useEffect(() => {
     if (!solutionModalQuestionId) return;
@@ -752,8 +770,20 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       {/* Sidebar: Tables + Data */}
       <aside className={styles.sidebar}>
         <div className={styles.assignmentMeta}>
+          <InstructionsSection
+            title="מבנה הנתונים"
+            instructions={dataStructureNotes}
+            emptyMessage="לא צורף הסבר ייעודי למבנה הנתונים. היעזרו בטבלאות הדוגמה שמופיעות מתחת."
+          />
+
           {/* Database Viewer */}
           <div className={styles.databaseViewerSection}>
+            <div className={styles.tablesSectionHeader}>
+              <h3 className={styles.tablesSectionTitle}>טבלאות לדוגמה</h3>
+              <p className={styles.tablesSectionSubtitle}>
+                עיינו במבנה הטבלאות ובנתונים לדוגמה לפני כתיבת השאילתה.
+              </p>
+            </div>
             <button
               type="button"
               className={styles.databaseViewerButton}
@@ -843,31 +873,23 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           </div>
 
           <div className={styles.questionContent}>
-            <h3>{activeQuestion?.prompt ?? t("runner.question.placeholder")}</h3>
-            {(() => {
-              // Subheader = what to display as output (not duplicate of question)
-              const schema = activeQuestion?.expectedResultSchema;
-              const hasOutputColumns = Array.isArray(schema) && schema.length > 0;
-              const outputLabel = hasOutputColumns
-                ? schema!.map((c) => c.column).join(", ")
-                : null;
-              const instructions = activeQuestion?.instructions?.trim();
-              const prompt = activeQuestion?.prompt?.trim();
-              const instructionsDifferent = instructions && instructions !== prompt;
-              if (outputLabel) {
-                return (
-                  <p className={styles.questionOutputSubheader}>
-                    {t("runner.question.outputDisplay")}: {outputLabel}
-                  </p>
-                );
-              }
-              if (instructionsDifferent) {
-                return (
-                  <p className={styles.instructions}>{activeQuestion!.instructions}</p>
-                );
-              }
-              return null;
-            })()}
+            {activeQuestion ? (
+              <div className={styles.questionSummaryCard}>
+                <div className={styles.questionSummaryHeader}>
+                  <span className={styles.questionSummaryBadge}>שאלה {questionNumber}</span>
+                </div>
+                <p className={styles.questionSummaryPrompt}>{activeQuestion.prompt}</p>
+                <p
+                  className={`${styles.questionSummaryOutput} ${
+                    isExpectedOutputPlaceholder ? styles.questionSummaryOutputPlaceholder : ""
+                  }`}
+                >
+                  {resolvedExpectedOutputDescription}
+                </p>
+              </div>
+            ) : (
+              <h3>{t("runner.question.placeholder")}</h3>
+            )}
           </div>
         
         </header>
