@@ -71,8 +71,8 @@ export class QuestionsService {
   /**
    * Create a new question
    */
-  async createQuestion(questionData: Omit<Question, 'id'> & { homeworkSetId: string }): Promise<Question> {
-    const id = generateId();
+  async createQuestion(questionData: Omit<Question, 'id'> & { homeworkSetId: string; id?: string }): Promise<Question> {
+    const id = questionData.id || generateId();
     
     const question: QuestionModel = {
       id,
@@ -218,7 +218,7 @@ export async function getQuestionById(id: string): Promise<Question | null> {
   return service.getQuestionById(id);
 }
 
-export async function createQuestion(questionData: Omit<Question, 'id'> & { homeworkSetId: string }): Promise<Question> {
+export async function createQuestion(questionData: Omit<Question, 'id'> & { homeworkSetId: string; id?: string }): Promise<Question> {
   const service = await getQuestionsService();
   return service.createQuestion(questionData);
 }

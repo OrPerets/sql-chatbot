@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { updateHomeworkSet } from "@/lib/homework";
-import { upsertQuestion, getQuestionsService, getQuestionsByHomeworkSet } from "@/lib/questions";
+import { upsertQuestion, getQuestionsService } from "@/lib/questions";
 import { globalKeyedMutex } from "@/lib/mutex";
 import type { SaveHomeworkDraftPayload } from "@/app/homework/services/homeworkService";
+import type { Question } from "@/app/homework/types";
 
 interface RouteParams {
   params: Promise<{ setId: string }>;
@@ -35,16 +36,13 @@ export async function POST(request: Request, { params }: RouteParams) {
 
       console.log('Processing questions:', questions.length);
 
-      // Delete all existing questions for this set
-      try {
-        const service = await getQuestionsService();
-        const deletedCount = await service.deleteQuestionsByHomeworkSet(setId);
-        console.log('Deleted existing questions:', deletedCount);
-      } catch (error) {
-        console.error('Error deleting existing questions:', error);
-      }
+      const service = await getQuestionsService();
+      const existingQuestions = await service.getQuestionsByHomeworkSet(setId);
+      const existingQuestionIds = new Set(existingQuestions.map((question) => question.id));
+      const desiredQuestionIds = new Set<string>();
+      const savedQuestions: Question[] = [];
 
-      // Recreate/update questions deterministically in provided order
+      // Reconcile questions deterministically in payload order.
       for (let index = 0; index < questions.length; index++) {
         const question = questions[index]!;
         try {
@@ -54,19 +52,27 @@ export async function POST(request: Request, { params }: RouteParams) {
             instructions: question.instructions?.substring(0, 50) + '...'
           });
 
-          await upsertQuestion(setId, {
+          const savedQuestion = await upsertQuestion(setId, {
             ...question,
             evaluationMode: question.evaluationMode || "auto",
           });
+          desiredQuestionIds.add(savedQuestion.id);
+          savedQuestions.push(savedQuestion);
         } catch (error) {
           console.error(`Error creating question ${index}:`, error);
           throw error;
         }
       }
 
-      // Read back authoritative questions from DB and set order accordingly
-      const finalQuestions = await getQuestionsByHomeworkSet(setId);
-      const finalOrder = finalQuestions.map((q) => q.id);
+      const staleQuestionIds = existingQuestions
+        .map((question) => question.id)
+        .filter((questionId) => existingQuestionIds.has(questionId) && !desiredQuestionIds.has(questionId));
+
+      for (const questionId of staleQuestionIds) {
+        await service.deleteQuestion(questionId);
+      }
+
+      const finalOrder = savedQuestions.map((question) => question.id);
       console.log('Updating questionOrder (authoritative):', finalOrder);
 
       const finalUpdated = await updateHomeworkSet(setId, {
@@ -74,7 +80,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       });
 
       console.log('Final update completed');
-      return { status: 200 as const, body: { ...finalUpdated, questions: finalQuestions } };
+      return { status: 200 as const, body: { ...finalUpdated, questions: savedQuestions } };
     });
 
     if (result.status !== 200) {
