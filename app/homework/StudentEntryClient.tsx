@@ -21,6 +21,7 @@ type StudentVisibleHomework = Pick<
   | "dueAt"
   | "availableFrom"
   | "availableUntil"
+  | "overview"
   | "backgroundStory"
 > &
   Partial<HomeworkAvailabilityInfo>;
@@ -544,6 +545,16 @@ export function StudentEntryClient({ forcedSetId }: StudentEntryClientProps) {
                 </div>
               </div>
             </div>
+
+            {selectedHomework.overview ? (
+              <div className={styles.instructionsBox}>
+                <h3 className={styles.instructionsTitle}>
+                  <span>📋</span>
+                  הנחיות לתרגיל
+                </h3>
+                <div className={styles.instructionsText}>{selectedHomework.overview}</div>
+              </div>
+            ) : null}
 
             {selectedHomework.backgroundStory ? (
               <div className={styles.instructionsBox}>

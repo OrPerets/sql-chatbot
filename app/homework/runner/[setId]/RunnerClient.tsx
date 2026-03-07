@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getHomeworkQuestions, getHomeworkSet } from "@/app/homework/services/homeworkService";
+import { getDataset } from "@/app/homework/services/datasetService";
 import {
   getSubmission,
   saveSubmissionDraft,
@@ -12,7 +13,7 @@ import {
   SubmitHomeworkPayload,
 } from "@/app/homework/services/submissionService";
 import { executeSql } from "@/app/homework/services/sqlService";
-import type { Question, SqlExecutionRequest, Submission } from "@/app/homework/types";
+import type { Dataset, Question, SqlExecutionRequest, Submission } from "@/app/homework/types";
 import styles from "./runner.module.css";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 import { SubmittedPage } from "./SubmittedPage";
@@ -115,8 +116,13 @@ const parseSchemaError = (errorMessage: string | undefined): { type: 'table' | '
   return { type: null, name: null };
 };
 
-// Database sample data for "הכנה למבחן" schema (Exams, Students, Registrations, Scores)
-const DATABASE_SAMPLE_DATA: Record<string, { columns: string[]; rows: Record<string, string | number>[] }> = {
+type SidebarTable = {
+  columns: string[];
+  rows: Record<string, string | number | boolean | null>[];
+};
+
+// Fallback sample data for legacy homework sets that do not point to a dataset.
+const FALLBACK_SAMPLE_DATA: Record<string, SidebarTable> = {
   Exams: {
     columns: ["ExamID", "CourseCode", "ExamDate", "DurationMinutes", "Room"],
     rows: [
@@ -212,6 +218,12 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const toggleTableExpanded = useCallback((tableName: string) => {
     setExpandedTables((prev) => ({ ...prev, [tableName]: !prev[tableName] }));
   }, []);
+  const getVisibleQuestionText = useCallback((question: Question) => {
+    const prompt = question.prompt?.trim() ?? "";
+    const instructions = question.instructions?.trim() ?? "";
+    const promptLooksLikeLabel = /^שאלה\s*\d+$/u.test(prompt) || /^question\s*\d+$/iu.test(prompt);
+    return !prompt || promptLooksLikeLabel ? instructions || prompt : prompt;
+  }, []);
 
   const clearPendingSaves = useCallback(() => {
     Object.values(pendingRef.current).forEach((pending) => {
@@ -223,6 +235,11 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const homeworkQuery = useQuery({
     queryKey: ["homework", setId],
     queryFn: () => getHomeworkSet(setId),
+  });
+  const datasetQuery = useQuery({
+    queryKey: ["dataset", homeworkQuery.data?.selectedDatasetId ?? null],
+    queryFn: () => getDataset(homeworkQuery.data!.selectedDatasetId!),
+    enabled: Boolean(homeworkQuery.data?.selectedDatasetId),
   });
 
   const questionsQuery = useQuery({
@@ -631,6 +648,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
 
   const submission = submissionQuery.data;
   const homework = homeworkQuery.data;
+  const dataset = datasetQuery.data as Dataset | undefined;
   const questions = useMemo(() => {
     const data = questionsQuery.data;
     return Array.isArray(data) ? data : [];
@@ -673,6 +691,45 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       ? "לא הוגדר עדיין תיאור פלט צפוי. במצב תצוגה מקדימה כדאי להוסיף expectedOutputDescription לשאלה."
       : "לא הוגדר תיאור מפורש לפלט הצפוי. הסתמכו על נוסח השאלה ועל תוצאות השאילתה הנכונות.");
   const isExpectedOutputPlaceholder = !expectedOutputDescription;
+  const activeQuestionText = useMemo(
+    () => (activeQuestion ? getVisibleQuestionText(activeQuestion) : ""),
+    [activeQuestion, getVisibleQuestionText],
+  );
+  const sidebarTables = useMemo<Record<string, SidebarTable>>(() => {
+    if (submission?.studentTableData && Object.keys(submission.studentTableData).length > 0) {
+      return Object.fromEntries(
+        Object.entries(submission.studentTableData).map(([tableName, rows]) => {
+          const normalizedRows = Array.isArray(rows)
+            ? rows.map((row) => row as Record<string, string | number | boolean | null>)
+            : [];
+          const previewColumns = dataset?.previewTables.find((table) => table.name === tableName)?.columns ?? [];
+          const rowColumns = normalizedRows[0] ? Object.keys(normalizedRows[0]) : [];
+
+          return [
+            tableName,
+            {
+              columns: previewColumns.length > 0 ? previewColumns : rowColumns,
+              rows: normalizedRows,
+            },
+          ];
+        }),
+      );
+    }
+
+    if (dataset?.previewTables?.length) {
+      return Object.fromEntries(
+        dataset.previewTables.map((table) => [
+          table.name,
+          {
+            columns: table.columns,
+            rows: [],
+          },
+        ]),
+      );
+    }
+
+    return FALLBACK_SAMPLE_DATA;
+  }, [dataset?.previewTables, submission?.studentTableData]);
 
   useEffect(() => {
     if (!solutionModalQuestionId) return;
@@ -697,14 +754,14 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     return {
       homeworkTitle: homework.title,
       backgroundStory: homework.backgroundStory,
-      tables: Object.entries(DATABASE_SAMPLE_DATA).map(([name, data]) => ({
+      tables: Object.entries(sidebarTables).map(([name, data]) => ({
         name,
         columns: data.columns,
         sampleRows: data.rows,
       })),
       questions: questions.map((question, index) => ({
         id: question.id,
-        prompt: question.prompt,
+        prompt: getVisibleQuestionText(question),
         instructions: question.instructions,
         index: index + 1,
         points: question.points,
@@ -712,14 +769,14 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       currentQuestion: activeQuestion
         ? {
             id: activeQuestion.id,
-            prompt: activeQuestion.prompt,
+            prompt: activeQuestionText,
             instructions: activeQuestion.instructions,
             index: currentQuestionIndex >= 0 ? currentQuestionIndex + 1 : 1,
           }
         : null,
       studentTableData: submission?.studentTableData,
     };
-  }, [activeQuestion, homework, questions, submission?.studentTableData]);
+  }, [activeQuestion, activeQuestionText, getVisibleQuestionText, homework, questions, sidebarTables, submission?.studentTableData]);
 
   // Debug: Log activeAnswer whenever it changes
   useEffect(() => {
@@ -798,7 +855,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 <p className={styles.databaseViewerNote}>
                   להלן נתונים לדוגמא מכל טבלה בבסיס הנתונים:
                 </p>
-                {Object.entries(DATABASE_SAMPLE_DATA).map(([tableName, tableData]) => (
+                {Object.entries(sidebarTables).map(([tableName, tableData]) => (
                   <div key={tableName} className={styles.tableSection}>
                     <button
                       type="button"
@@ -860,6 +917,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                     <div
                       className={`${styles.stepperCircle} ${isActive ? styles.stepperCircleActive : ''} ${isCompleted ? styles.stepperCircleCompleted : ''}`}
                       onClick={() => setActiveQuestionId(qId)}
+                      title={getVisibleQuestionText(question)}
+                      aria-label={getVisibleQuestionText(question)}
                     >
                       {isCompleted ? '⚡' : questionNum}
                     </div>
@@ -878,7 +937,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 <div className={styles.questionSummaryHeader}>
                   <span className={styles.questionSummaryBadge}>שאלה {questionNumber}</span>
                 </div>
-                <p className={styles.questionSummaryPrompt}>{activeQuestion.prompt}</p>
+                <p className={styles.questionSummaryPrompt}>{activeQuestionText}</p>
                 <p
                   className={`${styles.questionSummaryOutput} ${
                     isExpectedOutputPlaceholder ? styles.questionSummaryOutputPlaceholder : ""
@@ -1019,7 +1078,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                     <div className={styles.schemaHelpSection}>
                       <p className={styles.schemaHelpTitle}>📋 הטבלאות והעמודות הזמינות:</p>
                       <div className={styles.schemaTablesList}>
-                        {Object.entries(DATABASE_SAMPLE_DATA).map(([tableName, tableData]) => (
+                        {Object.entries(sidebarTables).map(([tableName, tableData]) => (
                           <div key={tableName} className={styles.schemaTableItem}>
                             <span className={styles.schemaTableName}>{tableName}</span>
                             <span className={styles.schemaColumns}>

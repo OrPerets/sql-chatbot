@@ -112,6 +112,17 @@ async function runSeed(params?: { courseId?: string; dueAt?: string }) {
       );
     }
 
+    await homeworkService.updateHomeworkSet(homework.id, {
+      courseId,
+      dueAt,
+      availableFrom,
+      availableUntil,
+      overview,
+      backgroundStory,
+      dataStructureNotes,
+      selectedDatasetId: dataset.id,
+    });
+
     // 3) Remove all existing questions so we have exactly 10
     const questionsService = await getQuestionsService();
     const existingQs = await getQuestionsByHomeworkSet(homework.id);
