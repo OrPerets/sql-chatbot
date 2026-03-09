@@ -203,7 +203,8 @@ export const VALIDATION_SCHEMAS = {
         type: 'object',
         properties: {
           name: { type: 'string', required: true },
-          columns: { type: 'array', items: { type: 'string' } }
+          columns: { type: 'array', items: { type: 'string' } },
+          rows: { type: 'array' }
         }
       }
     },

@@ -5,6 +5,7 @@ export type HomeworkAvailabilityState = "upcoming" | "open" | "closed";
 export interface DatasetTablePreview {
   name: string;
   columns: string[];
+  rows?: Array<Record<string, string | number | boolean | null>>;
 }
 
 export interface Dataset {

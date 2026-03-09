@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, BookOpen, CalendarClock, ChevronLeft, Lock, Play } from "lucide-react";
 import styles from "./student-entry.module.css";
 import { isHomeworkAccessible } from "@/lib/deadline-utils";
+import { EXAM_PREP_ANNOUNCEMENT, isExamPrepTitle } from "@/lib/exam-prep-content";
 import type {
   HomeworkAvailabilityInfo,
   HomeworkAvailabilityState,
@@ -55,6 +56,10 @@ function formatDateTime(dateInput?: string): string {
 }
 
 function formatAvailabilityWindow(homework: StudentVisibleHomework | HomeworkStatusState): string {
+  if ("title" in homework && isExamPrepTitle(homework.title)) {
+    return EXAM_PREP_ANNOUNCEMENT;
+  }
+
   const from = homework.availableFrom ? formatDateTime(homework.availableFrom) : "פתיחה לא הוגדרה";
   const until = homework.availableUntil ? formatDateTime(homework.availableUntil) : "סגירה לא הוגדרה";
   return `${from} - ${until}`;
@@ -344,7 +349,7 @@ export function StudentEntryClient({ forcedSetId }: StudentEntryClientProps) {
       }
 
       setSelectedHomework(data);
-      const consentKey = `homeworkConsent_${userData.id}`;
+      const consentKey = `homeworkConsent_${userData.id}_${data.id}`;
       if (typeof window !== "undefined" && !localStorage.getItem(consentKey)) {
         setShowConsentModal(true);
       }
@@ -388,8 +393,8 @@ export function StudentEntryClient({ forcedSetId }: StudentEntryClientProps) {
   };
 
   const handleConsentApprove = () => {
-    if (studentId && typeof window !== "undefined") {
-      localStorage.setItem(`homeworkConsent_${studentId}`, "true");
+    if (studentId && selectedHomework?.id && typeof window !== "undefined") {
+      localStorage.setItem(`homeworkConsent_${studentId}_${selectedHomework.id}`, "true");
     }
     setShowConsentModal(false);
   };

@@ -123,78 +123,78 @@ type SidebarTable = {
 
 // Fallback sample data for legacy homework sets that do not point to a dataset.
 const FALLBACK_SAMPLE_DATA: Record<string, SidebarTable> = {
-  Exams: {
-    columns: ["ExamID", "CourseCode", "ExamDate", "DurationMinutes", "Room"],
+  Debates: {
+    columns: ["DebateID", "TopicCode", "DebateDate", "DurationMinutes", "Hall"],
     rows: [
-      { ExamID: 1, CourseCode: "SQL101", ExamDate: "2026-02-15", DurationMinutes: 90, Room: "A1" },
-      { ExamID: 2, CourseCode: "DB202", ExamDate: "2026-02-18", DurationMinutes: 120, Room: "B2" },
-      { ExamID: 3, CourseCode: "SQL101", ExamDate: "2026-02-22", DurationMinutes: 150, Room: "A1" },
-      { ExamID: 4, CourseCode: "DB202", ExamDate: "2026-02-25", DurationMinutes: 90, Room: "C3" },
-      { ExamID: 5, CourseCode: "SQL201", ExamDate: "2026-03-01", DurationMinutes: 135, Room: "A1" },
-      { ExamID: 6, CourseCode: "DB301", ExamDate: "2026-03-05", DurationMinutes: 105, Room: "B1" },
-      { ExamID: 7, CourseCode: "BI101", ExamDate: "2026-03-08", DurationMinutes: 80, Room: "D2" },
-      { ExamID: 8, CourseCode: "ST201", ExamDate: "2026-03-11", DurationMinutes: 140, Room: "A1" },
-      { ExamID: 9, CourseCode: "CS330", ExamDate: "2026-03-14", DurationMinutes: 110, Room: "C1" },
-      { ExamID: 10, CourseCode: "MATH220", ExamDate: "2026-03-18", DurationMinutes: 100, Room: "B3" },
+      { DebateID: 1, TopicCode: "POL101", DebateDate: "2026-02-15", DurationMinutes: 90, Hall: "North Hall" },
+      { DebateID: 2, TopicCode: "ENV202", DebateDate: "2026-02-18", DurationMinutes: 120, Hall: "East Hall" },
+      { DebateID: 3, TopicCode: "TECH101", DebateDate: "2026-02-22", DurationMinutes: 150, Hall: "North Hall" },
+      { DebateID: 4, TopicCode: "EDU202", DebateDate: "2026-02-25", DurationMinutes: 90, Hall: "West Hall" },
+      { DebateID: 5, TopicCode: "MEDIA201", DebateDate: "2026-03-01", DurationMinutes: 135, Hall: "North Hall" },
+      { DebateID: 6, TopicCode: "ETH301", DebateDate: "2026-03-05", DurationMinutes: 105, Hall: "South Hall" },
+      { DebateID: 7, TopicCode: "HEALTH101", DebateDate: "2026-03-08", DurationMinutes: 80, Hall: "City Hall" },
+      { DebateID: 8, TopicCode: "LAW201", DebateDate: "2026-03-11", DurationMinutes: 140, Hall: "North Hall" },
+      { DebateID: 9, TopicCode: "ECON330", DebateDate: "2026-03-14", DurationMinutes: 110, Hall: "Innovation Hall" },
+      { DebateID: 10, TopicCode: "CULT220", DebateDate: "2026-03-18", DurationMinutes: 100, Hall: "Central Hall" },
     ],
   },
-  Students: {
-    columns: ["StudentID", "FirstName", "LastName", "Major", "Year"],
+  Contestants: {
+    columns: ["ContestantID", "FirstName", "LastName", "School", "GradeLevel"],
     rows: [
-      { StudentID: 1001, FirstName: "Eli", LastName: "Cohen", Major: "CS", Year: 2 },
-      { StudentID: 1002, FirstName: "Maya", LastName: "Levy", Major: "Math", Year: 2 },
-      { StudentID: 1003, FirstName: "David", LastName: "Israeli", Major: "CS", Year: 3 },
-      { StudentID: 1004, FirstName: "Sarah", LastName: "Mizrahi", Major: "Math", Year: 2 },
-      { StudentID: 1005, FirstName: "Yossi", LastName: "Avraham", Major: "CS", Year: 3 },
-      { StudentID: 1006, FirstName: "Ronit", LastName: "Dahan", Major: "Math", Year: 1 },
-      { StudentID: 1007, FirstName: "Amit", LastName: "Ben-David", Major: "CS", Year: 2 },
-      { StudentID: 1008, FirstName: "Noa", LastName: "Shimon", Major: "Biology", Year: 1 },
-      { StudentID: 1009, FirstName: "Tom", LastName: "Gal", Major: "CS", Year: 4 },
-      { StudentID: 1010, FirstName: "Hila", LastName: "Adari", Major: "Math", Year: 3 },
+      { ContestantID: 1001, FirstName: "Eli", LastName: "Cohen", School: "Herzl High", GradeLevel: 10 },
+      { ContestantID: 1002, FirstName: "Maya", LastName: "Levy", School: "Rabin High", GradeLevel: 10 },
+      { ContestantID: 1003, FirstName: "David", LastName: "Israeli", School: "Herzl High", GradeLevel: 11 },
+      { ContestantID: 1004, FirstName: "Sarah", LastName: "Mizrahi", School: "Rabin High", GradeLevel: 10 },
+      { ContestantID: 1005, FirstName: "Yossi", LastName: "Avraham", School: "Herzl High", GradeLevel: 11 },
+      { ContestantID: 1006, FirstName: "Ronit", LastName: "Dahan", School: "Rabin High", GradeLevel: 9 },
+      { ContestantID: 1007, FirstName: "Amit", LastName: "Ben-David", School: "Herzl High", GradeLevel: 10 },
+      { ContestantID: 1008, FirstName: "Noa", LastName: "Shimon", School: "Galil School", GradeLevel: 9 },
+      { ContestantID: 1009, FirstName: "Tom", LastName: "Gal", School: "Herzl High", GradeLevel: 12 },
+      { ContestantID: 1010, FirstName: "Hila", LastName: "Adari", School: "Rabin High", GradeLevel: 11 },
     ],
   },
-  Registrations: {
-    columns: ["RegistrationID", "StudentID", "ExamID", "RegisteredAt", "Status"],
+  Enrollments: {
+    columns: ["EnrollmentID", "ContestantID", "DebateID", "RegisteredAt", "Status"],
     rows: [
-      { RegistrationID: 1, StudentID: 1001, ExamID: 1, RegisteredAt: "2026-01-10", Status: "approved" },
-      { RegistrationID: 2, StudentID: 1001, ExamID: 2, RegisteredAt: "2026-01-12", Status: "approved" },
-      { RegistrationID: 3, StudentID: 1002, ExamID: 1, RegisteredAt: "2026-01-11", Status: "approved" },
-      { RegistrationID: 4, StudentID: 1002, ExamID: 3, RegisteredAt: "2026-01-14", Status: "waitlist" },
-      { RegistrationID: 5, StudentID: 1003, ExamID: 1, RegisteredAt: "2026-01-09", Status: "approved" },
-      { RegistrationID: 6, StudentID: 1003, ExamID: 2, RegisteredAt: "2026-01-13", Status: "approved" },
-      { RegistrationID: 7, StudentID: 1003, ExamID: 3, RegisteredAt: "2026-01-15", Status: "approved" },
-      { RegistrationID: 8, StudentID: 1004, ExamID: 2, RegisteredAt: "2026-01-11", Status: "approved" },
-      { RegistrationID: 9, StudentID: 1004, ExamID: 4, RegisteredAt: "2026-01-16", Status: "waitlist" },
-      { RegistrationID: 10, StudentID: 1005, ExamID: 1, RegisteredAt: "2026-01-10", Status: "approved" },
-      { RegistrationID: 11, StudentID: 1005, ExamID: 3, RegisteredAt: "2026-01-14", Status: "approved" },
-      { RegistrationID: 12, StudentID: 1006, ExamID: 2, RegisteredAt: "2026-01-12", Status: "waitlist" },
-      { RegistrationID: 13, StudentID: 1007, ExamID: 1, RegisteredAt: "2026-01-15", Status: "approved" },
-      { RegistrationID: 14, StudentID: 1007, ExamID: 2, RegisteredAt: "2026-01-16", Status: "approved" },
-      { RegistrationID: 15, StudentID: 1008, ExamID: 4, RegisteredAt: "2026-01-17", Status: "approved" },
-      { RegistrationID: 16, StudentID: 1009, ExamID: 5, RegisteredAt: "2026-01-19", Status: "approved" },
-      { RegistrationID: 17, StudentID: 1009, ExamID: 8, RegisteredAt: "2026-01-21", Status: "approved" },
-      { RegistrationID: 18, StudentID: 1010, ExamID: 6, RegisteredAt: "2026-01-20", Status: "approved" },
-      { RegistrationID: 19, StudentID: 1010, ExamID: 10, RegisteredAt: "2026-01-24", Status: "waitlist" },
+      { EnrollmentID: 1, ContestantID: 1001, DebateID: 1, RegisteredAt: "2026-01-10", Status: "approved" },
+      { EnrollmentID: 2, ContestantID: 1001, DebateID: 2, RegisteredAt: "2026-01-12", Status: "approved" },
+      { EnrollmentID: 3, ContestantID: 1002, DebateID: 1, RegisteredAt: "2026-01-11", Status: "approved" },
+      { EnrollmentID: 4, ContestantID: 1002, DebateID: 3, RegisteredAt: "2026-01-14", Status: "waitlist" },
+      { EnrollmentID: 5, ContestantID: 1003, DebateID: 1, RegisteredAt: "2026-01-09", Status: "approved" },
+      { EnrollmentID: 6, ContestantID: 1003, DebateID: 2, RegisteredAt: "2026-01-13", Status: "approved" },
+      { EnrollmentID: 7, ContestantID: 1003, DebateID: 3, RegisteredAt: "2026-01-15", Status: "approved" },
+      { EnrollmentID: 8, ContestantID: 1004, DebateID: 2, RegisteredAt: "2026-01-11", Status: "approved" },
+      { EnrollmentID: 9, ContestantID: 1004, DebateID: 4, RegisteredAt: "2026-01-16", Status: "waitlist" },
+      { EnrollmentID: 10, ContestantID: 1005, DebateID: 1, RegisteredAt: "2026-01-10", Status: "approved" },
+      { EnrollmentID: 11, ContestantID: 1005, DebateID: 3, RegisteredAt: "2026-01-14", Status: "approved" },
+      { EnrollmentID: 12, ContestantID: 1006, DebateID: 2, RegisteredAt: "2026-01-12", Status: "waitlist" },
+      { EnrollmentID: 13, ContestantID: 1007, DebateID: 1, RegisteredAt: "2026-01-15", Status: "approved" },
+      { EnrollmentID: 14, ContestantID: 1007, DebateID: 2, RegisteredAt: "2026-01-16", Status: "approved" },
+      { EnrollmentID: 15, ContestantID: 1008, DebateID: 4, RegisteredAt: "2026-01-17", Status: "approved" },
+      { EnrollmentID: 16, ContestantID: 1009, DebateID: 5, RegisteredAt: "2026-01-19", Status: "approved" },
+      { EnrollmentID: 17, ContestantID: 1009, DebateID: 8, RegisteredAt: "2026-01-21", Status: "approved" },
+      { EnrollmentID: 18, ContestantID: 1010, DebateID: 6, RegisteredAt: "2026-01-20", Status: "approved" },
+      { EnrollmentID: 19, ContestantID: 1010, DebateID: 10, RegisteredAt: "2026-01-24", Status: "waitlist" },
     ],
   },
-  Scores: {
-    columns: ["StudentID", "ExamID", "Score", "GradedAt", "FirstExamDate"],
+  Results: {
+    columns: ["ContestantID", "DebateID", "Score", "JudgedAt", "FirstDebateDate"],
     rows: [
-      { StudentID: 1001, ExamID: 1, Score: 85, GradedAt: "2026-02-16", FirstExamDate: "2026-02-15" },
-      { StudentID: 1001, ExamID: 2, Score: 90, GradedAt: "2026-02-19", FirstExamDate: "2026-02-18" },
-      { StudentID: 1002, ExamID: 1, Score: 78, GradedAt: "2026-02-16", FirstExamDate: "2026-02-15" },
-      { StudentID: 1003, ExamID: 1, Score: 92, GradedAt: "2026-02-16", FirstExamDate: "2026-02-15" },
-      { StudentID: 1003, ExamID: 2, Score: 88, GradedAt: "2026-02-19", FirstExamDate: "2026-02-18" },
-      { StudentID: 1003, ExamID: 3, Score: 95, GradedAt: "2026-02-23", FirstExamDate: "2026-02-22" },
-      { StudentID: 1004, ExamID: 2, Score: 72, GradedAt: "2026-02-19", FirstExamDate: "2026-02-18" },
-      { StudentID: 1005, ExamID: 1, Score: 80, GradedAt: "2026-02-16", FirstExamDate: "2026-02-15" },
-      { StudentID: 1005, ExamID: 3, Score: 84, GradedAt: "2026-02-23", FirstExamDate: "2026-02-22" },
-      { StudentID: 1007, ExamID: 1, Score: 91, GradedAt: "2026-02-16", FirstExamDate: "2026-02-15" },
-      { StudentID: 1007, ExamID: 2, Score: 87, GradedAt: "2026-02-19", FirstExamDate: "2026-02-18" },
-      { StudentID: 1008, ExamID: 4, Score: 75, GradedAt: "2026-02-26", FirstExamDate: "2026-02-25" },
-      { StudentID: 1009, ExamID: 5, Score: 89, GradedAt: "2026-03-02", FirstExamDate: "2026-03-01" },
-      { StudentID: 1009, ExamID: 8, Score: 86, GradedAt: "2026-03-12", FirstExamDate: "2026-03-11" },
-      { StudentID: 1010, ExamID: 6, Score: 82, GradedAt: "2026-03-06", FirstExamDate: "2026-03-05" },
+      { ContestantID: 1001, DebateID: 1, Score: 85, JudgedAt: "2026-02-16", FirstDebateDate: "2026-02-15" },
+      { ContestantID: 1001, DebateID: 2, Score: 90, JudgedAt: "2026-02-19", FirstDebateDate: "2026-02-18" },
+      { ContestantID: 1002, DebateID: 1, Score: 78, JudgedAt: "2026-02-16", FirstDebateDate: "2026-02-15" },
+      { ContestantID: 1003, DebateID: 1, Score: 92, JudgedAt: "2026-02-16", FirstDebateDate: "2026-02-15" },
+      { ContestantID: 1003, DebateID: 2, Score: 88, JudgedAt: "2026-02-19", FirstDebateDate: "2026-02-18" },
+      { ContestantID: 1003, DebateID: 3, Score: 95, JudgedAt: "2026-02-23", FirstDebateDate: "2026-02-22" },
+      { ContestantID: 1004, DebateID: 2, Score: 72, JudgedAt: "2026-02-19", FirstDebateDate: "2026-02-18" },
+      { ContestantID: 1005, DebateID: 1, Score: 80, JudgedAt: "2026-02-16", FirstDebateDate: "2026-02-15" },
+      { ContestantID: 1005, DebateID: 3, Score: 84, JudgedAt: "2026-02-23", FirstDebateDate: "2026-02-22" },
+      { ContestantID: 1007, DebateID: 1, Score: 91, JudgedAt: "2026-02-16", FirstDebateDate: "2026-02-15" },
+      { ContestantID: 1007, DebateID: 2, Score: 87, JudgedAt: "2026-02-19", FirstDebateDate: "2026-02-18" },
+      { ContestantID: 1008, DebateID: 4, Score: 75, JudgedAt: "2026-02-26", FirstDebateDate: "2026-02-25" },
+      { ContestantID: 1009, DebateID: 5, Score: 89, JudgedAt: "2026-03-02", FirstDebateDate: "2026-03-01" },
+      { ContestantID: 1009, DebateID: 8, Score: 86, JudgedAt: "2026-03-12", FirstDebateDate: "2026-03-11" },
+      { ContestantID: 1010, DebateID: 6, Score: 82, JudgedAt: "2026-03-06", FirstDebateDate: "2026-03-05" },
     ],
   },
 };
@@ -722,7 +722,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           table.name,
           {
             columns: table.columns,
-            rows: [],
+            rows: (table.rows ?? []) as Record<string, string | number | boolean | null>[],
           },
         ]),
       );
@@ -730,6 +730,22 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
 
     return FALLBACK_SAMPLE_DATA;
   }, [dataset?.previewTables, submission?.studentTableData]);
+
+  useEffect(() => {
+    setExpandedTables((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      Object.entries(sidebarTables).forEach(([tableName, tableData]) => {
+        if (prev[tableName] === undefined && tableData.rows.length > 0) {
+          next[tableName] = true;
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [sidebarTables]);
 
   useEffect(() => {
     if (!solutionModalQuestionId) return;
@@ -862,29 +878,35 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                         {expandedTables[tableName] ? "▾" : "▸"}
                       </span>
                       <span className={styles.tableName}>{tableName}</span>
-                      <span className={styles.tableColumnCount}>{tableData.columns.length} עמודות</span>
+                      <span className={styles.tableColumnCount}>
+                        {tableData.columns.length} עמודות, {tableData.rows.length} שורות
+                      </span>
                     </button>
                     
                     {expandedTables[tableName] && (
                       <div className={styles.tableSampleData}>
-                        <table className={styles.sampleDataTable}>
-                          <thead>
-                            <tr>
-                              {tableData.columns.map((col) => (
-                                <th key={col}>{col}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {tableData.rows.map((row, idx) => (
-                              <tr key={idx}>
+                        {tableData.rows.length > 0 ? (
+                          <table className={styles.sampleDataTable}>
+                            <thead>
+                              <tr>
                                 {tableData.columns.map((col) => (
-                                  <td key={col}>{String(row[col] ?? "")}</td>
+                                  <th key={col}>{col}</th>
                                 ))}
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {tableData.rows.map((row, idx) => (
+                                <tr key={idx}>
+                                  {tableData.columns.map((col) => (
+                                    <td key={col}>{String(row[col] ?? "")}</td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : (
+                          <p className={styles.instructionsEmpty}>לא הוגדרו שורות דוגמה לטבלה זו.</p>
+                        )}
                       </div>
                     )}
                   </div>
