@@ -248,7 +248,7 @@ export async function POST(request: Request) {
     const textInput = content || "";
     const tutorIntent = hasTutorIntent(textInput, body.tutorMode, body.metadata);
     const responseFormat = tutorIntent ? getSqlTutorResponseFormat() : undefined;
-    const reasoningModeEnabled = body.thinkingMode !== false || tutorIntent;
+    const reasoningModeEnabled = body.thinkingMode !== false;
     const reasoningLanguageInstructions = reasoningModeEnabled
       ? "\n\n[REASONING SUMMARY LANGUAGE]\nWhen generating reasoning summaries, always write them in natural Hebrew (עברית) only. Keep each summary concise, student-friendly, and focused on what helps the user. Do not mention tools, function calls, APIs, or internal system actions. If a draft appears in English, rewrite it to Hebrew before returning it."
       : "";
@@ -462,22 +462,49 @@ export async function POST(request: Request) {
     let loopInput: any = initialInput;
     let previousResponseId = body.previousResponseId;
     let response: any = null;
+    let includeReasoningSummary = reasoningModeEnabled;
 
     for (let iteration = 1; iteration <= maxIterations; iteration += 1) {
-      response = await createResponse({
-        input: loopInput,
-        previousResponseId,
-        tools,
-        toolChoice: iteration === 1 ? weeklyPolicy.forcedInitialToolChoice : undefined,
-        extraInstructions,
-        responseFormat,
-        metadata: {
-          ...(body.metadata || {}),
-          session_id: sessionId || "",
-          route: "/api/responses/messages",
-          tool_loop_iteration: String(iteration),
-        },
-      });
+      try {
+        response = await createResponse({
+          input: loopInput,
+          previousResponseId,
+          tools,
+          toolChoice: iteration === 1 ? weeklyPolicy.forcedInitialToolChoice : undefined,
+          extraInstructions,
+          responseFormat,
+          reasoning: includeReasoningSummary ? { summary: "detailed" } : undefined,
+          metadata: {
+            ...(body.metadata || {}),
+            session_id: sessionId || "",
+            route: "/api/responses/messages",
+            tool_loop_iteration: String(iteration),
+          },
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message.toLowerCase() : "";
+        const canRetryWithoutReasoning =
+          includeReasoningSummary &&
+          (message.includes("reasoning") || message.includes("summary"));
+        if (!canRetryWithoutReasoning) {
+          throw error;
+        }
+        includeReasoningSummary = false;
+        response = await createResponse({
+          input: loopInput,
+          previousResponseId,
+          tools,
+          toolChoice: iteration === 1 ? weeklyPolicy.forcedInitialToolChoice : undefined,
+          extraInstructions,
+          responseFormat,
+          metadata: {
+            ...(body.metadata || {}),
+            session_id: sessionId || "",
+            route: "/api/responses/messages",
+            tool_loop_iteration: String(iteration),
+          },
+        });
+      }
 
       const calls = extractFunctionCalls(response);
       if (!calls.length) {

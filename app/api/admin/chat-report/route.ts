@@ -319,6 +319,9 @@ export async function GET(request: NextRequest) {
           timestamp: { $gte: startDate, $lte: endDate }
         })
         .sort({ timestamp: 1 })
+        // This query can span many sessions and exceed MongoDB's in-memory sort limit.
+        // allowDiskUse requires an explicit sort and must be set after sort is configured.
+        .allowDiskUse(true)
         .toArray()
 
       // Get user emails for better reporting

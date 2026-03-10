@@ -31,7 +31,7 @@ export function QuestionsStep({ questions, onChange, onBack, onNext, primaryData
       if (question.isParametric) {
         return question.templateId && question.templateId.trim().length > 0;
       } else {
-        return question.prompt.trim().length > 0 && question.instructions.trim().length > 0;
+        return question.prompt.trim().length > 0 && question.expectedOutputDescription.trim().length > 0;
       }
     });
 
@@ -164,12 +164,24 @@ export function QuestionsStep({ questions, onChange, onBack, onNext, primaryData
                     />
                   </div>
                   <div className={styles.field}>
+                    <label htmlFor={`expected-output-${question.id}`}>תיאור הפלט הצפוי</label>
+                    <textarea
+                      id={`expected-output-${question.id}`}
+                      value={question.expectedOutputDescription}
+                      onChange={(event) =>
+                        handleQuestionChange(question.id, { expectedOutputDescription: event.target.value })
+                      }
+                      placeholder="הסבירו מה הסטודנט אמור לראות בתוצאה: עמודות, מיון, מספר שורות או משמעות הפלט."
+                      rows={3}
+                    />
+                  </div>
+                  <div className={styles.field}>
                     <label htmlFor={`instructions-${question.id}`}>{t("builder.questions.instructions")}</label>
                     <textarea
                       id={`instructions-${question.id}`}
                       value={question.instructions}
                       onChange={(event) => handleQuestionChange(question.id, { instructions: event.target.value })}
-                      placeholder={t("builder.questions.instructionsPlaceholder")}
+                      placeholder="רמזים, מגבלות, פונקציות שכדאי להשתמש בהן, או הבהרות נוספות שאינן חלק מהמשימה עצמה."
                     />
                   </div>
                 </>

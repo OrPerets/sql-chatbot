@@ -3,10 +3,10 @@
 import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from "react";
 import heDictionary from "../locales/he.json";
 import enDictionary from "../locales/en.json";
-
-type SupportedLocale = "he" | "en";
+import { resolveHomeworkLocale, type SupportedHomeworkLocale } from "./locale";
 
 type TranslationParams = Record<string, string | number>;
+type HomeworkLocaleProviderProps = PropsWithChildren<{ initialLocale?: string | null }>;
 
 type HomeworkI18nContextValue = {
   locale: SupportedLocale;
@@ -15,6 +15,8 @@ type HomeworkI18nContextValue = {
   formatDateTime: (value: string | number | Date, options?: Intl.DateTimeFormatOptions) => string;
   formatNumber: (value: number, options?: Intl.NumberFormatOptions) => string;
 };
+
+type SupportedLocale = SupportedHomeworkLocale;
 
 const dictionaries: Record<SupportedLocale, Record<string, string>> = {
   he: heDictionary,
@@ -31,12 +33,6 @@ const DEFAULT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
 
 const LocaleContext = createContext<HomeworkI18nContextValue | null>(null);
 
-function resolveLocale(candidate?: string | null): SupportedLocale {
-  if (!candidate) return "he";
-  if (candidate.toLowerCase().startsWith("en")) return "en";
-  return "he";
-}
-
 function formatTemplate(template: string, params?: TranslationParams): string {
   if (!params) return template;
   return template.replace(/\{(\w+)\}/g, (_, token) => {
@@ -45,14 +41,18 @@ function formatTemplate(template: string, params?: TranslationParams): string {
   });
 }
 
-export function HomeworkLocaleProvider({ children }: PropsWithChildren) {
-  const [locale, setLocale] = useState<SupportedLocale>("he");
+export function HomeworkLocaleProvider({ children, initialLocale }: HomeworkLocaleProviderProps) {
+  const [locale, setLocale] = useState<SupportedLocale>(() => resolveHomeworkLocale(initialLocale));
 
   useEffect(() => {
-    if (typeof document === "undefined") return;
-    const detected = resolveLocale(document.documentElement.lang || navigator.language);
-    setLocale(detected);
-  }, []);
+    if (!initialLocale && typeof document !== "undefined") {
+      const detected = resolveHomeworkLocale(document.documentElement.lang || navigator.language);
+      setLocale(detected);
+      return;
+    }
+
+    setLocale(resolveHomeworkLocale(initialLocale));
+  }, [initialLocale]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;

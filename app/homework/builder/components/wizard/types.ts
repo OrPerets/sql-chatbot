@@ -5,9 +5,11 @@ export type WizardStepId = "metadata" | "dataset" | "questions" | "rubric" | "pu
 export interface MetadataDraft {
   title: string;
   courseId: string;
-  dueAt: string;
+  availableFrom: string;
+  availableUntil: string;
   visibility: HomeworkVisibility;
   overview?: string;
+  dataStructureNotes?: string;
   datasetPolicy?: "shared" | "custom";
 }
 
@@ -23,6 +25,7 @@ export type EvaluationMode = "auto" | "manual" | "custom";
 export interface QuestionDraft {
   id: string;
   prompt: string;
+  expectedOutputDescription: string;
   instructions: string;
   starterSql: string;
   expectedResultSchema: string;

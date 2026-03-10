@@ -8,6 +8,8 @@ import { getHomeworkSet, getHomeworkQuestions, publishHomework } from "@/app/hom
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 import type { HomeworkSet, Question } from "@/app/homework/types";
 import styles from "./publish.module.css";
+import { validateHomeworkDraft } from "@/app/homework/builder/components/wizard/validation";
+import { buildExpectedOutputDescription } from "@/app/homework/utils/question-output";
 
 interface PublishHomeworkClientProps {
   setId: string;
@@ -19,12 +21,12 @@ export function PublishHomeworkClient({ setId }: PublishHomeworkClientProps) {
   const [publishMessage, setPublishMessage] = useState<string | null>(null);
 
   const homeworkQuery = useQuery({
-    queryKey: ["homework", setId],
-    queryFn: () => getHomeworkSet(setId),
+    queryKey: ["homework", setId, "builder"],
+    queryFn: () => getHomeworkSet(setId, "builder"),
   });
 
   const questionsQuery = useQuery({
-    queryKey: ["homework", setId, "questions"],
+    queryKey: ["homework", setId, "questions", "builder"],
     queryFn: () => getHomeworkQuestions(setId),
   });
 
@@ -32,6 +34,7 @@ export function PublishHomeworkClient({ setId }: PublishHomeworkClientProps) {
     mutationFn: (published: boolean) => publishHomework(setId, published),
     onSuccess: (data: HomeworkSet) => {
       queryClient.invalidateQueries({ queryKey: ["homework", setId] });
+      queryClient.invalidateQueries({ queryKey: ["homework", setId, "builder"] });
       queryClient.invalidateQueries({ queryKey: ["homework"] });
       setPublishMessage(
         data.published
@@ -99,10 +102,39 @@ export function PublishHomeworkClient({ setId }: PublishHomeworkClientProps) {
   }
 
   const isPublished = homework.published;
-  // Allow publishing if at least 10 questions, or if it's תרגיל 3 with 13 questions
-  const isExercise3 = homework.title === "תרגיל 3" || homework.title === "תרגיל בית 3";
-  const minQuestions = isExercise3 ? 13 : 10;
-  const canPublish = questions.length >= minQuestions;
+  const validationSummary = validateHomeworkDraft({
+    metadata: {
+      title: homework.title,
+      courseId: homework.courseId,
+      availableFrom: homework.availableFrom || homework.createdAt,
+      availableUntil: homework.availableUntil || homework.dueAt,
+      visibility: homework.visibility,
+      overview: homework.overview,
+      dataStructureNotes: homework.dataStructureNotes,
+      datasetPolicy: homework.datasetPolicy,
+    },
+    dataset: {
+      selectedDatasetId: homework.selectedDatasetId,
+      backgroundStory: homework.backgroundStory,
+    },
+    questions: questions.map((question) => ({
+      id: question.id,
+      prompt: question.prompt,
+      expectedOutputDescription: buildExpectedOutputDescription(
+        question.expectedOutputDescription,
+        question.expectedResultSchema,
+      ),
+      instructions: question.instructions,
+      starterSql: question.starterSql ?? "",
+      expectedResultSchema: JSON.stringify(question.expectedResultSchema ?? []),
+      points: question.points,
+      maxAttempts: question.maxAttempts,
+      datasetId: question.datasetId,
+      rubric: question.gradingRubric,
+      evaluationMode: question.evaluationMode ?? "auto",
+    })),
+  });
+  const canPublish = validationSummary.canPublish;
 
   return (
     <div className={styles.container} dir={direction}>
@@ -142,9 +174,21 @@ export function PublishHomeworkClient({ setId }: PublishHomeworkClientProps) {
               <span>{homework.courseId || "—"}</span>
             </div>
             <div className={styles.field}>
-              <label>תאריך הגשה</label>
+              <label>פתיחה לסטודנטים</label>
               <span>
-                {homework.dueAt ? new Date(homework.dueAt).toLocaleString("he-IL", {
+                {(homework.availableFrom || homework.createdAt) ? new Date(homework.availableFrom || homework.createdAt).toLocaleString("he-IL", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }) : "—"}
+              </span>
+            </div>
+            <div className={styles.field}>
+              <label>סגירה לסטודנטים</label>
+              <span>
+                {(homework.availableUntil || homework.dueAt) ? new Date(homework.availableUntil || homework.dueAt).toLocaleString("he-IL", {
                   year: "numeric",
                   month: "long",
                   day: "numeric",
@@ -177,15 +221,26 @@ export function PublishHomeworkClient({ setId }: PublishHomeworkClientProps) {
           <div className={styles.questionsInfo}>
             <div className={styles.questionsCount}>
               <span className={styles.countNumber}>{questions.length}</span>
-              <span className={styles.countLabel}>מתוך {minQuestions} שאלות</span>
+              <span className={styles.countLabel}>שאלות במטלה</span>
             </div>
             {!canPublish && (
               <div className={styles.warning}>
                 <AlertCircle size={16} />
-                <span>יש להוסיף {minQuestions - questions.length} שאלות נוספות לפני הפרסום</span>
+                <span>{validationSummary.blockers[0]}</span>
               </div>
             )}
           </div>
+        </section>
+
+        <section className={styles.infoSection}>
+          <h3>בדיקות חובה לפני פרסום</h3>
+          <ul>
+            {validationSummary.blockers.length === 0 ? (
+              <li>כל בדיקות החובה הושלמו.</li>
+            ) : (
+              validationSummary.blockers.map((item) => <li key={item}>{item}</li>)
+            )}
+          </ul>
         </section>
 
         {homework.overview && (
@@ -216,8 +271,8 @@ export function PublishHomeworkClient({ setId }: PublishHomeworkClientProps) {
               type="button"
               className={`${styles.publishButton} ${isPublished ? styles.unpublishButton : ""}`}
               onClick={handlePublish}
-              disabled={publishMutation.isPending || !canPublish}
-              title={!canPublish ? `יש להוסיף ${minQuestions} שאלות לפני הפרסום` : undefined}
+              disabled={publishMutation.isPending || (!canPublish && !isPublished)}
+              title={!canPublish && !isPublished ? validationSummary.blockers[0] : undefined}
             >
               {publishMutation.isPending ? (
                 "מעבד..."
@@ -239,4 +294,3 @@ export function PublishHomeworkClient({ setId }: PublishHomeworkClientProps) {
     </div>
   );
 }
-

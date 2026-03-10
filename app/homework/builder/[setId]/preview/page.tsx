@@ -5,10 +5,19 @@ import { use, useMemo } from "react";
 import { Eye, Play, FileText, Code2, BarChart3 } from "lucide-react";
 import { useHomeworkDraft } from "@/app/homework/hooks/useHomeworkDraft";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
+import { buildExpectedOutputDescription } from "@/app/homework/utils/question-output";
 import styles from "./preview.module.css";
 
 interface PreviewPageProps {
   params: Promise<{ setId: string }>;
+}
+
+function parseExpectedResultSchema(value: string) {
+  try {
+    return JSON.parse(value || "[]");
+  } catch {
+    return [];
+  }
 }
 
 export default function PreviewHomeworkPage({ params }: PreviewPageProps) {
@@ -21,9 +30,13 @@ export default function PreviewHomeworkPage({ params }: PreviewPageProps) {
     
     const totalQuestions = draft.questions.length;
     const questionsWithSql = draft.questions.filter(q => q.starterSql?.trim()).length;
-    const avgInstructionLength = Math.round(
-      draft.questions.reduce((sum, q) => sum + (q.instructions?.length || 0), 0) / totalQuestions
+    const totalInstructionLength = draft.questions.reduce(
+      (sum, q) => sum + (q.instructions?.length || 0),
+      0
     );
+    const avgInstructionLength = totalQuestions > 0
+      ? Math.round(totalInstructionLength / totalQuestions)
+      : 0;
 
     return {
       totalQuestions,
@@ -97,6 +110,27 @@ export default function PreviewHomeworkPage({ params }: PreviewPageProps) {
         </Link>
       </header>
 
+      {(draft.metadata.overview || draft.metadata.dataStructureNotes) && (
+        <section className={styles.questionsSection}>
+          <h3 className={styles.sectionTitle}>
+            <BarChart3 size={20} />
+            מה הסטודנטים יראו
+          </h3>
+          {draft.metadata.overview && (
+            <article className={styles.questionCard}>
+              <h4 className={styles.questionPrompt}>פתיח המטלה</h4>
+              <p className={styles.questionInstructions}>{draft.metadata.overview}</p>
+            </article>
+          )}
+          {draft.metadata.dataStructureNotes && (
+            <article className={styles.questionCard}>
+              <h4 className={styles.questionPrompt}>מבנה הנתונים ב-runner</h4>
+              <p className={styles.questionInstructions}>{draft.metadata.dataStructureNotes}</p>
+            </article>
+          )}
+        </section>
+      )}
+
       <section className={styles.questionsSection}>
         <h3 className={styles.sectionTitle}>
           <FileText size={20} />
@@ -110,6 +144,14 @@ export default function PreviewHomeworkPage({ params }: PreviewPageProps) {
         <ol className={styles.questionsList}>
           {draft.questions.map((question, index) => (
             <li key={question.id} className={styles.questionCard}>
+              {(() => {
+                const expectedOutput = buildExpectedOutputDescription(
+                  question.expectedOutputDescription,
+                  parseExpectedResultSchema(question.expectedResultSchema)
+                );
+
+                return (
+                  <>
               <div className={styles.questionHeader}>
                 <div className={styles.questionNumber}>{index + 1}</div>
                 <h4 className={styles.questionPrompt}>
@@ -119,6 +161,12 @@ export default function PreviewHomeworkPage({ params }: PreviewPageProps) {
               
               {question.instructions && (
                 <p className={styles.questionInstructions}>{question.instructions}</p>
+              )}
+
+              {expectedOutput && (
+                <p className={styles.questionInstructions}>
+                  <strong>פלט צפוי:</strong> {expectedOutput}
+                </p>
               )}
               
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
@@ -137,6 +185,9 @@ export default function PreviewHomeworkPage({ params }: PreviewPageProps) {
                   </span>
                 )}
               </pre>
+                  </>
+                );
+              })()}
             </li>
           ))}
         </ol>

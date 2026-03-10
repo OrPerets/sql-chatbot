@@ -46,10 +46,28 @@ async function runSeed(params?: { courseId?: string; dueAt?: string }) {
     const already = (await homeworkService.listHomeworkSets({ pageSize: 50 })).items.find(i => i.title === "תרגיל בית 1");
 
     const hwOverview = [
-      "זהו התרגיל הראשון בקורס ומיועד לכל קבוצות התרגול. יש להגיש עד השעה 23:59.",
-      "יש להשתמש ב-MySQL. ההגשה מתבצעת ביחידים בלבד. הקובץ יכלול את פקודות CREATE/INSERT/SELECT.",
-      "הקדימו: הדביקו מספר שאלה והערה קצרה /* remark */ לפני ה-SELECT שמציג את התוצאה.",
-      "לכל שאלה: הראו את פקודת ה-SQL, הציגו את תוצאת ההרצה, והסבירו בקצרה אם יש.",
+      "זהו התרגיל הראשון בקורס והוא מיועד לכל קבוצות התרגול. התרגיל הינו לשבוע ימים, ויש להגיש אותו דרך אתר הקורס ב-MOODLE עד השעה 23:59.",
+      "זהו תרגיל מעשי ולכן יש לפתור אותו בתוכנת MySQL. אין להגיש תרגילים בכתב יד.",
+      "התרגיל מבוסס על החומר שנלמד בהרצאות ובתרגולים מתחילת הסמסטר, ללא שאלות על חומר מתקדם.",
+      "ההגשה תתבצע ביחידים בלבד, ובפורמט PDF או WORD.",
+      "על כל תרגיל יש לרשום: שם הסטודנט, תעודת זהות, ומספר קבוצת התרגול. תרגיל ללא שלושת הפרטים הללו לא ייבדק.",
+      "ההגשה צריכה לכלול את הפלטים הבאים: פקודות CREATE לכל טבלה, פקודות INSERT לכל טבלה, ופקודת SELECT המציגה את תוכן כל טבלה שנבנתה.",
+      "לכל שאילתה יש לכלול שלושה שלבים: הערה עם מספר השאלה לפני פקודת ה-SELECT, פקודת SQL עובדת, וצילום מסך ברור של תוצאת ההרצה.",
+      "אי צירוף של אחד מהשלבים יגרור הורדת נקודות.",
+    ].join("\n\n");
+    const backgroundStory = [
+      "בבסיס הנתונים הבא מפורטים פרטי עובדים השייכים למחלקות שונות במפעל, כמו כן מתוארים תפקידים המשויכים לתנאי שכר שונים.",
+      "המפעל המתואר הוא מפעל גלובלי המכיל מחלקות במקומות שונים על גבי הגלובוס. בתור מיישמי מערכות מידע עליכם להתמקד ב-4 הטבלאות הבאות שאותן תצטרכו לבנות, ועליהן להריץ את השאילתות המפורטות בהמשך לצורך בדיקת תקינות המערכת.",
+      "תזכורת: אין הגבלה לכמות חיבורי הטבלאות שניתן לבצע בשאילתה.",
+      "הנחייה חשובה: נא למלא את הטבלה לפי מספר תעודת הזהות באופן הבא: הספרה הראשונה ב-ת.ז. תהיה A, הספרה השנייה B וכך הלאה. דוגמה: אם ת.ז. היא 321654987 (ABCDEFGHI), אז ABC = 321, DEF = 654, GHI = 987.",
+    ].join("\n\n");
+    const dataStructureNotes = [
+      "מבנה הסכמות ונתוני הטבלאות:",
+      "Employees(Employee_id, First_name, Last_name, Birth_date, Hire_date, Job_id, Salary, Department_id)",
+      "Jobs(Job_id, Job_title, Min_salary, Max_salary)",
+      "Departments(Department_id, Department_name, Location_id)",
+      "Locations(Location_id, Country, City, Street)",
+      "Employees מקושרת ל-Jobs דרך Job_id ול-Departments דרך Department_id. Departments מקושרת ל-Locations דרך Location_id.",
     ].join("\n");
 
     const homework = already
@@ -64,11 +82,23 @@ async function runSeed(params?: { courseId?: string; dueAt?: string }) {
           visibility: "draft",
           createdBy: "system",
           overview: hwOverview,
+          backgroundStory,
+          dataStructureNotes,
+          selectedDatasetId: dataset.id,
         });
 
     if (!homework) {
       return NextResponse.json({ error: "Failed to create or fetch homework set" }, { status: 500 });
     }
+
+    await homeworkService.updateHomeworkSet(homework.id, {
+      courseId,
+      dueAt,
+      overview: hwOverview,
+      backgroundStory,
+      dataStructureNotes,
+      selectedDatasetId: dataset.id,
+    });
 
     // 3) Clear existing questions and insert new ones
     const questionsService = await getQuestionsService();
@@ -250,5 +280,4 @@ export async function GET(request: Request) {
   const dueAt = searchParams.get("dueAt") || undefined;
   return runSeed({ courseId: courseId || undefined, dueAt: dueAt || undefined });
 }
-
 

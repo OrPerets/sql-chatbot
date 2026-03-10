@@ -75,17 +75,36 @@ export default async function RootLayout({ children }) {
         {/* Service Worker Registration */}
         <script dangerouslySetInnerHTML={{
           __html: `
-            if ('serviceWorker' in navigator) {
+            (function() {
+              if (!('serviceWorker' in navigator)) return;
+
               window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js')
-                  .then(function(registration) {
-                    console.log('Michael PWA: ServiceWorker registration successful');
+                navigator.serviceWorker.getRegistrations()
+                  .then(function(registrations) {
+                    return Promise.all(registrations.map(function(registration) {
+                      return registration.unregister();
+                    }));
                   })
-                  .catch(function(error) {
-                    console.log('Michael PWA: ServiceWorker registration failed');
+                  .then(function() {
+                    if ('caches' in window) {
+                      return caches.keys().then(function(keys) {
+                        return Promise.all(keys.map(function(key) {
+                          if (key.indexOf('michael-sql-assistant-') === 0) {
+                            return caches.delete(key);
+                          }
+                          return Promise.resolve(false);
+                        }));
+                      });
+                    }
+                  })
+                  .then(function() {
+                    console.log('Michael PWA: Service workers disabled for stability');
+                  })
+                  .catch(function() {
+                    console.log('Michael PWA: ServiceWorker cleanup failed');
                   });
               });
-            }
+            })();
           `
         }} />
       </body>

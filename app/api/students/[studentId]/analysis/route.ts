@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAnalysisService } from '@/lib/analysis-service';
 
 interface RouteParams {
-  params: { studentId: string };
+  params: Promise<{ studentId: string }>;
 }
 
 /**
@@ -11,7 +11,7 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { studentId } = params;
+    const { studentId } = await params;
     const { searchParams } = new URL(request.url);
     const homeworkSetId = searchParams.get('homeworkSetId');
     

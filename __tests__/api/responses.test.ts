@@ -127,7 +127,35 @@ describe("Responses API routes", () => {
       type: "function",
       name: "get_course_week_context",
     });
+    expect(mockCreateResponse.mock.calls[0][0].reasoning).toEqual({ summary: "detailed" });
     expect(mockCreateResponse.mock.calls[0][0].input[0].content[0].text).toBe("היי");
+  });
+
+  it("disables reasoning when thinkingMode is false", async () => {
+    mockGetOrCreateVectorStoreId.mockResolvedValue("vs_1");
+    mockCreateResponse.mockResolvedValue({
+      id: "resp_final_2",
+      output_text: "היי",
+      output: [],
+    });
+
+    const { POST } = await import("../../app/api/responses/messages/route");
+    const request = new Request("http://localhost:3000/api/responses/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "sess_test_2",
+        content: "היי",
+        thinkingMode: false,
+        stream: false,
+      }),
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(200);
+    expect(mockCreateResponse).toHaveBeenCalledTimes(1);
+    expect(mockCreateResponse.mock.calls[0][0].reasoning).toBeUndefined();
   });
 
   it("charges when coins are ON and balance is sufficient", async () => {

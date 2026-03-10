@@ -4,6 +4,22 @@ import { generateId } from './models';
 import type { Question } from '@/app/homework/types';
 import type { QuestionModel } from './models';
 
+function normalizeQuestion(question: QuestionModel): Question {
+  return {
+    id: question.id || question._id?.toString(),
+    prompt: question.prompt,
+    instructions: question.instructions,
+    expectedOutputDescription: question.expectedOutputDescription || '',
+    starterSql: question.starterSql,
+    expectedResultSchema: question.expectedResultSchema,
+    gradingRubric: question.gradingRubric,
+    datasetId: question.datasetId,
+    maxAttempts: question.maxAttempts,
+    points: question.points,
+    evaluationMode: question.evaluationMode,
+  };
+}
+
 /**
  * Questions service for database operations
  */
@@ -29,18 +45,7 @@ export class QuestionsService {
     console.log('Found questions in database:', questions.length);
     console.log('Question IDs:', questions.map(q => q._id?.toString() || q.id));
 
-    return questions.map(question => ({
-      id: question.id || question._id?.toString(),
-      prompt: question.prompt,
-      instructions: question.instructions,
-      starterSql: question.starterSql,
-      expectedResultSchema: question.expectedResultSchema,
-      gradingRubric: question.gradingRubric,
-      datasetId: question.datasetId,
-      maxAttempts: question.maxAttempts,
-      points: question.points,
-      evaluationMode: question.evaluationMode,
-    }));
+    return questions.map(normalizeQuestion);
   }
 
   /**
@@ -60,31 +65,21 @@ export class QuestionsService {
 
     if (!question) return null;
 
-    return {
-      id: question.id || question._id?.toString(),
-      prompt: question.prompt,
-      instructions: question.instructions,
-      starterSql: question.starterSql,
-      expectedResultSchema: question.expectedResultSchema,
-      gradingRubric: question.gradingRubric,
-      datasetId: question.datasetId,
-      maxAttempts: question.maxAttempts,
-      points: question.points,
-      evaluationMode: question.evaluationMode,
-    };
+    return normalizeQuestion(question);
   }
 
   /**
    * Create a new question
    */
-  async createQuestion(questionData: Omit<Question, 'id'> & { homeworkSetId: string }): Promise<Question> {
-    const id = generateId();
+  async createQuestion(questionData: Omit<Question, 'id'> & { homeworkSetId: string; id?: string }): Promise<Question> {
+    const id = questionData.id || generateId();
     
     const question: QuestionModel = {
       id,
       homeworkSetId: questionData.homeworkSetId,
       prompt: questionData.prompt,
       instructions: questionData.instructions,
+      expectedOutputDescription: questionData.expectedOutputDescription || '',
       starterSql: questionData.starterSql,
       expectedResultSchema: questionData.expectedResultSchema,
       gradingRubric: questionData.gradingRubric,
@@ -96,18 +91,7 @@ export class QuestionsService {
 
     await this.db.collection<QuestionModel>(COLLECTIONS.QUESTIONS).insertOne(question);
 
-    return {
-      id,
-      prompt: questionData.prompt,
-      instructions: questionData.instructions,
-      starterSql: questionData.starterSql,
-      expectedResultSchema: questionData.expectedResultSchema,
-      gradingRubric: questionData.gradingRubric,
-      datasetId: questionData.datasetId,
-      maxAttempts: questionData.maxAttempts,
-      points: questionData.points,
-      evaluationMode: questionData.evaluationMode,
-    };
+    return normalizeQuestion(question);
   }
 
   /**
@@ -136,18 +120,7 @@ export class QuestionsService {
 
     if (!result) return null;
 
-    return {
-      id: result._id?.toString() || result.id,
-      prompt: result.prompt,
-      instructions: result.instructions,
-      starterSql: result.starterSql,
-      expectedResultSchema: result.expectedResultSchema,
-      gradingRubric: result.gradingRubric,
-      datasetId: result.datasetId,
-      maxAttempts: result.maxAttempts,
-      points: result.points,
-      evaluationMode: result.evaluationMode,
-    };
+    return normalizeQuestion(result);
   }
 
   /**
@@ -185,6 +158,7 @@ export class QuestionsService {
       homeworkSetId,
       prompt: questionData.prompt || "",
       instructions: questionData.instructions || "",
+      expectedOutputDescription: questionData.expectedOutputDescription || "",
       starterSql: questionData.starterSql,
       expectedResultSchema: questionData.expectedResultSchema || [],
       gradingRubric: questionData.gradingRubric || [],
@@ -244,7 +218,7 @@ export async function getQuestionById(id: string): Promise<Question | null> {
   return service.getQuestionById(id);
 }
 
-export async function createQuestion(questionData: Omit<Question, 'id'> & { homeworkSetId: string }): Promise<Question> {
+export async function createQuestion(questionData: Omit<Question, 'id'> & { homeworkSetId: string; id?: string }): Promise<Question> {
   const service = await getQuestionsService();
   return service.createQuestion(questionData);
 }

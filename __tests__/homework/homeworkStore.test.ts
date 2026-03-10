@@ -1,12 +1,15 @@
 import {
+  createHomework,
   executeSqlForSubmission,
   getSubmissionForStudent,
   getSubmissionProgressForStudent,
   gradeSubmissionRecord,
   listAnalyticsForSet,
+  listHomeworkSets,
   publishGradesForSet,
   saveSubmissionDraftRecord,
 } from "../../app/api/_mock/homeworkStore";
+import { getHomeworkAvailabilityInfo } from "../../lib/deadline-utils";
 
 const SET_ID = "hw-set-analytics";
 const STUDENT_ID = "student-demo";
@@ -76,5 +79,84 @@ describe("homeworkStore runner and grading flows", () => {
     const events = listAnalyticsForSet(SET_ID);
     const publishEvent = events.find((event) => event.type === "builder.publish_grades");
     expect(publishEvent).toBeDefined();
+  });
+
+  it("preserves availability fields and expected output descriptions for created homework", () => {
+    const created = createHomework({
+      id: "hw-store-sprint5-fields",
+      title: "Sprint 5 Store Coverage",
+      courseId: "CS401",
+      dueAt: "2026-03-12T20:00:00.000Z",
+      availableFrom: "2026-03-10T08:00:00.000Z",
+      availableUntil: "2026-03-12T20:00:00.000Z",
+      entryMode: "direct",
+      published: true,
+      visibility: "published",
+      questions: [
+        {
+          id: "q-store-1",
+          prompt: "Return the ten latest orders.",
+          instructions: "Sort descending by order_date.",
+          expectedOutputDescription: "The output should contain order ID and order date for the ten latest orders.",
+          expectedResultSchema: [],
+          gradingRubric: [],
+          maxAttempts: 3,
+          points: 10,
+        },
+      ],
+    });
+
+    const listed = listHomeworkSets({ courseId: "CS401" }).items.find((item) => item.id === created.id);
+
+    expect(created.availableFrom).toBe("2026-03-10T08:00:00.000Z");
+    expect(created.availableUntil).toBe("2026-03-12T20:00:00.000Z");
+    expect(created.entryMode).toBe("direct");
+    expect(listed?.questionOrder).toEqual(["q-store-1"]);
+  });
+
+  it("supports multi-homework listing with open, upcoming, and closed windows", () => {
+    const openHomework = createHomework({
+      id: "hw-store-open",
+      title: "Open Homework",
+      courseId: "CS402",
+      dueAt: "2026-03-10T00:00:00.000Z",
+      availableFrom: "2026-03-01T00:00:00.000Z",
+      availableUntil: "2026-03-10T00:00:00.000Z",
+      published: true,
+      visibility: "published",
+      questions: [],
+    });
+    const upcomingHomework = createHomework({
+      id: "hw-store-upcoming",
+      title: "Upcoming Homework",
+      courseId: "CS402",
+      dueAt: "2026-03-20T00:00:00.000Z",
+      availableFrom: "2026-03-10T00:00:00.000Z",
+      availableUntil: "2026-03-20T00:00:00.000Z",
+      published: true,
+      visibility: "published",
+      questions: [],
+    });
+    const closedHomework = createHomework({
+      id: "hw-store-closed",
+      title: "Closed Homework",
+      courseId: "CS402",
+      dueAt: "2026-03-04T00:00:00.000Z",
+      availableFrom: "2026-03-01T00:00:00.000Z",
+      availableUntil: "2026-03-04T00:00:00.000Z",
+      published: true,
+      visibility: "published",
+      questions: [],
+    });
+
+    const now = new Date("2026-03-06T10:00:00.000Z");
+    const listed = listHomeworkSets({ courseId: "CS402" }).items;
+    const states = new Map(
+      listed.map((item) => [item.id, getHomeworkAvailabilityInfo(item, null, now).availabilityState]),
+    );
+
+    expect(states.get(openHomework.id)).toBe("open");
+    expect(states.get(upcomingHomework.id)).toBe("upcoming");
+    expect(states.get(closedHomework.id)).toBe("closed");
   });
 });

@@ -14,7 +14,12 @@ interface MetadataStepProps {
 const NEXT_STEP: WizardStepId = "dataset";
 
 export function MetadataStep({ value, onChange, onNext, isInitializing }: MetadataStepProps) {
-  const canContinue = Boolean(value.title.trim()) && Boolean(value.courseId.trim());
+  const hasTitle = Boolean(value.title.trim());
+  const hasCourse = Boolean(value.courseId.trim());
+  const hasAvailabilityWindow = Boolean(value.availableFrom) && Boolean(value.availableUntil);
+  const hasValidWindow =
+    hasAvailabilityWindow && new Date(value.availableFrom).getTime() < new Date(value.availableUntil).getTime();
+  const canContinue = hasTitle && hasCourse && hasValidWindow;
   const { t } = useHomeworkLocale();
 
   return (
@@ -43,12 +48,21 @@ export function MetadataStep({ value, onChange, onNext, isInitializing }: Metada
         </div>
         <div className={styles.fieldRow}>
           <div className={styles.field}>
-            <label htmlFor="dueAt">{t("builder.metadata.dueDate")}</label>
+            <label htmlFor="availableFrom">זמן פתיחה</label>
             <input
-              id="dueAt"
+              id="availableFrom"
               type="datetime-local"
-              value={value.dueAt}
-              onChange={(event) => onChange({ ...value, dueAt: event.target.value })}
+              value={value.availableFrom}
+              onChange={(event) => onChange({ ...value, availableFrom: event.target.value })}
+            />
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="availableUntil">זמן סגירה</label>
+            <input
+              id="availableUntil"
+              type="datetime-local"
+              value={value.availableUntil}
+              onChange={(event) => onChange({ ...value, availableUntil: event.target.value })}
             />
           </div>
           <div className={styles.field}>
@@ -64,6 +78,9 @@ export function MetadataStep({ value, onChange, onNext, isInitializing }: Metada
             </select>
           </div>
         </div>
+        {hasAvailabilityWindow && !hasValidWindow && (
+          <p className={styles.validationMessage}>זמן הפתיחה חייב להיות לפני זמן הסגירה כדי להמשיך.</p>
+        )}
         <div className={styles.field}>
           <label htmlFor="overview">{t("builder.metadata.overviewLabel")}</label>
           <textarea
@@ -75,6 +92,33 @@ export function MetadataStep({ value, onChange, onNext, isInitializing }: Metada
             className={styles.textarea}
           />
         </div>
+        <div className={styles.field}>
+          <label htmlFor="dataStructureNotes">הסבר מבנה הנתונים</label>
+          <textarea
+            id="dataStructureNotes"
+            value={value.dataStructureNotes ?? ""}
+            onChange={(event) => onChange({ ...value, dataStructureNotes: event.target.value })}
+            placeholder="תארו לסטודנטים את הטבלאות, היחסים ביניהן, והשדות שכדאי לשים לב אליהם. מידע זה יוצג מעל רשימת הטבלאות ב-runner."
+            rows={4}
+            className={styles.textarea}
+          />
+        </div>
+        <section className={styles.previewPanel} aria-label="תצוגה מקדימה לסטודנט">
+          <div className={styles.previewColumn}>
+            <span className={styles.badge}>פתיח לסטודנט</span>
+            <h4>{value.title || "מטלה ללא כותרת"}</h4>
+            <p className={styles.mutedText}>
+              {value.overview?.trim() || "כאן יופיע התיאור הכללי של המטלה והתרחיש שהסטודנטים יקראו בתחילת העבודה."}
+            </p>
+          </div>
+          <div className={styles.previewColumn}>
+            <span className={styles.badge}>פאנל מבנה הנתונים</span>
+            <h4>מבנה הנתונים</h4>
+            <p className={styles.mutedText}>
+              {value.dataStructureNotes?.trim() || "כאן יופיע הסבר נפרד על מבנה הנתונים מעל רשימת הטבלאות ב-runner."}
+            </p>
+          </div>
+        </section>
       </section>
 
 

@@ -976,92 +976,92 @@ export class SubmissionsService {
 
       // Helper function to initialize Exam Prep (הכנה למבחן) data
       const initializeExamPrepData = () => {
-        alasql('DROP TABLE IF EXISTS Scores');
-        alasql('DROP TABLE IF EXISTS Registrations');
-        alasql('DROP TABLE IF EXISTS Exams');
-        alasql('DROP TABLE IF EXISTS Students');
+        alasql('DROP TABLE IF EXISTS Results');
+        alasql('DROP TABLE IF EXISTS Enrollments');
+        alasql('DROP TABLE IF EXISTS Debates');
+        alasql('DROP TABLE IF EXISTS Contestants');
 
         alasql(`
-          CREATE TABLE Exams (
-            ExamID INTEGER PRIMARY KEY,
-            CourseCode TEXT,
-            ExamDate TEXT,
+          CREATE TABLE Debates (
+            DebateID INTEGER PRIMARY KEY,
+            TopicCode TEXT,
+            DebateDate TEXT,
             DurationMinutes INTEGER,
-            Room TEXT
+            Hall TEXT
           );
         `);
         alasql(`
-          CREATE TABLE Students (
-            StudentID INTEGER PRIMARY KEY,
+          CREATE TABLE Contestants (
+            ContestantID INTEGER PRIMARY KEY,
             FirstName TEXT,
             LastName TEXT,
-            Major TEXT,
-            Year INTEGER
+            School TEXT,
+            GradeLevel INTEGER
           );
         `);
         alasql(`
-          CREATE TABLE Registrations (
-            RegistrationID INTEGER PRIMARY KEY,
-            StudentID INTEGER,
-            ExamID INTEGER,
+          CREATE TABLE Enrollments (
+            EnrollmentID INTEGER PRIMARY KEY,
+            ContestantID INTEGER,
+            DebateID INTEGER,
             RegisteredAt TEXT,
             Status TEXT
           );
         `);
         alasql(`
-          CREATE TABLE Scores (
-            StudentID INTEGER,
-            ExamID INTEGER,
+          CREATE TABLE Results (
+            ContestantID INTEGER,
+            DebateID INTEGER,
             Score INTEGER,
-            GradedAt TEXT,
-            FirstExamDate TEXT,
-            PRIMARY KEY (StudentID, ExamID)
+            JudgedAt TEXT,
+            FirstDebateDate TEXT,
+            PRIMARY KEY (ContestantID, DebateID)
           );
         `);
 
-        // Exams: mix of near-future (for Q1), room A1, duration > 120
+        // Debates: mix of near-future (for Q1), North Hall, duration > 120
         alasql(`
-          INSERT INTO Exams VALUES
-            (1, 'SQL101', '2026-02-15', 90, 'A1'),
-            (2, 'DB202', '2026-02-18', 120, 'B2'),
-            (3, 'SQL101', '2026-02-22', 150, 'A1'),
-            (4, 'DB202', '2026-02-25', 90, 'C3'),
-            (5, 'SQL201', '2026-03-01', 135, 'A1'),
-            (6, 'DB301', '2026-03-05', 105, 'B1'),
-            (7, 'BI101', '2026-03-08', 80, 'D2'),
-            (8, 'ST201', '2026-03-11', 140, 'A1'),
-            (9, 'CS330', '2026-03-14', 110, 'C1'),
-            (10, 'MATH220', '2026-03-18', 100, 'B3'),
-            (11, 'SQL301', '2026-03-21', 160, 'A2'),
-            (12, 'DB150', '2026-03-24', 95, 'A1');
+          INSERT INTO Debates VALUES
+            (1, 'POL101', '2026-02-15', 90, 'North Hall'),
+            (2, 'ENV202', '2026-02-18', 120, 'East Hall'),
+            (3, 'TECH101', '2026-02-22', 150, 'North Hall'),
+            (4, 'EDU202', '2026-02-25', 90, 'West Hall'),
+            (5, 'MEDIA201', '2026-03-01', 135, 'North Hall'),
+            (6, 'ETH301', '2026-03-05', 105, 'South Hall'),
+            (7, 'HEALTH101', '2026-03-08', 80, 'City Hall'),
+            (8, 'LAW201', '2026-03-11', 140, 'North Hall'),
+            (9, 'ECON330', '2026-03-14', 110, 'Innovation Hall'),
+            (10, 'CULT220', '2026-03-18', 100, 'Central Hall'),
+            (11, 'SCI301', '2026-03-21', 160, 'Grand Hall'),
+            (12, 'SOC150', '2026-03-24', 95, 'North Hall');
         `);
-        // Students: some with no registrations (Q2), multiple exams (Q5) - FirstName/LastName in English
+        // Contestants: some with no enrollments (Q2), multiple debates (Q5)
         alasql(`
-          INSERT INTO Students VALUES
-            (1001, 'Eli', 'Cohen', 'CS', 2),
-            (1002, 'Maya', 'Levy', 'Math', 2),
-            (1003, 'David', 'Israeli', 'CS', 3),
-            (1004, 'Sarah', 'Mizrahi', 'Math', 2),
-            (1005, 'Yossi', 'Avraham', 'CS', 3),
-            (1006, 'Ronit', 'Dahan', 'Math', 1),
-            (1007, 'Amit', 'Ben-David', 'CS', 2),
-            (1008, 'Noa', 'Shimon', 'Biology', 1),
-            (1009, 'Tom', 'Gal', 'CS', 4),
-            (1010, 'Hila', 'Adari', 'Math', 3),
-            (1011, 'Ron', 'Saadon', 'CS', 2),
-            (1012, 'Lior', 'Katz', 'Math', 2),
-            (1013, 'Shir', 'Alon', 'Biology', 3),
-            (1014, 'Aviv', 'Maman', 'Statistics', 1),
-            (1015, 'Tamar', 'Gold', 'CS', 4),
-            (1016, 'Yonatan', 'Shagav', 'Math', 3),
-            (1017, 'Itai', 'Rafaeli', 'CS', 2),
-            (1018, 'Dana', 'Avital', 'Math', 2),
-            (1019, 'Maya', 'Peri', 'Biology', 1),
-            (1020, 'Adam', 'Navon', 'CS', 1);
+          INSERT INTO Contestants VALUES
+            (1001, 'Eli', 'Cohen', 'Herzl High', 10),
+            (1002, 'Maya', 'Levy', 'Rabin High', 10),
+            (1003, 'David', 'Israeli', 'Herzl High', 11),
+            (1004, 'Sarah', 'Mizrahi', 'Rabin High', 10),
+            (1005, 'Yossi', 'Avraham', 'Herzl High', 11),
+            (1006, 'Ronit', 'Dahan', 'Rabin High', 9),
+            (1007, 'Amit', 'Ben-David', 'Herzl High', 10),
+            (1008, 'Noa', 'Shimon', 'Galil School', 9),
+            (1009, 'Tom', 'Gal', 'Herzl High', 12),
+            (1010, 'Hila', 'Adari', 'Rabin High', 11),
+            (1011, 'Ron', 'Saadon', 'Herzl High', 10),
+            (1012, 'Lior', 'Katz', 'Rabin High', 10),
+            (1013, 'Shir', 'Alon', 'Galil School', 11),
+            (1014, 'Aviv', 'Maman', 'Ofek Academy', 9),
+            (1015, 'Tamar', 'Gold', 'Herzl High', 12),
+            (1016, 'Yonatan', 'Shagav', 'Rabin High', 11),
+            (1017, 'Itai', 'Rafaeli', 'Herzl High', 10),
+            (1018, 'Dana', 'Avital', 'Rabin High', 10),
+            (1019, 'Maya', 'Peri', 'Galil School', 9),
+            (1020, 'Adam', 'Navon', 'Herzl High', 9);
         `);
-        // Registrations: approved, waitlist; some without scores (Q9)
+        // Enrollments: approved, waitlist; some without results yet (Q8)
         alasql(`
-          INSERT INTO Registrations VALUES
+          INSERT INTO Enrollments VALUES
             (1, 1001, 1, '2026-01-10', 'approved'),
             (2, 1001, 2, '2026-01-12', 'approved'),
             (3, 1001, 5, '2026-01-18', 'approved'),
@@ -1105,9 +1105,9 @@ export class SubmissionsService {
             (41, 1017, 5, '2026-01-28', 'approved'),
             (42, 1018, 6, '2026-01-27', 'approved');
         `);
-        // Scores: some registrations without score yet (Q9). No ScoreID; FirstExamDate stores the first exam date for each score entry.
+        // Results: some approved enrollments without result yet (Q8).
         alasql(`
-          INSERT INTO Scores VALUES
+          INSERT INTO Results VALUES
             (1001, 1, 85, '2026-02-16', '2026-02-15'),
             (1001, 2, 90, '2026-02-19', '2026-02-18'),
             (1001, 5, 88, '2026-03-02', '2026-03-01'),
@@ -1286,17 +1286,23 @@ export class SubmissionsService {
           'enrollments': 'Enrollments',
           'employees': 'Employees',
           'exams': 'Exams',
+          'debates': 'Debates',
           'registrations': 'Registrations',
           'scores': 'Scores',
+          'contestants': 'Contestants',
+          'results': 'Results',
           // Column names - Students
           'studentid': 'StudentID',
+          'contestantid': 'ContestantID',
           'firstname': 'FirstName',
           'lastname': 'LastName',
           'birthdate': 'BirthDate',
           'city': 'City',
           'email': 'Email',
           'major': 'Major',
+          'school': 'School',
           'year': 'Year',
+          'gradelevel': 'GradeLevel',
           // Column names - Courses
           'courseid': 'CourseID',
           'coursename': 'CourseName',
@@ -1307,14 +1313,19 @@ export class SubmissionsService {
           'hiredate': 'HireDate',
           'seniority': 'Seniority',
           // Column names - Enrollments
+          'enrollmentid': 'EnrollmentID',
           'enrollmentdate': 'EnrollmentDate',
           'grade': 'Grade',
           // Column names - Exams (exam prep)
           'examid': 'ExamID',
+          'debateid': 'DebateID',
           'coursecode': 'CourseCode',
+          'topiccode': 'TopicCode',
           'examdate': 'ExamDate',
+          'debatedate': 'DebateDate',
           'durationminutes': 'DurationMinutes',
           'room': 'Room',
+          'hall': 'Hall',
           // Column names - Registrations (exam prep)
           'registrationid': 'RegistrationID',
           'registeredat': 'RegisteredAt',
@@ -1322,7 +1333,9 @@ export class SubmissionsService {
           // Column names - Scores (exam prep)
           'score': 'Score',
           'gradedat': 'GradedAt',
+          'judgedat': 'JudgedAt',
           'firstexamdate': 'FirstExamDate',
+          'firstdebatedate': 'FirstDebateDate',
           // Column names - Employees (fallback table)
           'id': 'id',
           'name': 'name',

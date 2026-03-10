@@ -5,5 +5,6 @@ test.describe("Homework grading", () => {
     await page.goto("/homework/builder/hw-set-analytics/grade");
     await expect(page.getByText(/Submissions/i)).toBeVisible();
     await expect(page.getByRole("button", { name: /publish grades/i })).toBeVisible();
+    await expect(page.getByText(/Window Functions/i)).toBeVisible();
   });
 });

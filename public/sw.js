@@ -1,5 +1,5 @@
 // Service Worker for Michael - SQL Assistant PWA
-const CACHE_NAME = 'michael-sql-assistant-v4';
+const CACHE_NAME = 'michael-sql-assistant-v5';
 const urlsToCache = [
   '/',
   '/icon-72.png',
@@ -36,9 +36,31 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Fetch event - serve from cache when offline
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+
+  try {
+    const response = await fetch(request);
+    if (response && response.ok && request.method === 'GET') {
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    const cached = await cache.match(request);
+    if (cached) {
+      return cached;
+    }
+    throw error;
+  }
+}
+
+// Fetch event - prefer network for documents to avoid stale HTML/bundle mismatches
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+  const isDocumentRequest =
+    event.request.mode === 'navigate' ||
+    event.request.destination === 'document' ||
+    (event.request.headers.get('accept') || '').includes('text/html');
   
   // Bypass service worker completely for:
   // 1. ALL API routes (they should always go to network)
@@ -53,6 +75,13 @@ self.addEventListener('fetch', (event) => {
   ) {
     // Let the request go directly to the network, bypassing service worker entirely
     // Don't call event.respondWith() - this allows the request to bypass the SW
+    return;
+  }
+
+  if (isDocumentRequest) {
+    event.respondWith(
+      networkFirst(event.request).catch(() => new Response('Offline', { status: 503 }))
+    );
     return;
   }
   
@@ -76,15 +105,16 @@ self.addEventListener('fetch', (event) => {
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
+    caches.keys().then((cacheNames) =>
+      Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
             console.log('Michael PWA: Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
+          return Promise.resolve();
         })
-      );
-    })
+      )
+    ).then(() => self.clients.claim())
   );
 }); 

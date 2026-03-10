@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getHomeworkQuestions, getHomeworkSet } from "@/app/homework/services/homeworkService";
+import { getDataset } from "@/app/homework/services/datasetService";
 import {
   getSubmission,
   saveSubmissionDraft,
@@ -12,11 +13,12 @@ import {
   SubmitHomeworkPayload,
 } from "@/app/homework/services/submissionService";
 import { executeSql } from "@/app/homework/services/sqlService";
-import type { Question, SqlExecutionRequest, Submission } from "@/app/homework/types";
+import type { Dataset, Question, SqlExecutionRequest, Submission } from "@/app/homework/types";
 import styles from "./runner.module.css";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 import { SubmittedPage } from "./SubmittedPage";
 import Chat from "@/app/components/chat";
+import { InstructionsSection } from "./InstructionsSection";
 
 import Editor from "@monaco-editor/react";
 
@@ -114,80 +116,85 @@ const parseSchemaError = (errorMessage: string | undefined): { type: 'table' | '
   return { type: null, name: null };
 };
 
-// Database sample data for "הכנה למבחן" schema (Exams, Students, Registrations, Scores)
-const DATABASE_SAMPLE_DATA: Record<string, { columns: string[]; rows: Record<string, string | number>[] }> = {
-  Exams: {
-    columns: ["ExamID", "CourseCode", "ExamDate", "DurationMinutes", "Room"],
+type SidebarTable = {
+  columns: string[];
+  rows: Record<string, string | number | boolean | null>[];
+};
+
+// Fallback sample data for legacy homework sets that do not point to a dataset.
+const FALLBACK_SAMPLE_DATA: Record<string, SidebarTable> = {
+  Debates: {
+    columns: ["DebateID", "TopicCode", "DebateDate", "DurationMinutes", "Hall"],
     rows: [
-      { ExamID: 1, CourseCode: "SQL101", ExamDate: "2026-02-15", DurationMinutes: 90, Room: "A1" },
-      { ExamID: 2, CourseCode: "DB202", ExamDate: "2026-02-18", DurationMinutes: 120, Room: "B2" },
-      { ExamID: 3, CourseCode: "SQL101", ExamDate: "2026-02-22", DurationMinutes: 150, Room: "A1" },
-      { ExamID: 4, CourseCode: "DB202", ExamDate: "2026-02-25", DurationMinutes: 90, Room: "C3" },
-      { ExamID: 5, CourseCode: "SQL201", ExamDate: "2026-03-01", DurationMinutes: 135, Room: "A1" },
-      { ExamID: 6, CourseCode: "DB301", ExamDate: "2026-03-05", DurationMinutes: 105, Room: "B1" },
-      { ExamID: 7, CourseCode: "BI101", ExamDate: "2026-03-08", DurationMinutes: 80, Room: "D2" },
-      { ExamID: 8, CourseCode: "ST201", ExamDate: "2026-03-11", DurationMinutes: 140, Room: "A1" },
-      { ExamID: 9, CourseCode: "CS330", ExamDate: "2026-03-14", DurationMinutes: 110, Room: "C1" },
-      { ExamID: 10, CourseCode: "MATH220", ExamDate: "2026-03-18", DurationMinutes: 100, Room: "B3" },
+      { DebateID: 1, TopicCode: "POL101", DebateDate: "2026-02-15", DurationMinutes: 90, Hall: "North Hall" },
+      { DebateID: 2, TopicCode: "ENV202", DebateDate: "2026-02-18", DurationMinutes: 120, Hall: "East Hall" },
+      { DebateID: 3, TopicCode: "TECH101", DebateDate: "2026-02-22", DurationMinutes: 150, Hall: "North Hall" },
+      { DebateID: 4, TopicCode: "EDU202", DebateDate: "2026-02-25", DurationMinutes: 90, Hall: "West Hall" },
+      { DebateID: 5, TopicCode: "MEDIA201", DebateDate: "2026-03-01", DurationMinutes: 135, Hall: "North Hall" },
+      { DebateID: 6, TopicCode: "ETH301", DebateDate: "2026-03-05", DurationMinutes: 105, Hall: "South Hall" },
+      { DebateID: 7, TopicCode: "HEALTH101", DebateDate: "2026-03-08", DurationMinutes: 80, Hall: "City Hall" },
+      { DebateID: 8, TopicCode: "LAW201", DebateDate: "2026-03-11", DurationMinutes: 140, Hall: "North Hall" },
+      { DebateID: 9, TopicCode: "ECON330", DebateDate: "2026-03-14", DurationMinutes: 110, Hall: "Innovation Hall" },
+      { DebateID: 10, TopicCode: "CULT220", DebateDate: "2026-03-18", DurationMinutes: 100, Hall: "Central Hall" },
     ],
   },
-  Students: {
-    columns: ["StudentID", "FirstName", "LastName", "Major", "Year"],
+  Contestants: {
+    columns: ["ContestantID", "FirstName", "LastName", "School", "GradeLevel"],
     rows: [
-      { StudentID: 1001, FirstName: "Eli", LastName: "Cohen", Major: "CS", Year: 2 },
-      { StudentID: 1002, FirstName: "Maya", LastName: "Levy", Major: "Math", Year: 2 },
-      { StudentID: 1003, FirstName: "David", LastName: "Israeli", Major: "CS", Year: 3 },
-      { StudentID: 1004, FirstName: "Sarah", LastName: "Mizrahi", Major: "Math", Year: 2 },
-      { StudentID: 1005, FirstName: "Yossi", LastName: "Avraham", Major: "CS", Year: 3 },
-      { StudentID: 1006, FirstName: "Ronit", LastName: "Dahan", Major: "Math", Year: 1 },
-      { StudentID: 1007, FirstName: "Amit", LastName: "Ben-David", Major: "CS", Year: 2 },
-      { StudentID: 1008, FirstName: "Noa", LastName: "Shimon", Major: "Biology", Year: 1 },
-      { StudentID: 1009, FirstName: "Tom", LastName: "Gal", Major: "CS", Year: 4 },
-      { StudentID: 1010, FirstName: "Hila", LastName: "Adari", Major: "Math", Year: 3 },
+      { ContestantID: 1001, FirstName: "Eli", LastName: "Cohen", School: "Herzl High", GradeLevel: 10 },
+      { ContestantID: 1002, FirstName: "Maya", LastName: "Levy", School: "Rabin High", GradeLevel: 10 },
+      { ContestantID: 1003, FirstName: "David", LastName: "Israeli", School: "Herzl High", GradeLevel: 11 },
+      { ContestantID: 1004, FirstName: "Sarah", LastName: "Mizrahi", School: "Rabin High", GradeLevel: 10 },
+      { ContestantID: 1005, FirstName: "Yossi", LastName: "Avraham", School: "Herzl High", GradeLevel: 11 },
+      { ContestantID: 1006, FirstName: "Ronit", LastName: "Dahan", School: "Rabin High", GradeLevel: 9 },
+      { ContestantID: 1007, FirstName: "Amit", LastName: "Ben-David", School: "Herzl High", GradeLevel: 10 },
+      { ContestantID: 1008, FirstName: "Noa", LastName: "Shimon", School: "Galil School", GradeLevel: 9 },
+      { ContestantID: 1009, FirstName: "Tom", LastName: "Gal", School: "Herzl High", GradeLevel: 12 },
+      { ContestantID: 1010, FirstName: "Hila", LastName: "Adari", School: "Rabin High", GradeLevel: 11 },
     ],
   },
-  Registrations: {
-    columns: ["RegistrationID", "StudentID", "ExamID", "RegisteredAt", "Status"],
+  Enrollments: {
+    columns: ["EnrollmentID", "ContestantID", "DebateID", "RegisteredAt", "Status"],
     rows: [
-      { RegistrationID: 1, StudentID: 1001, ExamID: 1, RegisteredAt: "2026-01-10", Status: "approved" },
-      { RegistrationID: 2, StudentID: 1001, ExamID: 2, RegisteredAt: "2026-01-12", Status: "approved" },
-      { RegistrationID: 3, StudentID: 1002, ExamID: 1, RegisteredAt: "2026-01-11", Status: "approved" },
-      { RegistrationID: 4, StudentID: 1002, ExamID: 3, RegisteredAt: "2026-01-14", Status: "waitlist" },
-      { RegistrationID: 5, StudentID: 1003, ExamID: 1, RegisteredAt: "2026-01-09", Status: "approved" },
-      { RegistrationID: 6, StudentID: 1003, ExamID: 2, RegisteredAt: "2026-01-13", Status: "approved" },
-      { RegistrationID: 7, StudentID: 1003, ExamID: 3, RegisteredAt: "2026-01-15", Status: "approved" },
-      { RegistrationID: 8, StudentID: 1004, ExamID: 2, RegisteredAt: "2026-01-11", Status: "approved" },
-      { RegistrationID: 9, StudentID: 1004, ExamID: 4, RegisteredAt: "2026-01-16", Status: "waitlist" },
-      { RegistrationID: 10, StudentID: 1005, ExamID: 1, RegisteredAt: "2026-01-10", Status: "approved" },
-      { RegistrationID: 11, StudentID: 1005, ExamID: 3, RegisteredAt: "2026-01-14", Status: "approved" },
-      { RegistrationID: 12, StudentID: 1006, ExamID: 2, RegisteredAt: "2026-01-12", Status: "waitlist" },
-      { RegistrationID: 13, StudentID: 1007, ExamID: 1, RegisteredAt: "2026-01-15", Status: "approved" },
-      { RegistrationID: 14, StudentID: 1007, ExamID: 2, RegisteredAt: "2026-01-16", Status: "approved" },
-      { RegistrationID: 15, StudentID: 1008, ExamID: 4, RegisteredAt: "2026-01-17", Status: "approved" },
-      { RegistrationID: 16, StudentID: 1009, ExamID: 5, RegisteredAt: "2026-01-19", Status: "approved" },
-      { RegistrationID: 17, StudentID: 1009, ExamID: 8, RegisteredAt: "2026-01-21", Status: "approved" },
-      { RegistrationID: 18, StudentID: 1010, ExamID: 6, RegisteredAt: "2026-01-20", Status: "approved" },
-      { RegistrationID: 19, StudentID: 1010, ExamID: 10, RegisteredAt: "2026-01-24", Status: "waitlist" },
+      { EnrollmentID: 1, ContestantID: 1001, DebateID: 1, RegisteredAt: "2026-01-10", Status: "approved" },
+      { EnrollmentID: 2, ContestantID: 1001, DebateID: 2, RegisteredAt: "2026-01-12", Status: "approved" },
+      { EnrollmentID: 3, ContestantID: 1002, DebateID: 1, RegisteredAt: "2026-01-11", Status: "approved" },
+      { EnrollmentID: 4, ContestantID: 1002, DebateID: 3, RegisteredAt: "2026-01-14", Status: "waitlist" },
+      { EnrollmentID: 5, ContestantID: 1003, DebateID: 1, RegisteredAt: "2026-01-09", Status: "approved" },
+      { EnrollmentID: 6, ContestantID: 1003, DebateID: 2, RegisteredAt: "2026-01-13", Status: "approved" },
+      { EnrollmentID: 7, ContestantID: 1003, DebateID: 3, RegisteredAt: "2026-01-15", Status: "approved" },
+      { EnrollmentID: 8, ContestantID: 1004, DebateID: 2, RegisteredAt: "2026-01-11", Status: "approved" },
+      { EnrollmentID: 9, ContestantID: 1004, DebateID: 4, RegisteredAt: "2026-01-16", Status: "waitlist" },
+      { EnrollmentID: 10, ContestantID: 1005, DebateID: 1, RegisteredAt: "2026-01-10", Status: "approved" },
+      { EnrollmentID: 11, ContestantID: 1005, DebateID: 3, RegisteredAt: "2026-01-14", Status: "approved" },
+      { EnrollmentID: 12, ContestantID: 1006, DebateID: 2, RegisteredAt: "2026-01-12", Status: "waitlist" },
+      { EnrollmentID: 13, ContestantID: 1007, DebateID: 1, RegisteredAt: "2026-01-15", Status: "approved" },
+      { EnrollmentID: 14, ContestantID: 1007, DebateID: 2, RegisteredAt: "2026-01-16", Status: "approved" },
+      { EnrollmentID: 15, ContestantID: 1008, DebateID: 4, RegisteredAt: "2026-01-17", Status: "approved" },
+      { EnrollmentID: 16, ContestantID: 1009, DebateID: 5, RegisteredAt: "2026-01-19", Status: "approved" },
+      { EnrollmentID: 17, ContestantID: 1009, DebateID: 8, RegisteredAt: "2026-01-21", Status: "approved" },
+      { EnrollmentID: 18, ContestantID: 1010, DebateID: 6, RegisteredAt: "2026-01-20", Status: "approved" },
+      { EnrollmentID: 19, ContestantID: 1010, DebateID: 10, RegisteredAt: "2026-01-24", Status: "waitlist" },
     ],
   },
-  Scores: {
-    columns: ["StudentID", "ExamID", "Score", "GradedAt", "FirstExamDate"],
+  Results: {
+    columns: ["ContestantID", "DebateID", "Score", "JudgedAt", "FirstDebateDate"],
     rows: [
-      { StudentID: 1001, ExamID: 1, Score: 85, GradedAt: "2026-02-16", FirstExamDate: "2026-02-15" },
-      { StudentID: 1001, ExamID: 2, Score: 90, GradedAt: "2026-02-19", FirstExamDate: "2026-02-18" },
-      { StudentID: 1002, ExamID: 1, Score: 78, GradedAt: "2026-02-16", FirstExamDate: "2026-02-15" },
-      { StudentID: 1003, ExamID: 1, Score: 92, GradedAt: "2026-02-16", FirstExamDate: "2026-02-15" },
-      { StudentID: 1003, ExamID: 2, Score: 88, GradedAt: "2026-02-19", FirstExamDate: "2026-02-18" },
-      { StudentID: 1003, ExamID: 3, Score: 95, GradedAt: "2026-02-23", FirstExamDate: "2026-02-22" },
-      { StudentID: 1004, ExamID: 2, Score: 72, GradedAt: "2026-02-19", FirstExamDate: "2026-02-18" },
-      { StudentID: 1005, ExamID: 1, Score: 80, GradedAt: "2026-02-16", FirstExamDate: "2026-02-15" },
-      { StudentID: 1005, ExamID: 3, Score: 84, GradedAt: "2026-02-23", FirstExamDate: "2026-02-22" },
-      { StudentID: 1007, ExamID: 1, Score: 91, GradedAt: "2026-02-16", FirstExamDate: "2026-02-15" },
-      { StudentID: 1007, ExamID: 2, Score: 87, GradedAt: "2026-02-19", FirstExamDate: "2026-02-18" },
-      { StudentID: 1008, ExamID: 4, Score: 75, GradedAt: "2026-02-26", FirstExamDate: "2026-02-25" },
-      { StudentID: 1009, ExamID: 5, Score: 89, GradedAt: "2026-03-02", FirstExamDate: "2026-03-01" },
-      { StudentID: 1009, ExamID: 8, Score: 86, GradedAt: "2026-03-12", FirstExamDate: "2026-03-11" },
-      { StudentID: 1010, ExamID: 6, Score: 82, GradedAt: "2026-03-06", FirstExamDate: "2026-03-05" },
+      { ContestantID: 1001, DebateID: 1, Score: 85, JudgedAt: "2026-02-16", FirstDebateDate: "2026-02-15" },
+      { ContestantID: 1001, DebateID: 2, Score: 90, JudgedAt: "2026-02-19", FirstDebateDate: "2026-02-18" },
+      { ContestantID: 1002, DebateID: 1, Score: 78, JudgedAt: "2026-02-16", FirstDebateDate: "2026-02-15" },
+      { ContestantID: 1003, DebateID: 1, Score: 92, JudgedAt: "2026-02-16", FirstDebateDate: "2026-02-15" },
+      { ContestantID: 1003, DebateID: 2, Score: 88, JudgedAt: "2026-02-19", FirstDebateDate: "2026-02-18" },
+      { ContestantID: 1003, DebateID: 3, Score: 95, JudgedAt: "2026-02-23", FirstDebateDate: "2026-02-22" },
+      { ContestantID: 1004, DebateID: 2, Score: 72, JudgedAt: "2026-02-19", FirstDebateDate: "2026-02-18" },
+      { ContestantID: 1005, DebateID: 1, Score: 80, JudgedAt: "2026-02-16", FirstDebateDate: "2026-02-15" },
+      { ContestantID: 1005, DebateID: 3, Score: 84, JudgedAt: "2026-02-23", FirstDebateDate: "2026-02-22" },
+      { ContestantID: 1007, DebateID: 1, Score: 91, JudgedAt: "2026-02-16", FirstDebateDate: "2026-02-15" },
+      { ContestantID: 1007, DebateID: 2, Score: 87, JudgedAt: "2026-02-19", FirstDebateDate: "2026-02-18" },
+      { ContestantID: 1008, DebateID: 4, Score: 75, JudgedAt: "2026-02-26", FirstDebateDate: "2026-02-25" },
+      { ContestantID: 1009, DebateID: 5, Score: 89, JudgedAt: "2026-03-02", FirstDebateDate: "2026-03-01" },
+      { ContestantID: 1009, DebateID: 8, Score: 86, JudgedAt: "2026-03-12", FirstDebateDate: "2026-03-11" },
+      { ContestantID: 1010, DebateID: 6, Score: 82, JudgedAt: "2026-03-06", FirstDebateDate: "2026-03-05" },
     ],
   },
 };
@@ -211,6 +218,12 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const toggleTableExpanded = useCallback((tableName: string) => {
     setExpandedTables((prev) => ({ ...prev, [tableName]: !prev[tableName] }));
   }, []);
+  const getVisibleQuestionText = useCallback((question: Question) => {
+    const prompt = question.prompt?.trim() ?? "";
+    const instructions = question.instructions?.trim() ?? "";
+    const promptLooksLikeLabel = /^שאלה\s*\d+$/u.test(prompt) || /^question\s*\d+$/iu.test(prompt);
+    return !prompt || promptLooksLikeLabel ? instructions || prompt : prompt;
+  }, []);
 
   const clearPendingSaves = useCallback(() => {
     Object.values(pendingRef.current).forEach((pending) => {
@@ -222,6 +235,11 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const homeworkQuery = useQuery({
     queryKey: ["homework", setId],
     queryFn: () => getHomeworkSet(setId),
+  });
+  const datasetQuery = useQuery({
+    queryKey: ["dataset", homeworkQuery.data?.selectedDatasetId ?? null],
+    queryFn: () => getDataset(homeworkQuery.data!.selectedDatasetId!),
+    enabled: Boolean(homeworkQuery.data?.selectedDatasetId),
   });
 
   const questionsQuery = useQuery({
@@ -630,6 +648,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
 
   const submission = submissionQuery.data;
   const homework = homeworkQuery.data;
+  const dataset = datasetQuery.data as Dataset | undefined;
   const questions = useMemo(() => {
     const data = questionsQuery.data;
     return Array.isArray(data) ? data : [];
@@ -655,6 +674,78 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const attemptsRemaining = activeQuestion?.maxAttempts
     ? Math.max(0, activeQuestion.maxAttempts - (activeAnswer?.executionCount ?? 0))
     : undefined;
+  const activeQuestionIndex = activeQuestion
+    ? Math.max(0, questions.findIndex((question) => question.id === activeQuestion.id))
+    : -1;
+  const questionNumber = activeQuestionIndex >= 0 ? activeQuestionIndex + 1 : 0;
+  const dataStructureNotes = homework?.dataStructureNotes?.trim() || homework?.backgroundStory?.trim() || "";
+  const questionInstructions = activeQuestion?.instructions?.trim() ?? "";
+  const expectedOutputDescription = activeQuestion?.expectedOutputDescription?.trim() ?? "";
+  const isPreviewContext = studentId === "student-demo";
+  const schemaColumnSummary = activeQuestion?.expectedResultSchema?.length
+    ? activeQuestion.expectedResultSchema.map((column) => column.column).join(", ")
+    : "";
+  const resolvedExpectedOutputDescription = expectedOutputDescription
+    || (schemaColumnSummary ? `הפלט צריך לכלול את העמודות: ${schemaColumnSummary}.` : "")
+    || (isPreviewContext
+      ? "לא הוגדר עדיין תיאור פלט צפוי. במצב תצוגה מקדימה כדאי להוסיף expectedOutputDescription לשאלה."
+      : "לא הוגדר תיאור מפורש לפלט הצפוי. הסתמכו על נוסח השאלה ועל תוצאות השאילתה הנכונות.");
+  const isExpectedOutputPlaceholder = !expectedOutputDescription;
+  const activeQuestionText = useMemo(
+    () => (activeQuestion ? getVisibleQuestionText(activeQuestion) : ""),
+    [activeQuestion, getVisibleQuestionText],
+  );
+  const sidebarTables = useMemo<Record<string, SidebarTable>>(() => {
+    if (submission?.studentTableData && Object.keys(submission.studentTableData).length > 0) {
+      return Object.fromEntries(
+        Object.entries(submission.studentTableData).map(([tableName, rows]) => {
+          const normalizedRows = Array.isArray(rows)
+            ? rows.map((row) => row as Record<string, string | number | boolean | null>)
+            : [];
+          const previewColumns = dataset?.previewTables.find((table) => table.name === tableName)?.columns ?? [];
+          const rowColumns = normalizedRows[0] ? Object.keys(normalizedRows[0]) : [];
+
+          return [
+            tableName,
+            {
+              columns: previewColumns.length > 0 ? previewColumns : rowColumns,
+              rows: normalizedRows,
+            },
+          ];
+        }),
+      );
+    }
+
+    if (dataset?.previewTables?.length) {
+      return Object.fromEntries(
+        dataset.previewTables.map((table) => [
+          table.name,
+          {
+            columns: table.columns,
+            rows: (table.rows ?? []) as Record<string, string | number | boolean | null>[],
+          },
+        ]),
+      );
+    }
+
+    return FALLBACK_SAMPLE_DATA;
+  }, [dataset?.previewTables, submission?.studentTableData]);
+
+  useEffect(() => {
+    setExpandedTables((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      Object.entries(sidebarTables).forEach(([tableName, tableData]) => {
+        if (prev[tableName] === undefined && tableData.rows.length > 0) {
+          next[tableName] = true;
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [sidebarTables]);
 
   useEffect(() => {
     if (!solutionModalQuestionId) return;
@@ -679,14 +770,14 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     return {
       homeworkTitle: homework.title,
       backgroundStory: homework.backgroundStory,
-      tables: Object.entries(DATABASE_SAMPLE_DATA).map(([name, data]) => ({
+      tables: Object.entries(sidebarTables).map(([name, data]) => ({
         name,
         columns: data.columns,
         sampleRows: data.rows,
       })),
       questions: questions.map((question, index) => ({
         id: question.id,
-        prompt: question.prompt,
+        prompt: getVisibleQuestionText(question),
         instructions: question.instructions,
         index: index + 1,
         points: question.points,
@@ -694,14 +785,14 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       currentQuestion: activeQuestion
         ? {
             id: activeQuestion.id,
-            prompt: activeQuestion.prompt,
+            prompt: activeQuestionText,
             instructions: activeQuestion.instructions,
             index: currentQuestionIndex >= 0 ? currentQuestionIndex + 1 : 1,
           }
         : null,
       studentTableData: submission?.studentTableData,
     };
-  }, [activeQuestion, homework, questions, submission?.studentTableData]);
+  }, [activeQuestion, activeQuestionText, getVisibleQuestionText, homework, questions, sidebarTables, submission?.studentTableData]);
 
   // Debug: Log activeAnswer whenever it changes
   useEffect(() => {
@@ -743,8 +834,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     );
   }
 
-  const statusLabel = submission?.status ? t(`runner.status.${submission.status}`) : t("runner.status.in_progress");
-  const autosaveLabel = t(`runner.progress.autosave.${autosaveState}`);
+  void (submission?.status ? t(`runner.status.${submission.status}`) : t("runner.status.in_progress"));
 
   return (
     <div className={styles.runner} dir={direction}>
@@ -752,56 +842,71 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       {/* Sidebar: Tables + Data */}
       <aside className={styles.sidebar}>
         <div className={styles.assignmentMeta}>
+          <InstructionsSection
+            title="מבנה הנתונים"
+            instructions={dataStructureNotes}
+            emptyMessage="לא צורף הסבר ייעודי למבנה הנתונים. היעזרו בטבלאות הדוגמה שמופיעות מתחת."
+          />
+
           {/* Database Viewer */}
           <div className={styles.databaseViewerSection}>
+            <div className={styles.tablesSectionHeader}>
+              <h3 className={styles.tablesSectionTitle}>טבלאות לדוגמה</h3>
+              <p className={styles.tablesSectionSubtitle}>
+                עיינו במבנה הטבלאות ובנתונים לדוגמה לפני כתיבת השאילתה.
+              </p>
+            </div>
             <button
               type="button"
               className={styles.databaseViewerButton}
               onClick={() => setShowDatabaseViewer(!showDatabaseViewer)}
             >
-              <span>🗃️</span>
-              {showDatabaseViewer ? "הסתר נתוני דוגמא" : "הצג נתוני דוגמא מהטבלאות"}
+              <span className={styles.databaseViewerButtonIcon}>{showDatabaseViewer ? "▾" : "▸"}</span>
+              {showDatabaseViewer ? "הסתר נתוני דוגמא" : "הצג נתוני דוגמא"}
             </button>
             
             {showDatabaseViewer && (
               <div className={styles.databaseViewer}>
-                <p className={styles.databaseViewerNote}>
-                  להלן נתונים לדוגמא מכל טבלה בבסיס הנתונים:
-                </p>
-                {Object.entries(DATABASE_SAMPLE_DATA).map(([tableName, tableData]) => (
+                {Object.entries(sidebarTables).map(([tableName, tableData]) => (
                   <div key={tableName} className={styles.tableSection}>
                     <button
                       type="button"
-                      className={styles.tableHeader}
+                      className={`${styles.tableHeader} ${expandedTables[tableName] ? styles.tableHeaderExpanded : ''}`}
                       onClick={() => toggleTableExpanded(tableName)}
                     >
                       <span className={styles.tableToggle}>
-                        {expandedTables[tableName] ? "▼" : "▶"}
+                        {expandedTables[tableName] ? "▾" : "▸"}
                       </span>
                       <span className={styles.tableName}>{tableName}</span>
-                      <span className={styles.tableRowCount}>({tableData.rows.length} שורות)</span>
+                      <span className={styles.tableColumnCount}>
+                        {tableData.columns.length} עמודות, {tableData.rows.length} שורות
+                      </span>
                     </button>
                     
                     {expandedTables[tableName] && (
                       <div className={styles.tableSampleData}>
-                        <table className={styles.sampleDataTable}>
-                          <thead>
-                            <tr>
-                              {tableData.columns.map((col) => (
-                                <th key={col}>{col}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {tableData.rows.map((row, idx) => (
-                              <tr key={idx}>
+                        {tableData.rows.length > 0 ? (
+                          <table className={styles.sampleDataTable}>
+                            <thead>
+                              <tr>
                                 {tableData.columns.map((col) => (
-                                  <td key={col}>{String(row[col] ?? "")}</td>
+                                  <th key={col}>{col}</th>
                                 ))}
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {tableData.rows.map((row, idx) => (
+                                <tr key={idx}>
+                                  {tableData.columns.map((col) => (
+                                    <td key={col}>{String(row[col] ?? "")}</td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : (
+                          <p className={styles.instructionsEmpty}>לא הוגדרו שורות דוגמה לטבלה זו.</p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -815,24 +920,30 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       {/* Middle Section: Question + SQL Editor */}
       <section className={styles.workspace}>
         <header className={styles.workspaceHeader}>
-          {/* Question Stepper - full width with proper padding */}
+          {/* Question Stepper */}
           <div className={styles.questionStepperWrapper}>
             <div className={styles.questionStepper}>
               {questions.map((question, index) => {
                 const qId = question.id;
                 const isActive = qId === activeQuestionId;
                 const answer = answers[qId];
+                const hasAnswer = Boolean(answer?.sql?.trim());
                 const isCompleted = Boolean(answer?.feedback?.score);
                 const questionNum = index + 1;
 
                 return (
                   <div key={qId} className={styles.stepperItem}>
-                    <div
-                      className={`${styles.stepperCircle} ${isActive ? styles.stepperCircleActive : ''} ${isCompleted ? styles.stepperCircleCompleted : ''}`}
+                    <button
+                      type="button"
+                      className={`${styles.stepperCircle} ${isActive ? styles.stepperCircleActive : ''} ${isCompleted ? styles.stepperCircleCompleted : ''} ${hasAnswer && !isCompleted ? styles.stepperCircleDraft : ''}`}
                       onClick={() => setActiveQuestionId(qId)}
+                      title={`שאלה ${questionNum}`}
+                      aria-label={`שאלה ${questionNum}`}
                     >
-                      {isCompleted ? '⚡' : questionNum}
-                    </div>
+                      {isCompleted ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      ) : questionNum}
+                    </button>
                     {index < questions.length - 1 && (
                       <div className={`${styles.stepperLine} ${isCompleted ? styles.stepperLineCompleted : ''}`} />
                     )}
@@ -843,76 +954,61 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           </div>
 
           <div className={styles.questionContent}>
-            <h3>{activeQuestion?.prompt ?? t("runner.question.placeholder")}</h3>
-            {(() => {
-              // Subheader = what to display as output (not duplicate of question)
-              const schema = activeQuestion?.expectedResultSchema;
-              const hasOutputColumns = Array.isArray(schema) && schema.length > 0;
-              const outputLabel = hasOutputColumns
-                ? schema!.map((c) => c.column).join(", ")
-                : null;
-              const instructions = activeQuestion?.instructions?.trim();
-              const prompt = activeQuestion?.prompt?.trim();
-              const instructionsDifferent = instructions && instructions !== prompt;
-              if (outputLabel) {
-                return (
-                  <p className={styles.questionOutputSubheader}>
-                    {t("runner.question.outputDisplay")}: {outputLabel}
+            {activeQuestion ? (
+              <div className={styles.questionSummaryCard}>
+                {/* <span className={styles.questionSummaryBadge}>שאלה {questionNumber}</span> */}
+                <p className={styles.questionSummaryPrompt}>{activeQuestionText}</p>
+                {resolvedExpectedOutputDescription && (
+                  <p
+                    className={`${styles.questionSummaryOutput} ${
+                      isExpectedOutputPlaceholder ? styles.questionSummaryOutputPlaceholder : ""
+                    }`}
+                  >
+                    {resolvedExpectedOutputDescription}
                   </p>
-                );
-              }
-              if (instructionsDifferent) {
-                return (
-                  <p className={styles.instructions}>{activeQuestion!.instructions}</p>
-                );
-              }
-              return null;
-            })()}
+                )}
+              </div>
+            ) : (
+              <h3>{t("runner.question.placeholder")}</h3>
+            )}
           </div>
-        
         </header>
 
         <div className={styles.editorSection}>
           <div className={styles.editorContainer}>
-            <div 
-              onClick={(e) => {
-                console.log("🔵 Editor container clicked", { 
-                  target: e.target, 
-                  currentTarget: e.currentTarget,
-                  activeQuestionId,
-                  editorValues: editorValues[activeQuestionId || '']
-                });
-              }}
-              style={{ width: '100%', height: '300px' }}
-            >
-              {/* Force LTR direction for Monaco to ensure native keybindings and input work reliably even in RTL layouts */}
+            <div className={styles.editorLabel}>
+              <span>SQL</span>
+              <span className={styles.autosaveIndicator}>
+                {autosaveState === "saving" ? "שומר..." : autosaveState === "saved" ? "נשמר ✓" : ""}
+              </span>
+            </div>
+            <div style={{ width: '100%', height: '260px' }}>
               <div dir="ltr" style={{ width: '100%', height: '100%' }}>
-              <Editor
-              height="300px"
-              value={activeQuestionId ? (editorValues[activeQuestionId] || "") : ""}
-              defaultLanguage="sql"
-              options={{
-                fontSize: 16,
-                fontFamily: "ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace",
-              }}
-              onChange={(value) => {
-                console.log("🟢 Monaco onChange triggered:", { 
-                  activeQuestionId, 
-                  valueLength: value?.length
-                });
-                if (activeQuestionId) {
-                  handleSqlChange(activeQuestionId, value || "");
-                }
-              }}
-              onMount={(editor) => {
-                console.log("🟡 Monaco editor mounted successfully");
-                editor.focus();
-              }}
-              />
+                <Editor
+                  height="260px"
+                  value={activeQuestionId ? (editorValues[activeQuestionId] || "") : ""}
+                  defaultLanguage="sql"
+                  options={{
+                    fontSize: 15,
+                    fontFamily: "ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace",
+                    minimap: { enabled: false },
+                    lineNumbers: "on",
+                    scrollBeyondLastLine: false,
+                    padding: { top: 12 },
+                    renderLineHighlight: "gutter",
+                  }}
+                  onChange={(value) => {
+                    if (activeQuestionId) {
+                      handleSqlChange(activeQuestionId, value || "");
+                    }
+                  }}
+                  onMount={(editor) => {
+                    editor.focus();
+                  }}
+                />
               </div>
             </div>
-          <div className={styles.editorActions}>
-            {/* Navigation Buttons */}
+            <div className={styles.editorActions}>
               <div className={styles.navigationButtons}>
                 <button
                   type="button"
@@ -925,7 +1021,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   }}
                   disabled={questions.findIndex(q => q.id === activeQuestionId) <= 0}
                 >
-                  ← שאלה קודמת
+                  → הקודמת
                 </button>
                 <button
                   type="button"
@@ -938,7 +1034,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   }}
                   disabled={questions.findIndex(q => q.id === activeQuestionId) >= questions.length - 1}
                 >
-                  שאלה הבאה →
+                  הבאה ←
                 </button>
                 <button
                   type="button"
@@ -946,7 +1042,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   onClick={() => activeQuestionId && handleShowAnswer(activeQuestionId)}
                   disabled={!activeQuestionId}
                 >
-                  👀 הצג חלופה לפתרון
+                  הצג פתרון
                 </button>
               </div>
               
@@ -956,7 +1052,11 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 onClick={handleExecute}
                 disabled={executeMutation.isPending || !activeQuestionId}
               >
-                <span className={styles.runIcon}>{executeMutation.isPending ? "⏳" : "▶"}</span>
+                {executeMutation.isPending ? (
+                  <span className={styles.runButtonSpinner} />
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                )}
                 {executeMutation.isPending ? t("runner.actions.running") : t("runner.actions.run")}
               </button>
             </div>
@@ -965,10 +1065,15 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           <div className={styles.feedbackPanel}>
             <div className={styles.feedbackHeader}>
               <h4 className={styles.feedbackTitle}>{t("runner.results.heading")}</h4>
+              {activeAnswer?.resultPreview && (
+                <span className={styles.resultCount}>
+                  {activeAnswer.resultPreview.rows.length} שורות
+                  {activeAnswer.resultPreview.truncated ? " (חלקי)" : ""}
+                </span>
+              )}
             </div>
             {executeMutation.isError && <p className={styles.errorText}>{t("runner.results.error")}</p>}
             
-            {/* Schema Error Notification - Show when there's a table/column not found error */}
             {activeAnswer?.feedback?.autoNotes && activeAnswer.feedback.score === 0 && (() => {
               const schemaError = parseSchemaError(activeAnswer.feedback.autoNotes);
               const isSchemaError = schemaError.type !== null || 
@@ -995,9 +1100,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                       </p>
                     )}
                     <div className={styles.schemaHelpSection}>
-                      <p className={styles.schemaHelpTitle}>📋 הטבלאות והעמודות הזמינות:</p>
+                      <p className={styles.schemaHelpTitle}>הטבלאות והעמודות הזמינות:</p>
                       <div className={styles.schemaTablesList}>
-                        {Object.entries(DATABASE_SAMPLE_DATA).map(([tableName, tableData]) => (
+                        {Object.entries(sidebarTables).map(([tableName, tableData]) => (
                           <div key={tableName} className={styles.schemaTableItem}>
                             <span className={styles.schemaTableName}>{tableName}</span>
                             <span className={styles.schemaColumns}>
@@ -1050,23 +1155,16 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         </div>
       </section>
 
-      {/* Right Sidebar: Michael Chat */}
+      {/* Left Sidebar: Michael Chat */}
       <aside className={styles.chatSidebar}>
         <div className={styles.chatHeader}>
-          <span className={styles.chatIcon}>💬</span>
-          <h3 className={styles.chatTitle}>שאל את Michael</h3>
+          <div className={styles.chatAvatarSmall}>M</div>
+          <div className={styles.chatHeaderText}>
+            <h3 className={styles.chatTitle}>שאל את Michael</h3>
+            <span className={styles.chatSubtitle}>עוזר AI לשאלות SQL</span>
+          </div>
         </div>
-        <div 
-          className={styles.chatContent}
-          style={{
-            flex: '1 1 0',
-            minHeight: 0,
-            height: 0,
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
+        <div className={styles.chatContent}>
           <Chat
             chatId={null}
             hideSidebar={true}
@@ -1078,15 +1176,21 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         </div>
       </aside>
 
-      {/* Submit Button - Fixed Bottom Right */}
+      {/* Submit Button - Fixed Bottom */}
       <button
         type="button"
         className={styles.submitButtonFixed}
         onClick={handleSubmitClick}
         disabled={submitMutation.isPending || submission?.status === "submitted" || submission?.status === "graded"}
       >
-        <span>{submitMutation.isPending ? "⏳" : submission?.status === "submitted" ? "✅" : "📤"}</span>
-        {submitMutation.isPending ? "מסיים..." : "סיום"}
+        {submitMutation.isPending ? (
+          <span className={styles.runButtonSpinner} />
+        ) : submission?.status === "submitted" ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        )}
+        {submitMutation.isPending ? "שולח..." : "הגש מטלה"}
       </button>
 
       {solutionModalQuestionId && (

@@ -33,6 +33,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       homeworkSetId: setId,
       prompt: body.prompt || "",
       instructions: body.instructions || "",
+      expectedOutputDescription: body.expectedOutputDescription || "",
       starterSql: body.starterSql,
       expectedResultSchema: body.expectedResultSchema || [],
       gradingRubric: body.gradingRubric || [],

@@ -125,6 +125,8 @@ export const DATABASE_INDEXES = {
     { visibility: 1 }, // For status filtering
     { createdBy: 1 }, // For instructor filtering
     { dueAt: 1 }, // For due date sorting
+    { availableFrom: 1 }, // For availability start filtering
+    { availableUntil: 1 }, // For availability end filtering
     { createdAt: -1 }, // For creation date sorting
     { published: 1, visibility: 1 }, // Compound index for common queries
   ],
@@ -201,7 +203,8 @@ export const VALIDATION_SCHEMAS = {
         type: 'object',
         properties: {
           name: { type: 'string', required: true },
-          columns: { type: 'array', items: { type: 'string' } }
+          columns: { type: 'array', items: { type: 'string' } },
+          rows: { type: 'array' }
         }
       }
     },
@@ -210,7 +213,10 @@ export const VALIDATION_SCHEMAS = {
     title: { type: 'string', required: true, minLength: 1, maxLength: 200 },
     courseId: { type: 'string', required: true, minLength: 1, maxLength: 20 },
     dueAt: { type: 'string', required: true }, // ISO date string
+    availableFrom: { type: 'string' }, // ISO date string
+    availableUntil: { type: 'string' }, // ISO date string
     published: { type: 'boolean', required: true },
+    entryMode: { type: 'string', enum: ['direct', 'listed', 'hidden'] },
     datasetPolicy: { type: 'string', enum: ['shared', 'custom'], required: true },
     questionOrder: { type: 'array', items: { type: 'string' }, maxItems: 10 },
     visibility: { type: 'string', enum: ['draft', 'published', 'archived'], required: true },
@@ -218,10 +224,12 @@ export const VALIDATION_SCHEMAS = {
     overview: { type: 'string', maxLength: 2000 },
     selectedDatasetId: { type: 'string' },
     backgroundStory: { type: 'string', maxLength: 2000 },
+    dataStructureNotes: { type: 'string', maxLength: 4000 },
   },
   QUESTION: {
     prompt: { type: 'string', required: true, minLength: 1, maxLength: 500 },
     instructions: { type: 'string', required: true, minLength: 1, maxLength: 1000 },
+    expectedOutputDescription: { type: 'string', maxLength: 1000 },
     starterSql: { type: 'string', maxLength: 2000 },
     expectedResultSchema: {
       type: 'array',
