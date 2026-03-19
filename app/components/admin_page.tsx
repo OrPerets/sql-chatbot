@@ -25,6 +25,7 @@ const options = {
 
 const AdminPage: React.FC = () => {
  const [currentUser, setCurrentUser] = useState(null);
+ const [currentAdminEmail, setCurrentAdminEmail] = useState<string | null>(null);
  const [error, setError] = useState('');
  const [users, setUsers] = useState([]);
  const [classes, setClasses] = useState([{ id: 0, name: 'כל הכיתות' }]);
@@ -58,24 +59,45 @@ const AdminPage: React.FC = () => {
     });
   }, [users, modalSearchTerm]);
 
+ const getAdminAuthHeaders = (baseHeaders: Record<string, string> = {}) => {
+   if (!currentAdminEmail) return baseHeaders;
+   return {
+     ...baseHeaders,
+     'x-user-email': currentAdminEmail,
+   };
+ };
+
+ const fetchCoinsVisibilityStatus = async () => {
+   try {
+     const response = await fetch(`/api/users/coins?status=1`);
+     const data = await response.json();
+     setIsTokenBalanceVisible(data["status"] === "ON");
+   } catch (err) {
+     console.error('Error fetching token visibility:', err);
+   }
+ };
+
  // Fetch initial token visibility state
  useEffect(() => {
-   fetch(`/api/users/coins?status=1`)
-     .then(response => response.json())
-     .then(data => setIsTokenBalanceVisible(data["status"] === "ON"))
-     .catch(error => console.error('Error fetching token visibility:', error));
+   fetchCoinsVisibilityStatus();
  }, []);
 
  // Fetch users and classes data
  useEffect(() => {
    const fetchData = async () => {
+     if (!currentAdminEmail) return;
      setLoading(true);
      try {
        // Fetch users
        const usersResponse = await fetch(`/api/users`);
        const usersData = await usersResponse.json();
 
-       const coinsData = await fetch(`/api/users/coins?all=1`);
+       const coinsData = await fetch(`/api/users/coins?all=1`, {
+         headers: getAdminAuthHeaders(),
+       });
+       if (!coinsData.ok) {
+         throw new Error(`Failed to fetch coins list (${coinsData.status})`);
+       }
        const coins = await coinsData.json();
        usersData.forEach(user => {
         let temp = coins.filter(item => item.user === user.email)
@@ -123,7 +145,7 @@ const AdminPage: React.FC = () => {
    };
 
    fetchData();
- }, []);
+ }, [currentAdminEmail]);
 
  const [searchTerm, setSearchTerm] = useState('');
  const [selectedClass, setSelectedClass] = useState(0); // 0 represents all classes
@@ -143,7 +165,8 @@ const AdminPage: React.FC = () => {
   
    // For now using a placeholder check -needs to check if keeping it in a list version or a db version
    const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il", "r_admin@gmail.com"];
-   const isAdmin = adminEmails.includes(user.email);
+   const normalizedEmail = typeof user.email === 'string' ? user.email.toLowerCase() : '';
+   const isAdmin = adminEmails.includes(normalizedEmail);
   
    if (!isAdmin) {
      setError('אין לך הרשאת גישה לממשק המנהל');
@@ -154,16 +177,21 @@ const AdminPage: React.FC = () => {
    }
 
    setCurrentUser(user.name);
+   setCurrentAdminEmail(normalizedEmail || null);
  }, [router]);
 
- const updateCoinsStatus = (value) => {
-  fetch(`/api/users/coins`, {
+ const updateCoinsStatus = async (value: boolean) => {
+  const response = await fetch(`/api/users/coins`, {
     method: 'POST',
-    headers: {
+    headers: getAdminAuthHeaders({
       'Content-Type': 'application/json',
-    },
+    }),
     body: JSON.stringify({ newStatus: value ? "ON" : "OFF"})
   });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update coins status (${response.status})`);
+  }
  }
 
  const handleLogout = () => {
@@ -262,8 +290,16 @@ const AdminPage: React.FC = () => {
              helpText: 'כאשר מופעל, משתמשים יכולים לראות את יתרת המטבעות שלהם ולקבל מטבעות עבור פעילויות. כאשר כבוי, המטבעות לא יוצגו בכלל.',
              checked: isTokenBalanceVisible,
              onChange: async (checked) => {
+               const previousValue = isTokenBalanceVisible;
                setIsTokenBalanceVisible(checked);
-               updateCoinsStatus(checked);
+               try {
+                 await updateCoinsStatus(checked);
+                 await fetchCoinsVisibilityStatus();
+               } catch (error) {
+                 console.error('Error updating token visibility:', error);
+                 setIsTokenBalanceVisible(previousValue);
+                 setError('שגיאה בעדכון סטטוס המטבעות');
+               }
              }
            },
            {
@@ -524,6 +560,7 @@ const handleSelectUser = (user: any) => {
        {selectedUsers.length > 0 && (
          <BulkActions
            selectedUsers={selectedUsers}
+           adminEmail={currentAdminEmail}
            onSuccess={() => {
              handleSuccess('הפעולה בוצעה בהצלחה!');
              setSelectedUsers([]);
@@ -797,7 +834,12 @@ const handleSelectUser = (user: any) => {
      const usersResponse = await fetch(`/api/users`);
      const usersData = await usersResponse.json();
      
-     const coinsData = await fetch(`/api/users/coins?all=1`);
+     const coinsData = await fetch(`/api/users/coins?all=1`, {
+       headers: getAdminAuthHeaders(),
+     });
+     if (!coinsData.ok) {
+       throw new Error(`Failed to fetch coins list (${coinsData.status})`);
+     }
      const coins = await coinsData.json();
      usersData.forEach(user => {
       let temp = coins.filter(item => item.user === user.email)
@@ -813,6 +855,26 @@ const handleSelectUser = (user: any) => {
      setError('שגיאה בטעינת נתוני משתמשים');
    }
  };
+
+ useEffect(() => {
+   if (!currentAdminEmail) return;
+
+   const shouldPollUsers = activeTab === 'users';
+   const shouldPollCoinsStatus = activeTab === 'users' || activeTab === 'settings';
+
+   if (!shouldPollUsers && !shouldPollCoinsStatus) return;
+
+   const intervalId = window.setInterval(() => {
+     if (shouldPollUsers) {
+       fetchUsersData();
+     }
+     if (shouldPollCoinsStatus) {
+       fetchCoinsVisibilityStatus();
+     }
+   }, 5000);
+
+   return () => window.clearInterval(intervalId);
+ }, [activeTab, currentAdminEmail]);
 
  return error && !dismissedMessages.includes('main-error') ? (
    <div className={styles.adminContainer}>

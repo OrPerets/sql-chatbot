@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCoinsBalance, setCoinsBalance } from '@/lib/users'
+import { AdminAuthError, requireAdmin } from '@/lib/admin-auth'
 
 export async function GET(request: Request) {
   try {
@@ -8,6 +9,7 @@ export async function GET(request: Request) {
     if (!email) {
       return NextResponse.json({ error: 'email is required' }, { status: 400 })
     }
+    // MVP: keep GET public for client balance refreshes by email query param.
     const result = await getCoinsBalance(email)
     return NextResponse.json(result)
   } catch (error) {
@@ -18,6 +20,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    // Admin-only manual balance updates; chat billing must go through /api/responses/messages.
+    await requireAdmin(request)
     const body = await request.json()
     const email = body.email
     const currentBalance = body.currentBalance
@@ -27,6 +31,9 @@ export async function POST(request: Request) {
     const result = await setCoinsBalance(email, currentBalance)
     return NextResponse.json(result)
   } catch (error) {
+    if (error instanceof AdminAuthError) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
     console.error('Error setting coins balance:', error)
     return NextResponse.json({ error: 'Failed to set coins balance' }, { status: 500 })
   }

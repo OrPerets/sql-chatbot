@@ -22,6 +22,7 @@ export type ChatRequestDto = {
   previousResponseId?: string;
   content?: string;
   imageData?: string;
+  userEmail?: string;
   metadata?: Record<string, string>;
 };
 
