@@ -32,8 +32,10 @@ const loadPdfParser = async () => {
     return cachedPdfParser;
   }
 
-  const pdfModule = await import('pdf-parse/lib/pdf-parse.js');
-  cachedPdfParser = pdfModule.default;
+  const pdfModule = await import('pdf-parse');
+  cachedPdfParser = (pdfModule.default ?? pdfModule) as typeof cachedPdfParser extends null
+    ? never
+    : NonNullable<typeof cachedPdfParser>;
   return cachedPdfParser;
 };
 
