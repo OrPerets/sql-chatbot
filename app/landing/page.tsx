@@ -108,6 +108,7 @@ const LandingPage = () => {
             </p>
           </div>
 
+
              {/* המחשה ויזואלית של SQL */}
              <div
             className={`${styles.optionCard}`}
