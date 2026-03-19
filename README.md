@@ -157,6 +157,39 @@ For detailed documentation on specific features, see the `docs/` directory:
 - [Admin Panel Enhancement](./docs/admin-panel-enhancement.md) - Admin dashboard features
 - [Responses API Runbook](./docs/responses-api-runbook.md) - rollout, monitoring, rollback
 
+## Interactive Learning
+
+The Interactive Learning experience lives at `/interactive-learning` and is behind a feature flag.
+
+### Enable the feature
+
+Set the following in your `.env.local`:
+
+```bash
+NEXT_PUBLIC_INTERACTIVE_LEARNING=1
+```
+
+### PDF source and manifest
+
+- PDFs live under `docs/pdfs/` and are served via `/api/learning/pdfs/[filename]`.
+- The manifest that maps PDFs to weeks/concepts is defined in `lib/learning-content.ts`.
+- To add a new PDF, place it in `docs/pdfs/` and add an entry to `BASE_LEARNING_PDFS`.
+
+### Notes export
+
+Students can export their notes from the Interactive Learning page. The export endpoint is
+`GET /api/learning/notes/export?userId=...`, returning a JSON file with all notes for the user.
+
+### PDF summaries with Michael
+
+Students can generate PDF summaries (full or highlights) directly from Interactive Learning:
+
+- `POST /api/learning/summarize` with `{ userId, pdfId, summaryMode }` to generate and persist a summary.
+- `GET /api/learning/summaries?userId=...&pdfId=...&summaryMode=...` to load the latest stored summary.
+
+For performance, the summarization flow limits input to the first 12k characters of extracted PDF
+text and reports when truncation is applied.
+
 ## Troubleshooting
 
 ### Database Connection Issues

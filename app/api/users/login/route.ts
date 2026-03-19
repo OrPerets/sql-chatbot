@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const userId = user.id || user._id?.toString() || email;
     const userName = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || email;
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       id: userId,
       email: user.email,
@@ -50,6 +50,24 @@ export async function POST(request: NextRequest) {
       firstName: user.firstName,
       lastName: user.lastName,
     });
+
+    response.cookies.set('michael-user', userId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
+    });
+
+    response.cookies.set('michael-role', user.role ?? 'student', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
+    });
+
+    return response;
   } catch (error: any) {
     console.error('Error during login:', error);
     return NextResponse.json(
