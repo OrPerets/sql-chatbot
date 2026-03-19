@@ -29,14 +29,15 @@ const ensureAuthenticated = async (request: NextRequest) => {
 
 export async function HEAD(
   request: NextRequest,
-  { params }: { params: { filename: string } }
+  { params }: { params: Promise<{ filename: string }> }
 ) {
   const unauthorized = await ensureAuthenticated(request);
   if (unauthorized) {
     return unauthorized;
   }
 
-  const decodedFilename = resolveAuthorizedFilename(params.filename);
+  const { filename } = await params;
+  const decodedFilename = resolveAuthorizedFilename(filename);
   if (!decodedFilename) {
     return new Response('Not found', { status: 404 });
   }
@@ -64,14 +65,15 @@ export async function HEAD(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { filename: string } }
+  { params }: { params: Promise<{ filename: string }> }
 ) {
   const unauthorized = await ensureAuthenticated(request);
   if (unauthorized) {
     return unauthorized;
   }
 
-  const decodedFilename = resolveAuthorizedFilename(params.filename);
+  const { filename } = await params;
+  const decodedFilename = resolveAuthorizedFilename(filename);
   if (!decodedFilename) {
     return new Response('Not found', { status: 404 });
   }

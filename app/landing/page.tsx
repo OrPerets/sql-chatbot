@@ -82,16 +82,15 @@ const LandingPage = () => {
 
           {/* המחשה ויזואלית של SQL */}
           <div
-            className={`${styles.optionCard} ${styles.optionCardDisabled}`}
-            onClick={() => {}}
-            // onClick={() => handleNavigation('/visualizer')}
+            className={`${styles.optionCard}`}
+            // onClick={() => {}}
+            onClick={() => handleNavigation('/visualizer')}
           >
             <div className={styles.cardIcon}>
               <Database size={48} />
             </div>
             <h2 className={styles.cardTitle}>המחשה ויזואלית של SQL</h2>
             <p className={styles.cardDescription}>
-            יגיע בהמשך
             </p>
           </div>
 
@@ -106,6 +105,20 @@ const LandingPage = () => {
             <h2 className={styles.cardTitle}>למידה אינטראקטיבית</h2>
             <p className={styles.cardDescription}>
               הרצאות, תרגולים וסיכומי למידה במקום אחד
+            </p>
+          </div>
+
+             {/* המחשה ויזואלית של SQL */}
+             <div
+            className={`${styles.optionCard}`}
+            // onClick={() => {}}
+            onClick={() => handleNavigation('/homework')}
+          >
+            <div className={styles.cardIcon}>
+              <Database size={48} />
+            </div>
+            <h2 className={styles.cardTitle}>מודול תרגילי בית</h2>
+            <p className={styles.cardDescription}>
             </p>
           </div>
 

@@ -8,10 +8,9 @@ import BuilderDashboardPage from "@/app/homework/builder/page";
 export default async function AdminHomeworkPage() {
   const headerList = await headers();
   const cookieStore = await cookies();
-  const acceptLanguage = headerList.get("accept-language") ?? "";
   const headerLocale = headerList.get("x-michael-locale");
   const cookieLocale = cookieStore.get("michael-locale")?.value ?? null;
-  const initialLocale = resolveHomeworkLocale(cookieLocale ?? headerLocale ?? acceptLanguage);
+  const initialLocale = resolveHomeworkLocale(cookieLocale ?? headerLocale ?? "he");
 
   return (
     <HomeworkLocaleProvider initialLocale={initialLocale}>

@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUsersService } from '@/lib/users';
 
+const ADMIN_EMAILS = new Set([
+  'liorbs89@gmail.com',
+  'eyalh747@gmail.com',
+  'orperets11@gmail.com',
+  'roeizer@shenkar.ac.il',
+  'r_admin@gmail.com',
+]);
+
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json();
@@ -41,6 +49,12 @@ export async function POST(request: NextRequest) {
     // Use the user's id field if available, otherwise use _id
     const userId = user.id || user._id?.toString() || email;
     const userName = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || email;
+    const normalizedEmail = user.email.toLowerCase().trim();
+    const resolvedRole = typeof user.role === 'string' && user.role.trim()
+      ? user.role.trim().toLowerCase()
+      : ADMIN_EMAILS.has(normalizedEmail)
+        ? 'admin'
+        : 'student';
 
     const response = NextResponse.json({
       success: true,
@@ -59,7 +73,7 @@ export async function POST(request: NextRequest) {
       path: '/',
     });
 
-    response.cookies.set('michael-role', user.role ?? 'student', {
+    response.cookies.set('michael-role', resolvedRole, {
       httpOnly: true,
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
