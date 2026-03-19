@@ -17,7 +17,8 @@ import {
   User,
   Search,
   Bell,
-  HelpCircle
+  HelpCircle,
+  Sparkles
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
@@ -167,6 +168,13 @@ const navigationItems: NavigationItem[] = [
         icon: Brain,
         type: 'route',
         route: '/admin/model-management'
+      },
+      {
+        id: 'test-gpt',
+        label: 'בדיקת GPT-5.4 Pro',
+        icon: Sparkles,
+        type: 'route',
+        route: '/admin/test-gpt'
       }
     ]
   }
