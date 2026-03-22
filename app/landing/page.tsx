@@ -89,7 +89,7 @@ const LandingPage = () => {
             <div className={styles.cardIcon}>
               <Database size={48} />
             </div>
-            <h2 className={styles.cardTitle}>המחשה ויזואלית של SQL</h2>
+            <h2 className={styles.cardTitle}>מודול תרגילי בית</h2>
             <p className={styles.cardDescription}>
             יגיע בהמשך
             </p>
