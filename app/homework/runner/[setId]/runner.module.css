@@ -867,6 +867,65 @@
   text-align: center;
 }
 
+.questionSummaryActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.hintButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 16px rgba(234, 88, 12, 0.18);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.hintButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(234, 88, 12, 0.22);
+}
+
+.hintButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.hintMeta {
+  font-size: 12px;
+  font-weight: 600;
+  color: #9a3412;
+}
+
+.hintErrorText {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.hintSuccessText {
+  margin: 0;
+  color: #047857;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
 .questionSummaryBadge {
   display: inline-flex;
   align-items: center;
@@ -1291,6 +1350,23 @@
   gap: 14px;
 }
 
+.hintModal {
+  position: relative;
+  z-index: 1101;
+  width: min(560px, 100%);
+  min-width: 280px;
+  max-height: min(80vh, 680px);
+  overflow: auto;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 .solutionModalHeader {
   display: flex;
   align-items: center;
@@ -1338,6 +1414,17 @@
   font-size: 13px;
   font-weight: 600;
   color: #0f172a;
+}
+
+.hintText {
+  margin: 0;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  border: 1px solid #fdba74;
+  border-radius: 10px;
+  color: #7c2d12;
+  font-size: 14px;
+  line-height: 1.8;
 }
 
 .solutionModalActions {
@@ -2790,6 +2877,10 @@
   .editorActions {
     gap: 14px;
   }
+
+  .questionSummaryActions {
+    align-items: flex-start;
+  }
   
   .runButton {
     padding: 10px 18px;
@@ -3013,6 +3104,15 @@
     justify-content: flex-end;
     padding: 8px 0 0;
   }
+
+  .questionSummaryActions {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .hintButton {
+    width: 100%;
+  }
   
   .runButton {
     padding: 10px 16px;
@@ -3196,6 +3296,10 @@
     flex-wrap: wrap;
     gap: 8px;
     justify-content: center;
+  }
+
+  .questionSummaryActions {
+    width: 100%;
   }
   
   .submitButtonMain {

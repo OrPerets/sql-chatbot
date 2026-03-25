@@ -1,6 +1,30 @@
 import { NextResponse } from 'next/server'
-import { adjustBalanceAdmin, getAllCoins, getCoinsStatus, setCoinsConfig } from '@/lib/coins'
+import { adjustBalanceAdmin, getCoinsAdminOverview, getCoinsConfig, setCoinsConfig } from '@/lib/coins'
 import { AdminAuthError, requireAdmin } from '@/lib/admin-auth'
+
+function buildCoinsConfigPatch(body: any) {
+  const source =
+    body?.config && typeof body.config === 'object' ? { ...body, ...body.config, config: undefined } : body
+  const patch: Record<string, unknown> = {}
+
+  if (source?.newStatus !== undefined || source?.status !== undefined) {
+    patch.status = source?.newStatus ?? source?.status
+  }
+  if (source?.starterBalance !== undefined) {
+    patch.starterBalance = source.starterBalance
+  }
+  if (source?.messageCost !== undefined) {
+    patch.messageCost = source.messageCost
+  }
+  if (source?.costs && typeof source.costs === 'object') {
+    patch.costs = source.costs
+  }
+  if (source?.modules && typeof source.modules === 'object') {
+    patch.modules = source.modules
+  }
+
+  return Object.keys(patch).length > 0 ? patch : null
+}
 
 export async function GET(request: Request) {
   try {
@@ -9,13 +33,12 @@ export async function GET(request: Request) {
     const status = searchParams.get('status')
     if (all === '1') {
       await requireAdmin(request)
-      const coins = await getAllCoins()
-      return NextResponse.json(coins)
+      const overview = await getCoinsAdminOverview()
+      return NextResponse.json(overview)
     }
     if (status === '1') {
-      const statuses = await getCoinsStatus()
-      const current = Array.isArray(statuses) && statuses.length > 0 ? statuses[0] : null
-      return NextResponse.json({ status: (current?.status as string) || 'OFF' })
+      const config = await getCoinsConfig()
+      return NextResponse.json(config)
     }
     return NextResponse.json({ error: 'Specify ?all=1 or ?status=1' }, { status: 400 })
   } catch (error) {
@@ -35,8 +58,9 @@ export async function POST(request: Request) {
       const result = await adjustBalanceAdmin(body.users, body.amount, adminEmail)
       return NextResponse.json(result)
     }
-    if (body.newStatus !== undefined) {
-      const result = await setCoinsConfig({ status: body.newStatus }, adminEmail)
+    const configPatch = buildCoinsConfigPatch(body)
+    if (configPatch) {
+      const result = await setCoinsConfig(configPatch, adminEmail)
       return NextResponse.json(result)
     }
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
@@ -48,4 +72,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed' }, { status: 500 })
   }
 }
-

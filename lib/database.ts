@@ -295,6 +295,7 @@ export const COLLECTIONS = {
   USER_FORMS: 'UserForms',
   STATUS: 'Status',
   COINS_STATUS: 'CoinsStatus',
+  COINS_LEDGER: 'CoinsLedger',
   PRACTICE_TABLES: 'practiceTables',
   PRACTICE_QUERIES: 'practiceQueries',
   PRACTICE_ATTEMPTS: 'practiceAttempts',

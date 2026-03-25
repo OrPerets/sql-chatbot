@@ -5,7 +5,7 @@
 const mockCreateResponse = jest.fn();
 const mockGetOrCreateVectorStoreId = jest.fn();
 const mockGetCoinsConfig = jest.fn();
-const mockChargeMichaelMessage = jest.fn();
+const mockChargeMainChatMessage = jest.fn();
 
 jest.mock("@/lib/openai/api-mode", () => ({
   getOpenAIApiMode: () => "responses",
@@ -41,7 +41,7 @@ jest.mock("@/app/openai", () => ({
 
 jest.mock("@/lib/coins", () => ({
   getCoinsConfig: (...args: any[]) => mockGetCoinsConfig(...args),
-  chargeMichaelMessage: (...args: any[]) => mockChargeMichaelMessage(...args),
+  chargeMainChatMessage: (...args: any[]) => mockChargeMainChatMessage(...args),
 }));
 
 describe("Responses API routes", () => {
@@ -49,16 +49,18 @@ describe("Responses API routes", () => {
     mockCreateResponse.mockReset();
     mockGetOrCreateVectorStoreId.mockReset();
     mockGetCoinsConfig.mockReset();
-    mockChargeMichaelMessage.mockReset();
+    mockChargeMainChatMessage.mockReset();
     mockGetOrCreateVectorStoreId.mockResolvedValue(null);
     mockGetCoinsConfig.mockResolvedValue({
       sid: "admin",
       status: "OFF",
       messageCost: 1,
       starterBalance: 20,
+      costs: { mainChatMessage: 1, sqlPracticeOpen: 1, homeworkHintOpen: 1 },
+      modules: { mainChat: false, homeworkHints: false, sqlPractice: false },
       updatedAt: new Date(0),
     });
-    mockChargeMichaelMessage.mockResolvedValue({ ok: true });
+    mockChargeMainChatMessage.mockResolvedValue({ ok: true });
   });
 
   it("creates a responses session", async () => {
@@ -158,15 +160,17 @@ describe("Responses API routes", () => {
     expect(mockCreateResponse.mock.calls[0][0].reasoning).toBeUndefined();
   });
 
-  it("charges when coins are ON and balance is sufficient", async () => {
+  it("charges when main chat coins are enabled and balance is sufficient", async () => {
     mockGetCoinsConfig.mockResolvedValue({
       sid: "admin",
       status: "ON",
       messageCost: 1,
       starterBalance: 20,
+      costs: { mainChatMessage: 1, sqlPracticeOpen: 1, homeworkHintOpen: 1 },
+      modules: { mainChat: true, homeworkHints: false, sqlPractice: false },
       updatedAt: new Date(0),
     });
-    mockChargeMichaelMessage.mockResolvedValue({ ok: true });
+    mockChargeMainChatMessage.mockResolvedValue({ ok: true });
     mockCreateResponse.mockResolvedValue({
       id: "resp_final_2",
       output_text: "תשובה",
@@ -190,19 +194,24 @@ describe("Responses API routes", () => {
 
     expect(response.status).toBe(200);
     expect(payload.responseId).toBe("resp_final_2");
-    expect(mockChargeMichaelMessage).toHaveBeenCalledWith("student@example.com");
+    expect(mockChargeMainChatMessage).toHaveBeenCalledWith("student@example.com", {
+      sessionId: "sess_coins_on",
+      hasImage: false,
+    });
     expect(mockCreateResponse).toHaveBeenCalledTimes(1);
   });
 
-  it("returns 402 when coins are ON and balance is insufficient", async () => {
+  it("returns 402 when main chat coins are enabled and balance is insufficient", async () => {
     mockGetCoinsConfig.mockResolvedValue({
       sid: "admin",
       status: "ON",
       messageCost: 1,
       starterBalance: 20,
+      costs: { mainChatMessage: 1, sqlPracticeOpen: 1, homeworkHintOpen: 1 },
+      modules: { mainChat: true, homeworkHints: false, sqlPractice: false },
       updatedAt: new Date(0),
     });
-    mockChargeMichaelMessage.mockResolvedValue({ ok: false, balance: 0, required: 1 });
+    mockChargeMainChatMessage.mockResolvedValue({ ok: false, balance: 0, required: 1 });
 
     const { POST } = await import("../../app/api/responses/messages/route");
     const request = new Request("http://localhost:3000/api/responses/messages", {
@@ -229,12 +238,14 @@ describe("Responses API routes", () => {
     expect(mockCreateResponse).not.toHaveBeenCalled();
   });
 
-  it("does not require userEmail or charge when coins are OFF", async () => {
+  it("does not require userEmail or charge when main chat billing is disabled", async () => {
     mockGetCoinsConfig.mockResolvedValue({
       sid: "admin",
-      status: "OFF",
+      status: "ON",
       messageCost: 1,
       starterBalance: 20,
+      costs: { mainChatMessage: 1, sqlPracticeOpen: 1, homeworkHintOpen: 1 },
+      modules: { mainChat: false, homeworkHints: true, sqlPractice: true },
       updatedAt: new Date(0),
     });
     mockCreateResponse.mockResolvedValue({
@@ -259,7 +270,38 @@ describe("Responses API routes", () => {
 
     expect(response.status).toBe(200);
     expect(payload.responseId).toBe("resp_final_3");
-    expect(mockChargeMichaelMessage).not.toHaveBeenCalled();
+    expect(mockChargeMainChatMessage).not.toHaveBeenCalled();
     expect(mockCreateResponse).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 400 when main chat billing is enabled and userEmail is missing", async () => {
+    mockGetCoinsConfig.mockResolvedValue({
+      sid: "admin",
+      status: "ON",
+      messageCost: 1,
+      starterBalance: 20,
+      costs: { mainChatMessage: 1, sqlPracticeOpen: 1, homeworkHintOpen: 1 },
+      modules: { mainChat: true, homeworkHints: false, sqlPractice: false },
+      updatedAt: new Date(0),
+    });
+
+    const { POST } = await import("../../app/api/responses/messages/route");
+    const request = new Request("http://localhost:3000/api/responses/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "sess_missing_email",
+        content: "שלום",
+        stream: false,
+      }),
+    });
+
+    const response = await POST(request);
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload.error).toBe("userEmail required when coins are ON");
+    expect(mockChargeMainChatMessage).not.toHaveBeenCalled();
+    expect(mockCreateResponse).not.toHaveBeenCalled();
   });
 });

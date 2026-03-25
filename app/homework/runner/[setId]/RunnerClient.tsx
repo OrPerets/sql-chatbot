@@ -33,6 +33,20 @@ interface RunnerClientProps {
   studentId: string;
 }
 
+interface HomeworkHintResponse {
+  hint: string;
+  currentBalance?: number;
+}
+
+interface CoinsConfigResponse {
+  modules?: {
+    homeworkHints?: boolean;
+  };
+  costs?: {
+    homeworkHintOpen?: number;
+  };
+}
+
 interface PendingSave {
   questionId: string;
   timer: number;
@@ -201,6 +215,7 @@ const FALLBACK_SAMPLE_DATA: Record<string, SidebarTable> = {
 
 export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const queryClient = useQueryClient();
+  const isPreviewContext = studentId === "student-demo";
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const [editorValues, setEditorValues] = useState<Record<string, string>>({});
   const [autosaveState, setAutosaveState] = useState<"idle" | "saving" | "saved">("idle");
@@ -209,6 +224,11 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
   const [solutionModalQuestionId, setSolutionModalQuestionId] = useState<string | null>(null);
   const [copyAnswerStatus, setCopyAnswerStatus] = useState<Record<string, "idle" | "copied">>({});
+  const [hintModalOpen, setHintModalOpen] = useState(false);
+  const [hintText, setHintText] = useState("");
+  const [hintQuestionPrompt, setHintQuestionPrompt] = useState("");
+  const [hintErrorMessage, setHintErrorMessage] = useState<string | null>(null);
+  const [hintSuccessMessage, setHintSuccessMessage] = useState<string | null>(null);
   const pendingRef = useRef<Record<string, PendingSave>>({});
   const analyticsRef = useRef<Record<string, QuestionAnalyticsState>>({});
   const activeQuestionRef = useRef<string | null>(null);
@@ -251,6 +271,18 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     queryKey: ["submission", setId, studentId],
     queryFn: () => getSubmission(setId, studentId),
     enabled: Boolean(setId && studentId),
+  });
+  const coinsConfigQuery = useQuery<CoinsConfigResponse>({
+    queryKey: ["coins-config", "homework-hints"],
+    queryFn: async () => {
+      const response = await fetch("/api/users/coins?status=1", { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error("Failed to load coins config");
+      }
+      return (await response.json()) as CoinsConfigResponse;
+    },
+    enabled: !isPreviewContext,
+    staleTime: 30_000,
   });
 
   const questionsById = useMemo(() => {
@@ -553,6 +585,71 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     submitMutation.mutate({ studentId });
   }, [studentId, submitMutation]);
 
+  const hintMutation = useMutation<
+    HomeworkHintResponse,
+    Error & { status?: number; payload?: any },
+    { questionId: string; questionPrompt: string }
+  >({
+    mutationFn: async ({ questionId }) => {
+      const response = await fetch("/api/homework/hints", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          setId,
+          studentId,
+          questionId,
+        }),
+      });
+
+      if (!response.ok) {
+        let payload: any = null;
+        try {
+          payload = await response.json();
+        } catch {
+          payload = null;
+        }
+
+        const error = new Error(payload?.error || "Failed to open homework hint") as Error & {
+          status?: number;
+          payload?: any;
+        };
+        error.status = response.status;
+        error.payload = payload;
+        throw error;
+      }
+
+      return (await response.json()) as HomeworkHintResponse;
+    },
+    onMutate: () => {
+      setHintErrorMessage(null);
+      setHintSuccessMessage(null);
+    },
+    onSuccess: (payload, variables) => {
+      setHintText(payload.hint);
+      setHintQuestionPrompt(variables.questionPrompt);
+      setHintSuccessMessage("הרמז נפתח בהצלחה");
+      setHintModalOpen(true);
+      void queryClient.invalidateQueries({ queryKey: ["coins-config", "homework-hints"] });
+    },
+    onError: (error) => {
+      const balance = Number(error.payload?.balance);
+      const required = Number(error.payload?.required);
+
+      if (error.status === 402 && Number.isFinite(balance) && Number.isFinite(required)) {
+        setHintErrorMessage(`אין מספיק מטבעות. יתרה: ${balance}, נדרש: ${required}.`);
+        return;
+      }
+
+      setHintErrorMessage(
+        typeof error.payload?.error === "string" && error.payload.error.trim().length > 0
+          ? error.payload.error
+          : "לא ניתן לפתוח רמז כרגע."
+      );
+    },
+  });
+
   const scheduleAutosave = useCallback(
     (questionId: string, value: string) => {
       const pending = pendingRef.current[questionId];
@@ -681,7 +778,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const dataStructureNotes = homework?.dataStructureNotes?.trim() || homework?.backgroundStory?.trim() || "";
   const questionInstructions = activeQuestion?.instructions?.trim() ?? "";
   const expectedOutputDescription = activeQuestion?.expectedOutputDescription?.trim() ?? "";
-  const isPreviewContext = studentId === "student-demo";
   const schemaColumnSummary = activeQuestion?.expectedResultSchema?.length
     ? activeQuestion.expectedResultSchema.map((column) => column.column).join(", ")
     : "";
@@ -695,6 +791,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     () => (activeQuestion ? getVisibleQuestionText(activeQuestion) : ""),
     [activeQuestion, getVisibleQuestionText],
   );
+  const homeworkHintsEnabled = Boolean(coinsConfigQuery.data?.modules?.homeworkHints) && !isPreviewContext;
+  const homeworkHintCost = Number(coinsConfigQuery.data?.costs?.homeworkHintOpen ?? 1);
   const sidebarTables = useMemo<Record<string, SidebarTable>>(() => {
     if (submission?.studentTableData && Object.keys(submission.studentTableData).length > 0) {
       return Object.fromEntries(
@@ -759,6 +857,19 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [solutionModalQuestionId]);
+
+  useEffect(() => {
+    if (!hintModalOpen) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setHintModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [hintModalOpen]);
 
   const chatHomeworkContext = useMemo(() => {
     if (!homework) return null;
@@ -967,6 +1078,35 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                     {resolvedExpectedOutputDescription}
                   </p>
                 )}
+                {homeworkHintsEnabled ? (
+                  <div className={styles.questionSummaryActions}>
+                    <button
+                      type="button"
+                      className={styles.hintButton}
+                      onClick={() =>
+                        activeQuestionId &&
+                        hintMutation.mutate({
+                          questionId: activeQuestionId,
+                          questionPrompt: activeQuestionText,
+                        })
+                      }
+                      disabled={!activeQuestionId || hintMutation.isPending}
+                    >
+                      {hintMutation.isPending ? "פותח רמז..." : "הצג רמז"}
+                    </button>
+                    <span className={styles.hintMeta}>עלות פתיחה: {homeworkHintCost} מטבע</span>
+                  </div>
+                ) : null}
+                {hintErrorMessage ? (
+                  <p className={styles.hintErrorText} role="alert">
+                    {hintErrorMessage}
+                  </p>
+                ) : null}
+                {hintSuccessMessage ? (
+                  <p className={styles.hintSuccessText} role="status">
+                    {hintSuccessMessage}
+                  </p>
+                ) : null}
               </div>
             ) : (
               <h3>{t("runner.question.placeholder")}</h3>
@@ -1243,6 +1383,47 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 type="button"
                 className={styles.showAnswerButton}
                 onClick={() => setSolutionModalQuestionId(null)}
+              >
+                סגור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {hintModalOpen && (
+        <div
+          className={styles.solutionModalOverlay}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setHintModalOpen(false);
+            }
+          }}
+        >
+          <div className={styles.hintModal} dir="rtl">
+            <div className={styles.solutionModalHeader}>
+              <h4 className={styles.solutionModalTitle}>רמז</h4>
+              <button
+                type="button"
+                className={styles.solutionModalClose}
+                onClick={() => setHintModalOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {hintQuestionPrompt ? <p className={styles.solutionModalPrompt}>{hintQuestionPrompt}</p> : null}
+
+            <div className={styles.solutionModalBody}>
+              <span className={styles.solutionModalLabel}>כיוון לפתרון:</span>
+              <p className={styles.hintText}>{hintText}</p>
+            </div>
+
+            <div className={styles.solutionModalActions}>
+              <button
+                type="button"
+                className={styles.showAnswerButton}
+                onClick={() => setHintModalOpen(false)}
               >
                 סגור
               </button>

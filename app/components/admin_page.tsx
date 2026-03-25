@@ -15,6 +15,7 @@ import UsersList from './admin/UsersList';
 import EnhancedSettingsToggle from './admin/EnhancedSettingsToggle';
 import StudentProfiles from './admin/StudentProfiles';
 import AnalysisManagement from './admin/AnalysisManagement';
+import CoinsManagementPanel from './admin/CoinsManagementPanel';
 import styles from './admin_page.module.css';
 
 const options = {
@@ -67,6 +68,18 @@ const AdminPage: React.FC = () => {
    };
  };
 
+ const normalizeCoinsUsers = (payload: any): Array<{ user: string; coins: number }> => {
+   if (Array.isArray(payload)) {
+     return payload;
+   }
+
+   if (payload && Array.isArray(payload.users)) {
+     return payload.users;
+   }
+
+   return [];
+ };
+
  const fetchCoinsVisibilityStatus = async () => {
    try {
      const response = await fetch(`/api/users/coins?status=1`);
@@ -98,7 +111,8 @@ const AdminPage: React.FC = () => {
        if (!coinsData.ok) {
          throw new Error(`Failed to fetch coins list (${coinsData.status})`);
        }
-       const coins = await coinsData.json();
+       const coinsPayload = await coinsData.json();
+       const coins = normalizeCoinsUsers(coinsPayload);
        usersData.forEach(user => {
         let temp = coins.filter(item => item.user === user.email)
         if (temp.length > 0) {
@@ -840,7 +854,8 @@ const handleSelectUser = (user: any) => {
      if (!coinsData.ok) {
        throw new Error(`Failed to fetch coins list (${coinsData.status})`);
      }
-     const coins = await coinsData.json();
+     const coinsPayload = await coinsData.json();
+     const coins = normalizeCoinsUsers(coinsPayload);
      usersData.forEach(user => {
       let temp = coins.filter(item => item.user === user.email)
       if (temp.length > 0) {
@@ -926,6 +941,7 @@ const handleSelectUser = (user: any) => {
     {activeTab === 'users' && renderUserManagement()}
     {activeTab === 'students' && <StudentProfiles />}
     {activeTab === 'analysis' && <AnalysisManagement />}
+    {activeTab === 'coins' && currentAdminEmail && <CoinsManagementPanel currentAdminEmail={currentAdminEmail} />}
    </ModernAdminLayout>
  );
 };

@@ -90,6 +90,20 @@ type HomeworkChatContext = {
   studentTableData?: Record<string, any[]>;
 };
 
+type CoinsConfigClientResponse = {
+  status?: "ON" | "OFF";
+  modules?: {
+    mainChat?: boolean;
+    homeworkHints?: boolean;
+    sqlPractice?: boolean;
+  };
+  costs?: {
+    mainChatMessage?: number;
+    sqlPracticeOpen?: number;
+    homeworkHintOpen?: number;
+  };
+};
+
 type InsufficientCoinsClientBody = {
   error?: string;
   message?: string;
@@ -464,6 +478,8 @@ const Chat = ({
   const [balanceErrorMessage, setBalanceErrorMessage] = useState<string | null>(null);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(false);
+  const [isSqlPracticeEnabled, setIsSqlPracticeEnabled] = useState(false);
+  const [practiceOpenCost, setPracticeOpenCost] = useState(1);
   const [loadingMessages, setLoadingMessages] = useState(false); // Add loading state
   const [sqlTutorModalOpen, setSqlTutorModalOpen] = useState(false);
   const [sqlTutorOperation, setSqlTutorOperation] = useState<"create" | "insert">("create");
@@ -618,6 +634,7 @@ const Chat = ({
   // Practice-related state
   const [showPracticeModal, setShowPracticeModal] = useState(false);
   const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
+  const [openingPractice, setOpeningPractice] = useState(false);
 
   const formattedHomeworkContext = useMemo(() => {
     if (!homeworkContext) return null;
@@ -781,13 +798,78 @@ const Chat = ({
 
   // Exercise-related functions
   const startExercise = async () => {
+    if (!isSqlPracticeEnabled || openingPractice) {
+      return;
+    }
+
     // Show disclaimer modal first
     setShowDisclaimerModal(true);
   };
 
-  const handleDisclaimerConfirm = () => {
+  const handleDisclaimerConfirm = async () => {
+    const storedUser = getStoredUser();
+    const userId = storedUser?.id ?? storedUser?.email ?? null;
+
+    if (!userId) {
+      showBalanceErrorNotice("לא ניתן לפתוח את תרגול ה-SQL כרגע.");
+      setShowDisclaimerModal(false);
+      return;
+    }
+
+    setOpeningPractice(true);
     setShowDisclaimerModal(false);
-    setShowPracticeModal(true);
+    clearBalanceErrorNotice();
+
+    try {
+      const response = await fetch("/api/practice/coins", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": String(userId),
+        },
+        body: JSON.stringify({
+          userId,
+          entryPoint: "chat",
+        }),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (response.status === 402) {
+        const balance = Number(payload?.balance);
+        const required = Number(payload?.required);
+
+        if (Number.isFinite(balance)) {
+          setCurrentBalanceFromServer(balance);
+        }
+
+        showBalanceErrorNotice(
+          Number.isFinite(balance) && Number.isFinite(required)
+            ? `אין מספיק מטבעות. יתרה: ${balance}, נדרש: ${required}.`
+            : "אין מספיק מטבעות"
+        );
+        return;
+      }
+
+      if (!response.ok) {
+        showBalanceErrorNotice(payload?.error || "לא ניתן לפתוח את תרגול ה-SQL כרגע.");
+        return;
+      }
+
+      const nextBalance = normalizeBalanceValue(payload);
+      if (nextBalance !== null) {
+        setCurrentBalanceFromServer(nextBalance);
+      } else if (storedUser?.email) {
+        await refreshBalanceFromServer(storedUser.email);
+      }
+
+      setShowPracticeModal(true);
+    } catch (error) {
+      console.error("Failed to open SQL practice:", error);
+      showBalanceErrorNotice("לא ניתן לפתוח את תרגול ה-SQL כרגע.");
+    } finally {
+      setOpeningPractice(false);
+    }
   };
 
   const handleDisclaimerCancel = () => {
@@ -934,12 +1016,18 @@ const Chat = ({
 
   const refreshCoinsStatus = useCallback(async () => {
     try {
-      const response = await fetch(`/api/users/coins?status=1`);
+      const response = await fetch(`/api/users/coins?status=1`, { cache: "no-store" });
       if (!response.ok) return null;
-      const data = await response.json();
-      const statusIsOn = data?.status === "ON";
-      setIsTokenBalanceVisible(statusIsOn);
-      return statusIsOn;
+      const data: CoinsConfigClientResponse = await response.json();
+      const mainChatEnabled = data?.modules?.mainChat === true || data?.status === "ON";
+      const sqlPracticeEnabled = data?.modules?.sqlPractice === true;
+      const configuredPracticeCost = Number(data?.costs?.sqlPracticeOpen);
+
+      setIsTokenBalanceVisible(mainChatEnabled);
+      setIsSqlPracticeEnabled(sqlPracticeEnabled);
+      setPracticeOpenCost(Number.isFinite(configuredPracticeCost) && configuredPracticeCost > 0 ? configuredPracticeCost : 1);
+
+      return mainChatEnabled;
     } catch (error) {
       console.error("Failed to refresh coins status:", error);
       return null;
@@ -2658,20 +2746,22 @@ return (
 
               {isActionMenuOpen && (
                 <div className={styles.actionMenu} role="menu">
-                  <button
-                    type="button"
-                    className={styles.actionMenuItem}
-                    onClick={() => {
-                      setIsActionMenuOpen(false);
-                      startExercise();
-                    }}
-                    disabled={inputDisabled}
-                    title="קבל תרגול SQL חדש"
-                    role="menuitem"
-                  >
-                    <Sparkles className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
-                    <span className={styles.actionMenuItemText}>תרגול SQL</span>
-                  </button>
+                  {isSqlPracticeEnabled && (
+                    <button
+                      type="button"
+                      className={styles.actionMenuItem}
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        void startExercise();
+                      }}
+                      disabled={inputDisabled || openingPractice}
+                      title="קבל תרגול SQL חדש"
+                      role="menuitem"
+                    >
+                      <Sparkles className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
+                      <span className={styles.actionMenuItemText}>תרגול SQL</span>
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -3051,18 +3141,23 @@ return (
             <p className={styles.disclaimerText}>
               מייקל יכול ליצור שאלות ותשובות שלא נכללות בחומר הנלמד
             </p>
+            <p className={styles.disclaimerText}>
+              פתיחת תרגול SQL תחייב {practiceOpenCost} מטבע{practiceOpenCost === 1 ? "" : "ות"}.
+            </p>
             <div className={styles.disclaimerActions}>
               <button
                 className={styles.disclaimerCancelButton}
                 onClick={handleDisclaimerCancel}
+                disabled={openingPractice}
               >
                 ביטול
               </button>
               <button
                 className={styles.disclaimerConfirmButton}
                 onClick={handleDisclaimerConfirm}
+                disabled={openingPractice}
               >
-                אני מסכים, התחל תרגול
+                {openingPractice ? "פותח תרגול..." : "אני מסכים, התחל תרגול"}
               </button>
             </div>
           </div>
@@ -3074,7 +3169,8 @@ return (
     <PracticeModal
       isOpen={showPracticeModal}
       onClose={() => setShowPracticeModal(false)}
-      userId={user?.email || 'anonymous'}
+      userId={user?.email || getStoredUser()?.email || 'anonymous'}
+      openCost={practiceOpenCost}
     />
 
     <Modal isOpen={sqlTutorModalOpen} onClose={closeSqlTutorModal}>

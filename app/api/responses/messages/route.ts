@@ -11,7 +11,7 @@ import {
 } from "@/lib/openai/responses-client";
 import { executeToolCall } from "@/lib/openai/tools";
 import { buildFileSearchTool, getOrCreateAppVectorStoreId } from "@/lib/openai/vector-store";
-import { chargeMichaelMessage, getCoinsConfig } from "@/lib/coins";
+import { chargeMainChatMessage, getCoinsConfig } from "@/lib/coins";
 import { insufficientCoinsResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
@@ -229,7 +229,7 @@ export async function POST(request: Request) {
     }
 
     const coinsConfig = await getCoinsConfig();
-    if (coinsConfig.status === "ON") {
+    if (coinsConfig.modules.mainChat) {
       if (!userEmail) {
         return Response.json(
           { mode, error: "userEmail required when coins are ON" },
@@ -237,7 +237,10 @@ export async function POST(request: Request) {
         );
       }
 
-      const billingResult = await chargeMichaelMessage(userEmail);
+      const billingResult = await chargeMainChatMessage(userEmail, {
+        sessionId,
+        hasImage: Boolean(imageData),
+      });
       if (billingResult.ok === false) {
         return insufficientCoinsResponse(billingResult.balance, billingResult.required);
       }

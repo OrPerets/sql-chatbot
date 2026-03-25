@@ -10,6 +10,7 @@ import {
   Database,
   BookOpen,
   Brain,
+  Coins,
   ChevronRight,
   ChevronLeft,
   Home,
@@ -161,6 +162,12 @@ const navigationItems: NavigationItem[] = [
         icon: Database,
         type: 'route',
         route: '/admin/mcp-michael'
+      },
+      {
+        id: 'coins',
+        label: 'מטבעות',
+        icon: Coins,
+        type: 'tab'
       },
       {
         id: 'model-management',

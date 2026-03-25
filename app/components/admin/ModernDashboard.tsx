@@ -177,6 +177,20 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
 
           <div 
             className={styles.quickAction}
+            onClick={() => onNavigate('coins')}
+          >
+            <div className={styles.quickActionIcon}>
+              <Award size={24} />
+            </div>
+            <div className={styles.quickActionContent}>
+              <h4>מטבעות</h4>
+              <p>הפעלת חיובים, תמחור לפי משטח וניהול יתרות משתמשים</p>
+              <span className={styles.actionBadge}>תפעולי</span>
+            </div>
+          </div>
+
+          <div 
+            className={styles.quickAction}
             onClick={() => window.open('/admin/templates', '_blank')}
           >
             <div className={styles.quickActionIcon}>
