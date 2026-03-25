@@ -609,7 +609,7 @@ export function QuestionsStep({
                                 />
                               </div>
                               {parameter.type === "number" && (
-                                <div className={styles.field}>
+                                <div className={`${styles.field} ${styles.fieldFull}`}>
                                   <label>צעד</label>
                                   <input
                                     type="number"

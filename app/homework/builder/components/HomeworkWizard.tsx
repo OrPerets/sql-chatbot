@@ -21,6 +21,7 @@ import { PublishStep } from "./wizard/PublishStep";
 import type { Question } from "@/app/homework/types";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 import { validateHomeworkDraft } from "./wizard/validation";
+import styles from "./wizard/Wizard.module.css";
 
 const stepConfig: Array<{ id: WizardStepId; labelKey: string }> = [
   { id: "metadata", labelKey: "builder.wizard.step.metadata" },
@@ -312,7 +313,7 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
   const publishDisabled = publishMutation.isPending || !controller.setId || !validationSummary.canPublish;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }} dir={direction}>
+    <div className={styles.wizardShell} dir={direction}>
       <Stepper
         steps={localizedSteps}
         activeStep={controller.step}
@@ -381,7 +382,7 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
       {canNavigateBack && controller.step !== "metadata" && (
         <button
           type="button"
-          style={{ alignSelf: "flex-start", background: "none", border: "none", color: "#2e83e6", cursor: "pointer" }}
+          className={styles.backButton}
           onClick={() => navigateToStep(stepConfig[currentStepIndex - 1]?.id ?? "metadata")}
         >
           {backArrow} {t("builder.wizard.back")}

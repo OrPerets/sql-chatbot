@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createDataset, getDatasetService } from "@/lib/datasets";
 import { createHomeworkSet, getHomeworkService } from "@/lib/homework";
 import { getQuestionsService } from "@/lib/questions";
+import { HW1_DOC_SYNC_QUESTIONS } from "@/lib/hw1-doc-sync";
 import type { Dataset, Question } from "@/app/homework/types";
 
 /**
@@ -9,7 +10,7 @@ import type { Dataset, Question } from "@/app/homework/types";
  * Creates:
  * - Dataset: Employees/Jobs/Departments/Locations (preview columns)
  * - Homework Set: "תרגיל בית 1"
- * - Questions: 9 questions extracted from the HW1 instructions
+ * - Questions: 10 questions extracted from the HW1 instructions
  *
  * Usage (POST): /api/admin/seed-hw1
  */
@@ -118,128 +119,23 @@ async function runSeed(params?: { courseId?: string; dueAt?: string }) {
         { id: "style", label: "Style", description: "קריאות ושימוש נכון בפונקציות", weight: 20, autoGraded: false },
       ];
 
-      const items: Array<Omit<Question, "id"> & { homeworkSetId: string }> = [
-        {
+      const items: Array<Omit<Question, "id"> & { homeworkSetId: string }> = HW1_DOC_SYNC_QUESTIONS.map(
+        (question) => ({
           homeworkSetId: homework.id,
-          prompt: "שאלה 1",
-          instructions: "הציגו את השם הפרטי, שם המשפחה ושנת הלידה, עבור העובדים שנולדו בין השנים 1999 ל-2025 (כולל קצוות) והמשכורת שלהם נעה בין 6,930 ל 9,030 ₪ (לא כולל קצוות).",
-          starterSql: "",
-          expectedResultSchema: [],
+          prompt: question.prompt,
+          instructions: question.instructions,
+          expectedOutputDescription: question.expectedOutputDescription,
+          starterSql: question.starterSql,
+          expectedResultSchema: question.expectedResultSchema,
           gradingRubric: baseRubric,
           datasetId: dataset.id,
           maxAttempts: 5,
           points: 10,
           evaluationMode: "manual",
-        },
-        {
-          homeworkSetId: homework.id,
-          prompt: "שאלה 2",
-          instructions: "הציגו את שם המשפחה והשם הפרטי של העובדים אשר גילם פחות מ-31 ומשכורתם גדולה מ-2,230 אירו, לפי השער היציג כיום של 3.92 ₪ ל-1 אירו.",
-          starterSql: "",
-          expectedResultSchema: [],
-          gradingRubric: baseRubric,
-          datasetId: dataset.id,
-          maxAttempts: 5,
-          points: 10,
-          evaluationMode: "manual",
-        },
-        {
-          homeworkSetId: homework.id,
-          prompt: "שאלה 3",
-          instructions: "לאור המצב בארץ, הוחלט שכל מי שעובד בתפקיד פקידותי (clerk) בישראל, יקבל העלאה, לאור כך נרצה לבדוק מה תהיה המשכורת לאחר תוספת של 13.5%. עליכם להציג בתוצאה שם משפחה, שם פרטי, השכר לפני התוספת והשכר החדש לאחר התוספת.",
-          starterSql: "",
-          expectedResultSchema: [],
-          gradingRubric: baseRubric,
-          datasetId: dataset.id,
-          maxAttempts: 5,
-          points: 10,
-          evaluationMode: "manual",
-        },
-        {
-          homeworkSetId: homework.id,
-          prompt: "שאלה 4",
-          instructions: "הציגו את מס' ת.ז של העובדים שעובדים בעיר ששמה מכיל בדיוק 5 תווים ושהמדינה בה הם עובדים מכילה אות \"a\" אך לא מכילה את אות \"e\". יש למיין את רשימת העובדים לפי תעודת הזהות של העובד בסדר יורד.",
-          starterSql: "",
-          expectedResultSchema: [],
-          gradingRubric: baseRubric,
-          datasetId: dataset.id,
-          maxAttempts: 5,
-          points: 10,
-          evaluationMode: "manual",
-        },
-        {
-          homeworkSetId: homework.id,
-          prompt: "שאלה 5",
-          instructions: "הציגו את ת.ז. של העובד, קוד העבודה, שם המחלקה והמשכורת רק עבור העובדים שמשכורתם היא לפחות 9,888 ₪ וששם המשפחה שלהם מכיל את האות \"M\" וששם המחלקה בה הם עובדים, לא מכיל את האות \"D\". עליכם לדאוג למיין את התוצאה לפי משכורת בסדר יורד.",
-          starterSql: "",
-          expectedResultSchema: [],
-          gradingRubric: baseRubric,
-          datasetId: dataset.id,
-          maxAttempts: 5,
-          points: 12,
-          evaluationMode: "manual",
-        },
-        {
-          homeworkSetId: homework.id,
-          prompt: "שאלה 6",
-          instructions: "לגבי העובדים הבאים הציגו את ת.ז. של העובד ואת הגיל שלו רק עבור העובדים שעובדים ברחוב שמכיל את האות \"a\". יש לסדר את העובדים לפי גיל בסדר יורד (מיון ראשי) ובמידה וקיימים כמה עובדים עם גיל זהה, יש לסדר אותם לפי תאריך תחילת העסקה בסדר עולה (מיון משני).",
-          starterSql: "",
-          expectedResultSchema: [],
-          gradingRubric: baseRubric,
-          datasetId: dataset.id,
-          maxAttempts: 5,
-          points: 10,
-          evaluationMode: "manual",
-        },
-        {
-          homeworkSetId: homework.id,
-          prompt: "שאלה 7",
-          instructions: "עבור כל תחום עיסוק בטבלת JOBS, הציגו את קטגורית התפקיד ואת השכר הממוצע לאותו תפקיד בדולרים לפי שער של 3.37 ₪ (סכמת היחס תהיה: job_title, average_of_salary_in_dollars)",
-          starterSql: "",
-          expectedResultSchema: [],
-          gradingRubric: baseRubric,
-          datasetId: dataset.id,
-          maxAttempts: 5,
-          points: 10,
-          evaluationMode: "manual",
-        },
-        {
-          homeworkSetId: homework.id,
-          prompt: "שאלה 8",
-          instructions: "הציגו את שם משפחה, שם פרטי ותיאור התפקיד של העובדים שעובדים בטוקיו. יש למיין את התוצאה לפי משכורת בסדר עולה ואם קיימים מספר עובדים עם משכורת זהה, אז יש לסדר אותם לפי תאריך תחילת העסקה בסדר יורד.",
-          starterSql: "",
-          expectedResultSchema: [],
-          gradingRubric: baseRubric,
-          datasetId: dataset.id,
-          maxAttempts: 5,
-          points: 10,
-          evaluationMode: "manual",
-        },
-        {
-          homeworkSetId: homework.id,
-          prompt: "שאלה 9",
-          instructions: "עבור המחלקה שמכילה 3 פעמים לפחות את האות e בשם המחלקה (לא בהכרח ברצף), יש להציג את כל פרטי העובדים (כל העמודות מטבלת עובדים) שעובדים במחלקה זו מלבד אלו שהם מהנדסים.",
-          starterSql: "",
-          expectedResultSchema: [],
-          gradingRubric: baseRubric,
-          datasetId: dataset.id,
-          maxAttempts: 5,
-          points: 10,
-          evaluationMode: "manual",
-        },
-        {
-          homeworkSetId: homework.id,
-          prompt: "שאלה 10",
-          instructions: "הציגו את שמות המשפחה של העובדים ששם המשפחה שלהם מתחיל באות \"A\" או ששמם הפרטי מסתיים באות \"A\" ובנוסף ששם העיר בה הם עובדים מכילה \"-\" (מקף אמצעי) או ששם הרחוב בו הם עובדים מכיל \"-\" (מקף אמצעי).",
-          starterSql: "",
-          expectedResultSchema: [],
-          gradingRubric: baseRubric,
-          datasetId: dataset.id,
-          maxAttempts: 5,
-          points: 10,
-          evaluationMode: "manual",
-        },
-      ];
+          parameterMode: question.parameterMode,
+          parameters: question.parameters ?? [],
+        }),
+      );
 
     // Create questions and collect their IDs
     const questionIds: string[] = [];
@@ -280,4 +176,3 @@ export async function GET(request: Request) {
   const dueAt = searchParams.get("dueAt") || undefined;
   return runSeed({ courseId: courseId || undefined, dueAt: dueAt || undefined });
 }
-

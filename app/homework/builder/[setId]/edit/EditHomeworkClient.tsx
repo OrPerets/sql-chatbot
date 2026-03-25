@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Edit3, BookOpen } from "lucide-react";
+import { Edit3 } from "lucide-react";
 import { HomeworkWizard } from "../../components/HomeworkWizard";
 import { useHomeworkDraft } from "@/app/homework/hooks/useHomeworkDraft";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
@@ -56,13 +56,14 @@ export function EditHomeworkClient({ setId }: EditHomeworkClientProps) {
           <div className={styles.titleIcon}>
             <Edit3 size={32} />
           </div>
-          <div>
-            <h2 className={styles.title}>{t("builder.edit.title")} — {heading}</h2>
+          <div className={styles.titleText}>
+            <p className={styles.eyebrow}>{t("builder.edit.title")}</p>
+            <h2 className={styles.title}>{heading}</h2>
             <p className={styles.subtitle}>{t("builder.edit.subtitle")}</p>
           </div>
         </div>
       </header>
-      
+
       <div className={styles.wizardContainer}>
         <HomeworkWizard initialState={draft} existingSetId={setId} initialStep="questions" />
       </div>

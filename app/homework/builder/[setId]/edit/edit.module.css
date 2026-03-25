@@ -2,64 +2,81 @@
 .container {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.875rem;
   direction: rtl;
   text-align: right;
   width: 100%;
   max-width: none;
   margin: 0;
+  min-width: 0;
   padding-inline: 8px;
 }
 
 /* Header Section */
 .header {
-  background: white;
-  border-radius: 18px;
-  padding: 1.1rem 1.25rem;
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border-radius: 16px;
+  padding: 1rem 1.125rem;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
   border: 1px solid #e7edf5;
 }
 
 .titleSection {
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  align-items: flex-start;
+  gap: 0.875rem;
+  min-width: 0;
 }
 
 .titleIcon {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  width: 3rem;
-  height: 3rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+  flex-shrink: 0;
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.2);
+}
+
+.titleText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #55657a;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .title {
   margin: 0;
   color: #1e293b;
-  font-size: 1.75rem;
-  font-weight: 600;
+  font-size: clamp(1.35rem, 2vw, 1.7rem);
+  font-weight: 650;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .subtitle {
-  margin: 0.25rem 0 0 0;
+  margin: 0;
   color: #64748b;
-  font-size: 1rem;
-  line-height: 1.5;
+  font-size: 0.96rem;
+  line-height: 1.55;
+  max-width: 70ch;
 }
 
 /* Wizard Container */
 .wizardContainer {
-  background: white;
-  border-radius: 18px;
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
-  border: 1px solid #e7edf5;
-  overflow: hidden;
-  padding: 8px 8px 16px;
+  min-width: 0;
 }
 
 /* Loading State */
@@ -144,7 +161,7 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .container {
-    gap: 1.25rem;
+    gap: 1rem;
     padding-inline: 0;
   }
 
@@ -162,7 +179,7 @@
   }
 
   .title {
-    font-size: 1.5rem;
+    font-size: 1.3rem;
   }
 
   .subtitle {
