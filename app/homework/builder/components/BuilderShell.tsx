@@ -22,6 +22,7 @@ export function BuilderShell({ children, activePath }: BuilderShellProps) {
 
   // Hide sidebar on grade pages
   const isGradePage = currentPath?.includes("/grade");
+  const isAuthoringPage = currentPath?.includes("/create") || currentPath?.includes("/edit");
 
   const isLinkActive = (href: string) => {
     if (!currentPath) return false;
@@ -60,18 +61,20 @@ export function BuilderShell({ children, activePath }: BuilderShellProps) {
             })}
           </nav>
 
-          <div className={styles.assistantCard}>
-            <div className={styles.assistantIcon}>
-              <Bot size={18} />
+          {!isAuthoringPage && (
+            <div className={styles.assistantCard}>
+              <div className={styles.assistantIcon}>
+                <Bot size={18} />
+              </div>
+              <div>
+                <strong>{t("builder.shell.assistant.title")}</strong>
+                <p>{t("builder.shell.assistant.body")}</p>
+              </div>
+              <Link href="/homework/builder/create" className={styles.assistantCta}>
+                {t("builder.shell.assistant.cta")}
+              </Link>
             </div>
-            <div>
-              <strong>{t("builder.shell.assistant.title")}</strong>
-              <p>{t("builder.shell.assistant.body")}</p>
-            </div>
-            <Link href="/homework/builder/create" className={styles.assistantCta}>
-              {t("builder.shell.assistant.cta")}
-            </Link>
-          </div>
+          )}
         </aside>
       )}
       <section className={styles.content}>{children}</section>

@@ -218,7 +218,7 @@ export const VALIDATION_SCHEMAS = {
     published: { type: 'boolean', required: true },
     entryMode: { type: 'string', enum: ['direct', 'listed', 'hidden'] },
     datasetPolicy: { type: 'string', enum: ['shared', 'custom'], required: true },
-    questionOrder: { type: 'array', items: { type: 'string' }, maxItems: 10 },
+    questionOrder: { type: 'array', items: { type: 'string' }, maxItems: 25 },
     visibility: { type: 'string', enum: ['draft', 'published', 'archived'], required: true },
     createdBy: { type: 'string', required: true },
     overview: { type: 'string', maxLength: 2000 },
@@ -258,6 +258,8 @@ export const VALIDATION_SCHEMAS = {
     maxAttempts: { type: 'number', minimum: 1, maximum: 10, default: 3 },
     points: { type: 'number', minimum: 1, maximum: 100, default: 10 },
     evaluationMode: { type: 'string', enum: ['auto', 'manual', 'custom'] },
+    parameterMode: { type: 'string', enum: ['static', 'parameterized'] },
+    parameters: { type: 'array', items: { type: 'object' } },
     homeworkSetId: { type: 'string', required: true },
   },
   SUBMISSION: {

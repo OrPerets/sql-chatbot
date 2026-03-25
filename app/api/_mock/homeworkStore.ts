@@ -63,6 +63,11 @@ function normalizeQuestion(question: Partial<Question>): Question {
     maxAttempts: question.maxAttempts ?? 3,
     points: question.points ?? 10,
     evaluationMode: question.evaluationMode,
+    parameterMode: question.parameterMode ?? ((question.parameters?.length ?? 0) > 0 ? "parameterized" : "static"),
+    parameters: question.parameters ?? [],
+    isTemplate: question.isTemplate,
+    templateId: question.templateId,
+    variables: question.variables,
   };
 }
 

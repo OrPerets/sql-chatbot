@@ -66,6 +66,10 @@ function buildQuestionsPayload(draft: HomeworkDraftState): Question[] {
     maxAttempts: question.maxAttempts,
     points: question.points,
     evaluationMode: question.evaluationMode,
+    parameterMode: question.parameterMode,
+    parameters: question.parameters ?? [],
+    templateId: question.templateId,
+    isTemplate: false,
   }));
 }
 
@@ -194,6 +198,9 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
             datasetId: q.datasetId,
             rubric: q.gradingRubric,
             evaluationMode: q.evaluationMode ?? "auto",
+            parameterMode: q.parameterMode ?? ((q.parameters?.length ?? 0) > 0 ? "parameterized" : "static"),
+            parameters: q.parameters ?? [],
+            templateId: q.templateId,
           })),
           publishNotes: prev.draft.publishNotes,
         };
@@ -338,6 +345,7 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
           onBack={navigateToStep}
           onNext={navigateToStepWithSave}
           primaryDatasetId={controller.draft.dataset.selectedDatasetId}
+          setId={controller.setId}
         />
       )}
 

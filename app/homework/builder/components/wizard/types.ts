@@ -1,4 +1,9 @@
-import type { HomeworkVisibility, RubricCriterion } from "@/app/homework/types";
+import type {
+  HomeworkVisibility,
+  QuestionParameterDefinition,
+  QuestionParameterMode,
+  RubricCriterion,
+} from "@/app/homework/types";
 
 export type WizardStepId = "metadata" | "dataset" | "questions" | "rubric" | "publish";
 
@@ -37,6 +42,8 @@ export interface QuestionDraft {
   // Parametric question fields
   isParametric?: boolean;
   templateId?: string;
+  parameterMode?: QuestionParameterMode;
+  parameters?: QuestionParameterDefinition[];
 }
 
 export interface HomeworkDraftState {

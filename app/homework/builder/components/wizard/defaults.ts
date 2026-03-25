@@ -27,6 +27,8 @@ export function createQuestionDraft(partial?: Partial<QuestionDraft>): QuestionD
     datasetId: undefined,
     rubric: createBaseRubric(),
     evaluationMode: "auto",
+    parameterMode: "static",
+    parameters: [],
     ...partial,
   };
 }

@@ -44,6 +44,8 @@ export interface Question {
   isTemplate?: boolean;
   templateId?: string;
   variables?: any[]; // VariableValue[] for instantiated questions
+  parameterMode?: QuestionParameterMode;
+  parameters?: QuestionParameterDefinition[];
 }
 
 export interface HomeworkSet {
@@ -285,6 +287,14 @@ export interface VariableDefinition {
   constraints?: VariableConstraints;
   defaultValue?: any;
   required?: boolean;
+}
+
+export type QuestionParameterMode = "static" | "parameterized";
+
+export type QuestionParameterSourceField = "prompt" | "instructions" | "starterSql";
+
+export interface QuestionParameterDefinition extends VariableDefinition {
+  sourceFields: QuestionParameterSourceField[];
 }
 
 export interface VariableValue {

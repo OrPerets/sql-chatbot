@@ -1,5 +1,6 @@
 import type { HomeworkAvailabilityState } from "@/app/homework/types";
 import type { HomeworkDraftState, MetadataDraft, QuestionDraft } from "./types";
+import { validateQuestionParameters } from "@/app/homework/utils/inline-question-parameters";
 
 export interface QuestionValidationSummary {
   id: string;
@@ -9,6 +10,8 @@ export interface QuestionValidationSummary {
   hasPoints: boolean;
   hasRubric: boolean;
   isParametric: boolean;
+  hasValidParameters: boolean;
+  parameterIssues: string[];
 }
 
 export interface DraftValidationSummary {
@@ -35,6 +38,7 @@ function validateQuestion(question: QuestionDraft, index: number): QuestionValid
   } catch {
     schema = [];
   }
+  const parameterIssues = validateQuestionParameters(question);
 
   return {
     id: question.id,
@@ -45,7 +49,9 @@ function validateQuestion(question: QuestionDraft, index: number): QuestionValid
       schema.some((entry) => typeof entry?.column === "string" && entry.column.trim().length > 0),
     hasPoints: Number.isFinite(question.points) && question.points > 0,
     hasRubric: question.rubric.length > 0,
-    isParametric: Boolean(question.isParametric),
+    isParametric: (question.parameterMode ?? (question.parameters?.length ? "parameterized" : "static")) === "parameterized",
+    parameterIssues,
+    hasValidParameters: parameterIssues.length === 0,
   };
 }
 
@@ -87,6 +93,9 @@ export function validateHomeworkDraft(draft: HomeworkDraftState): DraftValidatio
     }
     if (!question.hasPoints) {
       blockers.push(`${label}: יש להגדיר ניקוד גדול מאפס.`);
+    }
+    if (!question.hasValidParameters) {
+      question.parameterIssues.forEach((issue) => blockers.push(`${label}: ${issue}`));
     }
     if (!question.hasRubric) {
       warnings.push(`${label}: אין פריטי רובריקה.`);
