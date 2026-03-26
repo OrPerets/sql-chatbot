@@ -13,12 +13,13 @@ import {
   SubmitHomeworkPayload,
 } from "@/app/homework/services/submissionService";
 import { executeSql } from "@/app/homework/services/sqlService";
-import type { Dataset, Question, SqlExecutionRequest, Submission } from "@/app/homework/types";
+import type { Dataset, HomeworkType, Question, SqlExecutionRequest, Submission } from "@/app/homework/types";
 import styles from "./runner.module.css";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 import { SubmittedPage } from "./SubmittedPage";
 import Chat from "@/app/components/chat";
 import { InstructionsSection } from "./InstructionsSection";
+import { RelationalAlgebraEditor } from "./RelationalAlgebraEditor";
 
 import Editor from "@monaco-editor/react";
 
@@ -254,13 +255,16 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
 
   const homeworkQuery = useQuery({
     queryKey: ["homework", setId],
-    queryFn: () => getHomeworkSet(setId),
+    queryFn: () => getHomeworkSet(setId, isPreviewContext ? "admin" : undefined),
   });
   const datasetQuery = useQuery({
     queryKey: ["dataset", homeworkQuery.data?.selectedDatasetId ?? null],
     queryFn: () => getDataset(homeworkQuery.data!.selectedDatasetId!),
     enabled: Boolean(homeworkQuery.data?.selectedDatasetId),
   });
+
+  const homeworkType: HomeworkType = (homeworkQuery.data?.homeworkType as HomeworkType) || "sql";
+  const isRelationalAlgebra = homeworkType === "relational_algebra";
 
   const questionsQuery = useQuery({
     queryKey: ["homework", setId, "questions", studentId],
@@ -310,7 +314,11 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       setEditorValues((prev) => {
         const next: Record<string, string> = { ...prev };
         Object.entries(submissionQuery.data!.answers ?? {}).forEach(([questionId, answer]) => {
-          next[questionId] = typeof answer?.sql === "string" ? answer.sql : "";
+          if (isRelationalAlgebra) {
+            next[questionId] = typeof answer?.expression === "string" ? answer.expression : "";
+          } else {
+            next[questionId] = typeof answer?.sql === "string" ? answer.sql : "";
+          }
         });
         return next;
       });
@@ -484,9 +492,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       saveSubmissionDraft(setId, {
         studentId,
         answers: {
-          [payload.questionId]: {
-            sql: payload.sql,
-          },
+          [payload.questionId]: isRelationalAlgebra
+            ? { sql: "", expression: payload.sql }
+            : { sql: payload.sql },
         },
       }),
     onMutate: () => {
@@ -1117,37 +1125,51 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         <div className={styles.editorSection}>
           <div className={styles.editorContainer}>
             <div className={styles.editorLabel}>
-              <span>SQL</span>
+              <span>{isRelationalAlgebra ? "אלגברת יחסים" : "SQL"}</span>
               <span className={styles.autosaveIndicator}>
                 {autosaveState === "saving" ? "שומר..." : autosaveState === "saved" ? "נשמר ✓" : ""}
               </span>
             </div>
-            <div style={{ width: '100%', height: '260px' }}>
-              <div dir="ltr" style={{ width: '100%', height: '100%' }}>
-                <Editor
-                  height="260px"
-                  value={activeQuestionId ? (editorValues[activeQuestionId] || "") : ""}
-                  defaultLanguage="sql"
-                  options={{
-                    fontSize: 15,
-                    fontFamily: "ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace",
-                    minimap: { enabled: false },
-                    lineNumbers: "on",
-                    scrollBeyondLastLine: false,
-                    padding: { top: 12 },
-                    renderLineHighlight: "gutter",
-                  }}
-                  onChange={(value) => {
-                    if (activeQuestionId) {
-                      handleSqlChange(activeQuestionId, value || "");
-                    }
-                  }}
-                  onMount={(editor) => {
-                    editor.focus();
-                  }}
-                />
+
+            {isRelationalAlgebra ? (
+              <RelationalAlgebraEditor
+                value={activeQuestionId ? (editorValues[activeQuestionId] || "") : ""}
+                onChange={(value) => {
+                  if (activeQuestionId) {
+                    handleSqlChange(activeQuestionId, value);
+                  }
+                }}
+                disabled={!activeQuestionId}
+              />
+            ) : (
+              <div style={{ width: '100%', height: '260px' }}>
+                <div dir="ltr" style={{ width: '100%', height: '100%' }}>
+                  <Editor
+                    height="260px"
+                    value={activeQuestionId ? (editorValues[activeQuestionId] || "") : ""}
+                    defaultLanguage="sql"
+                    options={{
+                      fontSize: 15,
+                      fontFamily: "ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace",
+                      minimap: { enabled: false },
+                      lineNumbers: "on",
+                      scrollBeyondLastLine: false,
+                      padding: { top: 12 },
+                      renderLineHighlight: "gutter",
+                    }}
+                    onChange={(value) => {
+                      if (activeQuestionId) {
+                        handleSqlChange(activeQuestionId, value || "");
+                      }
+                    }}
+                    onMount={(editor) => {
+                      editor.focus();
+                    }}
+                  />
+                </div>
               </div>
-            </div>
+            )}
+
             <div className={styles.editorActions}>
               <div className={styles.navigationButtons}>
                 <button
@@ -1176,29 +1198,31 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 >
                   הבאה ←
                 </button>
-                <button
+                {/* <button
                   type="button"
                   className={styles.showAnswerButton}
                   onClick={() => activeQuestionId && handleShowAnswer(activeQuestionId)}
                   disabled={!activeQuestionId}
                 >
                   הצג פתרון
-                </button>
+                </button> */}
               </div>
               
-              <button
-                type="button"
-                className={styles.runButton}
-                onClick={handleExecute}
-                disabled={executeMutation.isPending || !activeQuestionId}
-              >
-                {executeMutation.isPending ? (
-                  <span className={styles.runButtonSpinner} />
-                ) : (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                )}
-                {executeMutation.isPending ? t("runner.actions.running") : t("runner.actions.run")}
-              </button>
+              {!isRelationalAlgebra && (
+                <button
+                  type="button"
+                  className={styles.runButton}
+                  onClick={handleExecute}
+                  disabled={executeMutation.isPending || !activeQuestionId}
+                >
+                  {executeMutation.isPending ? (
+                    <span className={styles.runButtonSpinner} />
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  )}
+                  {executeMutation.isPending ? t("runner.actions.running") : t("runner.actions.run")}
+                </button>
+              )}
             </div>
           </div>
 

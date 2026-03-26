@@ -109,6 +109,7 @@ export function PublishHomeworkClient({ setId }: PublishHomeworkClientProps) {
       availableFrom: homework.availableFrom || homework.createdAt,
       availableUntil: homework.availableUntil || homework.dueAt,
       visibility: homework.visibility,
+      homeworkType: homework.homeworkType || "sql",
       overview: homework.overview,
       dataStructureNotes: homework.dataStructureNotes,
       datasetPolicy: homework.datasetPolicy,

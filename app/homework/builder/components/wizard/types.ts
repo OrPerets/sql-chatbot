@@ -1,4 +1,5 @@
 import type {
+  HomeworkType,
   HomeworkVisibility,
   QuestionParameterDefinition,
   QuestionParameterMode,
@@ -13,6 +14,7 @@ export interface MetadataDraft {
   availableFrom: string;
   availableUntil: string;
   visibility: HomeworkVisibility;
+  homeworkType: HomeworkType;
   overview?: string;
   dataStructureNotes?: string;
   datasetPolicy?: "shared" | "custom";

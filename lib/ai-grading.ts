@@ -9,7 +9,7 @@ export interface AIGradingInput {
   questionId: string
   questionPrompt: string
   questionInstructions: string
-  referenceSql: string | undefined  // starterSql field contains the reference solution
+  referenceSql: string | undefined
   expectedSchema: Array<{ column: string; type: string }>
   maxPoints: number
   rubricCriteria: Array<{ id: string; label: string; description: string; weight: number }>
@@ -18,6 +18,8 @@ export interface AIGradingInput {
     columns: string[]
     rows: Array<Record<string, unknown>>
   } | undefined
+  homeworkType?: 'sql' | 'relational_algebra'
+  studentExpression?: string
 }
 
 export interface AIGradingResult {
@@ -47,15 +49,99 @@ const openai = new OpenAI({
  * Evaluate a single student SQL answer using AI
  */
 export async function evaluateAnswer(input: AIGradingInput): Promise<AIGradingResult> {
-  const prompt = buildEvaluationPrompt(input)
-  
+  const isRA = input.homeworkType === 'relational_algebra'
+  const prompt = isRA ? buildRAEvaluationPrompt(input) : buildEvaluationPrompt(input)
+  const systemMessage = isRA ? buildRASystemPrompt() : buildSqlSystemPrompt()
+
   try {
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        {
-          role: 'system',
-          content: `אתה מעריך מומחה לשאילתות SQL בקורס מבוא לבסיסי נתונים. 
+        { role: 'system', content: systemMessage },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.3,
+      max_tokens: 500,
+      response_format: { type: 'json_object' }
+    })
+
+    const content = response.choices[0]?.message?.content
+    if (!content) {
+      throw new Error('No response from OpenAI')
+    }
+
+    const parsed = JSON.parse(content)
+    
+    console.log(`[AI Grading] AI Response for question ${input.questionId}:`, {
+      hasComment: !!parsed.comment,
+      commentLength: parsed.comment?.length || 0,
+      commentPreview: parsed.comment?.substring(0, 100) || "(empty)",
+      score: parsed.score,
+      fullParsed: parsed,
+    });
+    
+    const comment = parsed.comment?.trim() || 'לא ניתן לבצע הערכה';
+    
+    if (!parsed.comment || !parsed.comment.trim()) {
+      console.warn(`⚠️ [AI Grading] WARNING: AI returned empty comment for question ${input.questionId}`);
+    }
+    
+    return {
+      questionId: input.questionId,
+      score: Math.min(input.maxPoints, Math.max(0, parsed.score ?? 0)),
+      comment,
+      confidence: parsed.confidence ?? 50,
+      breakdown: {
+        queryCorrectness: parsed.queryCorrectness ?? 0,
+        outputCorrectness: parsed.outputCorrectness ?? 0
+      }
+    }
+  } catch (error) {
+    console.error('AI grading error:', error)
+    return {
+      questionId: input.questionId,
+      score: 0,
+      comment: 'שגיאה בהערכה אוטומטית - נדרשת בדיקה ידנית',
+      confidence: 0,
+      breakdown: {
+        queryCorrectness: 0,
+        outputCorrectness: 0
+      }
+    }
+  }
+}
+
+function buildRASystemPrompt(): string {
+  return `אתה מעריך מומחה לאלגברת יחסים (Relational Algebra) בקורס מבוא לבסיסי נתונים.
+התפקיד שלך הוא להעריך ביטויי אלגברת יחסים של סטודנטים ולתת ציון והערה קצרה וברורה.
+
+סימנים מקובלים באלגברת יחסים:
+- σ (סלקציה/בחירה) - Selection
+- π (הטלה) - Projection
+- ρ (שינוי שם) - Rename
+- ⋈ (צירוף טבעי) - Natural Join
+- × (מכפלה קרטזית) - Cartesian Product
+- ∪ (איחוד) - Union
+- ∩ (חיתוך) - Intersection
+- − (הפרש) - Difference
+- ÷ (חלוקה) - Division
+- ∧ (AND), ∨ (OR), ¬ (NOT)
+- ≥, ≤, ≠, =, >, <
+
+כללים חשובים להערכה:
+1. הערות בעברית בלבד
+2. הערה קצרה ותמציתית (2-3 משפטים מקסימום)
+3. בדוק שימוש נכון באופרטורים
+4. בדוק שסדר הפעולות נכון ומתאים לדרישות השאלה
+5. בדוק שהתנאים בסלקציה (σ) נכונים
+6. בדוק שרשימת העמודות בהטלה (π) נכונה
+7. השתמש בטון חינוכי ומעודד
+
+פורמט התשובה חייב להיות JSON תקין בלבד, ללא טקסט נוסף.`
+}
+
+function buildSqlSystemPrompt(): string {
+  return `אתה מעריך מומחה לשאילתות SQL בקורס מבוא לבסיסי נתונים. 
 התפקיד שלך הוא להעריך תשובות של סטודנטים ולתת ציון והערה קצרה וברורה.
 
 ⛔⛔⛔ אזהרה קריטית - הפקודות הבאות אסורות בקורס זה ⛔⛔⛔
@@ -94,62 +180,61 @@ export async function evaluateAnswer(input: AIGradingInput): Promise<AIGradingRe
 9. התייחס לכתיבת השאילתה (syntax, structure) ונכונות התוצאות
 
 פורמט התשובה חייב להיות JSON תקין בלבד, ללא טקסט נוסף.`
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      temperature: 0.3,
-      max_tokens: 500,
-      response_format: { type: 'json_object' }
-    })
+}
 
-    const content = response.choices[0]?.message?.content
-    if (!content) {
-      throw new Error('No response from OpenAI')
-    }
+function buildRAEvaluationPrompt(input: AIGradingInput): string {
+  const { questionPrompt, questionInstructions, expectedSchema, maxPoints, rubricCriteria, studentExpression } = input
 
-    const parsed = JSON.parse(content)
-    
-    // Log what AI returned for debugging
-    console.log(`[AI Grading] AI Response for question ${input.questionId}:`, {
-      hasComment: !!parsed.comment,
-      commentLength: parsed.comment?.length || 0,
-      commentPreview: parsed.comment?.substring(0, 100) || "(empty)",
-      score: parsed.score,
-      fullParsed: parsed,
-    });
-    
-    const comment = parsed.comment?.trim() || 'לא ניתן לבצע הערכה';
-    
-    if (!parsed.comment || !parsed.comment.trim()) {
-      console.warn(`⚠️ [AI Grading] WARNING: AI returned empty comment for question ${input.questionId}`);
-    }
-    
-    return {
-      questionId: input.questionId,
-      score: Math.min(input.maxPoints, Math.max(0, parsed.score ?? 0)),
-      comment,
-      confidence: parsed.confidence ?? 50,
-      breakdown: {
-        queryCorrectness: parsed.queryCorrectness ?? 0,
-        outputCorrectness: parsed.outputCorrectness ?? 0
-      }
-    }
-  } catch (error) {
-    console.error('AI grading error:', error)
-    return {
-      questionId: input.questionId,
-      score: 0,
-      comment: 'שגיאה בהערכה אוטומטית - נדרשת בדיקה ידנית',
-      confidence: 0,
-      breakdown: {
-        queryCorrectness: 0,
-        outputCorrectness: 0
-      }
-    }
+  let prompt = `בדוק את תשובת הסטודנט לשאלת אלגברת יחסים הבאה:
+
+## השאלה
+${questionPrompt}
+
+## הנחיות
+${questionInstructions}
+`
+
+  if (expectedSchema.length > 0) {
+    prompt += `
+## סכמת תוצאה צפויה
+${expectedSchema.map(col => `- ${col.column} (${col.type})`).join('\n')}
+`
   }
+
+  prompt += `
+## ניקוד מקסימלי
+${maxPoints} נקודות
+`
+
+  if (rubricCriteria.length > 0) {
+    prompt += `
+## קריטריונים להערכה
+${rubricCriteria.map(c => `- ${c.label}: ${c.description} (משקל: ${c.weight})`).join('\n')}
+`
+  }
+
+  prompt += `
+## תשובת הסטודנט (ביטוי אלגברת יחסים)
+${studentExpression || '(לא הוגשה תשובה)'}
+
+## הנחיות להערכה
+1. בדוק שהביטוי כתוב בתחביר תקני של אלגברת יחסים
+2. בדוק שהאופרטורים הנכונים נבחרו (σ, π, ⋈, ∪, ∩, − וכו')
+3. בדוק שתנאי הסלקציה (σ) נכונים ומלאים
+4. בדוק שרשימת העמודות בהטלה (π) מתאימה לדרישות
+5. בדוק שסדר הפעולות נכון (הפעולה הפנימית קודם לחיצונית)
+6. תן ציון הוגן בהתאם למה שנכון ומה חסר
+
+החזר תשובה בפורמט JSON הבא בלבד:
+{
+  "score": <ציון מ-0 עד ${maxPoints}>,
+  "comment": "<הערה קצרה בעברית - מקסימום 2-3 משפטים>",
+  "confidence": <רמת ביטחון 0-100>,
+  "queryCorrectness": <אחוז נכונות הביטוי 0-100>,
+  "outputCorrectness": <אחוז נכונות לוגית 0-100>
+}`
+
+  return prompt
 }
 
 /**

@@ -39,11 +39,12 @@ export function createMetadataDraft(partial?: Partial<MetadataDraft>): MetadataD
   const availableUntil = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
 
   return {
-    title: "מטלת בית ללא כותרת", // "Untitled Homework Set"
+    title: "מטלת בית ללא כותרת",
     courseId: "",
     availableFrom,
     availableUntil,
     visibility: "draft",
+    homeworkType: "sql",
     ...partial,
   };
 }

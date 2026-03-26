@@ -33,9 +33,9 @@ export function middleware(request: NextRequest) {
     const role =
       request.headers.get("x-michael-role") ??
       request.cookies.get("michael-role")?.value ??
-      "instructor"; // default to instructor for local development
+      "guest";
 
-    const allowedRoles = new Set(["instructor", "admin"]);
+    const allowedRoles = new Set(["admin"]);
     if (!allowedRoles.has(role)) {
       const url = request.nextUrl.clone();
       url.pathname = "/403";

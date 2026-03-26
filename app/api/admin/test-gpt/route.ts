@@ -2,7 +2,7 @@ import { openai } from "@/app/openai";
 import { requireAdmin } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 type TestGptRequestBody = {
   prompt?: string;

@@ -217,6 +217,7 @@ export const VALIDATION_SCHEMAS = {
     availableUntil: { type: 'string' }, // ISO date string
     published: { type: 'boolean', required: true },
     entryMode: { type: 'string', enum: ['direct', 'listed', 'hidden'] },
+    homeworkType: { type: 'string', enum: ['sql', 'relational_algebra'] },
     datasetPolicy: { type: 'string', enum: ['shared', 'custom'], required: true },
     questionOrder: { type: 'array', items: { type: 'string' }, maxItems: 25 },
     visibility: { type: 'string', enum: ['draft', 'published', 'archived'], required: true },

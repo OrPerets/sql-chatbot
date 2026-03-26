@@ -20,8 +20,9 @@ export function BuilderShell({ children, activePath }: BuilderShellProps) {
   const { t, direction } = useHomeworkLocale();
   const currentPath = activePath ?? pathname;
 
-  // Hide sidebar on grade pages
   const isGradePage = currentPath?.includes("/grade");
+  const isPreviewPage = currentPath?.includes("/preview");
+  const isFullBleed = isGradePage || isPreviewPage;
   const isAuthoringPage = currentPath?.includes("/create") || currentPath?.includes("/edit");
 
   const isLinkActive = (href: string) => {
@@ -31,8 +32,8 @@ export function BuilderShell({ children, activePath }: BuilderShellProps) {
   };
 
   return (
-    <div className={styles.container} dir={direction} data-hide-sidebar={isGradePage}>
-      {!isGradePage && (
+    <div className={styles.container} dir={direction} data-hide-sidebar={isFullBleed || undefined} data-full-bleed={isPreviewPage || undefined}>
+      {!isFullBleed && (
         <aside className={styles.sidebar}>
           <div className={styles.brand}>
             <div className={styles.brandBadge}>
