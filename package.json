@@ -26,7 +26,8 @@
     "export:michael": "ts-node --project tsconfig.scripts.json scripts/export-michael-usage.ts",
     "generate:michael-table": "ts-node --project tsconfig.scripts.json scripts/generate-michael-analytics-table.ts",
     "db-report": "ts-node --project tsconfig.scripts.json scripts/db-report.ts",
-    "drop-unused-collections": "ts-node --project tsconfig.scripts.json scripts/drop-unused-collections.ts"
+    "drop-unused-collections": "ts-node --project tsconfig.scripts.json scripts/drop-unused-collections.ts",
+    "security:prune-image-cache": "ts-node --project tsconfig.scripts.json scripts/prune-next-image-cache.ts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
@@ -39,10 +40,11 @@
     "alasql": "^4.5.2",
     "bidi-js": "^1.0.3",
     "cytoscape": "^3.30.2",
+    "exceljs": "^4.4.0",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.445.0",
     "mongodb": "^6.8.0",
-    "next": "^16.1.6",
+    "next": "^16.2.1",
     "nodemailer": "^7.0.13",
     "openai": "^6.0.0",
     "pdf-parse": "^1.1.1",
@@ -57,8 +59,7 @@
     "seedrandom": "^3.0.5",
     "sql.js": "^1.11.0",
     "styled-components": "^6.1.13",
-    "three": "^0.177.0",
-    "xlsx": "^0.18.5"
+    "three": "^0.177.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",
@@ -79,6 +80,11 @@
     "msw": "^2.0.8",
     "ts-node": "^10.9.2",
     "typescript": "5.4.5"
+  },
+  "overrides": {
+    "basic-ftp": "^5.2.0",
+    "flatted": "^3.4.2",
+    "minimatch": "^9.0.7"
   },
   "prettier": {
     "singleQuote": false

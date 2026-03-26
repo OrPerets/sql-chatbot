@@ -95,7 +95,7 @@ const LandingPage = () => {
           </div>
 
           {/* למידה אינטראקטיבית */}
-          <div
+          {/* <div
             className={styles.optionCard}
             onClick={() => handleNavigation('/interactive-learning')}
           >
@@ -106,7 +106,7 @@ const LandingPage = () => {
             <p className={styles.cardDescription}>
               הרצאות, תרגולים וסיכומי למידה במקום אחד
             </p>
-          </div>
+          </div> */}
 
 
              {/* המחשה ויזואלית של SQL */}

@@ -25,7 +25,7 @@ const customJestConfig = {
     '<rootDir>/__tests__/voice/' // Temporarily exclude voice tests until implementation is complete
   ],
   transformIgnorePatterns: [
-    'node_modules/(?!(mongodb|bson|@mongodb-js/.*)/)'
+    'node_modules/(?!(mongodb|bson|@mongodb-js/.*|exceljs|uuid)/)'
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',

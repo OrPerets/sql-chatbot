@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     console.log('Email map:', Object.fromEntries(emailMap));
 
     // Generate the Excel file as buffer
-    const excelBuffer = generateHomeworkGradesExcelBuffer({
+    const excelBuffer = await generateHomeworkGradesExcelBuffer({
       homeworkTitle,
       questions,
       submissions,

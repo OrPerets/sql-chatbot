@@ -81,6 +81,7 @@ const nextConfig = {
   images: {
     domains: ['localhost'],
     formats: ['image/webp', 'image/avif'],
+    maximumDiskCacheSize: 256 * 1024 * 1024,
   },
   typescript: {
     // Temporary compatibility for Next.js 16 route-handler signature migration.

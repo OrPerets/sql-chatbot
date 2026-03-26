@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { hasBlockedNextResumeHeader } from "@/lib/security/next-resume";
 
 const PROTECTED_PREFIXES = ["/homework/builder", "/admin/homework"] as const;
 const SUPPORTED_LOCALES = new Set(["he", "en"]);
@@ -7,6 +8,13 @@ const DEFAULT_LOCALE = "he";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (hasBlockedNextResumeHeader(request.headers)) {
+    return NextResponse.json(
+      { error: "Forbidden resume header from external clients" },
+      { status: 400 },
+    );
+  }
   
   // Allow public access to manifest.json and other public assets
   if (pathname === '/manifest.json' || pathname.startsWith('/_next/') || pathname.startsWith('/icon-')) {
@@ -59,5 +67,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/homework/builder/:path*", "/admin/homework/:path*", "/:locale(en|he)", "/:locale(en|he)/(.*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

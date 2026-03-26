@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -35,16 +35,41 @@ async function extractUsersFromExcel(excelPath: string): Promise<ExcelUser[]> {
   
   try {
     // Read the Excel file
-    const workbook = XLSX.readFile(excelPath);
-    
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(excelPath);
+
     // Get the first sheet
-    const sheetName = workbook.SheetNames[0];
+    const firstSheet = workbook.worksheets[0];
+    const sheetName = firstSheet?.name;
+    if (!firstSheet || !sheetName) {
+      throw new Error('Excel file does not contain any worksheets');
+    }
     console.log(`📊 Using sheet: ${sheetName}`);
-    
-    const worksheet = workbook.Sheets[sheetName];
-    
-    // Convert to JSON
-    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+    // Convert to JSON-like objects using header row
+    const headerRow = firstSheet.getRow(1);
+    const headers = headerRow.values
+      .slice(1)
+      .map((value) => String(value ?? '').trim());
+
+    const jsonData: ExcelUser[] = [];
+    firstSheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const rowValues = row.values as any[];
+      const record: ExcelUser = {};
+      let hasData = false;
+      headers.forEach((header, index) => {
+        if (!header) return;
+        const cellValue = rowValues[index + 1];
+        if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+          hasData = true;
+        }
+        record[header] = cellValue;
+      });
+      if (hasData) {
+        jsonData.push(record);
+      }
+    });
     console.log(`📋 Found ${jsonData.length} rows in Excel file`);
     
     // Display the first few rows to understand structure
