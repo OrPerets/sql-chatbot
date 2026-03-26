@@ -454,6 +454,30 @@ export function QuestionsStep({
               <div className={styles.workspaceMain}>
                 <div className={styles.workspacePanel}>
                   <div className={styles.field}>
+                    <label htmlFor={`instructions-${activeQuestion.id}`}>{t("builder.questions.instructions")}</label>
+                    <textarea
+                      id={`instructions-${activeQuestion.id}`}
+                      value={activeQuestion.instructions}
+                      onChange={(event) => handleQuestionFieldChange(activeQuestion.id, "instructions", event.target.value)}
+                      placeholder="רמזים, מגבלות, או הבהרות נוספות. גם כאן אפשר להשתמש ב-{{token}}."
+                      rows={4}
+                    />
+                  </div>
+
+                  <div className={styles.field}>
+                    <label htmlFor={`expected-output-${activeQuestion.id}`}>תיאור הפלט הצפוי</label>
+                    <textarea
+                      id={`expected-output-${activeQuestion.id}`}
+                      value={activeQuestion.expectedOutputDescription}
+                      onChange={(event) => handleQuestionFieldChange(activeQuestion.id, "expectedOutputDescription", event.target.value)}
+                      placeholder="מה הסטודנט אמור לראות: עמודות, סדר, הגיון התוצאה."
+                      rows={4}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.workspacePanel}>
+                  <div className={styles.field}>
                     <label htmlFor={`prompt-${activeQuestion.id}`}>{t("builder.questions.prompt")}</label>
                     <textarea
                       id={`prompt-${activeQuestion.id}`}
@@ -472,30 +496,6 @@ export function QuestionsStep({
                       onChange={(event) => handleQuestionFieldChange(activeQuestion.id, "starterSql", event.target.value)}
                       placeholder="SELECT * FROM employees WHERE age > {{min_age}};"
                       rows={6}
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.workspacePanel}>
-                  <div className={styles.field}>
-                    <label htmlFor={`expected-output-${activeQuestion.id}`}>תיאור הפלט הצפוי</label>
-                    <textarea
-                      id={`expected-output-${activeQuestion.id}`}
-                      value={activeQuestion.expectedOutputDescription}
-                      onChange={(event) => handleQuestionFieldChange(activeQuestion.id, "expectedOutputDescription", event.target.value)}
-                      placeholder="מה הסטודנט אמור לראות: עמודות, סדר, הגיון התוצאה."
-                      rows={4}
-                    />
-                  </div>
-
-                  <div className={styles.field}>
-                    <label htmlFor={`instructions-${activeQuestion.id}`}>{t("builder.questions.instructions")}</label>
-                    <textarea
-                      id={`instructions-${activeQuestion.id}`}
-                      value={activeQuestion.instructions}
-                      onChange={(event) => handleQuestionFieldChange(activeQuestion.id, "instructions", event.target.value)}
-                      placeholder="רמזים, מגבלות, או הבהרות נוספות. גם כאן אפשר להשתמש ב-{{token}}."
-                      rows={4}
                     />
                   </div>
 

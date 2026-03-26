@@ -1,5 +1,6 @@
 "use client";
 
+import { Check } from "lucide-react";
 import styles from "./Wizard.module.css";
 import type { WizardStepId } from "./types";
 
@@ -8,26 +9,73 @@ interface StepperProps {
   activeStep: WizardStepId;
   onStepClick: (id: WizardStepId) => void;
   disabledSteps?: WizardStepId[];
+  autoSaveState?: "idle" | "saving" | "saved" | "error";
 }
 
-export function Stepper({ steps, activeStep, onStepClick, disabledSteps = [] }: StepperProps) {
+function resolveState(
+  index: number,
+  activeIndex: number,
+  disabled: boolean,
+): "active" | "completed" | "upcoming" | "disabled" {
+  if (disabled) return "disabled";
+  if (index === activeIndex) return "active";
+  if (index < activeIndex) return "completed";
+  return "upcoming";
+}
+
+export function Stepper({
+  steps,
+  activeStep,
+  onStepClick,
+  disabledSteps = [],
+  autoSaveState,
+}: StepperProps) {
+  const activeIndex = steps.findIndex((s) => s.id === activeStep);
+
   return (
-    <div className={styles.stepper}>
-      {steps.map((step) => {
-        const disabled = disabledSteps.includes(step.id);
-        const className = step.id === activeStep ? `${styles.stepperButton} ${styles.stepperButtonActive}` : styles.stepperButton;
-        return (
-          <button
-            key={step.id}
-            type="button"
-            className={className}
-            onClick={() => onStepClick(step.id)}
-            disabled={disabled}
-          >
-            {step.label}
-          </button>
-        );
-      })}
-    </div>
+    <nav className={styles.stepper} aria-label="Wizard progress">
+      <ol className={styles.stepperTrack}>
+        {steps.map((step, index) => {
+          const disabled = disabledSteps.includes(step.id);
+          const state = resolveState(index, activeIndex, disabled);
+
+          return (
+            <li key={step.id} className={styles.stepperItem}>
+              {index > 0 && (
+                <span
+                  className={styles.stepperConnector}
+                  data-filled={state === "completed" || state === "active" ? "" : undefined}
+                />
+              )}
+              <button
+                type="button"
+                className={styles.stepperTrigger}
+                data-state={state}
+                onClick={() => onStepClick(step.id)}
+                disabled={disabled}
+                aria-current={state === "active" ? "step" : undefined}
+              >
+                <span className={styles.stepperCircle} data-state={state}>
+                  {state === "completed" ? (
+                    <Check size={14} strokeWidth={3} />
+                  ) : (
+                    index + 1
+                  )}
+                </span>
+                <span className={styles.stepperLabel}>{step.label}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+
+      {autoSaveState && autoSaveState !== "idle" && (
+        <span className={styles.autoSaveIndicator} data-state={autoSaveState}>
+          {autoSaveState === "saving" && "שומר..."}
+          {autoSaveState === "saved" && "נשמר \u2713"}
+          {autoSaveState === "error" && "שגיאת שמירה"}
+        </span>
+      )}
+    </nav>
   );
 }

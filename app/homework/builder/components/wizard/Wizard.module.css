@@ -240,13 +240,14 @@
   pointer-events: none;
 }
 
+/* ─── Stepper ─── */
 .stepper {
   display: flex;
-  gap: 8px;
   align-items: center;
-  flex-wrap: wrap;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  padding: 10px 12px;
+  justify-content: space-between;
+  gap: 12px;
+  background: #ffffff;
+  padding: 12px 20px;
   border-radius: 14px;
   border: 1px solid #e1e8f5;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
@@ -256,39 +257,129 @@
   backdrop-filter: saturate(180%) blur(6px);
 }
 
-.stepperButton {
-  background: #f8fafc;
-  border: 1px solid #dbe4f0;
-  padding: 10px 14px;
-  border-radius: 12px;
+.stepperTrack {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.stepperItem {
+  display: flex;
+  align-items: center;
+}
+
+.stepperItem:not(:first-child) {
+  flex: 1;
+}
+
+.stepperConnector {
+  flex: 1;
+  height: 2px;
+  min-width: 16px;
+  background: #e2e8f0;
+  border-radius: 1px;
+  margin-inline: 4px;
+  transition: background 0.3s ease;
+}
+
+.stepperConnector[data-filled] {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.stepperTrigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
   cursor: pointer;
-  font-weight: 600;
-  color: #64748b;
-  font-size: 0.88rem;
-  transition: all 0.2s ease;
-  position: relative;
-  overflow: hidden;
-  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 10px;
+  transition: background 0.15s ease;
   white-space: nowrap;
 }
 
-.stepperButton:hover:not(:disabled) {
-  background: #e2e8f0;
-  color: #475569;
-  transform: translateY(-1px);
+.stepperTrigger:hover:not(:disabled) {
+  background: #f1f5f9;
 }
 
-.stepperButtonActive {
+.stepperTrigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.stepperCircle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.82rem;
+  flex-shrink: 0;
+  transition: all 0.25s ease;
+}
+
+.stepperCircle[data-state="active"] {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #ffffff;
-  border-color: transparent;
-  box-shadow: 0 6px 14px rgba(102, 126, 234, 0.18);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.28);
 }
 
-.stepperButton:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  transform: none;
+.stepperCircle[data-state="completed"] {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.stepperCircle[data-state="upcoming"],
+.stepperCircle[data-state="disabled"] {
+  background: #f1f5f9;
+  color: #94a3b8;
+  border: 2px solid #e2e8f0;
+}
+
+.stepperLabel {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  transition: color 0.2s ease;
+}
+
+.stepperTrigger[data-state="active"] .stepperLabel {
+  color: #1e293b;
+}
+
+.stepperTrigger[data-state="completed"] .stepperLabel {
+  color: #475569;
+}
+
+.autoSaveIndicator {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.autoSaveIndicator[data-state="saving"] {
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.08);
+}
+
+.autoSaveIndicator[data-state="saved"] {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.autoSaveIndicator[data-state="error"] {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
 }
 
 .badge {
@@ -890,16 +981,21 @@
   }
 
   .stepper {
-    padding: 12px;
-    flex-wrap: nowrap;
+    padding: 10px 12px;
     overflow-x: auto;
-    gap: 6px;
+    gap: 8px;
   }
 
-  .stepperButton {
-    padding: 10px 16px;
-    font-size: 0.85rem;
-    white-space: nowrap;
+  .stepperLabel {
+    display: none;
+  }
+
+  .stepperTrigger {
+    padding: 4px;
+  }
+
+  .stepperConnector {
+    min-width: 12px;
   }
 
   .modalContent {

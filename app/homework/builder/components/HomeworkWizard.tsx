@@ -109,7 +109,6 @@ interface HomeworkWizardProps {
 export function HomeworkWizard({ initialState, existingSetId, initialStep = "metadata" }: HomeworkWizardProps) {
   const router = useRouter();
   const { t, direction } = useHomeworkLocale();
-  const backArrow = direction === "rtl" ? "→" : "←";
   const initialDraft = useMemo(() => initialState ?? createInitialDraft(), [initialState]);
   const [controller, setController] = useState<WizardControllerState>({
     step: initialStep,
@@ -139,13 +138,7 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
     [t],
   );
 
-  const currentStepIndex = useMemo(
-    () => stepConfig.findIndex((step) => step.id === controller.step),
-    [controller.step],
-  );
   const validationSummary = useMemo(() => validateHomeworkDraft(controller.draft), [controller.draft]);
-
-  const canNavigateBack = currentStepIndex > 0;
 
   const createSetMutation = useMutation({
     mutationFn: (payload: CreateHomeworkPayload) => createHomeworkSet(payload),
@@ -319,6 +312,7 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
         activeStep={controller.step}
         onStepClick={(step) => !disabledSteps.includes(step) && navigateToStep(step)}
         disabledSteps={disabledSteps}
+        autoSaveState={autoSaveState}
       />
 
       {controller.step === "metadata" && (
@@ -379,15 +373,6 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
         />
       )}
 
-      {canNavigateBack && controller.step !== "metadata" && (
-        <button
-          type="button"
-          className={styles.backButton}
-          onClick={() => navigateToStep(stepConfig[currentStepIndex - 1]?.id ?? "metadata")}
-        >
-          {backArrow} {t("builder.wizard.back")}
-        </button>
-      )}
     </div>
   );
 }
