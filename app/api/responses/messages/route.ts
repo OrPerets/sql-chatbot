@@ -1,5 +1,5 @@
 import { openai } from "@/app/openai";
-import { getAgentTools } from "@/app/agent-config";
+import { getAgentToolsForContext } from "@/app/agent-config";
 import { ChatRequestDto, ChatResponseDto, SqlTutorResponse } from "@/lib/openai/contracts";
 import { getOpenAIApiMode } from "@/lib/openai/api-mode";
 import {
@@ -282,10 +282,11 @@ export async function POST(request: Request) {
           : [{ type: "input_text", text: "Please help me with SQL and databases." }],
       },
     ];
+    const baseTools = getAgentToolsForContext(body.homeworkRunner ? "homework_runner" : "main_chat");
     const vectorStoreId = await getOrCreateAppVectorStoreId().catch(() => null);
     const tools = vectorStoreId
-      ? [...getAgentTools(), buildFileSearchTool(vectorStoreId)]
-      : undefined;
+      ? [...baseTools, buildFileSearchTool(vectorStoreId)]
+      : baseTools;
     const maxIterations = 8;
 
     const useStream = body.stream !== false;
@@ -373,6 +374,7 @@ export async function POST(request: Request) {
                 )
               );
             } else if (
+              reasoningModeEnabled &&
               event?.type === "response.reasoning_summary_text.delta" &&
               typeof event.delta === "string"
             ) {
@@ -385,6 +387,7 @@ export async function POST(request: Request) {
                 )
               );
             } else if (
+              reasoningModeEnabled &&
               event?.type === "response.reasoning_summary_text.done" &&
               typeof event.text === "string"
             ) {
@@ -408,11 +411,13 @@ export async function POST(request: Request) {
                     : JSON.stringify(event.item.arguments || {}),
               };
               calls.push(toolCall);
-              await writer.write(
-                encoder.encode(
-                  `${JSON.stringify({ type: "response.tool_call.started", name: toolCall.name })}\n`
-                )
-              );
+              if (reasoningModeEnabled) {
+                await writer.write(
+                  encoder.encode(
+                    `${JSON.stringify({ type: "response.tool_call.started", name: toolCall.name })}\n`
+                  )
+                );
+              }
             } else if (event?.type === "response.completed") {
               iterationResponseId = String(event.response?.id || iterationResponseId || "");
               iterationOutputText = extractOutputText(event.response);
@@ -440,11 +445,13 @@ export async function POST(request: Request) {
 
           const toolResults = await Promise.all(calls.map((call) => executeToolCall(call)));
           for (const call of calls) {
-            await writer.write(
-              encoder.encode(
-                `${JSON.stringify({ type: "response.tool_call.completed", name: call.name })}\n`
-              )
-            );
+            if (reasoningModeEnabled) {
+              await writer.write(
+                encoder.encode(
+                  `${JSON.stringify({ type: "response.tool_call.completed", name: call.name })}\n`
+                )
+              );
+            }
           }
           iterationInput = toFunctionCallOutputs(calls, toolResults);
           previousResponseId = iterationResponseId;

@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import type { Submission, Question, SqlAnswer, Feedback } from '@/app/homework/types';
+import { getModelForRole } from '@/lib/openai/model-registry';
 
 /**
  * AI Analysis Framework for Student Submissions
@@ -83,7 +84,7 @@ export class AIAnalysisService {
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
-    this.model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+    this.model = process.env.OPENAI_ANALYSIS_MODEL || getModelForRole('aiAnalysis');
   }
 
   /**

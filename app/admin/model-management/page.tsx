@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { RECOMMENDED_RUNTIME_MODEL } from "@/lib/openai/model-registry";
 import styles from "./ModelManagement.module.css";
 
 interface RuntimeConfig {
@@ -61,7 +62,7 @@ export default function ModelManagement() {
 
   const loadRuntimeConfig = async () => {
     try {
-      const response = await fetch("/api/assistants/update");
+      const response = await fetch("/api/responses/runtime");
       if (!response.ok) {
         throw new Error("Failed to load runtime config.");
       }
@@ -95,11 +96,11 @@ export default function ModelManagement() {
     setError(null);
 
     try {
-      const response = await fetch("/api/assistants/update", {
+      const response = await fetch("/api/responses/runtime", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "gpt-4.1-mini",
+          model: RECOMMENDED_RUNTIME_MODEL,
           reason: "admin recommended config",
         }),
       });
@@ -110,7 +111,7 @@ export default function ModelManagement() {
       }
 
       await loadRuntimeConfig();
-      alert(`Runtime model config updated to ${data?.config?.model || "gpt-4.1-mini"}`);
+      alert(`Runtime model config updated to ${data?.config?.model || RECOMMENDED_RUNTIME_MODEL}`);
     } catch (err: any) {
       setError(err.message || "Config update failed");
     } finally {
@@ -123,7 +124,7 @@ export default function ModelManagement() {
     setError(null);
 
     try {
-      const response = await fetch("/api/assistants/test", {
+      const response = await fetch("/api/responses/runtime/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ testType }),
@@ -151,7 +152,7 @@ export default function ModelManagement() {
     setError(null);
 
     try {
-      const response = await fetch("/api/assistants/rollback", {
+      const response = await fetch("/api/responses/runtime/rollback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason, rollbackTo: "previous-stable" }),
@@ -181,7 +182,7 @@ export default function ModelManagement() {
 
       <div className={styles.header}>
         <h1>ניהול מודלי AI</h1>
-        <p>ניהול קונפיגורציית Responses API עבור Michael (ללא lifecycle של Assistant objects)</p>
+        <p>ניהול קונפיגורציית OpenAI runtime עבור Michael על גבי Responses API. נתיבי ה-Assistants נשארים כ-aliases זמניים בלבד.</p>
       </div>
 
       {error && <div className={styles.error}>Error: {error}</div>}
@@ -212,7 +213,7 @@ export default function ModelManagement() {
 
         <div className={styles.actions}>
           <button onClick={applyRecommendedConfig} disabled={loading} className={styles.upgradeButton}>
-            {loading ? "מעדכן..." : "Apply Recommended Config"}
+            {loading ? "מעדכן..." : `Apply Recommended Config (${RECOMMENDED_RUNTIME_MODEL})`}
           </button>
 
           <button

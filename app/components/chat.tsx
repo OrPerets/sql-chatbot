@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, useReducer } from "react";
 import styles from "./chat.module.css";
 import "./mobile-optimizations.css";
 import Markdown from "react-markdown";
@@ -19,14 +19,33 @@ import VoiceModeCircle from "./VoiceModeCircle";
 import StaticLogoMode from "./StaticLogoMode";
 // import { AvatarIcon, MicIcon } from "./AvatarToggleIcons";
 // import Avatar3DErrorBoundary from "./michael-3d-visual-wrapper";
-// import { enhancedTTS } from "@/app/utils/enhanced-tts";
+import { enhancedTTS, type TTSOptions } from "@/app/utils/enhanced-tts";
 // import AvatarInteractionManager from "./AvatarInteractionManager";
 import { analyzeMessage } from "../utils/sql-query-analyzer";
 // import { avatarAnalytics } from "../utils/avatar-analytics";
 import PracticeModal from "./PracticeModal";
 import type { ResponseStreamEvent, SqlTutorResponse } from "@/lib/openai/contracts";
+import { isVoiceFeatureEnabled } from "@/lib/openai/voice-config";
+import {
+  buildGesturePlan,
+  DEFAULT_AVATAR_RENDER_CONFIG,
+  inferSpeechIntent,
+  initialSpeechControllerState,
+  speechControllerReducer,
+  type AvatarMode,
+  type GesturePlan,
+  type SpeechIntent,
+  type SpeechUtterance,
+} from "../utils/avatar-speech-controller";
 
 export const maxDuration = 50;
+
+const isDev = process.env.NODE_ENV === "development";
+const logDebug = (...args: unknown[]) => {
+  if (isDev) {
+    console.log(...args);
+  }
+};
 
 // Replace external base with internal routes
 const SAVE = "/api/chat/save"; // not used directly; message saving goes via chat sessions endpoint
@@ -160,7 +179,7 @@ const AssistantMessage = ({
   };
 
   const handlePlayMessage = () => {
-    console.log('🔊 handlePlayMessage called', {
+    logDebug('🔊 handlePlayMessage called', {
       onPlayMessage: !!onPlayMessage,
       text: text?.substring(0, 50) + '...',
       autoPlaySpeech,
@@ -178,7 +197,6 @@ const AssistantMessage = ({
   };
 
   const copyToClipboard = (textToCopy) => {
-    console.log(1)
     navigator.clipboard.writeText(textToCopy)
       .then(() => {
         setCopied(true); // Show "Copied!" tooltip
@@ -306,7 +324,6 @@ const copyQueryToClipboard = (text) => {
   }
   navigator.clipboard.writeText(queriesToCopy)
       .then(() => {
-        console.log("SQL queries copied to clipboard:\n", queriesToCopy);
         setCopiedText("הועתק בהצלחה");
         setTimeout(() => {
           setCopiedText("העתק שאילתה");
@@ -326,25 +343,23 @@ const copyQueryToClipboard = (text) => {
         {tutorResponse ? renderTutorResponse(tutorResponse) : <Markdown components={renderers}>{compactText}</Markdown>}
       </div>
       <div className={styles.feedbackButtons}>
-        {!autoPlaySpeech && (
-          <button
-            onClick={handlePlayMessage}
-            className={`${styles.feedbackButton} ${styles.playMessageButton}`}
-            onMouseEnter={() => setShowPlayTooltip(true)}
-            onMouseLeave={() => setShowPlayTooltip(false)}
-            style={{
-              marginLeft: "5px"
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-            </svg>
-            {showPlayTooltip && (
-              <div className={styles.tooltip}>{playTooltipText}</div>
-            )}
-          </button>
-        )}
+        <button
+          onClick={handlePlayMessage}
+          className={`${styles.feedbackButton} ${styles.playMessageButton}`}
+          onMouseEnter={() => setShowPlayTooltip(true)}
+          onMouseLeave={() => setShowPlayTooltip(false)}
+          style={{
+            marginLeft: "5px"
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          </svg>
+          {showPlayTooltip && (
+            <div className={styles.tooltip}>{playTooltipText}</div>
+          )}
+        </button>
         <button
           onClick={handleLike}
           className={`${styles.feedbackButton} ${activeFeedback === "like" ? styles.positive : ""}`}
@@ -471,8 +486,7 @@ const Chat = ({
   const [enableAvatarInteractions, setEnableAvatarInteractions] = useState(false); // DISABLED
   const [enableSQLGestureMapping, setEnableSQLGestureMapping] = useState(false); // DISABLED
   const [enableAnalytics, setEnableAnalytics] = useState(false); // DISABLED
-  // Added for query cost estimation feature
-  const [estimatedCost, setEstimatedCost] = useState(0);
+  const [mainChatMessageCost, setMainChatMessageCost] = useState(1);
   const [currentBalance, setCurrentBalance] = useState(0);
   const [balanceError, setBalanceError] = useState(false);
   const [balanceErrorMessage, setBalanceErrorMessage] = useState<string | null>(null);
@@ -485,31 +499,19 @@ const Chat = ({
   const [sqlTutorOperation, setSqlTutorOperation] = useState<"create" | "insert">("create");
   const [sqlTutorTableName, setSqlTutorTableName] = useState("");
   const [sqlTutorColumns, setSqlTutorColumns] = useState("");
-  // Add audio and speech state
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
-  const [autoPlaySpeech, setAutoPlaySpeech] = useState(false);
+  const autoPlaySpeech = false;
   // Environment variables - these are available at build time
   const enableAvatar = process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1' || process.env.NODE_ENV === 'development';
-  const enableVoice = process.env.NEXT_PUBLIC_VOICE_ENABLED === '1' || process.env.NODE_ENV === 'development';
+  const enableVoice = isVoiceFeatureEnabled();
   
   // Add avatar mode state with localStorage persistence
-  const [avatarMode, setAvatarMode] = useState<'avatar' | 'voice'>('avatar');
+  const [avatarMode, setAvatarMode] = useState<AvatarMode>('avatar3d');
 
   // Add hydration state to prevent layout shift
   const [isHydrated, setIsHydrated] = useState(false);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
   const [isThinkingModeEnabled, setIsThinkingModeEnabled] = useState(true);
-  
-  // Debug logging for production
-  useEffect(() => {
-    console.log('🔧 Avatar Debug Info:', {
-      enableAvatar,
-      enableVoice,
-      NEXT_PUBLIC_AVATAR_ENABLED: process.env.NEXT_PUBLIC_AVATAR_ENABLED,
-      NODE_ENV: process.env.NODE_ENV,
-      isHydrated
-    });
-  }, [enableAvatar, enableVoice, isHydrated]);
 
   useEffect(() => {
     if (!isActionMenuOpen) {
@@ -548,8 +550,12 @@ const Chat = ({
       
       // Load saved avatar mode
       const savedAvatarMode = localStorage.getItem('avatarMode');
-      if (savedAvatarMode === 'voice' || savedAvatarMode === 'avatar') {
+      if (savedAvatarMode === 'voiceCircle' || savedAvatarMode === 'avatar3d' || savedAvatarMode === 'none') {
         setAvatarMode(savedAvatarMode);
+      } else if (savedAvatarMode === 'voice') {
+        setAvatarMode('voiceCircle');
+      } else if (savedAvatarMode === 'avatar') {
+        setAvatarMode('avatar3d');
       }
 
       const savedThinkingMode = localStorage.getItem('thinkingModeEnabled');
@@ -574,6 +580,16 @@ const Chat = ({
     }
   }, [isHydrated, isThinkingModeEnabled]);
 
+  useEffect(() => {
+    if (isThinkingModeEnabled) {
+      return;
+    }
+    setReasoningLogs([]);
+    setReasoningDraft("");
+    reasoningDraftRef.current = "";
+    setIsReasoningCollapsed(false);
+  }, [isThinkingModeEnabled]);
+
   // Add sidebar visibility state
   // Check if we're on mobile to default sidebar to closed
   const [sidebarVisible, setSidebarVisible] = useState(() => {
@@ -583,12 +599,10 @@ const Chat = ({
     }
     return true; // Default to open during SSR
   });
-  // Add speech timeout for debouncing
-  // Add state to track when assistant message is complete and ready for speech
-  const [isAssistantMessageComplete, setIsAssistantMessageComplete] = useState(false);
-  const [shouldSpeak, setShouldSpeak] = useState(false);
-  const [lastSpokenMessageId, setLastSpokenMessageId] = useState<string>("");
-  const [currentAssistantMessageId, setCurrentAssistantMessageId] = useState<string>("");
+  const [speechController, speechDispatch] = useReducer(
+    speechControllerReducer,
+    initialSpeechControllerState
+  );
 
   const getStoredUser = useCallback(() => {
     if (typeof window === "undefined") return null;
@@ -602,20 +616,18 @@ const Chat = ({
     }
   }, []);
 
-  // Add state for progressive speech
-  const [streamingText, setStreamingText] = useState<string>("");
-  const [hasStartedSpeaking, setHasStartedSpeaking] = useState(false);
+  const [currentAssistantMessageId, setCurrentAssistantMessageId] = useState<string>("");
   const streamingTextRef = useRef<string>("");
   const progressiveSpeechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const speechDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const speechControllerRef = useRef(initialSpeechControllerState);
+  const lastSpeechPlaybackKeyRef = useRef<string>("");
   const [reasoningLogs, setReasoningLogs] = useState<string[]>([]);
   const [reasoningDraft, setReasoningDraft] = useState("");
   const [isReasoningCollapsed, setIsReasoningCollapsed] = useState(false);
   const reasoningDraftRef = useRef("");
   const tutorRawResponseRef = useRef("");
   
-  // Add state for manual speech playback
-  const [isManualSpeech, setIsManualSpeech] = useState(false);
-
   // State for user typing detection
   const [isUserTyping, setIsUserTyping] = useState(false);
   const userTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -635,6 +647,21 @@ const Chat = ({
   const [showPracticeModal, setShowPracticeModal] = useState(false);
   const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
   const [openingPractice, setOpeningPractice] = useState(false);
+
+  const activeAvatarMode = useMemo<AvatarMode>(() => {
+    if (!enableAvatar || displayMode !== 'avatar') {
+      return 'none';
+    }
+    return avatarMode;
+  }, [avatarMode, displayMode, enableAvatar]);
+
+  useEffect(() => {
+    speechControllerRef.current = speechController;
+  }, [speechController]);
+
+  useEffect(() => {
+    speechDispatch({ type: 'SET_AVATAR_MODE', mode: activeAvatarMode });
+  }, [activeAvatarMode]);
 
   const formattedHomeworkContext = useMemo(() => {
     if (!homeworkContext) return null;
@@ -686,45 +713,23 @@ const Chat = ({
     return parts.join("\n\n");
   }, [homeworkContext]);
 
-  // Memoized avatar state calculation to prevent multiple renders
   const avatarState = useMemo(() => {
-    // Priority order: thinking > listening > speaking > userWriting > idle
     const currentState = isThinking ? 'thinking' 
                         : isRecording ? 'listening' 
-                        : (enableAvatar && enableVoice && shouldSpeak && isAssistantMessageComplete) ? 'speaking'
+                        : (enableVoice && activeAvatarMode !== 'none' && (speechController.status === 'speaking' || speechController.status === 'preparing')) ? 'speaking'
                         : isUserTyping ? 'userWriting'
                         : 'idle';
-    console.log('🎭 Avatar state calculation:', {
-      isThinking,
-      isRecording,
-      shouldSpeak,
-      autoPlaySpeech,
-      isAssistantMessageComplete,
-      isUserTyping,
-      calculatedState: currentState,
-      textLength: lastAssistantMessage?.length || 0
-    });
     return currentState;
   }, [
+    activeAvatarMode,
+    enableVoice,
     isThinking,
     isRecording,
-    shouldSpeak,
-    autoPlaySpeech,
-    isAssistantMessageComplete,
     isUserTyping,
-    lastAssistantMessage?.length,
-    enableAvatar,
-    enableVoice
+    speechController.status,
   ]);
 
   const router = useRouter();
-
-  // Added for query cost estimation: Calculates cost based on input length using GPT-4 pricing
-  const calculateCost = (text: string) => { 
-  // Rough estimate: 1 token ≈ 4 characters
-    const estimatedTokens = Math.ceil(text.length / 4);
-    return estimatedTokens
-  };
 
     // Function to toggle the modal
     const toggleModal = () => {
@@ -771,27 +776,87 @@ const Chat = ({
     ].join("\n");
   };
 
+  const createSpeechUtterance = useCallback(
+    (
+      utteranceId: string,
+      utteranceText: string,
+      stage: SpeechUtterance['stage'],
+      overrides: Partial<SpeechIntent> = {},
+      manual = false
+    ): SpeechUtterance => {
+      const intent = inferSpeechIntent(utteranceText, overrides);
+      const gesturePlan = buildGesturePlan(utteranceText, intent, stage);
+
+      return {
+        id: utteranceId,
+        text: utteranceText,
+        intent,
+        stage,
+        manual,
+        gesturePlan,
+      };
+    },
+    []
+  );
+
+  const enqueueUtterance = useCallback((utterance: SpeechUtterance) => {
+    speechDispatch({ type: 'ENQUEUE_UTTERANCE', utterance });
+  }, []);
+
+  const setGesturePlanForUtterance = useCallback((utteranceId: string, gesturePlan: GesturePlan) => {
+    speechDispatch({ type: 'SET_GESTURE_PLAN', utteranceId, gesturePlan });
+  }, []);
+
+  const cancelCurrent = useCallback((reason: 'user_input' | 'manual_cancel' | 'mode_switch' | 'flush' | 'error') => {
+    enhancedTTS.stop(140);
+    speechDispatch({ type: 'CANCEL_CURRENT', reason });
+  }, []);
+
+  const flushAll = useCallback((reason: 'user_input' | 'manual_cancel' | 'mode_switch' | 'flush' | 'error' = 'flush') => {
+    enhancedTTS.stop(140);
+    speechDispatch({ type: 'FLUSH_ALL', reason });
+    lastSpeechPlaybackKeyRef.current = '';
+  }, []);
+
+  useEffect(() => {
+    if (activeAvatarMode === 'none') {
+      flushAll('mode_switch');
+    }
+  }, [activeAvatarMode, flushAll]);
+
+  const buildTTSOptionsForUtterance = useCallback(
+    (utterance: SpeechUtterance): TTSOptions => ({
+      voice: 'onyx',
+      volume: 0.9,
+      useOpenAI: true,
+      characterStyle: 'university_ta',
+      enhanceProsody: true,
+      humanize: true,
+      naturalPauses: true,
+      progressiveMode: utterance.intent.source === 'stream',
+      speechIntent: utterance.intent,
+    }),
+    []
+  );
+
   // Handle audio transcription
   const handleAudioTranscription = (transcription: string) => {
     setUserInput(transcription);
-    setEstimatedCost(calculateCost(transcription));
   };
 
   // Handle user typing detection
   const handleUserTyping = () => {
-    console.log('✍️ User is typing...');
-    
-    // Set typing state to true
+    if ((speechControllerRef.current.status === 'speaking' || speechControllerRef.current.status === 'preparing') && enableVoice) {
+      flushAll('user_input');
+    }
+
     setIsUserTyping(true);
     
-    // Clear existing timeout
     if (userTypingTimeoutRef.current) {
       clearTimeout(userTypingTimeoutRef.current);
     }
     
-    // Set timeout to detect when user stops typing (after 2 seconds of inactivity)
     userTypingTimeoutRef.current = setTimeout(() => {
-      console.log('✋ User stopped typing');
       setIsUserTyping(false);
     }, 2000);
   };
@@ -1021,10 +1086,16 @@ const Chat = ({
       const data: CoinsConfigClientResponse = await response.json();
       const mainChatEnabled = data?.modules?.mainChat === true || data?.status === "ON";
       const sqlPracticeEnabled = data?.modules?.sqlPractice === true;
+      const configuredMainChatCost = Number(data?.costs?.mainChatMessage);
       const configuredPracticeCost = Number(data?.costs?.sqlPracticeOpen);
 
       setIsTokenBalanceVisible(mainChatEnabled);
       setIsSqlPracticeEnabled(sqlPracticeEnabled);
+      setMainChatMessageCost(
+        Number.isFinite(configuredMainChatCost) && configuredMainChatCost >= 0
+          ? configuredMainChatCost
+          : 1
+      );
       setPracticeOpenCost(Number.isFinite(configuredPracticeCost) && configuredPracticeCost > 0 ? configuredPracticeCost : 1);
 
       return mainChatEnabled;
@@ -1287,7 +1358,7 @@ const Chat = ({
       if (checkData.success) {
         const existingAnalysis = checkData.data.summaries.find(summary => summary.sessionId === sessionId);
         if (existingAnalysis) {
-          console.log('Conversation analysis already exists for session:', sessionId);
+          logDebug('Conversation analysis already exists for session:', sessionId);
           return;
         }
       }
@@ -1305,7 +1376,7 @@ const Chat = ({
       });
 
       if (response.ok) {
-        console.log('✅ Conversation analysis triggered for session:', sessionId);
+        logDebug('✅ Conversation analysis triggered for session:', sessionId);
       } else {
         console.error('❌ Failed to trigger conversation analysis:', response.statusText);
       }
@@ -1482,10 +1553,18 @@ useEffect(() => {
   // Cleanup speech and typing detection on unmount
   useEffect(() => {
     return () => {
-      // AVATAR DISABLED: enhancedTTS.stop();
-      
+      enhancedTTS.stop();
+
       if (userTypingTimeoutRef.current) {
         clearTimeout(userTypingTimeoutRef.current);
+      }
+
+      if (progressiveSpeechTimeoutRef.current) {
+        clearTimeout(progressiveSpeechTimeoutRef.current);
+      }
+
+      if (speechDebounceTimeoutRef.current) {
+        clearTimeout(speechDebounceTimeoutRef.current);
       }
 
       // Trigger conversation analysis for current session when component unmounts
@@ -1495,66 +1574,140 @@ useEffect(() => {
     };
   }, [currentChatId, triggerConversationAnalysis]);
 
-  // Modified useEffect for progressive speech
   useEffect(() => {
-    const messageId = currentAssistantMessageId || (lastAssistantMessage ? lastAssistantMessage.substring(0,50) : "");
-    
-    console.log('👀 Watching lastAssistantMessage change:', {
-      isDone,
-      autoPlaySpeech,
-      lastAssistantMessageLength: lastAssistantMessage?.length || 0,
-      lastAssistantMessage: lastAssistantMessage?.substring(0, 50) + '...',
-      shouldSpeak,
-      hasStartedSpeaking,
-      streamingTextLength: streamingText?.length || 0,
-      isManualSpeech
-    });
-
-    // Handle manual speech playback (when clicking play button)
-    if (isManualSpeech && shouldSpeak && lastAssistantMessage) {
-      console.log('🎤 MANUAL: Triggering manual speech playback');
-      return; // Let the avatar component handle the speech
+    if (!enableVoice || !autoPlaySpeech || activeAvatarMode === 'none') {
+      return;
     }
 
-    // Progressive speech: Start speaking earlier and also on completion
-    const canStartByLength = lastAssistantMessage && lastAssistantMessage.length > 10;
-    const canStartOnDone = isDone && lastAssistantMessage && lastAssistantMessage.length > 0;
-    if (autoPlaySpeech && (canStartByLength || canStartOnDone) && !hasStartedSpeaking && lastSpokenMessageId !== messageId) {
-      console.log('🎤 PROGRESSIVE: Starting speech early with partial text');
-      setLastSpokenMessageId(messageId);
-      setHasStartedSpeaking(true);
-      setShouldSpeak(true);
-      setIsAssistantMessageComplete(true);
-    }
-    
-    // Handle completion of streaming
-    if (isDone && hasStartedSpeaking) {
-      console.log('✅ PROGRESSIVE: Message streaming completed, speech already in progress');
-      // We don't need to trigger new speech since it's already started
-    }
-    
-    // Reset for new messages
-    if (!lastAssistantMessage || lastAssistantMessage.length === 0) {
-      console.log('🔄 PROGRESSIVE: Resetting speech state for new message');
-      setHasStartedSpeaking(false);
-      setShouldSpeak(false);
+    if (!currentAssistantMessageId || !lastAssistantMessage.trim()) {
+      return;
     }
 
+    if (speechControllerRef.current.interruptionReason === 'user_input') {
+      return;
+    }
+
+    const stage: SpeechUtterance['stage'] = isDone ? 'final' : 'streaming';
+    const minimumLength = stage === 'streaming' ? 24 : 1;
+    if (lastAssistantMessage.trim().length < minimumLength) {
+      return;
+    }
+
+    if (speechDebounceTimeoutRef.current) {
+      clearTimeout(speechDebounceTimeoutRef.current);
+    }
+
+    speechDebounceTimeoutRef.current = setTimeout(() => {
+      const utterance = createSpeechUtterance(
+        currentAssistantMessageId,
+        lastAssistantMessage,
+        stage,
+        { source: 'stream' }
+      );
+      enqueueUtterance(utterance);
+      setGesturePlanForUtterance(utterance.id, utterance.gesturePlan!);
+    }, stage === 'streaming' ? 220 : 50);
+
+    return () => {
+      if (speechDebounceTimeoutRef.current) {
+        clearTimeout(speechDebounceTimeoutRef.current);
+      }
+    };
   }, [
-    currentAssistantMessageId,
-    lastAssistantMessage,
-    isDone,
+    activeAvatarMode,
     autoPlaySpeech,
-    shouldSpeak,
-    lastSpokenMessageId,
-    hasStartedSpeaking,
-    isManualSpeech,
-    streamingText?.length
+    createSpeechUtterance,
+    currentAssistantMessageId,
+    enableVoice,
+    enqueueUtterance,
+    isDone,
+    lastAssistantMessage,
+    setGesturePlanForUtterance,
   ]);
+
+  useEffect(() => {
+    const currentUtterance = speechController.currentUtterance;
+    if (!enableVoice || !currentUtterance) {
+      return;
+    }
+
+    const playbackKey = `${currentUtterance.id}:${currentUtterance.text}:${currentUtterance.stage}`;
+
+    const completeIfCurrent = () => {
+      const latestState = speechControllerRef.current;
+      if (latestState.currentUtterance?.id !== currentUtterance.id) {
+        return;
+      }
+      if (!latestState.assistantStreaming && latestState.currentUtterance.stage === 'final') {
+        speechDispatch({ type: 'COMPLETE_CURRENT', utteranceId: currentUtterance.id });
+      }
+    };
+
+    const failIfCurrent = (error: Error) => {
+      const latestState = speechControllerRef.current;
+      if (latestState.currentUtterance?.id !== currentUtterance.id) {
+        return;
+      }
+      speechDispatch({
+        type: 'FAIL_CURRENT',
+        utteranceId: currentUtterance.id,
+        message: error.message,
+      });
+    };
+
+    if (speechController.status === 'queued') {
+      speechDispatch({ type: 'PREPARE_CURRENT', utteranceId: currentUtterance.id });
+      return;
+    }
+
+    if (speechController.status === 'preparing') {
+      if (lastSpeechPlaybackKeyRef.current === playbackKey) {
+        return;
+      }
+      lastSpeechPlaybackKeyRef.current = playbackKey;
+
+      const ttsOptions = buildTTSOptionsForUtterance(currentUtterance);
+      void enhancedTTS.speak(currentUtterance.text, {
+        ...ttsOptions,
+        onStart: () => {
+          speechDispatch({ type: 'START_CURRENT', utteranceId: currentUtterance.id });
+        },
+        onEnd: completeIfCurrent,
+        onError: failIfCurrent,
+      });
+      return;
+    }
+
+    if (speechController.status === 'speaking' && currentUtterance.intent.source === 'stream') {
+      if (lastSpeechPlaybackKeyRef.current === playbackKey) {
+        return;
+      }
+
+      lastSpeechPlaybackKeyRef.current = playbackKey;
+      const ttsOptions = buildTTSOptionsForUtterance(currentUtterance);
+      void enhancedTTS.speak(currentUtterance.text, {
+        ...ttsOptions,
+        progressiveMode: true,
+        onEnd: completeIfCurrent,
+        onError: failIfCurrent,
+      });
+    }
+  }, [
+    buildTTSOptionsForUtterance,
+    enableVoice,
+    speechController.currentUtterance,
+    speechController.status,
+  ]);
+
+  useEffect(() => {
+    if (speechController.status === 'error') {
+      cancelCurrent('error');
+    }
+  }, [cancelCurrent, speechController.status]);
 
   // Avatar interaction handlers
   const handleAvatarInteraction = useCallback((gesture: string, context: any) => {
-    console.log('🎭 Avatar interaction:', { gesture, context });
+    logDebug('🎭 Avatar interaction:', { gesture, context });
     
     // Track analytics
     // AVATAR DISABLED: if (enableAnalytics && currentUser) {
@@ -1564,7 +1717,7 @@ useEffect(() => {
 
   const handleInteractionAnalytics = useCallback((analytics: any) => {
     if (enableAnalytics) {
-      console.log('📊 Avatar Interaction Analytics:', analytics);
+      logDebug('📊 Avatar Interaction Analytics:', analytics);
     }
   }, [enableAnalytics]);
 
@@ -1638,27 +1791,35 @@ useEffect(() => {
         }
 
         if (event.type === "response.reasoning_summary_text.delta") {
-          appendReasoningDelta(event.delta);
+          if (isThinkingModeEnabled) {
+            appendReasoningDelta(event.delta);
+          }
           continue;
         }
 
         if (event.type === "response.reasoning_summary_text.done") {
-          if (reasoningDraftRef.current.trim()) {
-            flushReasoningDraft();
-          } else if (event.text) {
-            addReasoningLog(event.text);
+          if (isThinkingModeEnabled) {
+            if (reasoningDraftRef.current.trim()) {
+              flushReasoningDraft();
+            } else if (event.text) {
+              addReasoningLog(event.text);
+            }
           }
           continue;
         }
 
         if (event.type === "response.tool_call.started") {
-          flushReasoningDraft();
-          addReasoningLog(getToolProgressLog(event.name, "started"));
+          if (isThinkingModeEnabled) {
+            flushReasoningDraft();
+            addReasoningLog(getToolProgressLog(event.name, "started"));
+          }
           continue;
         }
 
         if (event.type === "response.tool_call.completed") {
-          addReasoningLog(getToolProgressLog(event.name, "completed"));
+          if (isThinkingModeEnabled) {
+            addReasoningLog(getToolProgressLog(event.name, "completed"));
+          }
           continue;
         }
 
@@ -1739,7 +1900,7 @@ useEffect(() => {
         const analysis = analyzeMessage(text);
         const { recommendedGesture, confidence, sqlAnalysis } = analysis;
 
-        console.log('🔍 Message Analysis:', {
+        logDebug('🔍 Message Analysis:', {
           message: text.substring(0, 50) + '...',
           recommendedGesture,
           confidence,
@@ -1760,7 +1921,7 @@ useEffect(() => {
         if (confidence > 0.6 && avatarRef.current) {
           avatarRef.current.playGesture(recommendedGesture, 2, false, 1000);
           
-          console.log(`🎭 Playing gesture: ${recommendedGesture} (confidence: ${confidence.toFixed(2)})`);
+          logDebug(`🎭 Playing gesture: ${recommendedGesture} (confidence: ${confidence.toFixed(2)})`);
         }
       }
     }
@@ -1937,11 +2098,12 @@ useEffect(() => {
     const trimmed = messageText.trim();
     if (!trimmed) return;
 
+    flushAll('user_input');
+    speechDispatch({ type: 'SET_STREAMING', streaming: false });
     if (userTypingTimeoutRef.current) {
       clearTimeout(userTypingTimeoutRef.current);
     }
     setIsUserTyping(false);
-    console.log('📤 User submitted message, clearing typing state');
 
     sendMessage(trimmed, image);
     setMessages((prevMessages) => [
@@ -1978,11 +2140,10 @@ useEffect(() => {
   // Add a function to load messages for a specific chat
 const loadChatMessages = (chatId: string) => {
   setLoadingMessages(true); // Set loading to true before fetching
-  // Reset speech state when loading existing chat
+  flushAll('flush');
+  speechDispatch({ type: 'SET_STREAMING', streaming: false });
   setLastAssistantMessage("");
-  setLastSpokenMessageId("");
-  setShouldSpeak(false);
-  setIsAssistantMessageComplete(false);
+  setCurrentAssistantMessageId("");
   
   fetch(`/api/chat/sessions/${chatId}/messages`, {
     method: 'GET',
@@ -2021,18 +2182,13 @@ const loadChatMessages = (chatId: string) => {
   const handleTextCreated = () => {
     setIsDone(false);
     setIsThinking(false); // Stop thinking when assistant starts responding
-    setHasStartedSpeaking(false); // Reset for new message
+    speechDispatch({ type: 'SET_STREAMING', streaming: true });
+    flushAll('flush');
     streamingTextRef.current = "";
     tutorRawResponseRef.current = "";
-    setStreamingText("");
     // Create a stable message id for this assistant message
     setCurrentAssistantMessageId(`${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    // If voice is enabled and we are currently speaking, stop to avoid overlap with the new message
-    // AVATAR DISABLED: if (enableVoice && enhancedTTS.isSpeaking()) {
-    //   enhancedTTS.stop();
-    // }
     
-    // Clear any pending progressive speech
     if (progressiveSpeechTimeoutRef.current) {
       clearTimeout(progressiveSpeechTimeoutRef.current);
       progressiveSpeechTimeoutRef.current = null;
@@ -2046,10 +2202,7 @@ const loadChatMessages = (chatId: string) => {
     if (delta.value != null) {
       const text = delta.value;
       
-      // Update streaming text for progressive speech
       streamingTextRef.current += text;
-      setStreamingText(streamingTextRef.current);
-      
       appendToLastMessage(text);
     }
     if (delta.annotations != null) {
@@ -2117,6 +2270,7 @@ const loadChatMessages = (chatId: string) => {
     setInputDisabled(false);
     setIsThinking(false);
     setIsDone(true);
+    speechDispatch({ type: 'SET_STREAMING', streaming: false });
     setReasoningDraft("");
     reasoningDraftRef.current = "";
     tutorRawResponseRef.current = "";
@@ -2349,7 +2503,7 @@ const loadChatMessages = (chatId: string) => {
         // Trigger gesture if avatar is available
         if (avatarRef.current && gesture !== 'ok') {
           avatarRef.current.playGesture(gesture, 2, false, 1000);
-          console.log(`🎭 Assistant response gesture: ${gesture}`);
+          logDebug(`🎭 Assistant response gesture: ${gesture}`);
         }
 
         // Track analytics
@@ -2404,13 +2558,11 @@ const loadChatMessages = (chatId: string) => {
     setCurrentChatId(null);
     setMessages([]);
     setStreamError(null);
+    flushAll('flush');
+    speechDispatch({ type: 'SET_STREAMING', streaming: false });
     setLastAssistantMessage("");
-    setLastSpokenMessageId(""); // Reset spoken message tracking
-    setShouldSpeak(false);
-    setIsAssistantMessageComplete(false);
-    setHasStartedSpeaking(false); // Reset progressive speech state
-    setStreamingText("");
     streamingTextRef.current = "";
+    setCurrentAssistantMessageId("");
     setReasoningLogs([]);
     setReasoningDraft("");
     reasoningDraftRef.current = "";
@@ -2480,7 +2632,8 @@ const embeddedStyles = embeddedMode ? {
   messages: { direction: 'rtl' as const },
 };
 
-const shouldShowReasoningPanel = reasoningLogs.length > 0 || reasoningDraft.length > 0;
+const shouldShowReasoningPanel =
+  isThinkingModeEnabled && (reasoningLogs.length > 0 || reasoningDraft.length > 0);
 const hasStreamingAssistantMessage =
   inputDisabled && messages.length > 0 && messages[messages.length - 1]?.role === "assistant";
 
@@ -2571,44 +2724,23 @@ return (
                     onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
                     autoPlaySpeech={msg.role === 'assistant' ? (enableVoice && autoPlaySpeech) : undefined}
                     onPlayMessage={msg.role === 'assistant' ? () => {
-                      console.log('🎤 Playing individual message:', {
-                        messageText: msg.text.substring(0, 50) + '...',
-                        enableVoice,
-                        avatarMode,
-                        currentAvatarState: avatarState,
-                        lastAssistantMessage: lastAssistantMessage?.substring(0, 30) + '...'
-                      });
                       if (!enableVoice) {
-                        console.log('❌ Voice is not enabled');
                         return;
                       }
-                      // Stop any current speech
-                      // AVATAR DISABLED: enhancedTTS.stop();
-                      // Reset speech states first
-                      setShouldSpeak(false);
-                      setIsAssistantMessageComplete(false);
-                      setHasStartedSpeaking(false);
-                      
-                      // Use setTimeout to ensure state changes are processed
-                      setTimeout(() => {
-                        // Set the text to the avatar for speaking
-                        setLastAssistantMessage(msg.text);
-                        // Set a new manual id and mark as spoken to avoid auto trigger
-                        const manualId = `manual-${Date.now()}`;
-                        setCurrentAssistantMessageId(manualId);
-                        setLastSpokenMessageId(manualId);
-                        setShouldSpeak(true);
-                        setIsAssistantMessageComplete(true);
-                        setHasStartedSpeaking(true);
-                        setIsManualSpeech(true);  // Mark as manual speech
-                        // Clear thinking state
-                        setIsThinking(false);
-                        console.log('🎤 Set speech state for avatar:', {
-                          shouldSpeak: true,
-                          isAssistantMessageComplete: true,
-                          text: msg.text.substring(0, 50) + '...'
-                        });
-                      }, 100);
+                      flushAll('manual_cancel');
+                      const manualId = `manual-${Date.now()}`;
+                      const utterance = createSpeechUtterance(
+                        manualId,
+                        msg.text,
+                        'final',
+                        { source: 'manual' },
+                        true
+                      );
+                      enqueueUtterance(utterance);
+                      setGesturePlanForUtterance(utterance.id, utterance.gesturePlan!);
+                      setLastAssistantMessage(msg.text);
+                      setCurrentAssistantMessageId(manualId);
+                      setIsThinking(false);
                     } : undefined}
                   />
                 </React.Fragment>
@@ -2634,10 +2766,9 @@ return (
           className={`${styles.inputForm} ${styles.clearfix}`}
         >
           <div className={`${styles.inputContainer} ${isExerciseMode ? styles.exerciseMode : ''}`}>
-            {/* Added for query cost estimation: Shows estimated cost while typing */}
             {userInput && isTokenBalanceVisible && (
               <div className={styles.costPopup}>
-                עלות השאילתה: ₪{estimatedCost.toFixed(2)}
+                עלות הודעה: {mainChatMessageCost} מטבע{mainChatMessageCost === 1 ? "" : "ות"}
               </div>
             )}
             {streamError && (
@@ -2669,7 +2800,6 @@ return (
               onChange={(e) => {
                 if (streamError) setStreamError(null);
                 setUserInput(e.target.value);
-                setEstimatedCost(calculateCost(e.target.value));
                 e.target.style.height = 'auto';
                 e.target.style.height = e.target.scrollHeight + 'px';
                 
@@ -2874,40 +3004,49 @@ return (
           <div className={styles.avatarSection}>
             {displayMode === 'avatar' && enableAvatar ? (
               <>
-                {avatarMode === 'avatar' ? (
+                {activeAvatarMode === 'avatar3d' ? (
                   <MichaelAvatarDirect
                     text={lastAssistantMessage}
                     state={avatarState}
                     size="medium"
-                    progressiveMode={enableVoice && !isDone}
-                    isStreaming={enableVoice && !isDone}
-                    onSpeakingStart={() => {
-                      console.log('🎤 Michael started speaking');
-                      if (enableVoice) setShouldSpeak(true);
-                    }}
-                    onSpeakingEnd={() => {
-                      console.log('🎤 Michael finished speaking');
-                      if (enableVoice) setShouldSpeak(false);
-                      setIsAssistantMessageComplete(false);
-                      setHasStartedSpeaking(false);
-                      setIsManualSpeech(false);
-                    }}
+                    progressiveMode={speechController.assistantStreaming}
+                    isStreaming={speechController.assistantStreaming}
+                    speechStatus={speechController.status}
+                    gesturePlan={speechController.currentUtterance?.gesturePlan ?? null}
+                    renderConfig={DEFAULT_AVATAR_RENDER_CONFIG}
+                    utteranceId={speechController.currentUtterance?.id ?? null}
                   />
                 ) : (
                   <VoiceModeCircle
                     state={avatarState}
                     size="medium"
                     text={lastAssistantMessage}
-                    onSpeakingStart={() => {
-                      console.log('🎤 Voice circle started speaking');
-                      if (enableVoice) setShouldSpeak(true);
-                    }}
-                    onSpeakingEnd={() => {
-                      console.log('🎤 Voice circle finished speaking');
-                      if (enableVoice) setShouldSpeak(false);
-                      setIsAssistantMessageComplete(false);
-                      setHasStartedSpeaking(false);
-                      setIsManualSpeech(false);
+                    speechStatus={speechController.status}
+                    gesturePlan={speechController.currentUtterance?.gesturePlan ?? null}
+                    renderConfig={DEFAULT_AVATAR_RENDER_CONFIG}
+                    onPrimaryAction={() => {
+                      if (!enableVoice || activeAvatarMode === 'none') {
+                        return;
+                      }
+                      if (speechController.status === 'speaking' || speechController.status === 'preparing') {
+                        cancelCurrent('manual_cancel');
+                        return;
+                      }
+                      const messageToReplay = lastAssistantMessage || speechController.currentUtterance?.text;
+                      if (!messageToReplay) {
+                        return;
+                      }
+                      flushAll('manual_cancel');
+                      const manualId = `manual-${Date.now()}`;
+                      const utterance = createSpeechUtterance(
+                        manualId,
+                        messageToReplay,
+                        'final',
+                        { source: 'manual' },
+                        true
+                      );
+                      enqueueUtterance(utterance);
+                      setGesturePlanForUtterance(utterance.id, utterance.gesturePlan!);
                     }}
                   />
                 )}
@@ -2944,6 +3083,30 @@ return (
                   )}
                 </button>
               </div>
+              {displayMode === 'avatar' && enableAvatar && (
+                <div className={styles.avatarModeToggle}>
+                  <button
+                    className={`${styles.modeToggleButton} ${activeAvatarMode === 'avatar3d' ? styles.avatarActive : styles.voiceActive}`}
+                    onClick={() => setAvatarMode((previous) => previous === 'avatar3d' ? 'voiceCircle' : 'avatar3d')}
+                    title={activeAvatarMode === 'avatar3d' ? 'עבור למצב קול' : 'עבור למצב אווטאר תלת-ממדי'}
+                    aria-label={activeAvatarMode === 'avatar3d' ? 'Switch to voice circle' : 'Switch to 3D avatar'}
+                  >
+                    {activeAvatarMode === 'avatar3d' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                        <line x1="12" y1="19" x2="12" y2="23" />
+                        <line x1="8" y1="23" x2="16" y2="23" />
+                      </svg>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
             
             {/* User info below the avatar */}
@@ -2954,7 +3117,7 @@ return (
                 </div>
                 {isTokenBalanceVisible && (
                   <div>
-                    יתרה נוכחית: ₪{currentBalance}
+                    יתרה נוכחית: {currentBalance} מטבע{currentBalance === 1 ? "" : "ות"}
                   </div>
                 )}
               </div>

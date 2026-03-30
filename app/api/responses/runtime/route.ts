@@ -6,9 +6,9 @@ import {
 export const runtime = "nodejs";
 
 export async function GET() {
-  return handleRuntimeConfigGet("assistants_alias");
+  return handleRuntimeConfigGet("canonical");
 }
 
 export async function POST(request: Request) {
-  return handleRuntimeConfigPost(request, "assistants_alias");
+  return handleRuntimeConfigPost(request, "canonical");
 }

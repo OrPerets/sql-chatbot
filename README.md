@@ -19,7 +19,7 @@ Michael is a comprehensive web-based learning platform that provides:
 - **Framework**: Next.js 14 (React 18)
 - **Language**: TypeScript
 - **Database**: MongoDB
-- **AI Integration**: OpenAI API (GPT-4)
+- **AI Integration**: OpenAI Responses API (`gpt-5.4-mini` for tutor chat, `gpt-5.4` for admin/evals)
 - **SQL Execution**: sql.js
 - **UI Libraries**: Styled Components, React Three Fiber (3D avatars), Monaco Editor (code editor)
 - **Testing**: Jest, Playwright, React Testing Library
@@ -60,10 +60,14 @@ Configure the following environment variables in `.env.local`:
 # OpenAI API Configuration
 OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_API_MODE=responses
-OPENAI_MODEL=gpt-4.1-mini
+OPENAI_MODEL=gpt-5.4-mini
 OPENAI_VECTOR_STORE_ID=
 OPENAI_ASSISTANT_ID_GPT5=
 USE_GPT5_ASSISTANT=false
+OPENAI_VOICE_MODE=chained
+OPENAI_VOICE_RESPONSE_MODEL=gpt-5.4-mini
+OPENAI_VOICE_TRANSCRIPTION_MODEL=gpt-4o-transcribe
+OPENAI_VOICE_TTS_MODEL=gpt-4o-mini-tts
 
 # Database Configuration
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority&appName=SQLMentor

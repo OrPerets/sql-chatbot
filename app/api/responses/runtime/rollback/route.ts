@@ -7,13 +7,13 @@ import {
 export const runtime = "nodejs";
 
 export async function GET() {
-  return handleRuntimeRollbackGet("assistants_alias");
+  return handleRuntimeRollbackGet("canonical");
 }
 
 export async function POST(request: Request) {
-  return handleRuntimeRollbackPost(request, "assistants_alias");
+  return handleRuntimeRollbackPost(request, "canonical");
 }
 
 export async function PATCH() {
-  return handleRuntimeRollbackHealth("assistants_alias");
+  return handleRuntimeRollbackHealth("canonical");
 }

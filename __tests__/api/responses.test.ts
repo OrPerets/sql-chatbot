@@ -25,6 +25,7 @@ jest.mock("@/lib/openai/vector-store", () => ({
 
 jest.mock("@/app/agent-config", () => ({
   getAgentTools: () => [{ type: "function", name: "get_course_week_context", parameters: { type: "object" } }],
+  getAgentToolsForContext: () => [{ type: "function", name: "get_course_week_context", parameters: { type: "object" } }],
 }));
 
 jest.mock("@/lib/openai/tools", () => ({

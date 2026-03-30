@@ -1,54 +1,22 @@
-/**
- * @jest-environment node
- */
+import { getToolCatalog, getToolSchemas } from "@/lib/openai/tools";
 
-jest.mock("@/lib/content", () => ({
-  getCurrentWeekContextNormalized: jest.fn(),
-  getWeekContextByNumberNormalized: jest.fn(),
-}));
-
-jest.mock("@/lib/sql-curriculum", () => ({
-  SQL_CURRICULUM_MAP: {
-    1: { week: 1, concepts: [], forbiddenConcepts: [] },
-    13: { week: 13, concepts: [], forbiddenConcepts: [] },
-  },
-  getAllowedConceptsForWeek: jest.fn().mockReturnValue(["SELECT", "JOIN"]),
-  getForbiddenConceptsForWeek: jest.fn().mockReturnValue([]),
-}));
-
-describe("openai tools", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+describe("openai tool catalog", () => {
+  it("only exposes production tools by default", () => {
+    const toolNames = getToolSchemas().map((tool) => tool.name);
+    expect(toolNames).toEqual(["get_course_week_context", "get_database_schema"]);
   });
 
-  it("pins auto week to last curriculum week after semester end", async () => {
-    const { getCurrentWeekContextNormalized, getWeekContextByNumberNormalized } = await import(
-      "@/lib/content"
-    );
-    (getCurrentWeekContextNormalized as jest.Mock).mockResolvedValue({
-      weekNumber: 14,
-      content: null,
-      dateRange: null,
-      updatedAt: null,
-      updatedBy: null,
-    });
-    (getWeekContextByNumberNormalized as jest.Mock).mockResolvedValue({
-      weekNumber: 13,
-      content: "Final week",
-      dateRange: "2024-04-01 - 2024-04-07",
-      updatedAt: null,
-      updatedBy: null,
-    });
+  it("keeps experimental and disabled tools out of the default catalog", () => {
+    const catalog = getToolCatalog({ context: "main_chat" });
+    expect(catalog.every((entry) => entry.lifecycle === "production")).toBe(true);
+  });
 
-    const { executeToolCall } = await import("@/lib/openai/tools");
-    const out = await executeToolCall({
-      callId: "call_1",
-      name: "get_course_week_context",
-      argumentsJson: "{}",
+  it("includes experimental and disabled entries when explicitly requested", () => {
+    const catalog = getToolCatalog({
+      includeExperimental: true,
+      includeDisabled: true,
     });
-
-    const payload = JSON.parse(out);
-    expect(payload.weekNumber).toBe(13);
-    expect(getWeekContextByNumberNormalized).toHaveBeenCalledWith(13);
+    expect(catalog.some((entry) => entry.schema.name === "execute_sql_query" && entry.lifecycle === "experimental")).toBe(true);
+    expect(catalog.some((entry) => entry.schema.name === "get_weather" && entry.lifecycle === "disabled")).toBe(true);
   });
 });

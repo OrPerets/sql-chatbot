@@ -1,5 +1,10 @@
 'use client';
 
+import {
+  VoiceRuntimeConfig,
+  getDefaultVoiceRuntimeConfig,
+} from '@/lib/openai/voice-config';
+
 export interface RealtimeEvent {
   type: string;
   [key: string]: any;
@@ -25,17 +30,28 @@ export class OpenAIRealtimeService {
   private isPlaying = false;
   private sessionId: string | null = null;
   private previousResponseId: string | null = null;
-  private sessionConfig = {
-    model: 'gpt-4o-realtime-preview-2024-10-01',
-    voice: 'alloy',
-    instructions: `You are Michael, an expert SQL tutor. 
-      Provide clear, concise explanations about SQL concepts.
-      Support both Hebrew and English languages.
-      Keep responses conversational and educational.
-      When explaining SQL queries, be practical and give examples.`,
-  };
+  private sessionConfig: VoiceRuntimeConfig = getDefaultVoiceRuntimeConfig();
 
   constructor(_apiKey?: string) {}
+
+  private async loadVoiceConfig(): Promise<void> {
+    const response = await fetch('/api/voice/realtime', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ action: 'connect' }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to load voice runtime config');
+    }
+
+    const data = await response.json();
+    if (data?.config) {
+      this.sessionConfig = data.config;
+    }
+  }
 
   private async ensureResponsesSession(): Promise<void> {
     if (this.sessionId) {
@@ -65,18 +81,19 @@ export class OpenAIRealtimeService {
 
   async connect(): Promise<void> {
     try {
-      // For now, we'll use a hybrid approach since OpenAI Realtime API is still in beta
-      // We'll simulate realtime behavior using existing TTS/STT APIs
-      console.log('🔌 Initializing OpenAI Realtime Service (Hybrid Mode)');
+      console.log('🔌 Initializing Michael Voice Service');
       
-      // Initialize audio context
+      await this.loadVoiceConfig();
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       await this.ensureResponsesSession();
       
       this.isConnected = true;
-      console.log('✅ OpenAI Realtime Service connected');
+      console.log('✅ Michael Voice Service connected', {
+        mode: this.sessionConfig.mode,
+        responseModel: this.sessionConfig.chained.responseModel,
+      });
     } catch (error) {
-      console.error('❌ Failed to connect to OpenAI Realtime Service:', error);
+      console.error('❌ Failed to connect to Michael Voice Service:', error);
       this.callbacks.onError?.(error as Error);
       throw error;
     }
@@ -157,10 +174,10 @@ export class OpenAIRealtimeService {
 
   private async processAudioInput(audioBlob: Blob): Promise<void> {
     try {
-      // Convert audio to text using Whisper API
+      // The active transcription model is configured on the server route.
       const formData = new FormData();
       formData.append('file', audioBlob, 'audio.webm');
-      formData.append('model', 'whisper-1');
+      formData.append('model', this.sessionConfig.chained.transcriptionModel);
       formData.append('language', 'auto');
 
       const response = await fetch('/api/audio/transcribe', {

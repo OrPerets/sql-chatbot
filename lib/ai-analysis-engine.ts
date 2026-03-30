@@ -3,6 +3,7 @@ import { connectToDatabase, executeWithRetry, COLLECTIONS } from './database'
 import { StudentProfilesService } from './student-profiles'
 import { ActivityTracker } from './activity-tracker'
 import OpenAI from 'openai'
+import { getModelForRole } from '@/lib/openai/model-registry'
 
 export interface AnalysisTriggers {
   conversationBased: {
@@ -267,7 +268,7 @@ export class AIAnalysisEngine {
     
     try {
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: getModelForRole('aiAnalysis'),
         messages: [
           {
             role: 'system',

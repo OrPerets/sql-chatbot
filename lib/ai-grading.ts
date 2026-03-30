@@ -1,4 +1,5 @@
 import OpenAI from 'openai'
+import { getModelForRole } from '@/lib/openai/model-registry'
 
 /**
  * AI-powered grading service for SQL homework submissions
@@ -55,7 +56,7 @@ export async function evaluateAnswer(input: AIGradingInput): Promise<AIGradingRe
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: getModelForRole('aiGrading'),
       messages: [
         { role: 'system', content: systemMessage },
         { role: 'user', content: prompt }
@@ -421,7 +422,7 @@ export async function generateSolution(input: AISolutionInput): Promise<AISoluti
   
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: getModelForRole('aiGrading'),
       messages: [
         {
           role: 'system',
