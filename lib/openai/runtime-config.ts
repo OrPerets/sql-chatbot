@@ -1,6 +1,6 @@
 import { getAgentInstructions, getAgentModel, getAgentTools } from "@/app/agent-config";
 import { COLLECTIONS, executeWithRetry } from "@/lib/database";
-import { ResponsesToolDefinition } from "@/lib/openai/tools";
+import { MichaelToolDefinition, getToolName } from "@/lib/openai/tools";
 
 const RUNTIME_CONFIG_KEY = "responses_runtime_model_config";
 const MAX_HISTORY_ITEMS = 10;
@@ -26,7 +26,7 @@ type RuntimeConfigDoc = {
 export type RuntimeAgentConfig = {
   model: string;
   instructions: string;
-  tools: ResponsesToolDefinition[];
+  tools: MichaelToolDefinition[];
   enabledToolNames: string[];
   updatedAt?: string;
   source: "default" | "db";
@@ -46,26 +46,26 @@ declare global {
     | undefined;
 }
 
-function normalizeToolNames(toolNames: string[] | undefined, availableTools: ResponsesToolDefinition[]) {
-  const availableNames = new Set(availableTools.map((tool) => tool.name));
+function normalizeToolNames(toolNames: string[] | undefined, availableTools: MichaelToolDefinition[]) {
+  const availableNames = new Set(availableTools.map((tool) => getToolName(tool)));
   const names = (toolNames || [])
     .map((name) => String(name || "").trim())
     .filter((name) => name.length > 0 && availableNames.has(name));
 
-  return names.length ? names : availableTools.map((tool) => tool.name);
+  return names.length ? names : availableTools.map((tool) => getToolName(tool));
 }
 
 function resolveToolsFromNames(
-  availableTools: ResponsesToolDefinition[],
+  availableTools: MichaelToolDefinition[],
   enabledToolNames: string[]
-): ResponsesToolDefinition[] {
+): MichaelToolDefinition[] {
   const enabled = new Set(enabledToolNames);
-  return availableTools.filter((tool) => enabled.has(tool.name));
+  return availableTools.filter((tool) => enabled.has(getToolName(tool)));
 }
 
 function getDefaultConfig(): RuntimeAgentConfig {
   const defaultTools = getAgentTools();
-  const enabledToolNames = defaultTools.map((tool) => tool.name);
+  const enabledToolNames = defaultTools.map((tool) => getToolName(tool));
   return {
     model: getAgentModel(),
     instructions: getAgentInstructions(),

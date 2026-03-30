@@ -19,11 +19,61 @@ export type ChatInputMessage = {
 
 export type ChatRequestDto = {
   sessionId?: string;
+  chatId?: string;
   previousResponseId?: string;
   content?: string;
   imageData?: string;
   userEmail?: string;
   metadata?: Record<string, string>;
+};
+
+export type ResponseCitation = {
+  type: "file_citation" | "url_citation";
+  fileId?: string;
+  filename?: string;
+  url?: string;
+  title?: string;
+  index?: number;
+  startIndex?: number;
+  endIndex?: number;
+  query?: string;
+  snippet?: string | null;
+  score?: number | null;
+};
+
+export type ResponseTokenUsage = {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  cachedInputTokens?: number;
+  reasoningTokens?: number;
+};
+
+export type ToolCallUsage = {
+  name: string;
+  callId?: string;
+  argumentsJson?: string;
+  status: "completed" | "failed";
+  outputPreview?: string;
+  error?: string;
+};
+
+export type ResponseTurnMetadata = {
+  canonicalStateStrategy: "previous_response_id";
+  sessionId?: string | null;
+  responseId?: string | null;
+  previousResponseId?: string | null;
+  model?: string | null;
+  latencyMs?: number | null;
+  tokenUsage?: ResponseTokenUsage | null;
+  toolCalls?: ToolCallUsage[];
+  failureReason?: string | null;
+  store?: boolean;
+  truncation?: "auto" | "disabled" | string | null;
+  promptCacheKey?: string | null;
+  safetyIdentifier?: string | null;
+  retrievalUsed?: boolean;
+  fileSearchQueries?: string[];
 };
 
 export type ToolCallRequest = {
@@ -43,6 +93,8 @@ export type ChatResponseDto = {
   responseId: string;
   outputText: string;
   tutorResponse?: SqlTutorResponse | null;
+  citations?: ResponseCitation[];
+  metadata?: ResponseTurnMetadata | null;
 };
 
 export type SqlTutorResponse = {
@@ -64,6 +116,8 @@ export type ResponseStreamEvent =
       responseId: string;
       outputText: string;
       tutorResponse?: SqlTutorResponse | null;
+      citations?: ResponseCitation[];
+      metadata?: ResponseTurnMetadata | null;
     }
   | { type: "response.tutor.mode"; enabled: boolean }
   | { type: "response.error"; message: string };

@@ -6,6 +6,7 @@ const mockCreateResponse = jest.fn();
 const mockGetOrCreateVectorStoreId = jest.fn();
 const mockGetCoinsConfig = jest.fn();
 const mockChargeMainChatMessage = jest.fn();
+const mockGetChatMessages = jest.fn();
 
 jest.mock("@/lib/openai/api-mode", () => ({
   getOpenAIApiMode: () => "responses",
@@ -32,6 +33,10 @@ jest.mock("@/lib/openai/tools", () => ({
   executeToolCall: jest.fn(),
 }));
 
+jest.mock("@/lib/chat", () => ({
+  getChatMessages: (...args: any[]) => mockGetChatMessages(...args),
+}));
+
 jest.mock("@/app/openai", () => ({
   openai: {
     files: {
@@ -51,7 +56,9 @@ describe("Responses API routes", () => {
     mockGetOrCreateVectorStoreId.mockReset();
     mockGetCoinsConfig.mockReset();
     mockChargeMainChatMessage.mockReset();
+    mockGetChatMessages.mockReset();
     mockGetOrCreateVectorStoreId.mockResolvedValue(null);
+    mockGetChatMessages.mockResolvedValue([]);
     mockGetCoinsConfig.mockResolvedValue({
       sid: "admin",
       status: "OFF",
@@ -125,6 +132,16 @@ describe("Responses API routes", () => {
     expect(payload.sessionId).toBe("sess_test_1");
     expect(payload.responseId).toBe("resp_final_1");
     expect(payload.outputText).toBe("שלום! איך אפשר לעזור?");
+    expect(payload.metadata).toMatchObject({
+      canonicalStateStrategy: "previous_response_id",
+      sessionId: "sess_test_1",
+      responseId: "resp_final_1",
+      previousResponseId: "resp_prev_1",
+      store: true,
+      truncation: "auto",
+      promptCacheKey: "michael:main:chat:direct:text",
+      retrievalUsed: false,
+    });
     expect(mockCreateResponse).toHaveBeenCalledTimes(1);
     expect(mockCreateResponse.mock.calls[0][0].toolChoice).toEqual({
       type: "function",
@@ -132,6 +149,16 @@ describe("Responses API routes", () => {
     });
     expect(mockCreateResponse.mock.calls[0][0].reasoning).toEqual({ summary: "detailed" });
     expect(mockCreateResponse.mock.calls[0][0].input[0].content[0].text).toBe("היי");
+    expect(mockCreateResponse.mock.calls[0][0]).toMatchObject({
+      include: ["file_search_call.results"],
+      store: true,
+      truncation: "auto",
+      promptCacheKey: "michael:main:chat:direct:text",
+    });
+    expect(mockCreateResponse.mock.calls[0][0].tools).toEqual([
+      { type: "function", name: "get_course_week_context", parameters: { type: "object" } },
+      { type: "file_search", vector_store_ids: ["vs_1"] },
+    ]);
   });
 
   it("disables reasoning when thinkingMode is false", async () => {
@@ -159,6 +186,41 @@ describe("Responses API routes", () => {
     expect(response.status).toBe(200);
     expect(mockCreateResponse).toHaveBeenCalledTimes(1);
     expect(mockCreateResponse.mock.calls[0][0].reasoning).toBeUndefined();
+  });
+
+  it("builds fallback input from stored chat history when chatId is provided", async () => {
+    mockGetChatMessages.mockResolvedValue([
+      { role: "user", text: "מה מותר בשבוע 3?" },
+      { role: "assistant", text: "בשבוע 3 מותר JOIN בסיסי." },
+    ]);
+    mockCreateResponse.mockResolvedValue({
+      id: "resp_final_history",
+      output_text: "זו תשובת המשך",
+      output: [],
+    });
+
+    const { POST } = await import("../../app/api/responses/messages/route");
+    const request = new Request("http://localhost:3000/api/responses/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "sess_history",
+        chatId: "chat_123",
+        previousResponseId: "resp_prev_history",
+        content: "תזכיר לי גם מה יש בעמודות",
+        stream: false,
+      }),
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(200);
+    expect(mockGetChatMessages).toHaveBeenCalledWith("chat_123");
+    expect(mockCreateResponse.mock.calls[0][0].fallbackInput).toEqual([
+      { role: "user", content: [{ type: "input_text", text: "מה מותר בשבוע 3?" }] },
+      { role: "assistant", content: [{ type: "input_text", text: "בשבוע 3 מותר JOIN בסיסי." }] },
+      { role: "user", content: [{ type: "input_text", text: "תזכיר לי גם מה יש בעמודות" }] },
+    ]);
   });
 
   it("charges when main chat coins are enabled and balance is sufficient", async () => {

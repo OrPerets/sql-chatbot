@@ -24,7 +24,12 @@ import { enhancedTTS, type TTSOptions } from "@/app/utils/enhanced-tts";
 import { analyzeMessage } from "../utils/sql-query-analyzer";
 // import { avatarAnalytics } from "../utils/avatar-analytics";
 import PracticeModal from "./PracticeModal";
-import type { ResponseStreamEvent, SqlTutorResponse } from "@/lib/openai/contracts";
+import type {
+  ResponseCitation,
+  ResponseStreamEvent,
+  ResponseTurnMetadata,
+  SqlTutorResponse,
+} from "@/lib/openai/contracts";
 import { isVoiceFeatureEnabled } from "@/lib/openai/voice-config";
 import {
   buildGesturePlan,
@@ -76,6 +81,9 @@ type ChatMessage = {
   feedback?: "like" | "dislike" | null;
   hasImage?: boolean;
   tutorResponse?: SqlTutorResponse | null;
+  structuredContent?: Record<string, unknown> | null;
+  citations?: ResponseCitation[];
+  metadata?: ResponseTurnMetadata | null;
 };
 
 // Add these types
@@ -83,6 +91,16 @@ type ChatSession = {
   _id: string;
   title: string;
   lastMessageTimestamp: number;
+  openaiState?: {
+    sessionId?: string | null;
+    lastResponseId?: string | null;
+    canonicalStateStrategy: "previous_response_id";
+    store?: boolean;
+    truncation?: string | null;
+    promptCacheKey?: string | null;
+    safetyIdentifier?: string | null;
+    updatedAt: string | Date;
+  };
 };
 
 type HomeworkChatContext = {
@@ -473,10 +491,12 @@ const Chat = ({
   const [previousResponseId, setPreviousResponseId] = useState("");
   const sessionIdRef = useRef("");
   const createSessionPromiseRef = useRef<Promise<string> | null>(null);
+  const currentChatIdRef = useRef<string | null>(initialChatId);
+  const createChatPromiseRef = useRef<Promise<string | null> | null>(null);
   const [user, setUser] = useState(null);
   const [authResolved, setAuthResolved] = useState(false);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
-  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(initialChatId);
   const [isDone, setIsDone] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -1492,6 +1512,10 @@ useEffect(() => {
   }, [sessionId]);
 
   useEffect(() => {
+    currentChatIdRef.current = currentChatId;
+  }, [currentChatId]);
+
+  useEffect(() => {
     const storedUser = getStoredUser();
     if (storedUser) {
       setUser(storedUser);
@@ -1542,6 +1566,82 @@ useEffect(() => {
     createSessionPromiseRef.current = promise;
     return promise;
   }, []);
+
+  const persistChatMessage = useCallback(
+    async (
+      chatId: string,
+      payload: {
+        userId?: string;
+        message: string;
+        role: "user" | "assistant";
+        citations?: ResponseCitation[];
+        metadata?: ResponseTurnMetadata | null;
+        structuredContent?: Record<string, unknown> | null;
+      }
+    ) => {
+      await fetch(`/api/chat/sessions/${chatId}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          chatId,
+          userId: payload.userId,
+          message: payload.message,
+          role: payload.role,
+          citations: payload.citations,
+          metadata: payload.metadata,
+          structuredContent: payload.structuredContent,
+        }),
+      });
+    },
+    []
+  );
+
+  const ensureChatThread = async (firstUserText: string, userEmail?: string | null) => {
+    if (!userEmail) {
+      return null;
+    }
+
+    if (currentChatIdRef.current) {
+      return currentChatIdRef.current;
+    }
+
+    if (createChatPromiseRef.current) {
+      return createChatPromiseRef.current;
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const promise = (async () => {
+      const response = await fetch(`/api/chat/sessions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: `${firstUserText.substring(0, 30)} (${today})`,
+          user: userEmail,
+          openaiSessionId: sessionIdRef.current || undefined,
+        }),
+      });
+      const newChat = await response.json();
+      if (!response.ok) {
+        throw new Error(newChat?.error || "Failed to create chat session");
+      }
+
+      const nextChatId = newChat._id as string;
+      currentChatIdRef.current = nextChatId;
+      setCurrentChatId(nextChatId);
+      localStorage.setItem("previousSessionId", nextChatId);
+      refreshChatSessions();
+      return nextChatId;
+    })().finally(() => {
+      createChatPromiseRef.current = null;
+    });
+
+    createChatPromiseRef.current = promise;
+    return promise;
+  };
 
   useEffect(() => {
     createSession().catch((error) => {
@@ -1842,18 +1942,51 @@ useEffect(() => {
         if (event.type === "response.completed") {
           sawCompleted = true;
           if (event.responseId) setPreviousResponseId(event.responseId);
+          if (event.metadata?.sessionId) {
+            sessionIdRef.current = event.metadata.sessionId;
+            setSessionId(event.metadata.sessionId);
+          }
           if (!createdAssistantMessage) {
             handleTextCreated();
             createdAssistantMessage = true;
           }
           flushReasoningDraft();
           setIsReasoningCollapsed(true);
+
+          const activeChatId = currentChatIdRef.current;
+          const storedUser = getStoredUser();
+
           if (event.tutorResponse) {
             await setLastMessageTutorResponse(event.tutorResponse, true);
+            if (activeChatId) {
+              await persistChatMessage(activeChatId, {
+                userId: storedUser?.email,
+                role: "assistant",
+                message: buildTutorResponseText(event.tutorResponse),
+                citations: event.citations,
+                metadata: event.metadata || null,
+                structuredContent: { tutorResponse: event.tutorResponse },
+              });
+            }
             continue;
           }
-          if (!sawDelta && event.outputText) {
-            await appendToLastMessageProgressively(event.outputText);
+
+          if (event.outputText) {
+            if (!sawDelta) {
+              await appendToLastMessageProgressively(event.outputText);
+            } else {
+              setLastAssistantMessageText(event.outputText);
+            }
+          }
+
+          if (activeChatId) {
+            await persistChatMessage(activeChatId, {
+              userId: storedUser?.email,
+              role: "assistant",
+              message: event.outputText || "",
+              citations: event.citations,
+              metadata: event.metadata || null,
+            });
           }
           continue;
         }
@@ -1864,6 +1997,7 @@ useEffect(() => {
           const failureText = renderStreamFailureMessage(failureKind);
           setStreamError(failureText);
           appendMessage("assistant", failureText);
+          await persistAssistantFailure(failureText, event.message);
           endStreamResponse();
           return;
         }
@@ -1875,6 +2009,7 @@ useEffect(() => {
       const failureText = renderStreamFailureMessage("stream_interruption");
       setStreamError(failureText);
       appendMessage("assistant", failureText);
+      await persistAssistantFailure(failureText, "stream_interruption");
     }
 
     endStreamResponse();
@@ -1947,57 +2082,14 @@ useEffect(() => {
 
     const storedUser = getStoredUser();
     const userEmail = storedUser?.email;
-    let today = new Date().toISOString().slice(0, 10);
-    if (!currentChatId) {
-      // Trigger conversation analysis for the previous session if it exists
+    let activeChatId = currentChatIdRef.current;
+
+    if (!activeChatId) {
       const previousSessionId = localStorage.getItem('previousSessionId');
       if (previousSessionId) {
         triggerConversationAnalysis(previousSessionId);
       }
-      
-      if (userEmail) {
-        fetch(`/api/chat/sessions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ "title": text.substring(0, 30) + " (" + today + ")", "user": userEmail }),
-        }).then(response => response.json()).then(newChat => {
-          setCurrentChatId(newChat._id);
-          localStorage.setItem('previousSessionId', newChat._id);
-          refreshChatSessions(); // Refresh the chat sessions list from server
-          // Save the message to the server (save original text without tags)
-          fetch(`/api/chat/sessions/${newChat._id}/messages`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              chatId: newChat._id,
-              userId: userEmail,
-              message: text, // Save original text without tags
-              role: 'user'
-            }),
-          });
-        })
-      }
-    }
-
-    else {
-      if (userEmail) {
-        fetch(`/api/chat/sessions/${currentChatId}/messages`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            chatId: currentChatId,
-            userId: userEmail,
-            message: text, // Save original text without tags
-            role: 'user'
-          }),
-        });
-      }
+      activeChatId = await ensureChatThread(text, userEmail);
     }
     
     setStreamError(null);
@@ -2014,6 +2106,7 @@ useEffect(() => {
           },
           body: JSON.stringify({
             sessionId: activeSessionId,
+            chatId: activeChatId || undefined,
             previousResponseId: previousResponseId || undefined,
             content: messageWithTags, // Send message with tags to AI
             imageData: imageData, // Send image data if available
@@ -2024,7 +2117,7 @@ useEffect(() => {
           }),
         }
       );
-      
+
       if (response.status === 402) {
         let insufficientBody: InsufficientCoinsClientBody | null = null;
         try {
@@ -2057,16 +2150,28 @@ useEffect(() => {
       // Check if response is ok and has a body
       if (!response.ok) {
         console.error('❌ Failed to send message:', response.status, response.statusText);
-        appendMessage("assistant", "מצטער, הייתה שגיאה בעיבוד ההודעה. נסה שוב.");
+        const failureText = "מצטער, הייתה שגיאה בעיבוד ההודעה. נסה שוב.";
+        appendMessage("assistant", failureText);
+        await persistAssistantFailure(failureText, `http_${response.status}`);
         setInputDisabled(false);
         setIsThinking(false);
         setImageProcessing(false);
         return;
       }
+
+      if (activeChatId && userEmail) {
+        void persistChatMessage(activeChatId, {
+          userId: userEmail,
+          message: text,
+          role: "user",
+        });
+      }
       
       if (!response.body) {
         console.error('❌ Response body is null');
-        appendMessage("assistant", "מצטער, הייתה שגיאה בתקשורת. נסה לרענן את הדף.");
+        const failureText = "מצטער, הייתה שגיאה בתקשורת. נסה לרענן את הדף.";
+        appendMessage("assistant", failureText);
+        await persistAssistantFailure(failureText, "missing_response_body");
         setInputDisabled(false);
         setIsThinking(false);
         setImageProcessing(false);
@@ -2083,6 +2188,10 @@ useEffect(() => {
       const failureText = renderStreamFailureMessage("stream_interruption");
       setStreamError(failureText);
       appendMessage("assistant", failureText);
+      await persistAssistantFailure(
+        failureText,
+        error instanceof Error ? error.message : "stream_interruption"
+      );
       setInputDisabled(false);
       setIsThinking(false);
       setIsDone(true);
@@ -2151,9 +2260,39 @@ const loadChatMessages = (chatId: string) => {
       'Content-Type': 'application/json',
     },
   }).then(response => response.json()).then(chatMessages => {
-    const uniqueItems = keepOneInstance(chatMessages, "text");   
+    const hydratedMessages = chatMessages.map((message: ChatMessage) => {
+      const tutorResponse =
+        message.structuredContent &&
+        typeof message.structuredContent === "object" &&
+        "tutorResponse" in message.structuredContent
+          ? (message.structuredContent.tutorResponse as SqlTutorResponse | null)
+          : null;
+
+      return {
+        ...message,
+        tutorResponse,
+      };
+    });
+    const uniqueItems = keepOneInstance(hydratedMessages, "text");
+    const selectedSession = chatSessions.find((session) => session._id === chatId);
+    const latestAssistantMessage = [...hydratedMessages]
+      .reverse()
+      .find((message) => message.role === "assistant");
+    const restoredSessionId =
+      selectedSession?.openaiState?.sessionId ||
+      latestAssistantMessage?.metadata?.sessionId ||
+      "";
+    const restoredPreviousResponseId =
+      selectedSession?.openaiState?.lastResponseId ||
+      latestAssistantMessage?.metadata?.responseId ||
+      "";
+
     setMessages(uniqueItems);
     setCurrentChatId(chatId);
+    currentChatIdRef.current = chatId;
+    sessionIdRef.current = restoredSessionId;
+    setSessionId(restoredSessionId);
+    setPreviousResponseId(restoredPreviousResponseId);
     setLoadingMessages(false);
   })  
 };
@@ -2234,38 +2373,6 @@ const loadChatMessages = (chatId: string) => {
     []
   );
 
-   // New function to handle message changes
-  const handleMessagesChange = useCallback(() => {
-    if (!currentChatId) {
-      return;
-    }
-
-    let msgs = messages.filter(msg => msg.role === "assistant")
-    if (msgs.length > 0) {
-        const storedUser = getStoredUser();
-        if (!storedUser?.email) return;
-        // Save the message to the server
-        fetch(`/api/chat/sessions/${currentChatId}/messages`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            chatId: currentChatId,
-            userId: storedUser.email,
-            message: msgs[msgs.length - 1].text,
-            role: 'assistant'
-          }),
-        }); 
-    }
-  }, [currentChatId, getStoredUser, messages]);
-
-   // Use effect to watch for changes in messages
-   useEffect(() => {
-    handleMessagesChange();
-  }, [isDone, handleMessagesChange]);
-
-
   const endStreamResponse = () => {
     setInputDisabled(false);
     setIsThinking(false);
@@ -2281,6 +2388,31 @@ const loadChatMessages = (chatId: string) => {
       progressiveSpeechTimeoutRef.current = null;
     }
   };
+
+  const persistAssistantFailure = useCallback(
+    async (message: string, failureReason: string, responseId?: string | null) => {
+      const activeChatId = currentChatIdRef.current;
+      const storedUser = getStoredUser();
+
+      if (!activeChatId) {
+        return;
+      }
+
+      await persistChatMessage(activeChatId, {
+        userId: storedUser?.email,
+        role: "assistant",
+        message,
+        metadata: {
+          canonicalStateStrategy: "previous_response_id",
+          sessionId: sessionIdRef.current || null,
+          responseId: responseId || null,
+          previousResponseId: previousResponseId || null,
+          failureReason,
+        },
+      });
+    },
+    [getStoredUser, persistChatMessage, previousResponseId]
+  );
 
   useEffect(() => {
     if (!authResolved) {
@@ -2576,8 +2708,10 @@ const loadChatMessages = (chatId: string) => {
     }
 
     sessionIdRef.current = "";
+    currentChatIdRef.current = null;
     setSessionId("");
     setPreviousResponseId("");
+    createChatPromiseRef.current = null;
     createSession(true).catch((error) => {
       console.error("Failed to refresh responses session:", error);
       setStreamError("לא הצלחנו לפתוח סשן חדש. נסו שוב.");

@@ -306,6 +306,7 @@ export const COLLECTIONS = {
   // Sprint 2: Student Profiles Management System
   STUDENT_PROFILES: 'student_profiles',
   STUDENT_ACTIVITIES: 'student_activities',
+  STUDENT_PREFERENCES: 'student_preferences',
   CONVERSATION_SUMMARIES: 'conversation_summaries',
   STUDENT_NOTES: 'student_notes',
   LEARNING_SUMMARIES: 'learning_summaries',

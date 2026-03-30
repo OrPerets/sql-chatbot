@@ -10,6 +10,7 @@ import {
   RUNTIME_ROLLBACK_TARGETS,
 } from "@/lib/openai/model-registry";
 import { createResponse, extractOutputText, runToolLoop } from "@/lib/openai/responses-client";
+import { getToolName } from "@/lib/openai/tools";
 import {
   getRuntimeAgentConfig,
   rollbackRuntimeAgentConfig,
@@ -127,7 +128,7 @@ export async function handleRuntimeConfigPost(request: Request, flavor: RuntimeR
   try {
     const body = ((await request.json().catch(() => ({}))) || {}) as UpdatePayload;
     const defaultTools = getAgentTools();
-    const fallbackToolNames = defaultTools.map((tool) => tool.name);
+    const fallbackToolNames = defaultTools.map((tool) => getToolName(tool));
 
     const nextConfig = await updateRuntimeAgentConfig({
       model: (body.model || RECOMMENDED_RUNTIME_MODEL).trim(),
@@ -170,9 +171,9 @@ export async function handleRuntimeConfigGet(flavor: RuntimeRouteFlavor) {
   try {
     const runtimeConfig = await getRuntimeAgentConfig();
     const availableTools = getAgentToolCatalog("main_chat").map((entry) => ({
-      name: entry.schema.name,
-      description: entry.schema.description,
-      enabled: runtimeConfig.enabledToolNames.includes(entry.schema.name),
+      name: getToolName(entry.schema),
+      description: entry.schema.type === "function" ? entry.schema.description : "Built-in tool",
+      enabled: runtimeConfig.enabledToolNames.includes(getToolName(entry.schema)),
       lifecycle: entry.lifecycle,
       enabledContexts: entry.enabledContexts,
       statusNote: entry.statusNote || null,

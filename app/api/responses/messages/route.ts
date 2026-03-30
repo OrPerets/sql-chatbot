@@ -1,6 +1,22 @@
+import { createHash } from "crypto";
+
 import { openai } from "@/app/openai";
 import { getAgentToolsForContext } from "@/app/agent-config";
-import { ChatRequestDto, ChatResponseDto, SqlTutorResponse } from "@/lib/openai/contracts";
+import { getChatMessages } from "@/lib/chat";
+import {
+  ChatRequestDto,
+  ChatResponseDto,
+  ResponseCitation,
+  ResponseTurnMetadata,
+  SqlTutorResponse,
+  ToolCallUsage,
+} from "@/lib/openai/contracts";
+import {
+  appendVisibleCitations,
+  buildResponseTurnMetadata,
+  extractResponseCitations,
+} from "@/lib/openai/response-artifacts";
+import { buildRetrievalInstructions, shouldUseRetrieval } from "@/lib/openai/retrieval";
 import { getOpenAIApiMode } from "@/lib/openai/api-mode";
 import {
   createResponse,
@@ -9,7 +25,7 @@ import {
   getSqlTutorResponseFormat,
   streamResponse,
 } from "@/lib/openai/responses-client";
-import { executeToolCall } from "@/lib/openai/tools";
+import { executeToolCall, ToolExecutionContext } from "@/lib/openai/tools";
 import { buildFileSearchTool, getOrCreateAppVectorStoreId } from "@/lib/openai/vector-store";
 import { chargeMainChatMessage, getCoinsConfig } from "@/lib/coins";
 import { insufficientCoinsResponse } from "@/lib/errors";
@@ -213,12 +229,59 @@ function buildEventStreamResponse(
   });
 }
 
+function hashStableIdentifier(input: string): string {
+  return createHash("sha256").update(input).digest("hex").slice(0, 32);
+}
+
+function buildSafetyIdentifier(userEmail: string | null): string | undefined {
+  if (!userEmail) {
+    return undefined;
+  }
+  return `student_${hashStableIdentifier(userEmail.trim().toLowerCase())}`;
+}
+
+function buildPromptCacheKey(params: {
+  homeworkRunner: boolean;
+  tutorIntent: boolean;
+  retrievalNeeded: boolean;
+  hasImage: boolean;
+}): string {
+  return [
+    "michael",
+    params.homeworkRunner ? "homework" : "main",
+    params.tutorIntent ? "tutor" : "chat",
+    params.retrievalNeeded ? "retrieval" : "direct",
+    params.hasImage ? "image" : "text",
+  ].join(":");
+}
+
+async function buildFallbackInputFromChat(
+  chatId: string,
+  currentTurn: Array<{ role: string; content: Array<{ type: string; text?: string; file_id?: string }> }>
+) {
+  const storedMessages = await getChatMessages(chatId).catch(() => []);
+  const history = storedMessages
+    .filter(
+      (message) =>
+        (message.role === "user" || message.role === "assistant") &&
+        typeof message.text === "string" &&
+        message.text.trim().length > 0
+    )
+    .slice(-12)
+    .map((message) => ({
+      role: message.role === "assistant" ? "assistant" : "user",
+      content: [{ type: "input_text" as const, text: message.text }],
+    }));
+
+  return [...history, ...currentTurn];
+}
+
 export async function POST(request: Request) {
   const mode = getOpenAIApiMode();
 
   try {
     const body = (await request.json()) as MessageRequestDto;
-    const { sessionId, content, imageData } = body ?? {};
+    const { sessionId, chatId, content, imageData } = body ?? {};
     const userEmail = typeof body?.userEmail === "string" ? body.userEmail.trim() : "";
 
     if (!content && !imageData) {
@@ -250,14 +313,23 @@ export async function POST(request: Request) {
     const weeklyPolicy = buildWeeklyPolicy(Boolean(body.homeworkRunner));
     const textInput = content || "";
     const tutorIntent = hasTutorIntent(textInput, body.tutorMode, body.metadata);
+    const retrievalNeeded = shouldUseRetrieval(textInput);
     const responseFormat = tutorIntent ? getSqlTutorResponseFormat() : undefined;
     const reasoningModeEnabled = body.thinkingMode !== false;
+    const safetyIdentifier = buildSafetyIdentifier(userEmail || null);
+    const promptCacheKey = buildPromptCacheKey({
+      homeworkRunner: Boolean(body.homeworkRunner),
+      tutorIntent,
+      retrievalNeeded,
+      hasImage: Boolean(imageData),
+    });
     const reasoningLanguageInstructions = reasoningModeEnabled
       ? "\n\n[REASONING SUMMARY LANGUAGE]\nWhen generating reasoning summaries, always write them in natural Hebrew (עברית) only. Keep each summary concise, student-friendly, and focused on what helps the user. Do not mention tools, function calls, APIs, or internal system actions. If a draft appears in English, rewrite it to Hebrew before returning it."
       : "";
+    const retrievalInstructions = retrievalNeeded ? `\n\n${buildRetrievalInstructions()}` : "";
     const extraInstructions = tutorIntent
-      ? `${weeklyPolicy.extraInstructions}\n\n${tutorInstructions}${reasoningLanguageInstructions}`
-      : `${weeklyPolicy.extraInstructions}${reasoningLanguageInstructions}`;
+      ? `${weeklyPolicy.extraInstructions}${retrievalInstructions}\n\n${tutorInstructions}${reasoningLanguageInstructions}`
+      : `${weeklyPolicy.extraInstructions}${retrievalInstructions}${reasoningLanguageInstructions}`;
 
     if (textInput) {
       inputItems.push({ type: "input_text", text: textInput });
@@ -282,14 +354,41 @@ export async function POST(request: Request) {
           : [{ type: "input_text", text: "Please help me with SQL and databases." }],
       },
     ];
+    const fallbackInput = chatId
+      ? await buildFallbackInputFromChat(chatId, initialInput)
+      : undefined;
     const baseTools = getAgentToolsForContext(body.homeworkRunner ? "homework_runner" : "main_chat");
     const vectorStoreId = await getOrCreateAppVectorStoreId().catch(() => null);
     const tools = vectorStoreId
       ? [...baseTools, buildFileSearchTool(vectorStoreId)]
       : baseTools;
     const maxIterations = 8;
+    const toolExecutionContext: ToolExecutionContext = {
+      toolContext: body.homeworkRunner ? "homework_runner" : "main_chat",
+      userId: userEmail || undefined,
+      userEmail: userEmail || undefined,
+      sessionId: sessionId || undefined,
+      chatId: chatId || undefined,
+      homeworkSetId: body.metadata?.homework_set_id || undefined,
+      questionId: body.metadata?.question_id || undefined,
+      studentId: body.metadata?.student_id || userEmail || undefined,
+    };
 
     const useStream = body.stream !== false;
+    const requestStartedAt = Date.now();
+    const toolUsage: ToolCallUsage[] = [];
+    const sharedResponseConfig = {
+      tools,
+      extraInstructions,
+      responseFormat,
+      include: vectorStoreId ? ["file_search_call.results"] : undefined,
+      store: true,
+      truncation: "auto" as const,
+      promptCacheKey,
+      promptCacheRetention: "24h" as const,
+      safetyIdentifier,
+      fallbackInput,
+    };
 
     if (useStream) {
       return buildEventStreamResponse(async (writer, encoder) => {
@@ -298,6 +397,8 @@ export async function POST(request: Request) {
         let finalOutputText = "";
         let finalResponseId = "";
         let includeReasoningSummary = reasoningModeEnabled;
+        let finalCitations: ResponseCitation[] = [];
+        let finalMetadata: ResponseTurnMetadata | null = null;
 
         if (tutorIntent) {
           await writer.write(
@@ -306,19 +407,19 @@ export async function POST(request: Request) {
         }
 
         for (let iteration = 1; iteration <= maxIterations; iteration += 1) {
+          const iterationPreviousResponseId = previousResponseId || null;
           let stream: any;
           try {
             stream = await streamResponse({
               input: iterationInput,
               previousResponseId,
-              tools,
+              ...sharedResponseConfig,
               toolChoice: iteration === 1 ? weeklyPolicy.forcedInitialToolChoice : undefined,
-              extraInstructions,
-              responseFormat,
               reasoning: includeReasoningSummary ? { summary: "detailed" } : undefined,
               metadata: {
                 ...(body.metadata || {}),
                 session_id: sessionId || "",
+                chat_id: chatId || "",
                 route: "/api/responses/messages",
                 tool_loop_iteration: String(iteration),
               },
@@ -335,13 +436,12 @@ export async function POST(request: Request) {
             stream = await streamResponse({
               input: iterationInput,
               previousResponseId,
-              tools,
+              ...sharedResponseConfig,
               toolChoice: iteration === 1 ? weeklyPolicy.forcedInitialToolChoice : undefined,
-              extraInstructions,
-              responseFormat,
               metadata: {
                 ...(body.metadata || {}),
                 session_id: sessionId || "",
+                chat_id: chatId || "",
                 route: "/api/responses/messages",
                 tool_loop_iteration: String(iteration),
               },
@@ -401,7 +501,10 @@ export async function POST(request: Request) {
               );
             } else if (event?.type === "response.output_text.done" && typeof event.text === "string") {
               iterationOutputText = event.text;
-            } else if (event?.type === "response.output_item.done" && event?.item?.type === "function_call") {
+            } else if (
+              event?.type === "response.output_item.done" &&
+              event?.item?.type === "function_call"
+            ) {
               const toolCall = {
                 callId: String(event.item.call_id || ""),
                 name: String(event.item.name || ""),
@@ -411,19 +514,44 @@ export async function POST(request: Request) {
                     : JSON.stringify(event.item.arguments || {}),
               };
               calls.push(toolCall);
+              toolUsage.push({
+                name: toolCall.name,
+                callId: toolCall.callId,
+                argumentsJson: toolCall.argumentsJson,
+                status: "completed",
+              });
               if (reasoningModeEnabled) {
                 await writer.write(
                   encoder.encode(
-                    `${JSON.stringify({ type: "response.tool_call.started", name: toolCall.name })}\n`
+                    `${JSON.stringify({
+                      type: "response.tool_call.started",
+                      name: toolCall.name,
+                    })}\n`
                   )
                 );
               }
             } else if (event?.type === "response.completed") {
               iterationResponseId = String(event.response?.id || iterationResponseId || "");
-              iterationOutputText = extractOutputText(event.response);
+              const responseCitations = extractResponseCitations(event.response);
+              iterationOutputText = appendVisibleCitations(
+                extractOutputText(event.response),
+                responseCitations
+              );
+              finalCitations = responseCitations;
               if (tutorIntent) {
                 iterationTutorResponse = extractSqlTutorResponse(event.response);
               }
+              finalMetadata = buildResponseTurnMetadata({
+                response: event.response,
+                sessionId: sessionId || null,
+                previousResponseId: iterationPreviousResponseId,
+                latencyMs: Date.now() - requestStartedAt,
+                toolCalls: toolUsage,
+                promptCacheKey,
+                safetyIdentifier,
+                store: true,
+                truncation: "auto",
+              });
             }
           }
 
@@ -437,14 +565,27 @@ export async function POST(request: Request) {
                   responseId: finalResponseId,
                   outputText: finalOutputText,
                   tutorResponse: iterationTutorResponse,
+                  citations: finalCitations,
+                  metadata: finalMetadata,
                 })}\n`
               )
             );
             return;
           }
 
-          const toolResults = await Promise.all(calls.map((call) => executeToolCall(call)));
-          for (const call of calls) {
+          const toolUsageStartIndex = toolUsage.length - calls.length;
+          const toolResults = await Promise.all(
+            calls.map(async (call, index) => {
+              const result = await executeToolCall(call, toolExecutionContext);
+              const preview = result.slice(0, 240);
+              toolUsage[toolUsageStartIndex + index] = {
+                ...toolUsage[toolUsageStartIndex + index],
+                outputPreview: preview,
+              };
+              return result;
+            })
+          );
+          for (const [index, call] of calls.entries()) {
             if (reasoningModeEnabled) {
               await writer.write(
                 encoder.encode(
@@ -463,6 +604,8 @@ export async function POST(request: Request) {
               type: "response.completed",
               responseId: finalResponseId,
               outputText: finalOutputText,
+              citations: finalCitations,
+              metadata: finalMetadata,
             })}\n`
           )
         );
@@ -473,20 +616,21 @@ export async function POST(request: Request) {
     let previousResponseId = body.previousResponseId;
     let response: any = null;
     let includeReasoningSummary = reasoningModeEnabled;
+    let lastPreviousResponseId: string | null = previousResponseId || null;
 
     for (let iteration = 1; iteration <= maxIterations; iteration += 1) {
+      lastPreviousResponseId = previousResponseId || null;
       try {
         response = await createResponse({
           input: loopInput,
           previousResponseId,
-          tools,
+          ...sharedResponseConfig,
           toolChoice: iteration === 1 ? weeklyPolicy.forcedInitialToolChoice : undefined,
-          extraInstructions,
-          responseFormat,
           reasoning: includeReasoningSummary ? { summary: "detailed" } : undefined,
           metadata: {
             ...(body.metadata || {}),
             session_id: sessionId || "",
+            chat_id: chatId || "",
             route: "/api/responses/messages",
             tool_loop_iteration: String(iteration),
           },
@@ -503,13 +647,12 @@ export async function POST(request: Request) {
         response = await createResponse({
           input: loopInput,
           previousResponseId,
-          tools,
+          ...sharedResponseConfig,
           toolChoice: iteration === 1 ? weeklyPolicy.forcedInitialToolChoice : undefined,
-          extraInstructions,
-          responseFormat,
           metadata: {
             ...(body.metadata || {}),
             session_id: sessionId || "",
+            chat_id: chatId || "",
             route: "/api/responses/messages",
             tool_loop_iteration: String(iteration),
           },
@@ -518,25 +661,73 @@ export async function POST(request: Request) {
 
       const calls = extractFunctionCalls(response);
       if (!calls.length) {
+        const citations = extractResponseCitations(response);
+        const outputText = appendVisibleCitations(extractOutputText(response), citations);
+        const metadata = buildResponseTurnMetadata({
+          response,
+          sessionId: sessionId || null,
+          previousResponseId: lastPreviousResponseId,
+          latencyMs: Date.now() - requestStartedAt,
+          toolCalls: toolUsage,
+          promptCacheKey,
+          safetyIdentifier,
+          store: true,
+          truncation: "auto",
+        });
         const payload: ChatResponseDto = {
           sessionId: sessionId || null,
           responseId: response?.id || "",
-          outputText: extractOutputText(response),
+          outputText,
           tutorResponse: tutorIntent ? extractSqlTutorResponse(response) : null,
+          citations,
+          metadata,
         };
         return Response.json({ mode, ...payload });
       }
 
-      const toolResults = await Promise.all(calls.map((call) => executeToolCall(call)));
+      calls.forEach((call) =>
+        toolUsage.push({
+          name: call.name,
+          callId: call.callId,
+          argumentsJson: call.argumentsJson,
+          status: "completed",
+        })
+      );
+      const toolResults = await Promise.all(
+        calls.map(async (call, index) => {
+          const result = await executeToolCall(call, toolExecutionContext);
+          const toolUsageIndex = toolUsage.length - calls.length + index;
+          toolUsage[toolUsageIndex] = {
+            ...toolUsage[toolUsageIndex],
+            outputPreview: result.slice(0, 240),
+          };
+          return result;
+        })
+      );
       loopInput = toFunctionCallOutputs(calls, toolResults);
       previousResponseId = response?.id;
     }
 
+    const citations = extractResponseCitations(response);
+    const outputText = appendVisibleCitations(extractOutputText(response), citations);
+    const metadata = buildResponseTurnMetadata({
+      response,
+      sessionId: sessionId || null,
+      previousResponseId: lastPreviousResponseId,
+      latencyMs: Date.now() - requestStartedAt,
+      toolCalls: toolUsage,
+      promptCacheKey,
+      safetyIdentifier,
+      store: true,
+      truncation: "auto",
+    });
     const payload: ChatResponseDto = {
       sessionId: sessionId || null,
       responseId: response?.id || "",
-      outputText: extractOutputText(response),
+      outputText,
       tutorResponse: tutorIntent ? extractSqlTutorResponse(response) : null,
+      citations,
+      metadata,
     };
     return Response.json({ mode, ...payload });
   } catch (error: any) {

@@ -1,7 +1,7 @@
 import { getDefaultTutorModel } from "@/lib/openai/model-registry";
 import {
+  MichaelToolDefinition,
   MichaelToolContext,
-  ResponsesToolDefinition,
   ToolCatalogEntry,
   getToolCatalog,
   getToolSchemas,
@@ -12,7 +12,7 @@ const DEFAULT_MODEL = getDefaultTutorModel();
 export type AgentConfig = {
   model: string;
   instructions: string;
-  tools: ResponsesToolDefinition[];
+  tools: MichaelToolDefinition[];
   featureFlags: {
     apiMode: "assistants" | "responses";
     useHomeworkSqlMode: boolean;

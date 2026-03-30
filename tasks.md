@@ -15,64 +15,64 @@ This roadmap is grounded in the current codebase and current OpenAI docs.
 
 ## Current repo gaps to fix first
 
-- [ ] `lib/chat.ts` only stores plain text messages. It should evolve to store structured assistant output, citations, tool usage, latency, and message metadata.
-- [ ] `lib/openai/responses-client.ts` already uses the Responses API, but it does not yet expose important platform features such as `store`, `conversation` or stronger `previous_response_id` flows, `truncation`, background responses, richer `include` fields, `prompt_cache_key`, or `safety_identifier`.
-- [ ] `lib/openai/tools.ts` keeps Michael too narrow in main chat. The current catalog is a solid start, but production chat still lacks the tools that make tutoring feel interactive and context-aware.
+- [x] `lib/chat.ts` only stores plain text messages. It should evolve to store structured assistant output, citations, tool usage, latency, and message metadata.
+- [x] `lib/openai/responses-client.ts` already uses the Responses API, but it does not yet expose important platform features such as `store`, `conversation` or stronger `previous_response_id` flows, `truncation`, background responses, richer `include` fields, `prompt_cache_key`, or `safety_identifier`.
+- [x] `lib/openai/tools.ts` keeps Michael too narrow in main chat. The current catalog is a solid start, but production chat still lacks the tools that make tutoring feel interactive and context-aware.
 - [ ] The product has chat, voice, notes, quizzes, student profiles, learning summaries, homework, and analytics, but the assistant does not yet orchestrate them as one coherent tutoring experience.
 
 ## Priority 1: Multi-turn chat quality
 
-- [ ] Make statefulness explicit in the Responses layer.
-  - [ ] Choose one canonical approach per surface: `previous_response_id` chaining for lightweight chat, or `conversation` objects for long-lived sessions.
-  - [ ] Persist response IDs per chat turn so Michael can continue exact context instead of reconstructing history manually.
-  - [ ] Add fallback behavior when a previous response is missing, expired, or invalid.
-- [ ] Add `store: true` where long-lived tutoring context is beneficial, and document which routes must remain stateless.
-- [ ] Add `truncation: "auto"` or an intentional truncation policy for long conversations instead of letting sessions fail once they exceed context limits.
-- [ ] Add `prompt_cache_key` and `safety_identifier` so repeated tutoring flows are cheaper and safer.
-- [ ] Store structured turn metadata:
-  - [ ] response ID
-  - [ ] model
-  - [ ] tool calls used
-  - [ ] latency
-  - [ ] token usage
-  - [ ] failure reason
+- [x] Make statefulness explicit in the Responses layer.
+  - [x] Choose one canonical approach per surface: `previous_response_id` chaining for lightweight chat, or `conversation` objects for long-lived sessions.
+  - [x] Persist response IDs per chat turn so Michael can continue exact context instead of reconstructing history manually.
+  - [x] Add fallback behavior when a previous response is missing, expired, or invalid.
+- [x] Add `store: true` where long-lived tutoring context is beneficial, and document which routes must remain stateless.
+- [x] Add `truncation: "auto"` or an intentional truncation policy for long conversations instead of letting sessions fail once they exceed context limits.
+- [x] Add `prompt_cache_key` and `safety_identifier` so repeated tutoring flows are cheaper and safer.
+- [x] Store structured turn metadata:
+  - [x] response ID
+  - [x] model
+  - [x] tool calls used
+  - [x] latency
+  - [x] token usage
+  - [x] failure reason
 
 ## Priority 2: Better tutoring tools
 
 ### Production-safe tool expansion
 
-- [ ] Promote `execute_sql_query` to main chat only after adding a strict student-safe sandbox.
-  - [ ] Enforce read-only SQL.
-  - [ ] Restrict accessible schemas by chat context.
-  - [ ] Add row and time limits.
-  - [ ] Return friendly execution errors and learning hints.
-- [ ] Add a `validate_sql_answer` tool that checks a student query against expected constraints before Michael explains it.
-- [ ] Add a `compare_sql_queries` tool so Michael can explain why one query is more correct, readable, or efficient than another.
-- [ ] Add a `get_homework_context` tool for assignment-specific schema, allowed concepts, due dates, and rubric hints.
-- [ ] Add a `get_student_learning_profile` tool so the tutor can adapt difficulty, explanation style, and follow-up prompts.
-- [ ] Add a `save_learning_note` or `remember_preference` tool for things like:
-  - [ ] preferred language
-  - [ ] preferred explanation depth
-  - [ ] repeated SQL weaknesses
-  - [ ] exam-prep goals
-- [ ] Add a `generate_next_practice_step` tool that turns a question or mistake into the next recommended exercise.
+- [x] Promote `execute_sql_query` to main chat only after adding a strict student-safe sandbox.
+  - [x] Enforce read-only SQL.
+  - [x] Restrict accessible schemas by chat context.
+  - [x] Add row and time limits.
+  - [x] Return friendly execution errors and learning hints.
+- [x] Add a `validate_sql_answer` tool that checks a student query against expected constraints before Michael explains it.
+- [x] Add a `compare_sql_queries` tool so Michael can explain why one query is more correct, readable, or efficient than another.
+- [x] Add a `get_homework_context` tool for assignment-specific schema, allowed concepts, due dates, and rubric hints.
+- [x] Add a `get_student_learning_profile` tool so the tutor can adapt difficulty, explanation style, and follow-up prompts.
+- [x] Add a `save_learning_note` or `remember_preference` tool for things like:
+  - [x] preferred language
+  - [x] preferred explanation depth
+  - [x] repeated SQL weaknesses
+  - [x] exam-prep goals
+- [x] Add a `generate_next_practice_step` tool that turns a question or mistake into the next recommended exercise.
 
 ### Retrieval and knowledge tools
 
-- [ ] Add `file_search` for course PDFs, notes, homework instructions, and curated examples.
-- [ ] Define a source-of-truth corpus for retrieval:
-  - [ ] official course material
-  - [ ] homework instructions
-  - [ ] worked examples
-  - [ ] FAQ and policy notes
-- [ ] Add source citations in assistant answers whenever retrieval is used.
-- [ ] Add retrieval quality tests for Hebrew and English questions, week-based queries, and ambiguous schema questions.
+- [x] Add `file_search` for course PDFs, notes, homework instructions, and curated examples.
+- [x] Define a source-of-truth corpus for retrieval:
+  - [x] official course material
+  - [x] homework instructions
+  - [x] worked examples
+  - [x] FAQ and policy notes
+- [x] Add source citations in assistant answers whenever retrieval is used.
+- [x] Add retrieval quality tests for Hebrew and English questions, week-based queries, and ambiguous schema questions.
 
 ### Advanced tool ideas
 
-- [ ] Add `code_interpreter` for admin or advanced analysis flows only, not default student chat.
-- [ ] Explore remote MCP tools for instructor workflows such as Drive, Sheets, or Notion if Michael should access external academic content or admin material.
-- [ ] Add a `render_sql_visualization` tool contract that returns structured data for tables, joins, result previews, and execution breakdowns.
+- [x] Add `code_interpreter` for admin or advanced analysis flows only, not default student chat.
+- [x] Explore remote MCP tools for instructor workflows such as Drive, Sheets, or Notion if Michael should access external academic content or admin material.
+- [x] Add a `render_sql_visualization` tool contract that returns structured data for tables, joins, result previews, and execution breakdowns.
 
 ## Priority 3: Structured assistant output and UI clarity
 
