@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, useReducer } 
 import styles from "./chat.module.css";
 import "./mobile-optimizations.css";
 import Markdown from "react-markdown";
-import { ThumbsUp, ThumbsDown, ClipboardCopy, Plus, Sparkles, ImagePlus, Braces, BarChart3, ChevronDown } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ClipboardCopy, Plus, Sparkles, ImagePlus, Braces, BarChart3, ChevronDown, BrainCircuit } from 'lucide-react';
 import Link from 'next/link';
 import Sidebar from './sidebar';
 import { useRouter } from 'next/navigation';
@@ -674,6 +674,22 @@ const Chat = ({
     }
     return avatarMode;
   }, [avatarMode, displayMode, enableAvatar]);
+
+  const displayUserName = useMemo(() => {
+    if (typeof currentUser !== "string") {
+      return "משתמש";
+    }
+
+    const trimmedValue = currentUser.trim();
+    if (!trimmedValue) {
+      return "משתמש";
+    }
+
+    const [namePart] = trimmedValue.split("@");
+    return namePart || trimmedValue;
+  }, [currentUser]);
+
+  const userInitial = displayUserName.charAt(0).toUpperCase();
 
   useEffect(() => {
     speechControllerRef.current = speechController;
@@ -2802,6 +2818,91 @@ const reasoningPanel = shouldShowReasoningPanel ? (
   </div>
 ) : null;
 
+
+// const onboardingPanel = shouldShowOnboarding ? (
+//   <div className={styles.onboardingPanel}>
+//     <div className={styles.onboardingTitle}>התאמה ראשונית עם מייקל</div>
+//     <p className={styles.onboardingText}>
+//       בחר 4 העדפות קצרות כדי שמייקל יתאים את ההסברים מעכשיו.
+//     </p>
+//     <div className={styles.preferenceGrid}>
+//       <label className={styles.preferenceField}>
+//         <span>מצב למידה</span>
+//         <select value={studyMode} onChange={(event) => setStudyMode(event.target.value as TutorStudyMode)}>
+//           <option value="learn">Learn</option>
+//           <option value="debug_sql">Debug my SQL</option>
+//           <option value="homework">Solve homework carefully</option>
+//           <option value="exam_prep">Exam prep</option>
+//         </select>
+//       </label>
+//       <label className={styles.preferenceField}>
+//         <span>עומק תשובה</span>
+//         <select value={answerLength} onChange={(event) => setAnswerLength(event.target.value as TutorAnswerLength)}>
+//           <option value="short">short answer</option>
+//           <option value="step_by_step">step-by-step</option>
+//         </select>
+//       </label>
+//       <label className={styles.preferenceField}>
+//         <span>רמת הסבר</span>
+//         <select value={knowledgeLevel} onChange={(event) => setKnowledgeLevel(event.target.value as TutorKnowledgeLevel)}>
+//           <option value="beginner">beginner</option>
+//           <option value="advanced">advanced</option>
+//         </select>
+//       </label>
+//       <label className={styles.preferenceField}>
+//         <span>שפת הסבר</span>
+//         <select value={responseLanguage} onChange={(event) => setResponseLanguage(event.target.value as TutorResponseLanguage)}>
+//           <option value="he">עברית</option>
+//           <option value="en">English</option>
+//         </select>
+//       </label>
+//     </div>
+//     <div className={styles.preferenceActions}>
+//       <button type="button" className={styles.primaryInlineButton} onClick={() => setOnboardingComplete(true)}>
+//         שמור התאמה
+//       </button>
+//       <button type="button" className={styles.secondaryInlineButton} onClick={() => setOnboardingComplete(true)}>
+//         דלג לעכשיו
+//       </button>
+//     </div>
+//   </div>
+// ) : null;
+
+// const resumeBanner = resumeSession ? (
+//   <div className={styles.resumeBanner}>
+//     <div>
+//       <div className={styles.resumeTitle}>המשך מאיפה שעצרת</div>
+//       <p className={styles.resumeText}>{resumeSession.title}</p>
+//     </div>
+//     <button
+//       type="button"
+//       className={styles.primaryInlineButton}
+//       onClick={() => loadChatMessages(resumeSession._id)}
+//     >
+//       חזור לשיחה
+//     </button>
+//   </div>
+// ) : null;
+
+  if (!authResolved) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div className={styles.loadingIndicator}></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
 return (
   <div 
     className={`${styles.main} ${!sidebarVisible || hideSidebar || minimalMode ? styles.mainFullWidth : ''}`}
@@ -2911,25 +3012,9 @@ return (
               </div>
             )}
 
-            <div className={styles.composerToolbar}>
-              <button
-                type="button"
-                className={`${styles.thinkingModeButton} ${isThinkingModeEnabled ? styles.thinkingModeButtonEnabled : styles.thinkingModeButtonDisabled}`}
-                onClick={() => setIsThinkingModeEnabled((prev) => !prev)}
-                disabled={inputDisabled || imageProcessing}
-                aria-pressed={isThinkingModeEnabled}
-                title={isThinkingModeEnabled ? "כיבוי מצב חשיבה" : "הפעלת מצב חשיבה"}
-              >
-                <span className={styles.thinkingModeLabel}>Thinking</span>
-                <span className={styles.thinkingModeValue}>{isThinkingModeEnabled ? "On" : "Off"}</span>
-              </button>
-              <span className={styles.thinkingModeHint}>
-                {isThinkingModeEnabled ? "תשובות עם תהליך חשיבה" : "תשובות מהירות יותר"}
-              </span>
-            </div>
-
             <textarea
               className={styles.input}
+              name="chatMessage"
               value={userInput}
               onChange={(e) => {
                 if (streamError) setStreamError(null);
@@ -2951,9 +3036,12 @@ return (
               }}
               placeholder={
                 isExerciseMode 
-                  ? "הקלד את תשובת ה-SQL שלך כאן..." 
-                  : "הקלד כאן..."
+                  ? "הקלד את תשובת ה-SQL שלך כאן…" 
+                  : "הקלד כאן…"
               }
+              aria-label={isExerciseMode ? "תשובת SQL" : "הודעה לצ'אט"}
+              autoComplete="off"
+              spellCheck={false}
               style={{
                 paddingTop: '16px',
                 paddingRight: '20px',
@@ -2967,6 +3055,7 @@ return (
               type="submit"
               className={styles.sendButton}
               disabled={inputDisabled || imageProcessing || (!userInput.trim() && !selectedImage)}
+              aria-label="שלח הודעה"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -3001,6 +3090,7 @@ return (
                 onClick={() => setIsActionMenuOpen((prev) => !prev)}
                 disabled={inputDisabled || imageProcessing}
                 title="פתח אפשרויות"
+                aria-label="פתח תפריט פעולות"
                 aria-haspopup="true"
                 aria-expanded={isActionMenuOpen}
               >
@@ -3010,6 +3100,36 @@ return (
 
               {isActionMenuOpen && (
                 <div className={styles.actionMenu} role="menu">
+                  <button
+                    type="button"
+                    className={styles.actionMenuItem}
+                    onClick={() => {
+                      setIsActionMenuOpen(false);
+                      setIsThinkingModeEnabled((previous) => !previous);
+                    }}
+                    disabled={inputDisabled || imageProcessing}
+                    title={isThinkingModeEnabled ? "כיבוי מצב חשיבה" : "הפעלת מצב חשיבה"}
+                    role="menuitemcheckbox"
+                    aria-checked={isThinkingModeEnabled}
+                  >
+                    
+                    <div className={styles.actionMenuItemBody}>
+                    <BrainCircuit className={styles.actionMenuItemIcon} size={10} strokeWidth={2} />
+                      <span className={styles.actionMenuItemTitle}>מצב חשיבה</span>
+                      <span className={styles.actionMenuItemDescription}>
+                        {isThinkingModeEnabled ? "תשובות עם תהליך חשיבה" : "תשובות מהירות יותר"}
+                      </span>
+                      <span
+                      className={`${styles.actionMenuItemBadge} ${
+                        isThinkingModeEnabled ? styles.actionMenuItemBadgeActive : styles.actionMenuItemBadgeInactive
+                      }`}
+                    >
+                      {isThinkingModeEnabled ? "פועל" : "כבוי"}
+                    </span>
+                    </div>
+                   
+                  </button>
+
                   {isSqlPracticeEnabled && (
                     <button
                       type="button"
@@ -3022,8 +3142,15 @@ return (
                       title="קבל תרגול SQL חדש"
                       role="menuitem"
                     >
-                      <Sparkles className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
-                      <span className={styles.actionMenuItemText}>תרגול SQL</span>
+                      <div className={styles.actionMenuItemBody}>
+                        <Sparkles className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
+                        <span className={styles.actionMenuItemTitle}>תרגול SQL</span>
+                        <span className={styles.actionMenuItemDescription}>תרגול חדש לבדיקה עצמית</span>
+                        <span
+                          className={`${styles.actionMenuItemBadge} ${styles.actionMenuItemBadgePlaceholder}`}
+                          aria-hidden="true"
+                        />
+                      </div>
                     </button>
                   )}
 
@@ -3038,8 +3165,15 @@ return (
                     title="Attach image"
                     role="menuitem"
                   >
-                    <ImagePlus className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
-                    <span className={styles.actionMenuItemText}>הוספת תמונה</span>
+                    <div className={styles.actionMenuItemBody}>
+                      <ImagePlus className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
+                      <span className={styles.actionMenuItemTitle}>הוספת תמונה</span>
+                      <span className={styles.actionMenuItemDescription}>צירוף צילום מסך או תרשים</span>
+                      <span
+                        className={`${styles.actionMenuItemBadge} ${styles.actionMenuItemBadgePlaceholder}`}
+                        aria-hidden="true"
+                      />
+                    </div>
                   </button>
 
                   <button
@@ -3052,8 +3186,18 @@ return (
                     title="קבל שאילתת CREATE/INSERT ממייקל"
                     role="menuitem"
                   >
-                    <Braces className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
-                    <span className={styles.actionMenuItemText}>מייקל: CREATE/INSERT</span>
+                    <div className={styles.actionMenuItemBody}>
+                      <Braces className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
+                      <span className={styles.actionMenuItemTitle}>
+                        <span dir="rtl">מייקל:</span>{" "}
+                        <span className={styles.actionMenuItemInlineLtr} dir="ltr">CREATE/INSERT</span>
+                      </span>
+                      <span className={styles.actionMenuItemDescription}>יצירת סכמת טבלאות או נתוני דוגמה</span>
+                      <span
+                        className={`${styles.actionMenuItemBadge} ${styles.actionMenuItemBadgePlaceholder}`}
+                        aria-hidden="true"
+                      />
+                    </div>
                   </button>
 
                   <button
@@ -3066,8 +3210,15 @@ return (
                     title="המחשת שאילתה"
                     role="menuitem"
                   >
-                    <BarChart3 className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
-                    <span className={styles.actionMenuItemText}>המחשת שאילתה</span>
+                    <div className={styles.actionMenuItemBody}>
+                      <BarChart3 className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
+                      <span className={styles.actionMenuItemTitle}>המחשת שאילתה</span>
+                      <span className={styles.actionMenuItemDescription}>תרשים ויזואלי של תוצאות השאילתה</span>
+                      <span
+                        className={`${styles.actionMenuItemBadge} ${styles.actionMenuItemBadgePlaceholder}`}
+                        aria-hidden="true"
+                      />
+                    </div>
                   </button>
                 </div>
               )}
@@ -3136,66 +3287,84 @@ return (
           ></div>
         ) : (
           <div className={styles.avatarSection}>
-            {displayMode === 'avatar' && enableAvatar ? (
-              <>
-                {activeAvatarMode === 'avatar3d' ? (
-                  <MichaelAvatarDirect
-                    text={lastAssistantMessage}
-                    state={avatarState}
-                    size="medium"
-                    progressiveMode={speechController.assistantStreaming}
-                    isStreaming={speechController.assistantStreaming}
-                    speechStatus={speechController.status}
-                    gesturePlan={speechController.currentUtterance?.gesturePlan ?? null}
-                    renderConfig={DEFAULT_AVATAR_RENDER_CONFIG}
-                    utteranceId={speechController.currentUtterance?.id ?? null}
-                  />
-                ) : (
-                  <VoiceModeCircle
-                    state={avatarState}
-                    size="medium"
-                    text={lastAssistantMessage}
-                    speechStatus={speechController.status}
-                    gesturePlan={speechController.currentUtterance?.gesturePlan ?? null}
-                    renderConfig={DEFAULT_AVATAR_RENDER_CONFIG}
-                    onPrimaryAction={() => {
-                      if (!enableVoice || activeAvatarMode === 'none') {
-                        return;
-                      }
-                      if (speechController.status === 'speaking' || speechController.status === 'preparing') {
-                        cancelCurrent('manual_cancel');
-                        return;
-                      }
-                      const messageToReplay = lastAssistantMessage || speechController.currentUtterance?.text;
-                      if (!messageToReplay) {
-                        return;
-                      }
-                      flushAll('manual_cancel');
-                      const manualId = `manual-${Date.now()}`;
-                      const utterance = createSpeechUtterance(
-                        manualId,
-                        messageToReplay,
-                        'final',
-                        { source: 'manual' },
-                        true
-                      );
-                      enqueueUtterance(utterance);
-                      setGesturePlanForUtterance(utterance.id, utterance.gesturePlan!);
-                    }}
-                  />
-                )}
-              </>
-            ) : (
-              <StaticLogoMode
-                size="medium"
-                state={avatarState}
-                userName={currentUser}
-              />
-            )}
-            
-            {/* Toggle Buttons Container */}
+            <div className={styles.profileSummary}>
+              <div className={styles.profileIdentity}>
+                <div className={styles.profileMonogram}>{userInitial}</div>
+                <div className={styles.profileText}>
+                  <span className={styles.profileEyebrow}>חשבון פעיל</span>
+                  <span className={styles.profileName}>{displayUserName}</span>
+                </div>
+              </div>
+              {isTokenBalanceVisible && (
+                <div className={styles.balancePill}>
+                  <span className={styles.balanceLabel}>יתרה</span>
+                  <span className={styles.balanceValue}>
+                    {currentBalance} מטבע{currentBalance === 1 ? "" : "ות"}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className={styles.avatarVisualShell}>
+              {displayMode === 'avatar' && enableAvatar ? (
+                <>
+                  {activeAvatarMode === 'avatar3d' ? (
+                    <MichaelAvatarDirect
+                      text={lastAssistantMessage}
+                      state={avatarState}
+                      size="medium"
+                      progressiveMode={speechController.assistantStreaming}
+                      isStreaming={speechController.assistantStreaming}
+                      speechStatus={speechController.status}
+                      gesturePlan={speechController.currentUtterance?.gesturePlan ?? null}
+                      renderConfig={DEFAULT_AVATAR_RENDER_CONFIG}
+                      utteranceId={speechController.currentUtterance?.id ?? null}
+                    />
+                  ) : (
+                    <VoiceModeCircle
+                      state={avatarState}
+                      size="medium"
+                      text={lastAssistantMessage}
+                      speechStatus={speechController.status}
+                      gesturePlan={speechController.currentUtterance?.gesturePlan ?? null}
+                      renderConfig={DEFAULT_AVATAR_RENDER_CONFIG}
+                      onPrimaryAction={() => {
+                        if (!enableVoice || activeAvatarMode === 'none') {
+                          return;
+                        }
+                        if (speechController.status === 'speaking' || speechController.status === 'preparing') {
+                          cancelCurrent('manual_cancel');
+                          return;
+                        }
+                        const messageToReplay = lastAssistantMessage || speechController.currentUtterance?.text;
+                        if (!messageToReplay) {
+                          return;
+                        }
+                        flushAll('manual_cancel');
+                        const manualId = `manual-${Date.now()}`;
+                        const utterance = createSpeechUtterance(
+                          manualId,
+                          messageToReplay,
+                          'final',
+                          { source: 'manual' },
+                          true
+                        );
+                        enqueueUtterance(utterance);
+                        setGesturePlanForUtterance(utterance.id, utterance.gesturePlan!);
+                      }}
+                    />
+                  )}
+                </>
+              ) : (
+                <StaticLogoMode
+                  size="medium"
+                  state={avatarState}
+                  userName={currentUser}
+                />
+              )}
+            </div>
+
             <div className={styles.toggleButtonsContainer}>
-              {/* Display Mode Toggle Button */}
               <div className={styles.displayModeToggle}>
                 <button 
                   className={`${styles.displayToggleButton} ${displayMode === 'logo' ? styles.logoModeActive : styles.avatarModeActive}`}
@@ -3204,16 +3373,22 @@ return (
                   aria-label={displayMode === 'avatar' ? 'Switch to logo mode' : 'Switch to avatar mode'}
                 >
                   {displayMode === 'avatar' ? (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                      <circle cx="8.5" cy="8.5" r="1.5"/>
-                      <path d="M21 15l-5-5L5 21"/>
-                    </svg>
+                    <>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <path d="M21 15l-5-5L5 21"/>
+                      </svg>
+                      <span className={styles.controlButtonLabel}>אווטאר</span>
+                    </>
                   ) : (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                      <circle cx="12" cy="7" r="4"/>
-                    </svg>
+                    <>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                      </svg>
+                      <span className={styles.controlButtonLabel}>לוגו</span>
+                    </>
                   )}
                 </button>
               </div>
@@ -3226,35 +3401,27 @@ return (
                     aria-label={activeAvatarMode === 'avatar3d' ? 'Switch to voice circle' : 'Switch to 3D avatar'}
                   >
                     {activeAvatarMode === 'avatar3d' ? (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                        <line x1="12" y1="19" x2="12" y2="23" />
-                        <line x1="8" y1="23" x2="16" y2="23" />
-                      </svg>
+                      <>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                          <line x1="12" y1="19" x2="12" y2="23" />
+                          <line x1="8" y1="23" x2="16" y2="23" />
+                        </svg>
+                        <span className={styles.controlButtonLabel}>קול</span>
+                      </>
                     ) : (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                        <circle cx="12" cy="7" r="4" />
-                      </svg>
+                      <>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                          <circle cx="12" cy="7" r="4" />
+                        </svg>
+                        <span className={styles.controlButtonLabel}>תלת־ממד</span>
+                      </>
                     )}
                   </button>
                 </div>
               )}
-            </div>
-            
-            {/* User info below the avatar */}
-            <div className={styles.userInfo}>
-              <div className={styles.nickname}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                  <span>היי {currentUser}</span>
-                </div>
-                {isTokenBalanceVisible && (
-                  <div>
-                    יתרה נוכחית: {currentBalance} מטבע{currentBalance === 1 ? "" : "ות"}
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         )}

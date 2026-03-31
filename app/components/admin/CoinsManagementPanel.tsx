@@ -66,8 +66,6 @@ interface EnrichedUserRow {
   lastUsageDate: string | null;
 }
 
-const QUICK_AMOUNTS = [1, 5, 10];
-
 function formatDateTime(value: string | null): string {
   if (!value) {
     return "ללא פעילות";
@@ -127,6 +125,10 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
       );
     });
   }, [searchTerm, users]);
+
+  const filteredUsersBalance = useMemo(() => {
+    return filteredUsers.reduce((sum, user) => sum + user.currentBalance, 0);
+  }, [filteredUsers]);
 
   const getAdminHeaders = (baseHeaders: Record<string, string> = {}) => ({
     ...baseHeaders,
@@ -536,8 +538,17 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
             <div className={styles.panelHeader}>
               <div>
                 <h2>משתמשים ויתרות</h2>
-                <p>חיפוש, צפייה בניצול מטבעות והוספה או הפחתה של יתרה בזמן אמת.</p>
+                <p>חיפוש מהיר, צפייה בדפוסי שימוש ועדכון יתרה ידני עם כמות מותאמת לכל משתמש.</p>
               </div>
+            </div>
+
+            <div className={styles.panelToolbar}>
+              <div className={styles.toolbarSummary}>
+                <span className={styles.summaryBadge}>משתמשים מוצגים: {filteredUsers.length}</span>
+                <span className={styles.summaryBadge}>יתרה מוצגת: {filteredUsersBalance}</span>
+                <span className={styles.summaryHint}>הפחתה לא תרד מתחת לאפס.</span>
+              </div>
+
               <label className={styles.searchBox}>
                 <Search size={16} />
                 <input
@@ -561,11 +572,9 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                       <th>שם משתמש</th>
                       <th>אימייל</th>
                       <th>יתרה נוכחית</th>
-                      <th>סה"כ נצרך</th>
-                      <th>שימושי צ'אט</th>
-                      <th>שימושי SQL</th>
-                      <th>שימושי רמזים</th>
-                      <th>פעולות</th>
+                      <th>שימוש וצריכה</th>
+                      <th>פעילות אחרונה</th>
+                      <th>עדכון יתרה</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -581,65 +590,79 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                           <td className={styles.balanceCell}>
                             <span className={styles.balanceBadge}>{user.currentBalance}</span>
                           </td>
-                          <td>{user.totalSpent}</td>
-                          <td>{user.chatUsageCount}</td>
-                          <td>{user.sqlPracticeUsageCount}</td>
-                          <td>{user.homeworkHintUsageCount}</td>
+                          <td>
+                            <div className={styles.usageCell}>
+                              <div className={styles.usageTotal}>
+                                <span>סה"כ נצרך</span>
+                                <strong>{user.totalSpent}</strong>
+                              </div>
+
+                              <div className={styles.usageBreakdown}>
+                                <div>
+                                  <span>צ'אט</span>
+                                  <strong>{user.chatUsageCount}</strong>
+                                </div>
+                                <div>
+                                  <span>SQL</span>
+                                  <strong>{user.sqlPracticeUsageCount}</strong>
+                                </div>
+                                <div>
+                                  <span>רמזים</span>
+                                  <strong>{user.homeworkHintUsageCount}</strong>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <div className={styles.activityCell}>
+                              <strong>{formatDateTime(user.lastUsageDate)}</strong>
+                              <span>{user.usageCount} חיובים מצטברים</span>
+                            </div>
+                          </td>
                           <td>
                             <div className={styles.actionsCell}>
-                              <div className={styles.quickButtons}>
-                                {QUICK_AMOUNTS.map((amount) => (
+                              <div className={styles.adjustCard}>
+                                <div className={styles.adjustCardHeader}>
+                                  <strong>הוספה או הפחתה ידנית</strong>
+                                  <span>הזן כמות אחת ובחר פעולה.</span>
+                                </div>
+
+                                <div className={styles.customAdjustRow}>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    inputMode="numeric"
+                                    aria-label={`כמות לעדכון יתרה עבור ${user.email}`}
+                                    placeholder="כמות"
+                                    value={pendingAmount}
+                                    onChange={(event) =>
+                                      setPendingAmounts((current) => ({
+                                        ...current,
+                                        [user.email]: event.target.value,
+                                      }))
+                                    }
+                                  />
                                   <button
-                                    key={`add-${user.email}-${amount}`}
                                     type="button"
-                                    className={styles.quickButton}
-                                    disabled={rowBusy}
-                                    onClick={() => void adjustBalance(user.email, amount)}
+                                    className={styles.inlineAction}
+                                    disabled={rowBusy || !customAmount}
+                                    onClick={() => void adjustBalance(user.email, customAmount)}
                                   >
-                                    +{amount}
+                                    {rowBusy ? "מעדכן..." : "הוסף"}
                                   </button>
-                                ))}
-                                {QUICK_AMOUNTS.map((amount) => (
                                   <button
-                                    key={`reduce-${user.email}-${amount}`}
                                     type="button"
-                                    className={styles.quickButtonMuted}
-                                    disabled={rowBusy}
-                                    onClick={() => void adjustBalance(user.email, -amount)}
+                                    className={styles.inlineActionMuted}
+                                    disabled={rowBusy || !customAmount}
+                                    onClick={() => void adjustBalance(user.email, -customAmount)}
                                   >
-                                    -{amount}
+                                    {rowBusy ? "מעדכן..." : "הפחת"}
                                   </button>
-                                ))}
-                              </div>
-                              <div className={styles.customAdjustRow}>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  placeholder="כמות"
-                                  value={pendingAmount}
-                                  onChange={(event) =>
-                                    setPendingAmounts((current) => ({
-                                      ...current,
-                                      [user.email]: event.target.value,
-                                    }))
-                                  }
-                                />
-                                <button
-                                  type="button"
-                                  className={styles.inlineAction}
-                                  disabled={rowBusy || !customAmount}
-                                  onClick={() => void adjustBalance(user.email, customAmount)}
-                                >
-                                  הוסף
-                                </button>
-                                <button
-                                  type="button"
-                                  className={styles.inlineActionMuted}
-                                  disabled={rowBusy || !customAmount}
-                                  onClick={() => void adjustBalance(user.email, -customAmount)}
-                                >
-                                  הפחת
-                                </button>
+                                </div>
+
+                                <div className={styles.adjustHint}>
+                                  אפשר להזין כל כמות. בהפחתה המערכת תעצור ב-0 אם צריך.
+                                </div>
                               </div>
                             </div>
                           </td>

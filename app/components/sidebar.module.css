@@ -12,6 +12,9 @@
   border-right: 1px solid rgba(0, 0, 0, 0.08);
   box-shadow: 2px 0 24px rgba(0, 0, 0, 0.08);
   animation: slideInLeft 0.4s ease-out;
+  direction: rtl;
+  display: flex;
+  flex-direction: column;
 }
 
 @keyframes slideInLeft {
@@ -85,6 +88,7 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   border: 2px solid rgba(255, 255, 255, 0.2);
+  appearance: none;
 }
 
 .userIcon:hover {
@@ -131,7 +135,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   font-size: 16px;
-  direction: "rtl";
+  direction: rtl;
   text-align: right;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   font-weight: 500;
@@ -160,10 +164,14 @@
 .sidebarList {
   list-style-type: none;
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 88px;
 }
 
 .sidebarItem {
-  margin-bottom: 8px;
+  margin-bottom: 0;
   text-align: right;
   animation: fadeInUp 0.4s ease-out;
   animation-fill-mode: both;
@@ -198,6 +206,10 @@
   border: 1px solid transparent;
   position: relative;
   overflow: hidden;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .sidebarLink::before {
@@ -226,12 +238,36 @@
   transform: translateX(0);
 }
 
-.sidebarLink.active {
+.sidebarLinkActive {
   background: linear-gradient(135deg, rgba(0, 51, 102, 0.12) 0%, rgba(0, 51, 102, 0.08) 100%);
   font-weight: 700;
   color: #003366;
   border-color: rgba(0, 51, 102, 0.2);
   box-shadow: 0 2px 8px rgba(0, 51, 102, 0.15);
+}
+
+.sessionTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: inherit;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.sessionDate {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  letter-spacing: 0.02em;
+}
+
+.sidebarLink:focus-visible,
+.newChatButton:focus-visible,
+.closeButton:focus-visible,
+.userIcon:focus-visible,
+.menuItem:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.35);
+  outline-offset: 3px;
 }
 
 .logoutButton {

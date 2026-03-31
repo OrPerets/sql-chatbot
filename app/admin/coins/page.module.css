@@ -54,8 +54,6 @@
 
 .primaryButton,
 .secondaryButton,
-.quickButton,
-.quickButtonMuted,
 .inlineAction,
 .inlineActionMuted {
   border: 0;
@@ -86,8 +84,6 @@
 
 .primaryButton:disabled,
 .secondaryButton:disabled,
-.quickButton:disabled,
-.quickButtonMuted:disabled,
 .inlineAction:disabled,
 .inlineActionMuted:disabled {
   opacity: 0.55;
@@ -160,6 +156,39 @@
   margin: 8px 0 0;
   color: #64748b;
   line-height: 1.6;
+}
+
+.panelToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 22px 0;
+}
+
+.toolbarSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.summaryBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  color: #1d4ed8;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.summaryHint {
+  color: #64748b;
+  font-size: 0.9rem;
 }
 
 .configSections {
@@ -262,7 +291,7 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1180px;
+  min-width: 1040px;
 }
 
 .table th,
@@ -271,6 +300,10 @@
   border-bottom: 1px solid #e2e8f0;
   text-align: right;
   vertical-align: top;
+}
+
+.table tbody tr:hover td {
+  background: #f8fbff;
 }
 
 .table th {
@@ -311,37 +344,102 @@
 }
 
 .actionsCell {
+  min-width: 320px;
+}
+
+.usageCell {
   display: flex;
   flex-direction: column;
   gap: 10px;
   min-width: 220px;
 }
 
-.quickButtons {
+.usageTotal {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #334155;
 }
 
-.quickButton,
-.quickButtonMuted,
-.inlineAction,
-.inlineActionMuted {
-  padding: 8px 12px;
-  font-size: 0.85rem;
+.usageTotal strong {
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.usageBreakdown {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.usageBreakdown div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+.usageBreakdown span {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.usageBreakdown strong {
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.activityCell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 170px;
+}
+
+.activityCell strong {
+  color: #0f172a;
+  font-size: 0.92rem;
   font-weight: 700;
 }
 
-.quickButton,
-.inlineAction {
-  background: #dbeafe;
-  color: #1d4ed8;
+.activityCell span {
+  color: #64748b;
+  font-size: 0.84rem;
 }
 
-.quickButtonMuted,
-.inlineActionMuted {
-  background: #fee2e2;
-  color: #b91c1c;
+.adjustCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.adjustCardHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.adjustCardHeader strong {
+  color: #0f172a;
+  font-size: 0.92rem;
+}
+
+.adjustCardHeader span,
+.adjustHint {
+  color: #64748b;
+  font-size: 0.82rem;
 }
 
 .customAdjustRow {
@@ -351,7 +449,25 @@
 }
 
 .customAdjustRow input {
-  width: 84px;
+  width: 94px;
+}
+
+.inlineAction,
+.inlineActionMuted {
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.inlineAction {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.inlineActionMuted {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .emptyState {
@@ -409,6 +525,11 @@
     flex-direction: column;
   }
 
+  .panelToolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .configSections {
     grid-template-columns: 1fr;
   }
@@ -418,6 +539,10 @@
   }
 
   .searchBox input {
+    width: 100%;
+  }
+
+  .toolbarSummary {
     width: 100%;
   }
 }

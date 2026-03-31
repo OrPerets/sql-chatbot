@@ -935,19 +935,19 @@
 .main {
   display: flex;
   height: 100vh;
-  width: calc(100vw - 320px - 270px); /* Account for sidebar (320px) + avatar (270px) */
+  width: calc(100vw - 320px - 312px); /* Account for sidebar and right rail */
   overflow: hidden;
   background: radial-gradient(ellipse at top, #f0f8ff 0%, #e6f3ff 25%, #ffffff 100%);
   position: relative;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   margin-left: 320px; /* Space for fixed sidebar */
-  margin-right: 270px; /* Space for fixed avatar */
+  margin-right: 312px; /* Space for fixed avatar */
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth transition for layout changes */
 }
 
 /* When sidebar is hidden, expand main container to use that space */
 .mainFullWidth {
-  width: calc(100vw - 270px); /* Only account for avatar (270px) when sidebar is hidden */
+  width: calc(100vw - 312px); /* Only account for right rail when sidebar is hidden */
   margin-left: 0; /* Remove left margin when sidebar is hidden */
 }
 
@@ -1096,12 +1096,12 @@
 .rightColumn {
   display: flex;
   flex-direction: column;
-  width: 270px;
-  min-width: 270px;
-  max-width: 270px;
+  width: 312px;
+  min-width: 312px;
+  max-width: 312px;
   justify-content: flex-start;
   align-items: center;
-  padding: 32px 24px;
+  padding: 28px 20px;
   position: fixed; /* Fix position to prevent any layout shifts */
   right: 0;
   top: 0;
@@ -1637,7 +1637,7 @@
   align-items: center;
   justify-content: flex-start;
   text-align: center;
-  padding: 28px 20px; /* Enhanced padding */
+  padding: 28px 0 20px;
   background: linear-gradient(145deg, 
     rgba(255, 255, 255, 0.98) 0%, 
     rgba(250, 252, 255, 0.95) 25%,
@@ -1655,11 +1655,14 @@
   animation: fadeInDown 0.7s cubic-bezier(0.4, 0, 0.2, 1); /* Enhanced animation */
   position: relative;
   overflow: hidden;
-  height: 150%;
+  height: auto;
+  gap: 18px;
+  width: calc(100% + 40px);
+  margin-inline: -20px;
 }
 
 /* Avatar mode transition container */
-.avatarSection > div:first-child {
+.avatarVisualShell > * {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
 }
@@ -2087,36 +2090,39 @@
   bottom: 100%;
   right: 0;
   margin-bottom: 6px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
-  padding: 6px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 18px;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.14);
+  padding: 7px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   min-width: 180px;
   z-index: 20;
+  backdrop-filter: blur(18px);
 }
 
 .actionMenuItem {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: block;
   width: 100%;
   border: none;
   background: transparent;
-  padding: 6px 10px;
-  border-radius: 8px;
-  font-size: 12px;
+  padding: 4px 4px;
+  border-radius: 12px;
+  font-size: 10px;
   font-weight: 500;
   color: #374151;
   cursor: pointer;
   text-align: right;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  direction: ltr;
 }
 
 .actionMenuItem:hover:not(:disabled) {
-  background: #f3f4f6;
+  background: rgba(239, 246, 255, 0.92);
+  border-color: rgba(191, 219, 254, 0.9);
 }
 
 .actionMenuItem:disabled {
@@ -2129,12 +2135,82 @@
   align-items: center;
   justify-content: center;
   line-height: 1;
-  color: #1f2937;
+  color: #1e3a5f;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 0;
+  align-self: center;
+  justify-self: center;
+  grid-column: 3;
 }
 
-.actionMenuItemText {
-  font-weight: 600;
+.actionMenuItemBody {
+  /* display: grid; */
+  grid-template-columns: 52px minmax(0, 1fr) 32px;
+  align-items: center;
+  column-gap: 18px;
+  min-width: 0;
+  text-align: right;
+  direction: rtl;
+}
+
+.actionMenuItemTitle {
+  font-weight: 700;
   letter-spacing: 0.2px;
+  color: #0f172a;
+  width: 100%;
+  text-align: right;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  grid-column: 2;
+  margin-right: 1.5%;
+}
+
+.actionMenuItemDescription {
+  display: none;
+}
+
+.actionMenuItemBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  align-self: center;
+  justify-self: start;
+  grid-column: 1;
+  margin-top: 0;
+  margin-right: 5%;
+}
+
+.actionMenuItemBadgeActive {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  margin-right: 5%;
+}
+
+.actionMenuItemBadgeInactive {
+  background: rgba(148, 163, 184, 0.16);
+  color: #475569;
+  margin-right: 5%;
+}
+
+.actionMenuItemBadgePlaceholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.actionMenuItemInlineLtr {
+  display: inline-block;
+  unicode-bidi: isolate;
 }
 
 .sqlTutorModal {
@@ -2993,8 +3069,10 @@
   justify-content: center;
   align-items: center;
   gap: 12px;
-  margin: 16px 0;
+  margin: 0;
   z-index: 10;
+  width: calc(100% - 40px);
+  margin-inline: auto;
 }
 
 /* Display Mode Toggle Button Styles */
@@ -3004,17 +3082,20 @@
   justify-content: center;
   margin: 0;
   z-index: 10;
+  flex: 1;
 }
 
 .displayToggleButton {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
+  width: 100%;
+  min-height: 48px;
+  border-radius: 18px;
   border: 2px solid transparent;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
+  padding: 0 14px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
@@ -3077,17 +3158,20 @@
   justify-content: center;
   margin: 0;
   z-index: 10;
+  flex: 1;
 }
 
 .modeToggleButton {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+  width: 100%;
+  min-height: 48px;
+  border-radius: 18px;
   border: 2px solid transparent;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
+  padding: 0 14px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
@@ -3133,6 +3217,123 @@
     rgba(5, 150, 105, 0.15) 100%);
   border-color: rgba(16, 185, 129, 0.25);
   color: #10b981;
+}
+
+.controlButtonLabel {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.profileSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: calc(100% - 40px);
+  padding: 16px 18px;
+  border-radius: 24px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(247, 250, 255, 0.92) 100%);
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+  direction: rtl;
+  margin-inline: auto;
+}
+
+.profileIdentity {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.profileMonogram {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #0f172a 0%, #1e3a5f 100%);
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 800;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.2);
+  flex-shrink: 0;
+}
+
+.profileText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 0;
+  text-align: right;
+}
+
+.profileEyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.profileName {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.balancePill {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(239, 246, 255, 0.95) 0%, rgba(219, 234, 254, 0.88) 100%);
+  border: 1px solid rgba(147, 197, 253, 0.55);
+}
+
+.balanceLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.balanceValue {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.avatarVisualShell {
+  width: 100%;
+  min-height: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at top, rgba(191, 219, 254, 0.4), transparent 55%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 249, 255, 0.94) 100%);
+  border: 1px solid rgba(226, 232, 240, 0.72);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 16px 40px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.actionButton:focus-visible,
+.actionMenuItem:focus-visible,
+.displayToggleButton:focus-visible,
+.modeToggleButton:focus-visible,
+.sendButton:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.28);
+  outline-offset: 3px;
 }
 
 /* Avatar Toggle Button Styles (Legacy) */
@@ -3524,10 +3725,10 @@
   align-items: center;
   justify-content: flex-start;
   text-align: center;
-  width: 270px;
-  min-width: 270px;
-  max-width: 270px;
-  padding: 32px 24px; /* Match rightColumn exactly */
+  width: 312px;
+  min-width: 312px;
+  max-width: 312px;
+  padding: 28px 20px; /* Match rightColumn exactly */
   background: linear-gradient(160deg, 
     rgba(255, 255, 255, 0.95) 0%, 
     rgba(248, 253, 255, 0.92) 30%,

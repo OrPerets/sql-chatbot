@@ -63,6 +63,114 @@ type ToolHandler = (
   context: ToolExecutionContext
 ) => Promise<ToolExecutionResult>;
 
+function isJsonSchema(value: unknown): value is JsonSchema {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function makeSchemaNullable(schema: JsonSchema): JsonSchema {
+  const type = schema.type;
+  const enumValues = Array.isArray(schema.enum) ? schema.enum : undefined;
+
+  if (Array.isArray(type)) {
+    return {
+      ...schema,
+      type: type.includes("null") ? type : [...type, "null"],
+      ...(enumValues && !enumValues.includes(null) ? { enum: [...enumValues, null] } : {}),
+    };
+  }
+
+  if (typeof type === "string") {
+    return {
+      ...schema,
+      type: type === "null" ? ["null"] : [type, "null"],
+      ...(enumValues && !enumValues.includes(null) ? { enum: [...enumValues, null] } : {}),
+    };
+  }
+
+  if (enumValues && !enumValues.includes(null)) {
+    return {
+      ...schema,
+      enum: [...enumValues, null],
+    };
+  }
+
+  if (Array.isArray(schema.anyOf)) {
+    const hasNullVariant = schema.anyOf.some(
+      (variant) => isJsonSchema(variant) && variant.type === "null"
+    );
+    return hasNullVariant
+      ? schema
+      : { ...schema, anyOf: [...schema.anyOf, { type: "null" }] };
+  }
+
+  return {
+    anyOf: [schema, { type: "null" }],
+  };
+}
+
+function normalizeStrictJsonSchema(schema: JsonSchema): JsonSchema {
+  const normalized: JsonSchema = { ...schema };
+  const type = schema.type;
+  const isObjectType =
+    type === "object" || (Array.isArray(type) && type.includes("object")) || isJsonSchema(schema.properties);
+
+  if (isJsonSchema(schema.items)) {
+    normalized.items = normalizeStrictJsonSchema(schema.items);
+  }
+
+  if (isJsonSchema(schema.additionalProperties)) {
+    normalized.additionalProperties = normalizeStrictJsonSchema(schema.additionalProperties);
+  }
+
+  if (Array.isArray(schema.anyOf)) {
+    normalized.anyOf = schema.anyOf.map((variant) =>
+      isJsonSchema(variant) ? normalizeStrictJsonSchema(variant) : variant
+    );
+  }
+
+  const properties = isJsonSchema(schema.properties)
+    ? (schema.properties as Record<string, unknown>)
+    : isObjectType
+      ? {}
+      : null;
+
+  if (!properties) {
+    return normalized;
+  }
+
+  const existingRequired = new Set(
+    Array.isArray(schema.required)
+      ? schema.required.filter((key): key is string => typeof key === "string")
+      : []
+  );
+
+  normalized.properties = Object.fromEntries(
+    Object.entries(properties).map(([key, value]) => {
+      if (!isJsonSchema(value)) {
+        return [key, value];
+      }
+
+      const normalizedProperty = normalizeStrictJsonSchema(value);
+      return [key, existingRequired.has(key) ? normalizedProperty : makeSchemaNullable(normalizedProperty)];
+    })
+  );
+  normalized.required = Object.keys(properties);
+  normalized.additionalProperties = false;
+
+  return normalized;
+}
+
+function normalizeToolSchema(tool: MichaelToolDefinition): MichaelToolDefinition {
+  if (tool.type !== "function" || !tool.strict || !isJsonSchema(tool.parameters)) {
+    return tool;
+  }
+
+  return {
+    ...tool,
+    parameters: normalizeStrictJsonSchema(tool.parameters),
+  };
+}
+
 const getCourseWeekContextTool: FunctionToolDefinition = {
   type: "function",
   name: "get_course_week_context",
@@ -428,7 +536,7 @@ export function getToolCatalog(options: ToolCatalogOptions = {}): ToolCatalogEnt
 }
 
 export function getToolSchemas(options: ToolCatalogOptions = {}): MichaelToolDefinition[] {
-  return getToolCatalog(options).map((entry) => entry.schema);
+  return getToolCatalog(options).map((entry) => normalizeToolSchema(entry.schema));
 }
 
 export const SHARED_TOOL_SCHEMAS: MichaelToolDefinition[] = getToolSchemas();

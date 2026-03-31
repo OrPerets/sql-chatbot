@@ -1,256 +1,381 @@
-# Michael Chat Capability and UX Roadmap
+# OpenAI Docs Refinement Plan for Michael
 
 ## Goal
 
-Turn Michael from a good SQL tutor chat into a stronger teaching system with:
+Upgrade the current `openai-docs` skill and Michael's related OpenAI-facing runbooks so they are accurate against the current official OpenAI docs, operationally useful inside this repo, and maintainable over time.
 
-- deeper multi-turn memory
-- safer and more useful tools
-- clearer UI output
-- richer voice interaction
-- better personalization
-- stronger observability, evals, and admin controls
+## Current Review Summary
 
-This roadmap is grounded in the current codebase and current OpenAI docs.
+### What is good already
 
-## Current repo gaps to fix first
+- The current skill correctly prioritizes OpenAI official docs over general web search.
+- It already points users toward `search_openai_docs`, `fetch_openai_doc`, and `list_openai_docs`.
+- It has a reasonable "source of truth" posture and pushes citation-backed answers.
 
-- [x] `lib/chat.ts` only stores plain text messages. It should evolve to store structured assistant output, citations, tool usage, latency, and message metadata.
-- [x] `lib/openai/responses-client.ts` already uses the Responses API, but it does not yet expose important platform features such as `store`, `conversation` or stronger `previous_response_id` flows, `truncation`, background responses, richer `include` fields, `prompt_cache_key`, or `safety_identifier`.
-- [x] `lib/openai/tools.ts` keeps Michael too narrow in main chat. The current catalog is a solid start, but production chat still lacks the tools that make tutoring feel interactive and context-aware.
-- [ ] The product has chat, voice, notes, quizzes, student profiles, learning summaries, homework, and analytics, but the assistant does not yet orchestrate them as one coherent tutoring experience.
+### Main gaps found
 
-## Priority 1: Multi-turn chat quality
+1. The skill is **tool-incomplete**.
+   - It omits `mcp__openaiDeveloperDocs__list_api_endpoints`.
+   - It omits `mcp__openaiDeveloperDocs__get_openapi_spec`.
+   - This means endpoint/schema/code-sample questions are not routed to the best tool.
 
-- [x] Make statefulness explicit in the Responses layer.
-  - [x] Choose one canonical approach per surface: `previous_response_id` chaining for lightweight chat, or `conversation` objects for long-lived sessions.
-  - [x] Persist response IDs per chat turn so Michael can continue exact context instead of reconstructing history manually.
-  - [x] Add fallback behavior when a previous response is missing, expired, or invalid.
-- [x] Add `store: true` where long-lived tutoring context is beneficial, and document which routes must remain stateless.
-- [x] Add `truncation: "auto"` or an intentional truncation policy for long conversations instead of letting sessions fail once they exceed context limits.
-- [x] Add `prompt_cache_key` and `safety_identifier` so repeated tutoring flows are cheaper and safer.
-- [x] Store structured turn metadata:
-  - [x] response ID
-  - [x] model
-  - [x] tool calls used
-  - [x] latency
-  - [x] token usage
-  - [x] failure reason
+2. The skill is **too generic** for the current OpenAI docs surface.
+   - It does not teach the assistant how to choose between Responses API, Chat Completions, Apps SDK, MCP, Realtime, Agents SDK, model docs, or OpenAPI reference.
+   - It needs a decision matrix, not only a short workflow.
 
-## Priority 2: Better tutoring tools
+3. Parts of the content are **terminology-stale**.
+   - Official docs now use **apps** rather than **connectors** for ChatGPT integrations.
+   - The MCP docs explicitly note the terminology update as of **December 17, 2025**.
 
-### Production-safe tool expansion
+4. The Apps SDK summary is **too narrow**.
+   - Current docs say an MCP server is required, while UI is optional.
+   - The skill currently over-frames Apps SDK as "web component UI + MCP server," which is incomplete.
 
-- [x] Promote `execute_sql_query` to main chat only after adding a strict student-safe sandbox.
-  - [x] Enforce read-only SQL.
-  - [x] Restrict accessible schemas by chat context.
-  - [x] Add row and time limits.
-  - [x] Return friendly execution errors and learning hints.
-- [x] Add a `validate_sql_answer` tool that checks a student query against expected constraints before Michael explains it.
-- [x] Add a `compare_sql_queries` tool so Michael can explain why one query is more correct, readable, or efficient than another.
-- [x] Add a `get_homework_context` tool for assignment-specific schema, allowed concepts, due dates, and rubric hints.
-- [x] Add a `get_student_learning_profile` tool so the tutor can adapt difficulty, explanation style, and follow-up prompts.
-- [x] Add a `save_learning_note` or `remember_preference` tool for things like:
-  - [x] preferred language
-  - [x] preferred explanation depth
-  - [x] repeated SQL weaknesses
-  - [x] exam-prep goals
-- [x] Add a `generate_next_practice_step` tool that turns a question or mistake into the next recommended exercise.
+5. The skill does not distinguish enough between **doc types**.
+   - Reference/API schema questions should go to OpenAPI spec and API reference.
+   - Conceptual/product guidance should go to guides.
+   - Cookbook/examples should be secondary unless the user explicitly wants implementation examples or the guide surface is thin.
 
-### Retrieval and knowledge tools
+6. The skill lacks a strong **latest-model workflow**.
+   - Current official docs emphasize GPT-5.4 model guidance, migration guidance, Responses-vs-Chat-Completions comparisons, and new features like `tool_search`.
+   - The skill should explicitly force latest-doc verification for model-choice questions.
 
-- [x] Add `file_search` for course PDFs, notes, homework instructions, and curated examples.
-- [x] Define a source-of-truth corpus for retrieval:
-  - [x] official course material
-  - [x] homework instructions
-  - [x] worked examples
-  - [x] FAQ and policy notes
-- [x] Add source citations in assistant answers whenever retrieval is used.
-- [x] Add retrieval quality tests for Hebrew and English questions, week-based queries, and ambiguous schema questions.
+7. The skill is not yet connected to **Michael's operational docs**.
+   - This repo already has OpenAI runtime docs in:
+     - `README.md`
+     - `docs/responses-api-runbook.md`
+     - `docs/model-upgrade-configuration.md`
+   - Those docs should be aligned with the same official-docs-backed guidance.
 
-### Advanced tool ideas
+8. There is no **maintenance loop**.
+   - No eval checklist.
+   - No review cadence.
+   - No drift detection process for future doc/API changes.
 
-- [x] Add `code_interpreter` for admin or advanced analysis flows only, not default student chat.
-- [x] Explore remote MCP tools for instructor workflows such as Drive, Sheets, or Notion if Michael should access external academic content or admin material.
-- [x] Add a `render_sql_visualization` tool contract that returns structured data for tables, joins, result previews, and execution breakdowns.
+## Official-Docs Findings That Must Drive the Rewrite
 
-## Priority 3: Structured assistant output and UI clarity
+These are the most relevant facts verified from current official OpenAI docs and MCP:
 
-- [ ] Replace plain text assistant rendering with structured response blocks using `text.format` JSON schema where the UI benefits from predictable sections.
-- [ ] Standardize the tutoring response contract around blocks like:
-  - [ ] direct answer
-  - [ ] runnable SQL
-  - [ ] explanation
-  - [ ] common mistakes
-  - [ ] result preview
-  - [ ] next step
-  - [ ] source citations
-- [ ] Extend the current SQL tutor schema so it can support follow-up suggestions, confidence, citations, and optional result tables.
-- [ ] Evolve `ChatMessage` storage so the frontend can render cards, code blocks, preview tables, and expandable reasoning artifacts instead of a single `text` string.
-- [ ] Add message-level affordances:
-  - [ ] copy SQL
-  - [ ] run query
-  - [ ] explain simpler
-  - [ ] explain deeper
-  - [ ] translate
-  - [ ] turn into practice question
-- [ ] Stream responses into stable UI sections instead of rendering a single long text blob.
+1. OpenAI docs MCP exposes more than search/fetch:
+   - `search_openai_docs`
+   - `fetch_openai_doc`
+   - `list_openai_docs`
+   - `list_api_endpoints`
+   - `get_openapi_spec`
 
-### UI architecture pattern
+2. Current official docs position the **Responses API** as the primary advanced API surface.
+   - Responses overview explicitly highlights conversation state, built-in tools, function calling, and multimodal inputs.
 
-- [ ] Adopt a data-tool vs render-tool split in the UI layer.
-  - [ ] Data tools should fetch or compute.
-  - [ ] Render logic should decide how to show result previews, schema cards, and practice suggestions.
-- [ ] Avoid coupling every tool response directly to a UI rerender. Let Michael gather data, then choose the best presentation.
+3. Current docs include explicit migration material for **Responses vs Chat Completions**.
+   - The skill should route migration and comparison questions there by default.
 
-## Priority 4: Chat interaction and user experience
+4. Current official docs position **GPT-5.4** as the default frontier model for broad general-purpose and coding work.
+   - Migration guidance and latest-model guidance are now important first-class sources.
 
-- [ ] Add suggested follow-up chips after each answer.
-- [ ] Add a mode switch for:
-  - [ ] Learn
-  - [ ] Debug my SQL
-  - [ ] Solve homework carefully
-  - [ ] Exam prep
-- [ ] Add tone and depth controls:
-  - [ ] short answer
-  - [ ] step-by-step
-  - [ ] beginner
-  - [ ] advanced
-- [ ] Add bilingual tutoring controls with a first-class Hebrew and English explanation toggle.
-- [ ] Add lightweight onboarding so Michael asks 2 to 4 questions when a student is new and tailors future help.
-- [ ] Improve error states:
-  - [ ] tool unavailable
-  - [ ] query sandbox refusal
-  - [ ] retrieval miss
-  - [ ] long-running analysis
-  - [ ] model timeout
-- [ ] Add optimistic UI for streaming, progress labels for tool use, and a “Michael is checking the schema / running a query / searching notes” status system.
-- [ ] Add conversation title generation based on first successful turn, not only a generic session title.
-- [ ] Add bookmark or pin support for important tutor messages.
-- [ ] Add “resume where I left off” for unfinished homework or study threads.
+5. Current official docs introduce or highlight newer agentic features that the skill ignores.
+   - `tool_search`
+   - allowed tools
+   - built-in computer use
+   - model-specific migration guidance
+   - `phase` guidance for long-running/tool-heavy GPT-5.4 flows
 
-## Priority 5: Personalization and agent behavior
+6. Apps SDK docs now clearly state:
+   - MCP server is required.
+   - Web UI is optional.
+   - Apps terminology is current.
+   - Data-only app flows are valid.
 
-- [ ] Add an internal router that chooses the right tutoring behavior before the main response:
-  - [ ] schema explainer
-  - [ ] SQL debugger
-  - [ ] homework coach
-  - [ ] exam-prep coach
-  - [ ] study planner
-- [ ] Start with internal prompt-and-tool routing. Only adopt a full multi-agent architecture if the simpler router stops being maintainable.
-- [ ] If multi-agent is introduced, keep the split clean:
-  - [ ] one agent for tutoring
-  - [ ] one for homework policy/rubric
-  - [ ] one for analytics or study planning
-  - [ ] one for voice-specific turn handling if needed
-- [ ] Add guardrails around agent routing so homework or grading-sensitive flows stay within allowed policy.
-- [ ] Use tracing for any future handoffs or multi-agent orchestration from day one.
+7. MCP docs for ChatGPT apps and API integrations now explicitly document:
+   - remote MCP server usage
+   - data-only apps
+   - `search` / `fetch` compatibility for deep research and company knowledge use cases
 
-## Priority 6: Voice and realtime experience
+8. Voice docs now explicitly recommend architecture selection:
+   - chained architecture for predictable/newer voice-agent builders
+   - Realtime/Agents SDK for speech-to-speech
 
-- [ ] Keep `chained` voice as the stable default until the realtime path is production-ready.
-- [ ] For `realtime_experimental`, add a production checklist:
-  - [ ] ephemeral session issuance
-  - [ ] server-side tracing
-  - [ ] explicit VAD configuration
-  - [ ] interruption handling
-  - [ ] truncation policy
-  - [ ] session timeout and reconnect logic
-- [ ] Add UX for barge-in and interruption so students can stop Michael mid-answer without breaking the flow.
-- [ ] Add transcript alignment between spoken output and rendered text.
-- [ ] Add voice-specific tutoring style guidance:
-  - [ ] shorter sentences
-  - [ ] chunked explanations
-  - [ ] verbal signposting
-  - [ ] recap after tool use
-- [ ] Add voice evals for:
-  - [ ] latency
-  - [ ] turn detection
-  - [ ] interruption quality
-  - [ ] noisy environment handling
-  - [ ] Hebrew pronunciation and mixed-language turns
+## Sprint Plan
 
-## Priority 7: Safety, quality, and policy
+## Sprint 1: Fix The `openai-docs` Skill Contract
 
-- [ ] Add strong tool input validation for every production tool schema.
-- [ ] Add refusal rules for unsafe or out-of-scope actions such as:
-  - [ ] modifying databases
-  - [ ] inventing missing homework context
-  - [ ] revealing admin-only information
-  - [ ] bypassing assignment constraints
-- [ ] Add prompt-injection tests for retrieval and tool-heavy routes.
-- [ ] Add a clear policy for when Michael should answer directly vs ask a clarifying question.
-- [ ] Add structured “I am unsure” behavior for ambiguous schema or missing homework context.
-- [ ] Add admin-visible audit trails for runtime config changes, tool enablement, and model changes.
+### Objective
 
-## Priority 8: Observability and evals
+Make the skill text correct, current, and tool-complete.
 
-- [ ] Add full tracing for chat routes, tool calls, voice sessions, and future agent handoffs.
-- [ ] Capture metrics per route:
-  - [ ] first-token latency
-  - [ ] total response latency
-  - [ ] tool-call count
-  - [ ] tool failure rate
-  - [ ] retrieval hit rate
-  - [ ] query execution success rate
-  - [ ] voice interruption failures
-- [ ] Build an eval set for real product tasks:
-  - [ ] write a correct SQL query
-  - [ ] explain an incorrect query
-  - [ ] answer using course notes
-  - [ ] refuse unsupported homework help
-  - [ ] continue a multi-turn tutoring session correctly
-  - [ ] switch languages correctly
-  - [ ] recover from tool failures
-- [ ] Add deterministic evals for tool selection and tool argument validity.
-- [ ] Add rubric-based evals for:
-  - [ ] teaching clarity
-  - [ ] correctness
-  - [ ] concision
-  - [ ] empathy
-  - [ ] no hallucinated schema or policy
-- [ ] Add red-team coverage for prompt injection, jailbreaks, PII leakage, and off-topic hijacking.
+### Tasks
 
-## Priority 9: Admin and instructor workflows
+1. Rewrite the "Quick start" section into a **tool-selection matrix**.
+   - `search_openai_docs`: use first for scoped discovery.
+   - `fetch_openai_doc`: use for exact guidance and quotations/paraphrases.
+   - `list_openai_docs`: use only for browsing when query scope is unclear.
+   - `list_api_endpoints`: use when user asks "which endpoint," "what endpoints exist," or "where is X in the API."
+   - `get_openapi_spec`: use for endpoint schema, parameters, request/response bodies, and language-specific code examples.
 
-- [ ] Build an admin page to inspect recent tool traces and failed tutoring runs.
-- [ ] Let instructors toggle enabled tools by context without editing code.
-- [ ] Add runtime prompt versioning with rollback and change notes.
-- [ ] Add a retrieval-content management workflow:
-  - [ ] upload course PDFs
-  - [ ] tag by week and topic
-  - [ ] preview chunk quality
-  - [ ] retire stale documents
-- [ ] Add dashboard views for the most common student chat intents, confusion hotspots, and tool failures.
+2. Replace "OpenAI product snapshots" with a **current decision tree**.
+   - Responses API
+   - Chat Completions
+   - Apps SDK
+   - MCP for ChatGPT apps/API integrations
+   - Realtime API
+   - Agents SDK
+   - Model docs / latest-model guide
+   - Codex docs
 
-## Stretch ideas
+3. Update stale terminology.
+   - Use `apps` as the primary term.
+   - Mention that `connectors` is older terminology and should only be mentioned when clarifying older language.
 
-- [ ] Background responses for long-running analysis and study-plan generation.
-- [ ] Multimodal inputs so students can upload screenshots or assignment PDFs directly into chat.
-- [ ] Result-table visualization and join animations inside the chat thread.
-- [ ] “Teach back to me” mode where Michael quizzes the student before giving the full answer.
-- [ ] Collaborative study mode that turns a chat into a sequenced lesson with notes, quizzes, and recap.
+4. Correct the Apps SDK description.
+   - MCP server required.
+   - UI optional.
+   - Web component should not be treated as mandatory.
 
-## Recommended implementation order
+5. Add a doc-type hierarchy.
+   - First choice: guides + API reference + model docs.
+   - Second choice: OpenAPI spec tools for schema/code examples.
+   - Third choice: cookbook/examples when official guides are thin or user wants implementation examples.
 
-- [ ] Phase 1: statefulness, richer metadata storage, structured assistant output
-- [ ] Phase 2: safe SQL execution in main chat, retrieval, better follow-up UX
-- [ ] Phase 3: personalization, routing, evals, tracing dashboards
-- [ ] Phase 4: realtime voice hardening and advanced MCP or admin integrations
+6. Add a "latest verification" rule.
+   - If the user asks for latest/current/best/recommended model, capabilities, migrations, limits, deprecations, or architecture guidance, the assistant must verify against official docs before answering.
 
-## OpenAI docs used for this roadmap
+7. Fix the MCP-install fallback wording.
+   - Remove assumptions that escalated permissions are always available.
+   - Rewrite into portable behavior: attempt install if allowed; if blocked by environment or approval policy, tell the user what command is needed and why.
 
-- Responses API benefits and stateful/tool-first design:
-  - https://developers.openai.com/api/docs/guides/migrate-to-responses/#responses-benefits
-- Responses create API reference for `store`, `previous_response_id`, `conversation`, built-in tools, background mode, and truncation:
-  - https://developers.openai.com/api/reference/resources/responses/methods/create/
-- Structured outputs guidance for `text.format` vs function calling:
-  - https://developers.openai.com/api/docs/guides/structured-outputs/#function-calling-vs-response-format
-- Realtime sessions reference for VAD, tracing, truncation, and tool choice:
-  - https://developers.openai.com/api/reference/resources/realtime/subresources/sessions/methods/create/
-- Realtime eval guidance for interruption handling, turn detection, and realistic voice QA:
-  - https://developers.openai.com/cookbook/examples/realtime_eval_guide/
-- Apps SDK UI decoupling pattern that maps well to chat data-vs-render architecture:
-  - https://developers.openai.com/apps-sdk/build/chatgpt-ui/#decoupled-pattern
-- Agents SDK notes on handoffs, tools, tracing, and guardrails:
-  - https://developers.openai.com/cookbook/examples/agents_sdk/multi-agent-portfolio-collaboration/multi_agent_portfolio_collaboration/#best-practices-when-building-agents
+### Deliverables
+
+- Updated `/Users/orperetz/.codex/skills/openai-docs/SKILL.md`
+- Cleaner structure with explicit sections:
+  - Tool routing
+  - Product/architecture routing
+  - Citation rules
+  - Fallback rules
+
+### Acceptance Criteria
+
+- Skill text mentions all 5 OpenAI docs MCP tools.
+- Skill text uses `apps` as the canonical term.
+- Skill text no longer implies Apps SDK UI is mandatory.
+- Skill text clearly tells the assistant when to use OpenAPI spec vs guide docs.
+
+## Sprint 2: Make The Skill Operationally Better, Not Just More Correct
+
+### Objective
+
+Make answers produced via `openai-docs` higher quality and more repeatable.
+
+### Tasks
+
+1. Add a **question-routing cookbook** inside the skill.
+   - "How do I use endpoint X?" -> `get_openapi_spec`
+   - "Which API should I use?" -> guide docs + comparison docs
+   - "What is the latest best model?" -> latest-model guide + relevant model page
+   - "How do I build a ChatGPT app?" -> Apps SDK quickstart/build/auth/connect docs
+   - "How do I build an MCP server for ChatGPT/API?" -> MCP guide
+   - "How do I build voice agents?" -> voice-agents + realtime docs
+
+2. Add answer templates for common task types.
+   - Endpoint/schema answer
+   - Model recommendation answer
+   - Migration answer
+   - Apps SDK/MCP answer
+   - Voice/Realtime answer
+
+3. Add citation/output rules that are stronger than the current version.
+   - Always cite page title + URL in the final answer.
+   - State when the answer is derived from API reference vs guide vs cookbook.
+   - Call out when guidance is an inference rather than a direct statement.
+
+4. Add explicit comparison guidance for **Responses vs Chat Completions**.
+   - Prefer Responses for new advanced agentic/multimodal/tool workflows.
+   - Use comparison docs when the user is deciding whether to migrate.
+
+5. Add explicit model-guidance routing.
+   - Latest model guide first
+   - Specific model page second
+   - Prompt guidance third
+
+6. Add a "do not answer from memory" clause for unstable areas.
+   - latest models
+   - deprecations
+   - parameter compatibility
+   - pricing/limits
+   - Apps/MCP terminology
+
+### Deliverables
+
+- Expanded `openai-docs` skill content with reusable routing patterns
+- A compact internal QA section inside the skill:
+  - "If asked X, you should search/fetch Y"
+
+### Acceptance Criteria
+
+- A new contributor can read the skill and correctly choose the right doc MCP tool without guessing.
+- The skill explicitly covers Responses-vs-Chat-Completions, Apps SDK, MCP, model choice, and voice/realtime.
+- The skill makes fewer "generic doc search" calls and more targeted spec/reference calls.
+
+## Sprint 3: Align Michael's Repo Docs And OpenAI Runtime Guidance
+
+### Objective
+
+Bring Michael's local documentation into alignment with the improved `openai-docs` skill and current official OpenAI guidance.
+
+### Tasks
+
+1. Update the repo's OpenAI-facing docs to reflect the current official guidance.
+   - `README.md`
+   - `docs/responses-api-runbook.md`
+   - `docs/model-upgrade-configuration.md`
+
+2. Add a new internal doc:
+   - `docs/openai-docs-usage-guide.md`
+   - Purpose: when Michael maintainers should use official docs MCP, what to verify, and what must never be answered from memory.
+
+3. Add a Michael-specific model/runtime decision matrix.
+   - `gpt-5.4` for complex admin/eval/coding-heavy workflows
+   - `gpt-5.4-mini` for high-volume tutor chat if quality/cost balance remains acceptable
+   - note migration checkpoints when changing either
+
+4. Add an OpenAI feature adoption backlog for Michael.
+   - Evaluate `tool_search` for growing tool surfaces in `lib/openai/tools.ts`
+   - Evaluate allowed-tools restrictions per context
+   - Review whether GPT-5.4 `phase` support matters for Michael's long-running/admin flows
+   - Review whether current reasoning configuration should expose `none/low/medium/high/xhigh` more explicitly in admin tooling
+
+5. Update operational guidance around Responses usage.
+   - Keep `previous_response_id` as canonical continuity mechanism
+   - note that reasoning summaries are UI/debug artifacts, not application truth
+   - explicitly document when to consult official docs before runtime changes
+
+6. Review voice architecture docs in the repo against current official voice guidance.
+   - confirm current `chained` production stance remains deliberate
+   - document why Michael is not using a speech-to-speech realtime architecture by default
+
+### Deliverables
+
+- Updated repo docs
+- New `docs/openai-docs-usage-guide.md`
+- Clear Michael-specific adoption notes for newer OpenAI capabilities
+
+### Acceptance Criteria
+
+- A maintainer can safely plan a model/runtime upgrade from local docs without relying on memory.
+- Repo docs point maintainers back to official docs for unstable decisions.
+- Michael's documented runtime posture matches the actual codebase:
+  - `app/agent-config.ts`
+  - `lib/openai/model-registry.ts`
+  - `lib/openai/responses-client.ts`
+
+## Sprint 4: Add Validation, Drift Detection, And Ownership
+
+### Objective
+
+Prevent the skill and Michael's OpenAI docs from drifting again.
+
+### Tasks
+
+1. Create an eval checklist for the `openai-docs` skill.
+   - Example prompts:
+     - "Which tool should I use for endpoint schema details?"
+     - "What is the current recommended model for general coding work?"
+     - "How do I build a ChatGPT app with no UI?"
+     - "Should I use Responses or Chat Completions for a multi-turn tool-using app?"
+     - "How do I expose an MCP server for deep research/company knowledge?"
+     - "What architecture should I use for a new voice agent?"
+
+2. Define pass/fail expectations for each eval prompt.
+   - correct tool routing
+   - correct official-doc source
+   - correct terminology
+   - current answer, not stale memory
+
+3. Add a maintenance cadence.
+   - Monthly light review of latest-model + apps/mcp docs
+   - Quarterly full review of the skill text and Michael docs
+   - Immediate review when a major OpenAI model/API/blog/docs release affects Michael
+
+4. Assign explicit ownership.
+   - Michael maintainer owns repo-doc alignment
+   - skill maintainer owns `openai-docs` prompt/skill text
+   - release owner signs off on OpenAI model/runtime changes
+
+5. Add a small changelog section either inside the skill or in repo docs.
+   - what changed
+   - why it changed
+   - docs reviewed
+   - review date
+
+### Deliverables
+
+- `docs/openai-docs-evals.md` or equivalent
+- Maintenance cadence section in repo docs
+- Named owner in the relevant doc
+
+### Acceptance Criteria
+
+- There is a repeatable way to detect skill drift.
+- There is a named owner and a review cadence.
+- Future model/API upgrades are less ad hoc.
+
+## Recommended File Touch List
+
+### Must update
+
+- `/Users/orperetz/.codex/skills/openai-docs/SKILL.md`
+- `/Users/orperetz/Documents/shenkar/sql-chatbot/README.md`
+- `/Users/orperetz/Documents/shenkar/sql-chatbot/docs/responses-api-runbook.md`
+- `/Users/orperetz/Documents/shenkar/sql-chatbot/docs/model-upgrade-configuration.md`
+
+### Strongly recommended new docs
+
+- `/Users/orperetz/Documents/shenkar/sql-chatbot/docs/openai-docs-usage-guide.md`
+- `/Users/orperetz/Documents/shenkar/sql-chatbot/docs/openai-docs-evals.md`
+
+### Relevant code touchpoints to review during doc alignment
+
+- `/Users/orperetz/Documents/shenkar/sql-chatbot/app/agent-config.ts`
+- `/Users/orperetz/Documents/shenkar/sql-chatbot/lib/openai/model-registry.ts`
+- `/Users/orperetz/Documents/shenkar/sql-chatbot/lib/openai/tools.ts`
+- `/Users/orperetz/Documents/shenkar/sql-chatbot/lib/openai/responses-client.ts`
+- `/Users/orperetz/Documents/shenkar/sql-chatbot/app/api/responses/messages/route.ts`
+- `/Users/orperetz/Documents/shenkar/sql-chatbot/app/api/admin/test-gpt/route.ts`
+
+## Priority Order
+
+### P0
+
+- Sprint 1 complete
+- Sprint 2 complete
+
+### P1
+
+- Sprint 3 repo doc alignment
+
+### P2
+
+- Sprint 4 eval/maintenance loop
+
+## Notes For Michael
+
+1. Do not treat `openai-docs` as only a "search the docs" helper.
+   - It should become a routing and verification skill for all OpenAI product questions.
+
+2. Do not let Michael runtime docs drift from the skill.
+   - The skill and repo runbooks should reinforce the same operating model.
+
+3. Keep the skill optimized for **current OpenAI docs**, not historical product memory.
+   - This matters most for models, Apps/MCP terminology, migration guidance, and parameter compatibility.
+
+## Sources Reviewed
+
+- OpenAI docs MCP: `list_api_endpoints`
+- OpenAI docs MCP: `get_openapi_spec` for `/responses`
+- OpenAI docs: Responses Overview
+- OpenAI docs: Apps SDK Quickstart
+- OpenAI docs: Building MCP servers for ChatGPT Apps and API integrations
+- OpenAI docs: Using GPT-5.4
+- OpenAI docs: Voice agents
+- OpenAI docs search results covering:
+  - Responses vs Chat Completions
+  - Realtime guidance
+  - Agents SDK references surfaced through current official docs/cookbook pages
