@@ -1,4 +1,5 @@
 import {
+  ConnectorUsage,
   ResponseCitation,
   ResponseTokenUsage,
   ResponseTurnMetadata,
@@ -24,6 +25,16 @@ function extractOutputAnnotations(response: UnknownRecord): UnknownRecord[] {
 function extractFileSearchCalls(response: UnknownRecord): UnknownRecord[] {
   const output = Array.isArray(response?.output) ? response.output : [];
   return output.filter((item) => item?.type === "file_search_call");
+}
+
+function extractWebSearchCalls(response: UnknownRecord): UnknownRecord[] {
+  const output = Array.isArray(response?.output) ? response.output : [];
+  return output.filter((item) => item?.type === "web_search_call");
+}
+
+function extractMcpCalls(response: UnknownRecord): UnknownRecord[] {
+  const output = Array.isArray(response?.output) ? response.output : [];
+  return output.filter((item) => item?.type === "mcp_call");
 }
 
 export function extractResponseCitations(response: UnknownRecord): ResponseCitation[] {
@@ -92,6 +103,58 @@ export function extractFileSearchQueries(response: UnknownRecord): string[] {
   );
 }
 
+export function extractWebSearchQueries(response: UnknownRecord): string[] {
+  return extractWebSearchCalls(response).flatMap((call) =>
+    Array.isArray(call?.queries) ? call.queries.map((query: unknown) => String(query)) : []
+  );
+}
+
+export function extractWebSearchMetrics(response: UnknownRecord) {
+  const webSearchCalls = extractWebSearchCalls(response);
+  const citations = extractResponseCitations(response).filter(
+    (citation) => citation.type === "url_citation"
+  );
+
+  return {
+    callCount: webSearchCalls.length,
+    queries: extractWebSearchQueries(response),
+    sourceCount: citations.length,
+  };
+}
+
+export function extractConnectorUsage(response: UnknownRecord): ConnectorUsage[] {
+  const usageByLabel = new Map<string, ConnectorUsage>();
+
+  for (const call of extractMcpCalls(response)) {
+    const label = String(call?.server_label || "Connector");
+    const toolName = String(call?.name || "unknown");
+    const existing = usageByLabel.get(label);
+
+    if (!existing) {
+      usageByLabel.set(label, {
+        label,
+        toolNames: [toolName],
+        callCount: 1,
+      });
+      continue;
+    }
+
+    if (!existing.toolNames.includes(toolName)) {
+      existing.toolNames.push(toolName);
+    }
+    existing.callCount += 1;
+  }
+
+  return Array.from(usageByLabel.values());
+}
+
+export function extractConnectorCalls(response: UnknownRecord) {
+  return extractMcpCalls(response).map((call) => ({
+    label: String(call?.server_label || "Connector"),
+    toolName: String(call?.name || "unknown"),
+  }));
+}
+
 export function extractTokenUsage(response: UnknownRecord): ResponseTokenUsage | null {
   const usage = response?.usage;
   if (!usage || typeof usage !== "object") {
@@ -145,6 +208,8 @@ export function buildResponseTurnMetadata(params: {
   truncation?: string | null;
 }): ResponseTurnMetadata {
   const fileSearchQueries = extractFileSearchQueries(params.response);
+  const webSearchMetrics = extractWebSearchMetrics(params.response);
+  const connectorUsage = extractConnectorUsage(params.response);
   return {
     canonicalStateStrategy: "previous_response_id",
     sessionId: params.sessionId ?? null,
@@ -161,5 +226,10 @@ export function buildResponseTurnMetadata(params: {
     safetyIdentifier: params.safetyIdentifier ?? null,
     retrievalUsed: fileSearchQueries.length > 0 || extractResponseCitations(params.response).length > 0,
     fileSearchQueries,
+    webSearchQueries: webSearchMetrics.queries,
+    webSearchCallCount: webSearchMetrics.callCount,
+    webSearchSourceCount: webSearchMetrics.sourceCount,
+    connectorUsage,
+    connectorCallCount: connectorUsage.reduce((total, entry) => total + entry.callCount, 0),
   };
 }

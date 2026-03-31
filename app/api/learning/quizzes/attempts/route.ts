@@ -9,6 +9,7 @@ import {
   LearningQuizAnswer,
   LearningQuizFeedback,
 } from '@/lib/learning-quizzes';
+import { saveHomeworkAnalyticsEvent } from '@/lib/homework-analytics';
 import { requireAuthenticatedUser } from '@/lib/request-auth';
 
 export const dynamic = 'force-dynamic';
@@ -121,6 +122,21 @@ export async function POST(request: NextRequest) {
       answers,
       feedbackByQuestion,
     });
+
+    if (quiz.targetType === 'personalized_review') {
+      await saveHomeworkAnalyticsEvent({
+        actorId: authResult.userId,
+        type: 'runner.personalized_quiz_completed',
+        setId: quiz.personalization?.homeworkSetId ?? quiz.targetId,
+        questionId: quiz.personalization?.sourceQuestionIds?.[0] || undefined,
+        metadata: {
+          quizId: quiz.quizId,
+          score,
+          questionCount: quiz.questions.length,
+          themes: quiz.personalization?.themes ?? [],
+        },
+      });
+    }
 
     return NextResponse.json({ attempt });
   } catch (error: any) {

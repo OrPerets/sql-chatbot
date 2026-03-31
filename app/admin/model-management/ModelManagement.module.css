@@ -81,6 +81,79 @@
   color: #555;
 }
 
+.diagnosticGrid,
+.toolList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.diagnosticCard,
+.contextCard,
+.toolCard {
+  background: #f8f9fa;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.contextStack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.contextHeader,
+.diagnosticHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.contextHeader h3 {
+  margin: 0 0 0.25rem;
+}
+
+.contextHeader p,
+.diagnosticCard p,
+.toolCard p {
+  margin: 0.35rem 0;
+  color: #555;
+}
+
+.boundaryNotes {
+  margin: 0.75rem 0 1rem;
+  padding-right: 1.25rem;
+  color: #555;
+}
+
+.boundaryNotes li + li {
+  margin-top: 0.35rem;
+}
+
+.flagOn,
+.flagOff {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.flagOn {
+  background: #d4edda;
+  color: #155724;
+}
+
+.flagOff {
+  background: #f8d7da;
+  color: #721c24;
+}
+
 .actions {
   display: flex;
   gap: 1rem;

@@ -9,8 +9,16 @@ import {
   RECOMMENDED_RUNTIME_MODEL,
   RUNTIME_ROLLBACK_TARGETS,
 } from "@/lib/openai/model-registry";
+import { getInstructorConnectorCapabilities } from "@/lib/openai/instructor-connectors";
 import { createResponse, extractOutputText, runToolLoop } from "@/lib/openai/responses-client";
-import { getToolName } from "@/lib/openai/tools";
+import {
+  TOOL_CONTEXT_BOUNDARIES,
+  TOOL_USAGE_LOGGING_PLAN,
+  getOpenAIToolFeatureFlagDiagnostics,
+  getToolName,
+  getToolRolloutMatrix,
+  getToolRuntimeDiagnostics,
+} from "@/lib/openai/tools";
 import {
   getRuntimeAgentConfig,
   rollbackRuntimeAgentConfig,
@@ -176,6 +184,10 @@ export async function handleRuntimeConfigGet(flavor: RuntimeRouteFlavor) {
       enabled: runtimeConfig.enabledToolNames.includes(getToolName(entry.schema)),
       lifecycle: entry.lifecycle,
       enabledContexts: entry.enabledContexts,
+      allowedRoles: entry.allowedRoles,
+      rolloutPhase: entry.rolloutPhase,
+      loggingSensitivity: entry.loggingSensitivity,
+      ...getToolRuntimeDiagnostics(entry),
       statusNote: entry.statusNote || null,
     }));
 
@@ -196,6 +208,11 @@ export async function handleRuntimeConfigGet(flavor: RuntimeRouteFlavor) {
         toolsCount: getAgentTools().length,
       },
       availableTools,
+      toolContextBoundaries: TOOL_CONTEXT_BOUNDARIES,
+      featureFlags: getOpenAIToolFeatureFlagDiagnostics(),
+      toolRolloutMatrix: getToolRolloutMatrix(),
+      instructorConnectorCapabilities: await getInstructorConnectorCapabilities(),
+      toolUsageLoggingPlan: TOOL_USAGE_LOGGING_PLAN,
       compatibility: metadata,
     });
   } catch (error: any) {

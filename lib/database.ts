@@ -318,4 +318,5 @@ export const COLLECTIONS = {
   SECURITY_EVENTS: 'security_events',
   // Submitted students tracking (for PDF report delivery)
   SUBMITTED: 'submitted',
+  EXTRA_TIME_ACCOMMODATIONS: 'exam_extra_time_accommodations',
 } as const;

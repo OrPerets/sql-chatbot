@@ -2,7 +2,7 @@ import { ObjectId } from 'mongodb';
 
 import { COLLECTIONS, executeWithRetry } from '@/lib/database';
 
-export type LearningQuizTargetType = 'lecture' | 'practice';
+export type LearningQuizTargetType = 'lecture' | 'practice' | 'personalized_review';
 
 export type LearningQuizQuestion = LearningQuizMcqQuestion | LearningQuizSqlQuestion;
 
@@ -44,6 +44,13 @@ export interface LearningQuiz {
   questions: LearningQuizQuestion[];
   createdAt: Date;
   updatedAt: Date;
+  personalization?: {
+    studentId: string;
+    homeworkSetId?: string | null;
+    themes: string[];
+    sourceQuestionIds: string[];
+    sourceSubmissionIds: string[];
+  };
 }
 
 export interface LearningQuizAnswer {

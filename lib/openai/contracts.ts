@@ -10,6 +10,10 @@ export type ChatInputItem =
       file_id?: string;
       image_url?: string;
       detail?: "low" | "high" | "auto";
+    }
+  | {
+      type: "input_file";
+      file_id: string;
     };
 
 export type ChatInputMessage = {
@@ -23,9 +27,14 @@ export type ChatRequestDto = {
   previousResponseId?: string;
   content?: string;
   imageData?: string;
+  fileIds?: string[];
   userEmail?: string;
   metadata?: Record<string, string>;
+  context?: "main_chat" | "homework_runner" | "admin" | "voice";
+  reasoningEffort?: "minimal" | "low" | "medium" | "high" | "xhigh";
 };
+
+export type TutorSubjectMode = "sql" | "relational_algebra";
 
 export type ResponseCitation = {
   type: "file_citation" | "url_citation";
@@ -58,6 +67,12 @@ export type ToolCallUsage = {
   error?: string;
 };
 
+export type ConnectorUsage = {
+  label: string;
+  toolNames: string[];
+  callCount: number;
+};
+
 export type ResponseTurnMetadata = {
   canonicalStateStrategy: "previous_response_id";
   sessionId?: string | null;
@@ -74,6 +89,11 @@ export type ResponseTurnMetadata = {
   safetyIdentifier?: string | null;
   retrievalUsed?: boolean;
   fileSearchQueries?: string[];
+  webSearchQueries?: string[];
+  webSearchCallCount?: number;
+  webSearchSourceCount?: number;
+  connectorUsage?: ConnectorUsage[];
+  connectorCallCount?: number;
 };
 
 export type ToolCallRequest = {
@@ -92,7 +112,7 @@ export type ChatResponseDto = {
   sessionId: string | null;
   responseId: string;
   outputText: string;
-  tutorResponse?: SqlTutorResponse | null;
+  tutorResponse?: TutorResponse | null;
   citations?: ResponseCitation[];
   metadata?: ResponseTurnMetadata | null;
 };
@@ -103,6 +123,33 @@ export type SqlTutorResponse = {
   commonMistakes: string[];
   optimization: string;
 };
+
+export type RelationalAlgebraTutorStep = {
+  title: string;
+  operator: string;
+  symbol: string;
+  expression: string;
+  explanation: string;
+  sqlEquivalent?: string;
+};
+
+export type RelationalAlgebraTutorExample = {
+  concept: string;
+  sqlExample: string;
+  relationalAlgebraExample: string;
+  note: string;
+};
+
+export type RelationalAlgebraTutorResponse = {
+  summary: string;
+  relationalAlgebraExpression: string;
+  steps: RelationalAlgebraTutorStep[];
+  commonMistakes: string[];
+  examples: RelationalAlgebraTutorExample[];
+  scopeNote: string;
+};
+
+export type TutorResponse = SqlTutorResponse | RelationalAlgebraTutorResponse;
 
 export type ResponseStreamEvent =
   | { type: "response.created"; responseId: string }
@@ -115,9 +162,9 @@ export type ResponseStreamEvent =
       type: "response.completed";
       responseId: string;
       outputText: string;
-      tutorResponse?: SqlTutorResponse | null;
+      tutorResponse?: TutorResponse | null;
       citations?: ResponseCitation[];
       metadata?: ResponseTurnMetadata | null;
     }
-  | { type: "response.tutor.mode"; enabled: boolean }
+  | { type: "response.tutor.mode"; enabled: boolean; subjectMode?: TutorSubjectMode }
   | { type: "response.error"; message: string };

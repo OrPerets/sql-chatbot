@@ -3,7 +3,15 @@ import type { SqlResultRow } from "@/app/homework/types";
 import { getCurrentWeekContextNormalized, getWeekContextByNumberNormalized } from "@/lib/content";
 import { getHomeworkSetById } from "@/lib/homework";
 import { ToolCallRequest } from "@/lib/openai/contracts";
+import { listInstructorConnectorCapabilities } from "@/lib/openai/instructor-connectors";
 import { getPracticeTables } from "@/lib/practice";
+import {
+  generatePersonalizedQuizFromMistakes,
+  getDeadlineAndScheduleContext,
+  getRecentSubmissionAttempts,
+  getStudentProgressSnapshot,
+  recommendNextLearningStep,
+} from "@/lib/personalization";
 import { getQuestionsByHomeworkSet } from "@/lib/questions";
 import {
   SQL_CURRICULUM_MAP,
@@ -16,6 +24,11 @@ import {
   listStudentPreferences,
   upsertStudentPreference,
 } from "@/lib/student-preferences";
+import {
+  OpenAIFeatureFlagName,
+  getOpenAIFeatureFlag,
+  getOpenAIFeatureFlags,
+} from "@/lib/openai/feature-flags";
 
 type JsonSchema = Record<string, unknown>;
 
@@ -32,22 +45,36 @@ export type CodeInterpreterToolDefinition = {
   container?: { type: "auto" };
 };
 
+export type WebSearchToolDefinition = {
+  type: "web_search";
+  search_context_size?: "low" | "medium" | "high";
+};
+
 export type MichaelToolDefinition =
   | FunctionToolDefinition
-  | CodeInterpreterToolDefinition;
+  | CodeInterpreterToolDefinition
+  | WebSearchToolDefinition;
 
 export type ToolLifecycle = "production" | "experimental" | "disabled";
 export type MichaelToolContext = "main_chat" | "homework_runner" | "admin" | "voice";
+export type MichaelToolRole = "student" | "instructor" | "admin";
+export type ToolRolloutPhase = "general_availability" | "admin_only" | "internal";
+export type ToolLoggingSensitivity = "standard" | "sensitive" | "restricted";
 
 export type ToolCatalogEntry = {
   schema: MichaelToolDefinition;
   lifecycle: ToolLifecycle;
   enabledContexts: MichaelToolContext[];
+  allowedRoles: MichaelToolRole[];
+  rolloutPhase: ToolRolloutPhase;
+  loggingSensitivity: ToolLoggingSensitivity;
+  featureFlag?: OpenAIFeatureFlagName;
   statusNote?: string;
 };
 
 export type ToolExecutionContext = {
   toolContext?: MichaelToolContext;
+  userRole?: MichaelToolRole;
   userId?: string;
   userEmail?: string;
   sessionId?: string;
@@ -291,6 +318,89 @@ const getStudentLearningProfileTool: FunctionToolDefinition = {
   strict: true,
 };
 
+const getStudentProgressSnapshotTool: FunctionToolDefinition = {
+  type: "function",
+  name: "get_student_progress_snapshot",
+  description:
+    "Return a sanitized summary of the student's current progress, weak areas, quiz trend, engagement, and risk signals.",
+  parameters: {
+    type: "object",
+    properties: {
+      student_id: { type: "string" },
+      homework_set_id: { type: "string" },
+    },
+    additionalProperties: false,
+  },
+  strict: true,
+};
+
+const getRecentSubmissionAttemptsTool: FunctionToolDefinition = {
+  type: "function",
+  name: "get_recent_submission_attempts",
+  description:
+    "Return recent question-level attempt summaries derived from current submissions and question analytics.",
+  parameters: {
+    type: "object",
+    properties: {
+      student_id: { type: "string" },
+      homework_set_id: { type: "string" },
+    },
+    additionalProperties: false,
+  },
+  strict: true,
+};
+
+const getDeadlineAndScheduleContextTool: FunctionToolDefinition = {
+  type: "function",
+  name: "get_deadline_and_schedule_context",
+  description:
+    "Return the student's current homework deadline context plus nearby same-course deadlines when a homework set is available.",
+  parameters: {
+    type: "object",
+    properties: {
+      student_id: { type: "string" },
+      homework_set_id: { type: "string" },
+    },
+    additionalProperties: false,
+  },
+  strict: true,
+};
+
+const recommendNextLearningStepTool: FunctionToolDefinition = {
+  type: "function",
+  name: "recommend_next_learning_step",
+  description:
+    "Return a deterministic next-step recommendation based on recent attempts, weak topics, quiz results, and deadline pressure.",
+  parameters: {
+    type: "object",
+    properties: {
+      student_id: { type: "string" },
+      homework_set_id: { type: "string" },
+      question_id: { type: "string" },
+    },
+    additionalProperties: false,
+  },
+  strict: true,
+};
+
+const generatePersonalizedQuizFromMistakesTool: FunctionToolDefinition = {
+  type: "function",
+  name: "generate_personalized_quiz_from_mistakes",
+  description:
+    "Generate and persist a short personalized review quiz from the student's repeated mistake themes.",
+  parameters: {
+    type: "object",
+    properties: {
+      student_id: { type: "string" },
+      homework_set_id: { type: "string" },
+      question_id: { type: "string" },
+      max_questions: { type: "number" },
+    },
+    additionalProperties: false,
+  },
+  strict: true,
+};
+
 const rememberStudentPreferenceTool: FunctionToolDefinition = {
   type: "function",
   name: "remember_student_preference",
@@ -397,6 +507,31 @@ const renderSqlVisualizationTool: FunctionToolDefinition = {
   strict: true,
 };
 
+const explainRelationalAlgebraStepTool: FunctionToolDefinition = {
+  type: "function",
+  name: "explain_relational_algebra_step",
+  description:
+    "Map SQL or relational algebra into step-by-step relational algebra explanations with course-appropriate notation, operator meaning, and examples.",
+  parameters: {
+    type: "object",
+    properties: {
+      input_expression: { type: "string" },
+      source_language: {
+        type: "string",
+        enum: ["sql", "relational_algebra", "auto"],
+      },
+      target_language: {
+        type: "string",
+        enum: ["he", "en"],
+      },
+      include_examples: { type: "boolean" },
+    },
+    required: ["input_expression"],
+    additionalProperties: false,
+  },
+  strict: true,
+};
+
 const listInstructorMcpCapabilitiesTool: FunctionToolDefinition = {
   type: "function",
   name: "list_instructor_mcp_capabilities",
@@ -415,16 +550,77 @@ const codeInterpreterTool: CodeInterpreterToolDefinition = {
   container: { type: "auto" },
 };
 
+const webSearchTool: WebSearchToolDefinition = {
+  type: "web_search",
+  search_context_size: "medium",
+};
+
+export const TOOL_CONTEXT_BOUNDARIES: Record<
+  MichaelToolContext,
+  {
+    purpose: string;
+    webSearchAllowed: boolean;
+    notes: string[];
+  }
+> = {
+  main_chat: {
+    purpose: "Student-facing tutoring and SQL explanation.",
+    webSearchAllowed: false,
+    notes: [
+      "Prefer course files, SQL tools, and retrieval over external sources.",
+      "Keep answers scoped to safe educational guidance.",
+    ],
+  },
+  homework_runner: {
+    purpose: "Hint-first homework guidance inside the runner.",
+    webSearchAllowed: false,
+    notes: [
+      "Never introduce web-connected tools into grading or homework solving flows.",
+      "Guide students without bypassing assignment constraints.",
+    ],
+  },
+  admin: {
+    purpose: "Instructor and admin diagnostics, ops, and grounded research workflows.",
+    webSearchAllowed: true,
+    notes: [
+      "Prefer internal files for course truth and canonical policy answers.",
+      "Allow web search only for fresh, external, or documentation-style questions.",
+    ],
+  },
+  voice: {
+    purpose: "Low-latency voice interaction with tightly-scoped educational tooling.",
+    webSearchAllowed: false,
+    notes: [
+      "Keep tool usage narrow to preserve latency and avoid noisy multimodal side effects.",
+    ],
+  },
+};
+
+export const TOOL_USAGE_LOGGING_PLAN = {
+  destination: "app_logs_and_mongo_audit_logs",
+  notes: [
+    "Hosted tool usage is logged to structured app logs for fast debugging.",
+    "Sensitive hosted-tool events are mirrored into Mongo audit logs for admin review.",
+    "Custom function-call outputs remain truncated in metadata previews to reduce data exposure.",
+  ],
+} as const;
+
 const TOOL_CATALOG: ToolCatalogEntry[] = [
   {
     schema: getCourseWeekContextTool,
     lifecycle: "production",
     enabledContexts: ["main_chat", "homework_runner", "admin", "voice"],
+    allowedRoles: ["student", "instructor", "admin"],
+    rolloutPhase: "general_availability",
+    loggingSensitivity: "standard",
   },
   {
     schema: getDatabaseSchemaTool,
     lifecycle: "production",
     enabledContexts: ["main_chat", "homework_runner", "admin"],
+    allowedRoles: ["student", "instructor", "admin"],
+    rolloutPhase: "general_availability",
+    loggingSensitivity: "standard",
     statusNote:
       "Uses real practice metadata and homework-set metadata when a homework context is available.",
   },
@@ -432,6 +628,9 @@ const TOOL_CATALOG: ToolCatalogEntry[] = [
     schema: executeSqlQueryTool,
     lifecycle: "production",
     enabledContexts: ["main_chat", "homework_runner", "admin"],
+    allowedRoles: ["student", "instructor", "admin"],
+    rolloutPhase: "general_availability",
+    loggingSensitivity: "sensitive",
     statusNote:
       "Student-safe sandbox only. Read-only queries, scoped schemas, row limits, and friendly tutoring errors are enforced.",
   },
@@ -439,46 +638,132 @@ const TOOL_CATALOG: ToolCatalogEntry[] = [
     schema: validateSqlAnswerTool,
     lifecycle: "production",
     enabledContexts: ["main_chat", "homework_runner", "admin"],
+    allowedRoles: ["student", "instructor", "admin"],
+    rolloutPhase: "general_availability",
+    loggingSensitivity: "standard",
   },
   {
     schema: compareSqlQueriesTool,
     lifecycle: "production",
     enabledContexts: ["main_chat", "homework_runner", "admin"],
+    allowedRoles: ["student", "instructor", "admin"],
+    rolloutPhase: "general_availability",
+    loggingSensitivity: "standard",
   },
   {
     schema: getHomeworkContextTool,
     lifecycle: "production",
     enabledContexts: ["main_chat", "homework_runner", "admin"],
+    allowedRoles: ["student", "instructor", "admin"],
+    rolloutPhase: "general_availability",
+    loggingSensitivity: "sensitive",
   },
   {
     schema: getStudentLearningProfileTool,
     lifecycle: "production",
-    enabledContexts: ["main_chat", "homework_runner", "admin"],
+    enabledContexts: ["main_chat", "admin"],
+    allowedRoles: ["student", "instructor", "admin"],
+    rolloutPhase: "general_availability",
+    loggingSensitivity: "sensitive",
+    featureFlag: "FEATURE_PERSONALIZATION_TOOLS",
+  },
+  {
+    schema: getStudentProgressSnapshotTool,
+    lifecycle: "production",
+    enabledContexts: ["main_chat", "admin"],
+    allowedRoles: ["student", "instructor", "admin"],
+    rolloutPhase: "general_availability",
+    loggingSensitivity: "sensitive",
+    featureFlag: "FEATURE_PERSONALIZATION_TOOLS",
+  },
+  {
+    schema: getRecentSubmissionAttemptsTool,
+    lifecycle: "production",
+    enabledContexts: ["main_chat", "admin"],
+    allowedRoles: ["student", "instructor", "admin"],
+    rolloutPhase: "general_availability",
+    loggingSensitivity: "sensitive",
+    featureFlag: "FEATURE_PERSONALIZATION_TOOLS",
+  },
+  {
+    schema: getDeadlineAndScheduleContextTool,
+    lifecycle: "production",
+    enabledContexts: ["main_chat", "admin"],
+    allowedRoles: ["student", "instructor", "admin"],
+    rolloutPhase: "general_availability",
+    loggingSensitivity: "sensitive",
+    featureFlag: "FEATURE_PERSONALIZATION_TOOLS",
+  },
+  {
+    schema: recommendNextLearningStepTool,
+    lifecycle: "production",
+    enabledContexts: ["main_chat", "admin"],
+    allowedRoles: ["student", "instructor", "admin"],
+    rolloutPhase: "general_availability",
+    loggingSensitivity: "sensitive",
+    featureFlag: "FEATURE_PERSONALIZATION_TOOLS",
+  },
+  {
+    schema: generatePersonalizedQuizFromMistakesTool,
+    lifecycle: "production",
+    enabledContexts: ["main_chat", "admin"],
+    allowedRoles: ["student", "instructor", "admin"],
+    rolloutPhase: "general_availability",
+    loggingSensitivity: "sensitive",
+    featureFlag: "FEATURE_PERSONALIZATION_TOOLS",
   },
   {
     schema: rememberStudentPreferenceTool,
     lifecycle: "production",
-    enabledContexts: ["main_chat", "homework_runner", "admin"],
+    enabledContexts: ["main_chat", "admin"],
+    allowedRoles: ["student", "instructor", "admin"],
+    rolloutPhase: "general_availability",
+    loggingSensitivity: "sensitive",
+    featureFlag: "FEATURE_PERSONALIZATION_TOOLS",
   },
   {
     schema: generateNextPracticeStepTool,
     lifecycle: "production",
-    enabledContexts: ["main_chat", "homework_runner", "admin"],
+    enabledContexts: ["main_chat", "admin"],
+    allowedRoles: ["student", "instructor", "admin"],
+    rolloutPhase: "general_availability",
+    loggingSensitivity: "standard",
+    featureFlag: "FEATURE_PERSONALIZATION_TOOLS",
   },
   {
     schema: analyzeQueryPerformanceTool,
     lifecycle: "production",
     enabledContexts: ["main_chat", "homework_runner", "admin"],
+    allowedRoles: ["student", "instructor", "admin"],
+    rolloutPhase: "general_availability",
+    loggingSensitivity: "standard",
   },
   {
     schema: renderSqlVisualizationTool,
     lifecycle: "production",
     enabledContexts: ["main_chat", "homework_runner", "admin"],
+    allowedRoles: ["student", "instructor", "admin"],
+    rolloutPhase: "general_availability",
+    loggingSensitivity: "standard",
+  },
+  {
+    schema: explainRelationalAlgebraStepTool,
+    lifecycle: "production",
+    enabledContexts: ["main_chat", "homework_runner", "admin"],
+    allowedRoles: ["student", "instructor", "admin"],
+    rolloutPhase: "general_availability",
+    loggingSensitivity: "standard",
+    statusNote:
+      "Used for relational algebra tutoring and SQL-to-RA mapping. Kept out of voice mode to avoid noisy low-latency responses.",
   },
   {
     schema: listInstructorMcpCapabilitiesTool,
     lifecycle: "production",
     enabledContexts: ["admin"],
+    allowedRoles: ["admin"],
+    rolloutPhase: "internal",
+    loggingSensitivity: "restricted",
+    featureFlag: "FEATURE_OPENAI_CONNECTORS",
     statusNote:
       "Exploration manifest for future remote MCP integrations across instructor-facing workflows.",
   },
@@ -486,8 +771,22 @@ const TOOL_CATALOG: ToolCatalogEntry[] = [
     schema: codeInterpreterTool,
     lifecycle: "production",
     enabledContexts: ["admin"],
+    allowedRoles: ["admin"],
+    rolloutPhase: "admin_only",
+    loggingSensitivity: "restricted",
     statusNote:
       "Admin-only built-in analysis tool. Never expose by default in student chat.",
+  },
+  {
+    schema: webSearchTool,
+    lifecycle: "production",
+    enabledContexts: ["admin"],
+    allowedRoles: ["admin"],
+    rolloutPhase: "admin_only",
+    loggingSensitivity: "sensitive",
+    featureFlag: "FEATURE_OPENAI_WEB_SEARCH",
+    statusNote:
+      "Hosted web search for current external facts and documentation lookups. Keep disabled outside admin workflows.",
   },
 ];
 
@@ -517,6 +816,43 @@ function matchesLifecycle(
   return includeDisabled;
 }
 
+export function isToolRuntimeEnabled(entry: ToolCatalogEntry): boolean {
+  return entry.featureFlag ? getOpenAIFeatureFlag(entry.featureFlag) : true;
+}
+
+export function getToolRuntimeDiagnostics(entry: ToolCatalogEntry) {
+  return {
+    runtimeEnabled: isToolRuntimeEnabled(entry),
+    featureFlag: entry.featureFlag || null,
+    featureFlagEnabled: entry.featureFlag ? getOpenAIFeatureFlag(entry.featureFlag) : true,
+  };
+}
+
+export function getOpenAIToolFeatureFlagDiagnostics() {
+  return getOpenAIFeatureFlags();
+}
+
+export function getToolRolloutMatrix() {
+  return (["main_chat", "homework_runner", "admin", "voice"] as MichaelToolContext[]).map(
+    (context) => ({
+      context,
+      boundary: TOOL_CONTEXT_BOUNDARIES[context],
+      tools: getToolCatalog({
+        context,
+        includeExperimental: true,
+        includeDisabled: true,
+      }).map((entry) => ({
+        name: getToolName(entry.schema),
+        lifecycle: entry.lifecycle,
+        rolloutPhase: entry.rolloutPhase,
+        allowedRoles: entry.allowedRoles,
+        loggingSensitivity: entry.loggingSensitivity,
+        ...getToolRuntimeDiagnostics(entry),
+      })),
+    })
+  );
+}
+
 export function getToolName(tool: MichaelToolDefinition): string {
   return tool.type === "function" ? tool.name : tool.type;
 }
@@ -536,7 +872,9 @@ export function getToolCatalog(options: ToolCatalogOptions = {}): ToolCatalogEnt
 }
 
 export function getToolSchemas(options: ToolCatalogOptions = {}): MichaelToolDefinition[] {
-  return getToolCatalog(options).map((entry) => normalizeToolSchema(entry.schema));
+  return getToolCatalog(options)
+    .filter((entry) => isToolRuntimeEnabled(entry))
+    .map((entry) => normalizeToolSchema(entry.schema));
 }
 
 export const SHARED_TOOL_SCHEMAS: MichaelToolDefinition[] = getToolSchemas();
@@ -806,6 +1144,517 @@ function extractQueryFeatures(query: string) {
   };
 }
 
+type RelationalAlgebraStepResult = {
+  title: string;
+  operator: string;
+  symbol: string;
+  expression: string;
+  explanation: string;
+  sqlEquivalent?: string;
+};
+
+type RelationalAlgebraExampleResult = {
+  concept: string;
+  sqlExample: string;
+  relationalAlgebraExample: string;
+  note: string;
+};
+
+function normalizeWhitespace(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function detectRelationalAlgebraInputLanguage(
+  expression: string,
+  explicitSourceLanguage?: string
+): "sql" | "relational_algebra" {
+  if (explicitSourceLanguage === "sql" || explicitSourceLanguage === "relational_algebra") {
+    return explicitSourceLanguage;
+  }
+
+  if (/[πσρ⋈γ∪∩÷×−]/u.test(expression)) {
+    return "relational_algebra";
+  }
+
+  return /\bSELECT\b|\bFROM\b|\bWHERE\b|\bJOIN\b|\bGROUP\s+BY\b|\bHAVING\b/i.test(expression)
+    ? "sql"
+    : "relational_algebra";
+}
+
+function extractClause(query: string, pattern: RegExp): string | null {
+  const match = pattern.exec(query);
+  return match?.[1] ? normalizeWhitespace(match[1]) : null;
+}
+
+function splitCommaSeparated(value: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((item) => normalizeWhitespace(item))
+    .filter(Boolean);
+}
+
+function buildRelationalAlgebraExamples(
+  targetLanguage: "he" | "en",
+  concepts: Array<"projection" | "selection" | "join" | "grouping" | "nested">
+): RelationalAlgebraExampleResult[] {
+  const uniqueConcepts = Array.from(new Set(concepts));
+
+  return uniqueConcepts.map((concept) => {
+    if (concept === "projection") {
+      return targetLanguage === "he"
+        ? {
+            concept: "הקרנה",
+            sqlExample: "SELECT student_name FROM Students",
+            relationalAlgebraExample: "π student_name (Students)",
+            note: "הקרנה בוחרת רק את העמודות הדרושות בלי לשנות את מספר השורות.",
+          }
+        : {
+            concept: "Projection",
+            sqlExample: "SELECT student_name FROM Students",
+            relationalAlgebraExample: "π student_name (Students)",
+            note: "Projection keeps only the required columns.",
+          };
+    }
+
+    if (concept === "selection") {
+      return targetLanguage === "he"
+        ? {
+            concept: "בחירה",
+            sqlExample: "SELECT * FROM Students WHERE grade > 90",
+            relationalAlgebraExample: "σ grade > 90 (Students)",
+            note: "בחירה מסננת שורות לפי תנאי.",
+          }
+        : {
+            concept: "Selection",
+            sqlExample: "SELECT * FROM Students WHERE grade > 90",
+            relationalAlgebraExample: "σ grade > 90 (Students)",
+            note: "Selection filters rows by a predicate.",
+          };
+    }
+
+    if (concept === "join") {
+      return targetLanguage === "he"
+        ? {
+            concept: "צירוף",
+            sqlExample:
+              "SELECT * FROM Students JOIN Enrollments ON Students.id = Enrollments.student_id",
+            relationalAlgebraExample:
+              "Students ⋈ Students.id = Enrollments.student_id Enrollments",
+            note: "צירוף מחבר שתי טבלאות לפי תנאי התאמה.",
+          }
+        : {
+            concept: "Join",
+            sqlExample:
+              "SELECT * FROM Students JOIN Enrollments ON Students.id = Enrollments.student_id",
+            relationalAlgebraExample:
+              "Students ⋈ Students.id = Enrollments.student_id Enrollments",
+            note: "Join combines relations using a matching condition.",
+          };
+    }
+
+    if (concept === "grouping") {
+      return targetLanguage === "he"
+        ? {
+            concept: "קיבוץ והצטברות",
+            sqlExample:
+              "SELECT department_id, COUNT(*) FROM Students GROUP BY department_id",
+            relationalAlgebraExample: "γ department_id; COUNT(*)→student_count (Students)",
+            note: "באלגברה מורחבת משתמשים ב-γ כדי לייצג GROUP BY ופעולות הצטברות.",
+          }
+        : {
+            concept: "Grouping",
+            sqlExample:
+              "SELECT department_id, COUNT(*) FROM Students GROUP BY department_id",
+            relationalAlgebraExample: "γ department_id; COUNT(*)→student_count (Students)",
+            note: "Extended relational algebra uses γ for grouping and aggregation.",
+          };
+    }
+
+    return targetLanguage === "he"
+      ? {
+          concept: "לוגיקה מקוננת",
+          sqlExample:
+            "SELECT name FROM Students WHERE id IN (SELECT student_id FROM Honors)",
+          relationalAlgebraExample:
+            "π name (Students ⋉ Students.id = Honors.student_id Honors)",
+          note: "תת-שאילתה מסוג IN או EXISTS ניתנת לעיתים להסבר באמצעות semijoin או באמצעות פעולות קבוצה.",
+        }
+      : {
+          concept: "Nested logic",
+          sqlExample:
+            "SELECT name FROM Students WHERE id IN (SELECT student_id FROM Honors)",
+          relationalAlgebraExample:
+            "π name (Students ⋉ Students.id = Honors.student_id Honors)",
+          note: "IN or EXISTS subqueries can often be explained as a semijoin or set-based filter.",
+        };
+  });
+}
+
+function buildSqlToRelationalAlgebraExplanation(
+  query: string,
+  targetLanguage: "he" | "en",
+  includeExamples: boolean
+) {
+  const normalized = normalizeSql(query);
+  const selectClause = extractClause(normalized, /\bSELECT\s+(.+?)\s+\bFROM\b/is);
+  const fromClause = extractClause(
+    normalized,
+    /\bFROM\s+(.+?)(?=\bWHERE\b|\bGROUP\s+BY\b|\bHAVING\b|\bORDER\s+BY\b|\bLIMIT\b|\bUNION\b|\bINTERSECT\b|\bEXCEPT\b|$)/is
+  );
+  const whereClause = extractClause(
+    normalized,
+    /\bWHERE\s+(.+?)(?=\bGROUP\s+BY\b|\bHAVING\b|\bORDER\s+BY\b|\bLIMIT\b|\bUNION\b|\bINTERSECT\b|\bEXCEPT\b|$)/is
+  );
+  const groupByClause = extractClause(
+    normalized,
+    /\bGROUP\s+BY\s+(.+?)(?=\bHAVING\b|\bORDER\s+BY\b|\bLIMIT\b|\bUNION\b|\bINTERSECT\b|\bEXCEPT\b|$)/is
+  );
+  const havingClause = extractClause(
+    normalized,
+    /\bHAVING\s+(.+?)(?=\bORDER\s+BY\b|\bLIMIT\b|\bUNION\b|\bINTERSECT\b|\bEXCEPT\b|$)/is
+  );
+  const orderByClause = extractClause(
+    normalized,
+    /\bORDER\s+BY\s+(.+?)(?=\bLIMIT\b|\bUNION\b|\bINTERSECT\b|\bEXCEPT\b|$)/is
+  );
+  const limitClause = extractClause(normalized, /\bLIMIT\s+(.+?)$/is);
+  const joinMatches = Array.from(
+    normalized.matchAll(
+      /\b(?:INNER|LEFT|RIGHT|FULL|CROSS)?\s*JOIN\s+([a-zA-Z0-9_.]+)(?:\s+\w+)?(?:\s+ON\s+(.+?))?(?=\b(?:INNER|LEFT|RIGHT|FULL|CROSS)?\s*JOIN\b|\bWHERE\b|\bGROUP\s+BY\b|\bHAVING\b|\bORDER\s+BY\b|\bLIMIT\b|\bUNION\b|\bINTERSECT\b|\bEXCEPT\b|$)/gis
+    )
+  ).map((match) => ({
+    table: normalizeWhitespace(match[1] || ""),
+    condition: normalizeWhitespace(match[2] || ""),
+  }));
+
+  const baseRelation = joinMatches.length > 0
+    ? joinMatches.reduce((current, join) => {
+        const joinSuffix = join.condition ? ` ⋈_${join.condition} ${join.table}` : ` × ${join.table}`;
+        return `(${current}${joinSuffix})`;
+      }, normalizeWhitespace(fromClause?.split(/\b(?:INNER|LEFT|RIGHT|FULL|CROSS)?\s*JOIN\b/i)[0] || fromClause || "Relation"))
+    : normalizeWhitespace(fromClause || "Relation");
+
+  let relationalAlgebraExpression = baseRelation;
+  const steps: RelationalAlgebraStepResult[] = [];
+  const concepts: Array<"projection" | "selection" | "join" | "grouping" | "nested"> = [];
+
+  if (joinMatches.length > 0) {
+    concepts.push("join");
+    joinMatches.forEach((join, index) => {
+      steps.push(
+        targetLanguage === "he"
+          ? {
+              title: `שלב ${index + 1}: צירוף`,
+              operator: "join",
+              symbol: "⋈",
+              expression: join.condition
+                ? `${index === 0 ? baseRelation : join.table} ⋈_${join.condition}`
+                : `${index === 0 ? baseRelation : join.table} × ${join.table}`,
+              explanation: join.condition
+                ? `מחברים את ${join.table} לפי תנאי ההתאמה ${join.condition}.`
+                : `אין תנאי צירוף מפורש, ולכן מתקבל מכפלה קרטזית עם ${join.table}.`,
+              sqlEquivalent: join.condition
+                ? `JOIN ${join.table} ON ${join.condition}`
+                : `CROSS JOIN ${join.table}`,
+            }
+          : {
+              title: `Step ${index + 1}: Join`,
+              operator: "join",
+              symbol: "⋈",
+              expression: join.condition
+                ? `${index === 0 ? baseRelation : join.table} ⋈_${join.condition}`
+                : `${index === 0 ? baseRelation : join.table} × ${join.table}`,
+              explanation: join.condition
+                ? `Join ${join.table} using the predicate ${join.condition}.`
+                : `Without an ON predicate this behaves like a Cartesian product with ${join.table}.`,
+              sqlEquivalent: join.condition
+                ? `JOIN ${join.table} ON ${join.condition}`
+                : `CROSS JOIN ${join.table}`,
+            }
+      );
+    });
+  }
+
+  if (whereClause) {
+    concepts.push("selection");
+    relationalAlgebraExpression = `σ_${whereClause} (${relationalAlgebraExpression})`;
+    steps.push(
+      targetLanguage === "he"
+        ? {
+            title: "סינון התוצאה",
+            operator: "selection",
+            symbol: "σ",
+            expression: `σ_${whereClause} (${baseRelation})`,
+            explanation: `מפעילים בחירה כדי להשאיר רק שורות שמקיימות את התנאי ${whereClause}.`,
+            sqlEquivalent: `WHERE ${whereClause}`,
+          }
+        : {
+            title: "Filter rows",
+            operator: "selection",
+            symbol: "σ",
+            expression: `σ_${whereClause} (${baseRelation})`,
+            explanation: `Apply a selection so only rows satisfying ${whereClause} remain.`,
+            sqlEquivalent: `WHERE ${whereClause}`,
+          }
+    );
+  }
+
+  if (groupByClause) {
+    concepts.push("grouping");
+    const aggregates = splitCommaSeparated(selectClause).filter((item) =>
+      /(COUNT|SUM|AVG|MIN|MAX)\s*\(/i.test(item)
+    );
+    const gammaParts = [groupByClause, ...aggregates].filter(Boolean).join("; ");
+    relationalAlgebraExpression = `γ_${gammaParts} (${relationalAlgebraExpression})`;
+    steps.push(
+      targetLanguage === "he"
+        ? {
+            title: "קיבוץ והצטברות",
+            operator: "grouping",
+            symbol: "γ",
+            expression: `γ_${gammaParts} (${whereClause ? `σ_${whereClause} (${baseRelation})` : baseRelation})`,
+            explanation:
+              "כאן משתמשים באלגברה מורחבת: γ מייצגת GROUP BY ולעיתים גם פונקציות הצטברות כמו COUNT או SUM.",
+            sqlEquivalent: `GROUP BY ${groupByClause}${havingClause ? ` HAVING ${havingClause}` : ""}`,
+          }
+        : {
+            title: "Group and aggregate",
+            operator: "grouping",
+            symbol: "γ",
+            expression: `γ_${gammaParts} (${whereClause ? `σ_${whereClause} (${baseRelation})` : baseRelation})`,
+            explanation:
+              "Extended relational algebra uses γ to represent GROUP BY and aggregate functions.",
+            sqlEquivalent: `GROUP BY ${groupByClause}${havingClause ? ` HAVING ${havingClause}` : ""}`,
+          }
+    );
+  }
+
+  if (havingClause) {
+    concepts.push("selection");
+    relationalAlgebraExpression = `σ_${havingClause} (${relationalAlgebraExpression})`;
+    steps.push(
+      targetLanguage === "he"
+        ? {
+            title: "סינון אחרי הקיבוץ",
+            operator: "selection",
+            symbol: "σ",
+            expression: `σ_${havingClause} (${relationalAlgebraExpression.replace(`σ_${havingClause} `, "")})`,
+            explanation: "אחרי הקיבוץ אפשר לסנן קבוצות בעזרת תנאי HAVING.",
+            sqlEquivalent: `HAVING ${havingClause}`,
+          }
+        : {
+            title: "Filter grouped rows",
+            operator: "selection",
+            symbol: "σ",
+            expression: `σ_${havingClause} (${relationalAlgebraExpression.replace(`σ_${havingClause} `, "")})`,
+            explanation: "After grouping, HAVING becomes another selection over grouped results.",
+            sqlEquivalent: `HAVING ${havingClause}`,
+          }
+    );
+  }
+
+  if (selectClause) {
+    concepts.push("projection");
+    relationalAlgebraExpression = `π_${selectClause} (${relationalAlgebraExpression})`;
+    steps.push(
+      targetLanguage === "he"
+        ? {
+            title: "הקרנת העמודות המבוקשות",
+            operator: "projection",
+            symbol: "π",
+            expression: relationalAlgebraExpression,
+            explanation: `בסוף בוחרים רק את העמודות ${selectClause}.`,
+            sqlEquivalent: `SELECT ${selectClause}`,
+          }
+        : {
+            title: "Project the requested columns",
+            operator: "projection",
+            symbol: "π",
+            expression: relationalAlgebraExpression,
+            explanation: `Finally project only the requested columns: ${selectClause}.`,
+            sqlEquivalent: `SELECT ${selectClause}`,
+          }
+    );
+  }
+
+  const hasNestedLogic = /\b(EXISTS|NOT EXISTS|IN\s*\(|NOT IN\s*\(|ALL\s*\(|ANY\s*\()/i.test(normalized);
+  if (hasNestedLogic) {
+    concepts.push("nested");
+    steps.push(
+      targetLanguage === "he"
+        ? {
+            title: "לוגיקה מקוננת",
+            operator: "nested_logic",
+            symbol: "⋉ / −",
+            expression: relationalAlgebraExpression,
+            explanation:
+              "לתת-שאילתות מסוג EXISTS, IN או NOT EXISTS אין תמיד סימון יחיד. לרוב מסבירים אותן באמצעות semijoin, anti-join או פעולות קבוצה.",
+            sqlEquivalent: "EXISTS / IN / NOT EXISTS",
+          }
+        : {
+            title: "Nested logic",
+            operator: "nested_logic",
+            symbol: "⋉ / −",
+            expression: relationalAlgebraExpression,
+            explanation:
+              "EXISTS, IN, and NOT EXISTS are often explained via semijoins, anti-joins, or set operations.",
+            sqlEquivalent: "EXISTS / IN / NOT EXISTS",
+          }
+    );
+  }
+
+  const scopeNotes = [
+    orderByClause
+      ? targetLanguage === "he"
+        ? "ORDER BY שייך למיון תצוגה ולא לאלגברת יחסים הקלאסית, לכן מסבירים אותו במלל ולא כסימון RA."
+        : "ORDER BY affects presentation order and does not belong to classical relational algebra."
+      : null,
+    limitClause
+      ? targetLanguage === "he"
+        ? "LIMIT/TOP הם מנגנוני הגבלה של SQL ואינם חלק מאלגברת יחסים קלאסית."
+        : "LIMIT/TOP is SQL-specific and not part of classical relational algebra."
+      : null,
+  ].filter(Boolean);
+
+  const summary = targetLanguage === "he"
+    ? "מתרגמים את השאילתה מרמת SQL לרצף של פעולות אלגברת יחסים: צירוף, סינון, קיבוץ והקרנה."
+    : "Translate the SQL query into a relational algebra pipeline of joins, selections, grouping, and projection.";
+
+  return {
+    summary,
+    relationalAlgebraExpression,
+    steps,
+    commonMistakes:
+      targetLanguage === "he"
+        ? [
+            "לבלבל בין σ שמסננת שורות לבין π שבוחרת עמודות.",
+            "לשכוח שתנאי הצירוף שייך ל-⋈ ולא ל-π.",
+            ...(groupByClause ? ["לשכוח ש-GROUP BY מיוצג ב-γ ולא ב-π."] : []),
+          ]
+        : [
+            "Mixing up σ for row filtering with π for column projection.",
+            "Forgetting that join predicates belong to ⋈ rather than π.",
+            ...(groupByClause ? ["GROUP BY maps to γ, not to projection."] : []),
+          ],
+    examples: includeExamples ? buildRelationalAlgebraExamples(targetLanguage, concepts) : [],
+    scopeNote:
+      scopeNotes.join(" ") ||
+      (targetLanguage === "he"
+        ? "הביטוי נשאר בתוך אלגברת יחסים קלאסית או מורחבת לפי הצורך."
+        : "The explanation stays within classical or extended relational algebra as needed."),
+  };
+}
+
+function buildRelationalAlgebraExpressionExplanation(
+  expression: string,
+  targetLanguage: "he" | "en",
+  includeExamples: boolean
+) {
+  const normalized = normalizeWhitespace(expression);
+  const operatorDefinitions = [
+    {
+      key: "selection",
+      symbol: "σ",
+      operator: "selection",
+      title: targetLanguage === "he" ? "בחירה" : "Selection",
+      explanation:
+        targetLanguage === "he"
+          ? "σ מסננת שורות לפי תנאי."
+          : "σ filters rows with a predicate.",
+      sqlEquivalent: "WHERE ...",
+    },
+    {
+      key: "projection",
+      symbol: "π",
+      operator: "projection",
+      title: targetLanguage === "he" ? "הקרנה" : "Projection",
+      explanation:
+        targetLanguage === "he"
+          ? "π שומרת רק את העמודות הדרושות."
+          : "π keeps only the required columns.",
+      sqlEquivalent: "SELECT column_list",
+    },
+    {
+      key: "join",
+      symbol: "⋈",
+      operator: "join",
+      title: targetLanguage === "he" ? "צירוף" : "Join",
+      explanation:
+        targetLanguage === "he"
+          ? "⋈ מחבר שתי טבלאות לפי תנאי התאמה."
+          : "⋈ combines two relations using a match condition.",
+      sqlEquivalent: "JOIN ... ON ...",
+    },
+    {
+      key: "rename",
+      symbol: "ρ",
+      operator: "rename",
+      title: targetLanguage === "he" ? "שינוי שם" : "Rename",
+      explanation:
+        targetLanguage === "he"
+          ? "ρ מחליף שם לטבלה או לעמודות כדי למנוע בלבול."
+          : "ρ renames a relation or attributes.",
+      sqlEquivalent: "table aliases / column aliases",
+    },
+    {
+      key: "grouping",
+      symbol: "γ",
+      operator: "grouping",
+      title: targetLanguage === "he" ? "קיבוץ" : "Grouping",
+      explanation:
+        targetLanguage === "he"
+          ? "γ מייצגת GROUP BY והצטברויות באלגברה מורחבת."
+          : "γ represents grouping and aggregation in extended relational algebra.",
+      sqlEquivalent: "GROUP BY",
+    },
+  ] as const;
+
+  const matchedDefinitions = operatorDefinitions.filter((definition) =>
+    normalized.includes(definition.symbol)
+  );
+  const concepts = matchedDefinitions.map((definition) => definition.key) as Array<
+    "projection" | "selection" | "join" | "grouping"
+  >;
+
+  return {
+    summary:
+      targetLanguage === "he"
+        ? "מפרקים את ביטוי אלגברת היחסים לאופרטורים המרכזיים שמופיעים בו."
+        : "Break the relational algebra expression into the operators it uses.",
+    relationalAlgebraExpression: normalized,
+    steps: matchedDefinitions.map((definition, index) => ({
+      title:
+        targetLanguage === "he"
+          ? `שלב ${index + 1}: ${definition.title}`
+          : `Step ${index + 1}: ${definition.title}`,
+      operator: definition.operator,
+      symbol: definition.symbol,
+      expression: normalized,
+      explanation: definition.explanation,
+      sqlEquivalent: definition.sqlEquivalent,
+    })),
+    commonMistakes:
+      targetLanguage === "he"
+        ? [
+            "לקרוא את הביטוי משמאל לימין בלבד במקום לזהות קודם את הפעולה הפנימית.",
+            "לשכוח ש-ρ חשוב כאשר אותה טבלה מופיעה יותר מפעם אחת.",
+          ]
+        : [
+            "Reading only left-to-right instead of identifying the inner operation first.",
+            "Forgetting that ρ matters when the same relation appears more than once.",
+          ],
+    examples: includeExamples ? buildRelationalAlgebraExamples(targetLanguage, concepts) : [],
+    scopeNote:
+      targetLanguage === "he"
+        ? "אם יש בביטוי גם γ, מדובר באלגברה מורחבת ולא רק קלאסית."
+        : "If the expression uses γ, it is using extended rather than purely classical relational algebra.",
+  };
+}
+
 function getAccessibleDatabases(context: ToolExecutionContext): string[] {
   if (context.toolContext === "admin") {
     return ["examples", "practice", "homework"];
@@ -836,6 +1685,25 @@ function getResolvedStudentId(
     return explicit;
   }
   return context.studentId?.trim() || context.userEmail?.trim() || context.userId?.trim() || null;
+}
+
+function getScopedStudentId(
+  args: Record<string, unknown>,
+  context: ToolExecutionContext
+): string | null {
+  const contextualStudentId =
+    context.studentId?.trim() || context.userEmail?.trim() || context.userId?.trim() || null;
+
+  if (context.toolContext === "main_chat" || context.toolContext === "homework_runner") {
+    return contextualStudentId;
+  }
+
+  if (context.userRole === "student") {
+    return contextualStudentId;
+  }
+
+  const explicit = typeof args.student_id === "string" ? args.student_id.trim() : "";
+  return explicit || contextualStudentId;
 }
 
 const toolHandlers: Record<string, ToolHandler> = {
@@ -1189,7 +2057,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   },
 
   async get_student_learning_profile(args, context) {
-    const studentId = getResolvedStudentId(args, context);
+    const studentId = getScopedStudentId(args, context);
     if (!studentId) {
       return {
         success: false,
@@ -1236,8 +2104,117 @@ const toolHandlers: Record<string, ToolHandler> = {
     };
   },
 
+  async get_student_progress_snapshot(args, context) {
+    const studentId = getScopedStudentId(args, context);
+    if (!studentId) {
+      return {
+        success: false,
+        error: "student_id is required unless the tutoring request is already tied to an authenticated student.",
+      };
+    }
+
+    return {
+      success: true,
+      ...(await getStudentProgressSnapshot({
+        studentId,
+        homeworkSetId: getResolvedHomeworkSetId(args, context),
+      })),
+    };
+  },
+
+  async get_recent_submission_attempts(args, context) {
+    const studentId = getScopedStudentId(args, context);
+    if (!studentId) {
+      return {
+        success: false,
+        error: "student_id is required unless the tutoring request is already tied to an authenticated student.",
+      };
+    }
+
+    return {
+      success: true,
+      ...(await getRecentSubmissionAttempts({
+        studentId,
+        homeworkSetId: getResolvedHomeworkSetId(args, context),
+      })),
+    };
+  },
+
+  async get_deadline_and_schedule_context(args, context) {
+    const studentId = getScopedStudentId(args, context);
+    if (!studentId) {
+      return {
+        success: false,
+        error: "student_id is required unless the tutoring request is already tied to an authenticated student.",
+      };
+    }
+
+    return {
+      success: true,
+      ...(await getDeadlineAndScheduleContext({
+        studentId,
+        homeworkSetId: getResolvedHomeworkSetId(args, context),
+      })),
+    };
+  },
+
+  async recommend_next_learning_step(args, context) {
+    const studentId = getScopedStudentId(args, context);
+    if (!studentId) {
+      return {
+        success: false,
+        error: "student_id is required unless the tutoring request is already tied to an authenticated student.",
+      };
+    }
+
+    return {
+      success: true,
+      ...(await recommendNextLearningStep({
+        studentId,
+        homeworkSetId: getResolvedHomeworkSetId(args, context),
+        questionId:
+          typeof args.question_id === "string"
+            ? args.question_id.trim()
+            : context.questionId?.trim() || null,
+      })),
+    };
+  },
+
+  async generate_personalized_quiz_from_mistakes(args, context) {
+    const studentId = getScopedStudentId(args, context);
+    if (!studentId) {
+      return {
+        success: false,
+        error: "student_id is required unless the tutoring request is already tied to an authenticated student.",
+      };
+    }
+
+    const quiz = await generatePersonalizedQuizFromMistakes({
+      studentId,
+      homeworkSetId: getResolvedHomeworkSetId(args, context),
+      questionId:
+        typeof args.question_id === "string"
+          ? args.question_id.trim()
+          : context.questionId?.trim() || null,
+      maxQuestions: Number(args.max_questions || 4),
+    });
+
+    return {
+      success: true,
+      quiz: {
+        quizId: quiz.quizId,
+        targetType: quiz.targetType,
+        targetId: quiz.targetId,
+        title: quiz.title,
+        createdAt: quiz.createdAt,
+        personalization: quiz.personalization || null,
+        questionCount: quiz.questions.length,
+      },
+    };
+  },
+
   async remember_student_preference(args, context) {
-    const studentId = getResolvedStudentId(args, context);
+    const studentId = getScopedStudentId(args, context);
     const key = String(args.preference_key ?? "").trim() as StudentPreferenceKey;
     const value = String(args.value ?? "").trim();
     const notes = typeof args.notes === "string" ? args.notes.trim() : undefined;
@@ -1413,29 +2390,48 @@ const toolHandlers: Record<string, ToolHandler> = {
     };
   },
 
-  async list_instructor_mcp_capabilities() {
+  async explain_relational_algebra_step(args) {
+    const inputExpression = String(args.input_expression ?? "").trim();
+    const explicitSourceLanguage = String(args.source_language ?? "auto").trim();
+    const targetLanguage =
+      String(args.target_language ?? "he").trim() === "en" ? "en" : "he";
+    const includeExamples = args.include_examples !== false;
+
+    if (!inputExpression) {
+      return {
+        success: false,
+        error: "input_expression is required.",
+      };
+    }
+
+    const sourceLanguage = detectRelationalAlgebraInputLanguage(
+      inputExpression,
+      explicitSourceLanguage
+    );
+
+    const explanation =
+      sourceLanguage === "sql"
+        ? buildSqlToRelationalAlgebraExplanation(
+            inputExpression,
+            targetLanguage,
+            includeExamples
+          )
+        : buildRelationalAlgebraExpressionExplanation(
+            inputExpression,
+            targetLanguage,
+            includeExamples
+          );
+
     return {
       success: true,
-      capabilities: [
-        {
-          connector: "Google Drive",
-          useCases: ["lecture PDFs", "course notes", "shared admin folders"],
-          value: "Lets Michael ground answers in official course documents without copying them into code.",
-        },
-        {
-          connector: "Google Sheets",
-          useCases: ["rubrics", "gradebooks", "office hours tracking"],
-          value: "Useful for instructor analytics and rubric-backed feedback workflows.",
-        },
-        {
-          connector: "Notion",
-          useCases: ["FAQ", "policy notes", "teaching playbooks"],
-          value: "Good fit for staff-maintained knowledge bases and tutoring guardrails.",
-        },
-      ],
-      recommendation:
-        "Start with Drive for retrieval, then add Sheets or Notion only for instructor-facing flows where authenticated admin access is acceptable.",
+      sourceLanguage,
+      targetLanguage,
+      ...explanation,
     };
+  },
+
+  async list_instructor_mcp_capabilities() {
+    return listInstructorConnectorCapabilities();
   },
 };
 

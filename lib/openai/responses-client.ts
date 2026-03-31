@@ -1,7 +1,12 @@
 import { randomUUID } from "crypto";
 
 import { openai } from "@/app/openai";
-import { SqlTutorResponse, ToolCallOutput, ToolCallRequest } from "@/lib/openai/contracts";
+import {
+  RelationalAlgebraTutorResponse,
+  SqlTutorResponse,
+  ToolCallOutput,
+  ToolCallRequest,
+} from "@/lib/openai/contracts";
 import { getRuntimeAgentConfig } from "@/lib/openai/runtime-config";
 import { executeToolCall } from "@/lib/openai/tools";
 
@@ -330,8 +335,90 @@ const sqlTutorResponseFormat = {
   },
 } as const;
 
+const relationalAlgebraTutorResponseFormat = {
+  type: "json_schema",
+  json_schema: {
+    name: "relational_algebra_tutor_response",
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        summary: {
+          type: "string",
+          description: "Short overview of the relational algebra approach.",
+        },
+        relationalAlgebraExpression: {
+          type: "string",
+          description: "The relational algebra expression using course-appropriate notation.",
+        },
+        steps: {
+          type: "array",
+          description: "Ordered relational algebra explanation steps.",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              title: { type: "string" },
+              operator: { type: "string" },
+              symbol: { type: "string" },
+              expression: { type: "string" },
+              explanation: { type: "string" },
+              sqlEquivalent: { type: ["string", "null"] },
+            },
+            required: [
+              "title",
+              "operator",
+              "symbol",
+              "expression",
+              "explanation",
+              "sqlEquivalent",
+            ],
+          },
+        },
+        commonMistakes: {
+          type: "array",
+          items: {
+            type: "string",
+          },
+        },
+        examples: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              concept: { type: "string" },
+              sqlExample: { type: "string" },
+              relationalAlgebraExample: { type: "string" },
+              note: { type: "string" },
+            },
+            required: ["concept", "sqlExample", "relationalAlgebraExample", "note"],
+          },
+        },
+        scopeNote: {
+          type: "string",
+          description: "Clarifies scope limitations and non-classical SQL features when relevant.",
+        },
+      },
+      required: [
+        "summary",
+        "relationalAlgebraExpression",
+        "steps",
+        "commonMistakes",
+        "examples",
+        "scopeNote",
+      ],
+    },
+    strict: true,
+  },
+} as const;
+
 export function getSqlTutorResponseFormat() {
   return sqlTutorResponseFormat;
+}
+
+export function getRelationalAlgebraTutorResponseFormat() {
+  return relationalAlgebraTutorResponseFormat;
 }
 
 function isSqlTutorResponse(value: unknown): value is SqlTutorResponse {
@@ -348,6 +435,45 @@ function isSqlTutorResponse(value: unknown): value is SqlTutorResponse {
   );
 }
 
+function isRelationalAlgebraTutorResponse(
+  value: unknown
+): value is RelationalAlgebraTutorResponse {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as RelationalAlgebraTutorResponse;
+  return (
+    typeof candidate.summary === "string" &&
+    typeof candidate.relationalAlgebraExpression === "string" &&
+    typeof candidate.scopeNote === "string" &&
+    Array.isArray(candidate.commonMistakes) &&
+    candidate.commonMistakes.every((item) => typeof item === "string") &&
+    Array.isArray(candidate.steps) &&
+    candidate.steps.every(
+      (step) =>
+        step &&
+        typeof step === "object" &&
+        typeof step.title === "string" &&
+        typeof step.operator === "string" &&
+        typeof step.symbol === "string" &&
+        typeof step.expression === "string" &&
+        typeof step.explanation === "string" &&
+        (typeof step.sqlEquivalent === "undefined" || typeof step.sqlEquivalent === "string")
+    ) &&
+    Array.isArray(candidate.examples) &&
+    candidate.examples.every(
+      (example) =>
+        example &&
+        typeof example === "object" &&
+        typeof example.concept === "string" &&
+        typeof example.sqlExample === "string" &&
+        typeof example.relationalAlgebraExample === "string" &&
+        typeof example.note === "string"
+    )
+  );
+}
+
 export function extractSqlTutorResponse(response: any): SqlTutorResponse | null {
   const outputText = extractOutputText(response);
   if (!outputText) {
@@ -357,6 +483,22 @@ export function extractSqlTutorResponse(response: any): SqlTutorResponse | null 
   try {
     const parsed = JSON.parse(outputText) as unknown;
     return isSqlTutorResponse(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export function extractRelationalAlgebraTutorResponse(
+  response: any
+): RelationalAlgebraTutorResponse | null {
+  const outputText = extractOutputText(response);
+  if (!outputText) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(outputText) as unknown;
+    return isRelationalAlgebraTutorResponse(parsed) ? parsed : null;
   } catch {
     return null;
   }

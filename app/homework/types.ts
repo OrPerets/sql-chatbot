@@ -181,6 +181,10 @@ export interface AnalyticsEvent {
     | "runner.execute_sql"
     | "runner.save_draft"
     | "runner.submit"
+    | "runner.personalization_shown"
+    | "runner.personalization_accepted"
+    | "runner.personalized_quiz_started"
+    | "runner.personalized_quiz_completed"
     | "builder.grade_update"
     | "builder.publish_grades"
     | "builder.preview_execute";

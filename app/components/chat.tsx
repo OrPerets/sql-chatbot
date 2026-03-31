@@ -25,10 +25,13 @@ import { analyzeMessage } from "../utils/sql-query-analyzer";
 // import { avatarAnalytics } from "../utils/avatar-analytics";
 import PracticeModal from "./PracticeModal";
 import type {
+  RelationalAlgebraTutorResponse,
   ResponseCitation,
   ResponseStreamEvent,
   ResponseTurnMetadata,
   SqlTutorResponse,
+  TutorResponse,
+  TutorSubjectMode,
 } from "@/lib/openai/contracts";
 import { isVoiceFeatureEnabled } from "@/lib/openai/voice-config";
 import {
@@ -62,7 +65,8 @@ type MessageProps = {
   feedback?: "like" | "dislike" | null;
   onFeedback?: (feedback: "like" | "dislike" | null) => void;
   hasImage?: boolean;
-  tutorResponse?: SqlTutorResponse | null;
+  tutorResponse?: TutorResponse | null;
+  conversationVariant?: "default" | "professional";
 };
 
 type ClientFunctionToolCall = {
@@ -80,7 +84,7 @@ type ChatMessage = {
   text: string;
   feedback?: "like" | "dislike" | null;
   hasImage?: boolean;
-  tutorResponse?: SqlTutorResponse | null;
+  tutorResponse?: TutorResponse | null;
   structuredContent?: Record<string, unknown> | null;
   citations?: ResponseCitation[];
   metadata?: ResponseTurnMetadata | null;
@@ -104,6 +108,8 @@ type ChatSession = {
 };
 
 type HomeworkChatContext = {
+  homeworkSetId?: string;
+  studentId?: string;
   homeworkTitle: string;
   backgroundStory?: string;
   tables: Array<{
@@ -148,9 +154,30 @@ type InsufficientCoinsClientBody = {
   required?: number;
 };
 
-const UserMessage = ({ text }: { text: string }) => {
-  return <div className={styles.userMessage}>{text}</div>;
+const UserMessage = ({
+  text,
+  conversationVariant = "default",
+}: {
+  text: string;
+  conversationVariant?: "default" | "professional";
+}) => {
+  return (
+    <div className={`${styles.messageRow} ${styles.userMessageRow} ${conversationVariant === "professional" ? styles.messageRowProfessional : ""}`}>
+      <div className={`${styles.userMessage} ${conversationVariant === "professional" ? styles.userMessageProfessional : ""}`}>{text}</div>
+    </div>
+  );
 };
+
+const isRelationalAlgebraTutorResponse = (
+  value: TutorResponse | null | undefined
+): value is RelationalAlgebraTutorResponse =>
+  Boolean(
+    value &&
+      typeof value === "object" &&
+      "steps" in value &&
+      Array.isArray((value as RelationalAlgebraTutorResponse).steps)
+  );
+
 const AssistantMessage = ({
   text,
   feedback = null,
@@ -158,14 +185,17 @@ const AssistantMessage = ({
   tutorResponse,
   autoPlaySpeech,
   onPlayMessage,
+  conversationVariant = "default",
 }: {
   text: string;
   feedback: "like" | "dislike" | null;
   onFeedback?: (feedback: "like" | "dislike" | null) => void;
-  tutorResponse?: SqlTutorResponse | null;
+  tutorResponse?: TutorResponse | null;
   autoPlaySpeech?: boolean;
   onPlayMessage?: () => void;
+  conversationVariant?: "default" | "professional";
 }) => {
+  const isProfessional = conversationVariant === "professional";
   const [activeFeedback, setActiveFeedback] = useState(feedback);
   const [showTooltip, setShowTooltip] = useState(false);
   const [showPlayTooltip, setShowPlayTooltip] = useState(false);  // Separate state for play button tooltip
@@ -323,6 +353,56 @@ const renderers = {
       </div>
     );
   };
+
+  const renderRelationalAlgebraTutorResponse = (response: RelationalAlgebraTutorResponse) => {
+    const mistakes =
+      response.commonMistakes?.length > 0
+        ? response.commonMistakes.map((mistake) => `- ${mistake}`).join("\n")
+        : "—";
+    const examples =
+      response.examples?.length > 0
+        ? response.examples
+            .map(
+              (example) =>
+                `**${example.concept}**\nSQL: \`${example.sqlExample}\`\nRA: \`${example.relationalAlgebraExample}\`\n${example.note}`
+            )
+            .join("\n\n")
+        : "—";
+
+    return (
+      <div className={styles.tutorResponse}>
+        {renderTutorSection("סיכום", response.summary || "—")}
+        {renderTutorSection("ביטוי אלגברת יחסים", `\`\`\`\n${response.relationalAlgebraExpression}\n\`\`\``)}
+        <div className={styles.tutorSection}>
+          <h4 className={styles.tutorSectionTitle}>שלבים</h4>
+          <div className={styles.raSteps}>
+            {response.steps.map((step, index) => (
+              <div key={`${step.operator}-${index}`} className={styles.raStepCard}>
+                <div className={styles.raStepHeader}>
+                  <span className={styles.raStepIndex}>{index + 1}</span>
+                  <div>
+                    <div className={styles.raStepTitle}>{step.title}</div>
+                    <div className={styles.raStepMeta}>
+                      <span className={styles.raStepSymbol}>{step.symbol}</span>
+                      <span>{step.operator}</span>
+                    </div>
+                  </div>
+                </div>
+                <pre className={styles.raStepExpression}>{step.expression}</pre>
+                <Markdown components={renderers}>{step.explanation}</Markdown>
+                {step.sqlEquivalent ? (
+                  <div className={styles.raStepSqlEquivalent}>SQL: {step.sqlEquivalent}</div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+        {renderTutorSection("טעויות נפוצות", mistakes)}
+        {renderTutorSection("דוגמאות רלוונטיות", examples)}
+        {renderTutorSection("הערת תחום", response.scopeNote || "—")}
+      </div>
+    );
+  };
 const copyQueryToClipboard = (text) => {
   // Regular expression to find SQL queries within ```sql ... ``` blocks
   const sqlRegex = /```sql\s*([\s\S]*?)\s*```/gi; 
@@ -352,72 +432,93 @@ const copyQueryToClipboard = (text) => {
       });
 };
   const copyTextSource = tutorResponse
-    ? `\`\`\`sql\n${tutorResponse.query}\n\`\`\``
+    ? isRelationalAlgebraTutorResponse(tutorResponse)
+      ? `\`\`\`\n${tutorResponse.relationalAlgebraExpression}\n\`\`\``
+      : `\`\`\`sql\n${tutorResponse.query}\n\`\`\``
     : text;
 
   return (
-    <div className={styles.assistantMessage}>
-      <div className={styles.messageContent}>
-        {tutorResponse ? renderTutorResponse(tutorResponse) : <Markdown components={renderers}>{compactText}</Markdown>}
-      </div>
-      <div className={styles.feedbackButtons}>
-        <button
-          onClick={handlePlayMessage}
-          className={`${styles.feedbackButton} ${styles.playMessageButton}`}
-          onMouseEnter={() => setShowPlayTooltip(true)}
-          onMouseLeave={() => setShowPlayTooltip(false)}
-          style={{
-            marginLeft: "5px"
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-          </svg>
-          {showPlayTooltip && (
-            <div className={styles.tooltip}>{playTooltipText}</div>
+    <div className={`${styles.messageRow} ${styles.assistantMessageRow} ${isProfessional ? styles.messageRowProfessional : ""}`}>
+      <div className={`${styles.assistantMessage} ${isProfessional ? styles.assistantMessageProfessional : ""}`}>
+        <div className={styles.messageContent}>
+          {tutorResponse ? (
+            isRelationalAlgebraTutorResponse(tutorResponse) ? (
+              renderRelationalAlgebraTutorResponse(tutorResponse)
+            ) : (
+              renderTutorResponse(tutorResponse)
+            )
+          ) : (
+            <Markdown components={renderers}>{compactText}</Markdown>
           )}
-        </button>
-        <button
-          onClick={handleLike}
-          className={`${styles.feedbackButton} ${activeFeedback === "like" ? styles.positive : ""}`}
-          style={{
-            marginLeft: "-1%"
-          }}
-        >
-          {activeFeedback === "like" ? <ThumbsUp width="80%" height="80%" color="green" fill="green" /> : <ThumbsUp width="80%" height="80%" />}
-        </button>
-        <button
-          onClick={handleDislike}
-          className={`${styles.feedbackButton} ${activeFeedback === "dislike" ? styles.negative : ""}`}
-        >
-          {activeFeedback === "dislike" ? <ThumbsDown width="80%" height="80%" color="red" fill="red" /> : <ThumbsDown width="80%" height="80%" />}
-        </button>
-        <button
-          onClick={() => copyQueryToClipboard(copyTextSource)} // Keep this for general copying
-          className={`${styles.feedbackButton} ${styles.copyButton}`}
-          onMouseEnter={() => setShowTooltip(true)}
-          onMouseLeave={() => setShowTooltip(false)}
-          // style={{ opacity: extractedQuery ? 0.5 : 1 }} // Dim if SQL-specific copy exists
-        >
-          <ClipboardCopy />
-          {showTooltip && (
-            <div className={styles.tooltip}>{copiedText}</div>
-          )}
-        </button>
+        </div>
+        <div className={styles.feedbackButtons}>
+          <button
+            onClick={handlePlayMessage}
+            className={`${styles.feedbackButton} ${styles.playMessageButton}`}
+            onMouseEnter={() => setShowPlayTooltip(true)}
+            onMouseLeave={() => setShowPlayTooltip(false)}
+            style={{
+              marginLeft: "5px"
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+            {showPlayTooltip && (
+              <div className={styles.tooltip}>{playTooltipText}</div>
+            )}
+          </button>
+          <button
+            onClick={handleLike}
+            className={`${styles.feedbackButton} ${activeFeedback === "like" ? styles.positive : ""}`}
+            style={{
+              marginLeft: "-1%"
+            }}
+          >
+            {activeFeedback === "like" ? <ThumbsUp width="80%" height="80%" color="green" fill="green" /> : <ThumbsUp width="80%" height="80%" />}
+          </button>
+          <button
+            onClick={handleDislike}
+            className={`${styles.feedbackButton} ${activeFeedback === "dislike" ? styles.negative : ""}`}
+          >
+            {activeFeedback === "dislike" ? <ThumbsDown width="80%" height="80%" color="red" fill="red" /> : <ThumbsDown width="80%" height="80%" />}
+          </button>
+          <button
+            onClick={() => copyQueryToClipboard(copyTextSource)}
+            className={`${styles.feedbackButton} ${styles.copyButton}`}
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+          >
+            <ClipboardCopy />
+            {showTooltip && (
+              <div className={styles.tooltip}>{copiedText}</div>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
 };
-const CodeMessage = ({ text }: { text: string }) => {
+const CodeMessage = ({
+  text,
+  conversationVariant = "default",
+}: {
+  text: string;
+  conversationVariant?: "default" | "professional";
+}) => {
+  const isProfessional = conversationVariant === "professional";
+
   return (
-    <div className={styles.codeMessage}>
-      {text.split("\n").map((line, index) => (
-        <div key={index}>
-          <span>{`${index + 1}. `}</span>
-          {line}
-        </div>
-      ))}
+    <div className={`${styles.messageRow} ${styles.assistantMessageRow} ${isProfessional ? styles.messageRowProfessional : ""}`}>
+      <div className={`${styles.codeMessage} ${isProfessional ? styles.codeMessageProfessional : ""}`}>
+        {text.split("\n").map((line, index) => (
+          <div key={index}>
+            <span>{`${index + 1}. `}</span>
+            {line}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
@@ -431,10 +532,11 @@ const Message = ({
   tutorResponse,
   autoPlaySpeech,
   onPlayMessage,
+  conversationVariant = "default",
 }: MessageProps & { autoPlaySpeech?: boolean; onPlayMessage?: () => void }) => {
   switch (role) {
     case "user":
-      return <UserMessage text={text} />;
+      return <UserMessage text={text} conversationVariant={conversationVariant} />;
     case "assistant":
       return (
         <AssistantMessage
@@ -444,10 +546,11 @@ const Message = ({
           tutorResponse={tutorResponse}
           autoPlaySpeech={autoPlaySpeech}
           onPlayMessage={onPlayMessage}
+          conversationVariant={conversationVariant}
         />
       );
     case "code":
-      return <CodeMessage text={text} />;
+      return <CodeMessage text={text} conversationVariant={conversationVariant} />;
     default:
       return null;
   }
@@ -465,6 +568,9 @@ type ChatProps = {
   minimalMode?: boolean;
   homeworkContext?: HomeworkChatContext | null;
   embeddedMode?: boolean;
+  enableRelationalAlgebraMode?: boolean;
+  initialSubjectMode?: TutorSubjectMode;
+  conversationVariant?: "default" | "professional";
 };
 
 const Chat = ({
@@ -477,8 +583,12 @@ const Chat = ({
   minimalMode = false,
   homeworkContext = null,
   embeddedMode = false,
+  enableRelationalAlgebraMode = false,
+  initialSubjectMode = "sql",
+  conversationVariant = "default",
 }: ChatProps) => {
   void functionCallHandler;
+  const isProfessionalConversation = conversationVariant === "professional";
   const [userInput, setUserInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputDisabled, setInputDisabled] = useState(false);
@@ -487,6 +597,7 @@ const Chat = ({
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imageProcessing, setImageProcessing] = useState(false);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+  const [subjectMode, setSubjectMode] = useState<TutorSubjectMode>(initialSubjectMode);
   const [sessionId, setSessionId] = useState("");
   const [previousResponseId, setPreviousResponseId] = useState("");
   const sessionIdRef = useRef("");
@@ -642,6 +753,7 @@ const Chat = ({
   const speechDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const speechControllerRef = useRef(initialSpeechControllerState);
   const lastSpeechPlaybackKeyRef = useRef<string>("");
+  const activeTutorSubjectModeRef = useRef<TutorSubjectMode>(subjectMode);
   const [reasoningLogs, setReasoningLogs] = useState<string[]>([]);
   const [reasoningDraft, setReasoningDraft] = useState("");
   const [isReasoningCollapsed, setIsReasoningCollapsed] = useState(false);
@@ -667,6 +779,10 @@ const Chat = ({
   const [showPracticeModal, setShowPracticeModal] = useState(false);
   const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
   const [openingPractice, setOpeningPractice] = useState(false);
+
+  useEffect(() => {
+    activeTutorSubjectModeRef.current = subjectMode;
+  }, [subjectMode]);
 
   const activeAvatarMode = useMemo<AvatarMode>(() => {
     if (!enableAvatar || displayMode !== 'avatar') {
@@ -1900,8 +2016,13 @@ useEffect(() => {
 
         if (event.type === "response.tutor.mode") {
           tutorMode = event.enabled;
+          activeTutorSubjectModeRef.current = event.subjectMode || "sql";
           if (event.enabled) {
-            addReasoningLog("מכין הסבר ברור ומסודר לפי הבקשה שלך...");
+            addReasoningLog(
+              activeTutorSubjectModeRef.current === "relational_algebra"
+                ? "מכין הסבר מסודר באלגברת יחסים..."
+                : "מכין הסבר ברור ומסודר לפי הבקשה שלך..."
+            );
           }
           continue;
         }
@@ -1948,7 +2069,11 @@ useEffect(() => {
           sawDelta = true;
           if (tutorMode) {
             tutorRawResponseRef.current += event.delta;
-            setLastAssistantMessageText(buildTutorPreviewFromRaw(tutorRawResponseRef.current));
+            setLastAssistantMessageText(
+              activeTutorSubjectModeRef.current === "relational_algebra"
+                ? buildRelationalAlgebraPreviewFromRaw(tutorRawResponseRef.current)
+                : buildTutorPreviewFromRaw(tutorRawResponseRef.current)
+            );
             continue;
           }
           handleTextDelta({ value: event.delta });
@@ -2098,6 +2223,7 @@ useEffect(() => {
 
     const storedUser = getStoredUser();
     const userEmail = storedUser?.email;
+    const studentId = storedUser?.id || userEmail;
     let activeChatId = currentChatIdRef.current;
 
     if (!activeChatId) {
@@ -2130,6 +2256,21 @@ useEffect(() => {
             homeworkRunner: !!homeworkContext, // Allow all SQL (subqueries, CONCAT, ALL, TOP) in homework
             thinkingMode: isThinkingModeEnabled,
             stream: true,
+            metadata: {
+              student_id: homeworkContext?.studentId || studentId || "",
+              ...(subjectMode === "relational_algebra"
+                ? {
+                    subject_mode: "relational_algebra",
+                    tutor_mode: "true",
+                  }
+                : {}),
+              ...(homeworkContext
+                ? {
+                    homework_set_id: homeworkContext.homeworkSetId || "",
+                    question_id: homeworkContext.currentQuestion?.id || "",
+                  }
+                : {}),
+            },
           }),
         }
       );
@@ -2281,7 +2422,7 @@ const loadChatMessages = (chatId: string) => {
         message.structuredContent &&
         typeof message.structuredContent === "object" &&
         "tutorResponse" in message.structuredContent
-          ? (message.structuredContent.tutorResponse as SqlTutorResponse | null)
+          ? (message.structuredContent.tutorResponse as TutorResponse | null)
           : null;
 
       return {
@@ -2471,7 +2612,26 @@ const loadChatMessages = (chatId: string) => {
     =======================
   */
 
-  const buildTutorResponseText = (tutorResponse: SqlTutorResponse) => {
+  const buildTutorResponseText = (tutorResponse: TutorResponse) => {
+    if (isRelationalAlgebraTutorResponse(tutorResponse)) {
+      const mistakesText =
+        tutorResponse.commonMistakes?.length > 0
+          ? tutorResponse.commonMistakes.map((mistake) => `- ${mistake}`).join("\n")
+          : "- —";
+      const stepsText =
+        tutorResponse.steps?.length > 0
+          ? tutorResponse.steps
+              .map(
+                (step, index) =>
+                  `${index + 1}. ${step.title}\n${step.expression}\n${step.explanation}${
+                    step.sqlEquivalent ? `\nSQL: ${step.sqlEquivalent}` : ""
+                  }`
+              )
+              .join("\n\n")
+          : "- —";
+      return `**סיכום**\n${tutorResponse.summary}\n\n**ביטוי אלגברת יחסים**\n\`\`\`\n${tutorResponse.relationalAlgebraExpression}\n\`\`\`\n\n**שלבים**\n${stepsText}\n\n**טעויות נפוצות**\n${mistakesText}\n\n**הערת תחום**\n${tutorResponse.scopeNote}`;
+    }
+
     const mistakesText =
       tutorResponse.commonMistakes?.length > 0
         ? tutorResponse.commonMistakes.map((mistake) => `- ${mistake}`).join("\n")
@@ -2529,6 +2689,25 @@ const loadChatMessages = (chatId: string) => {
     return blocks.length > 0 ? blocks.join("\n\n") : "מנסח תשובה...";
   };
 
+  const buildRelationalAlgebraPreviewFromRaw = (raw: string) => {
+    const summary = extractPartialJsonStringField(raw, "summary");
+    const expression = extractPartialJsonStringField(raw, "relationalAlgebraExpression");
+    const scopeNote = extractPartialJsonStringField(raw, "scopeNote");
+
+    const blocks: string[] = [];
+    if (summary) {
+      blocks.push(`**סיכום**\n${summary}`);
+    }
+    if (expression) {
+      blocks.push(`**ביטוי אלגברת יחסים**\n\`\`\`\n${expression}\n\`\`\``);
+    }
+    if (scopeNote) {
+      blocks.push(`**הערת תחום**\n${scopeNote}`);
+    }
+
+    return blocks.length > 0 ? blocks.join("\n\n") : "מנסח הסבר באלגברת יחסים...";
+  };
+
   const setLastAssistantMessageText = (text: string) => {
     setMessages((prevMessages) => {
       const lastMessage = prevMessages[prevMessages.length - 1];
@@ -2562,7 +2741,7 @@ const loadChatMessages = (chatId: string) => {
   };
 
   const setLastMessageTutorResponse = async (
-    tutorResponse: SqlTutorResponse,
+    tutorResponse: TutorResponse,
     progressive = false
   ) => {
     const formattedText = buildTutorResponseText(tutorResponse);
@@ -2905,7 +3084,7 @@ const reasoningPanel = shouldShowReasoningPanel ? (
 
 return (
   <div 
-    className={`${styles.main} ${!sidebarVisible || hideSidebar || minimalMode ? styles.mainFullWidth : ''}`}
+    className={`${styles.main} ${isProfessionalConversation ? styles.mainProfessional : ''} ${!sidebarVisible || hideSidebar || minimalMode ? styles.mainFullWidth : ''}`}
     style={embeddedStyles.main}
   >
     {sidebarVisible && !hideSidebar && !minimalMode && (
@@ -2932,9 +3111,9 @@ return (
           ☰
         </button>
       )}
-      <div className={styles.chatContainer} style={embeddedStyles.chatContainer}>
+      <div className={`${styles.chatContainer} ${isProfessionalConversation ? styles.chatContainerProfessional : ''}`} style={embeddedStyles.chatContainer}>
         <div
-          className={styles.messages}
+          className={`${styles.messages} ${isProfessionalConversation ? styles.messagesProfessional : ''}`}
           style={embeddedStyles.messages}
           ref={messagesContainerRef}
           onScroll={handleMessagesScroll}
@@ -2956,6 +3135,7 @@ return (
                     feedback={msg.feedback}
                     hasImage={msg.hasImage}
                     tutorResponse={msg.tutorResponse}
+                    conversationVariant={conversationVariant}
                     onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
                     autoPlaySpeech={msg.role === 'assistant' ? (enableVoice && autoPlaySpeech) : undefined}
                     onPlayMessage={msg.role === 'assistant' ? () => {
@@ -2998,9 +3178,9 @@ return (
         <form
           onSubmit={handleSubmit}
           style={{direction:"rtl"}}
-          className={`${styles.inputForm} ${styles.clearfix}`}
+          className={`${styles.inputForm} ${styles.clearfix} ${isProfessionalConversation ? styles.inputFormProfessional : ''}`}
         >
-          <div className={`${styles.inputContainer} ${isExerciseMode ? styles.exerciseMode : ''}`}>
+          <div className={`${styles.inputContainer} ${isProfessionalConversation ? styles.inputContainerProfessional : ''} ${isExerciseMode ? styles.exerciseMode : ''}`}>
             {userInput && isTokenBalanceVisible && (
               <div className={styles.costPopup}>
                 עלות הודעה: {mainChatMessageCost} מטבע{mainChatMessageCost === 1 ? "" : "ות"}
@@ -3012,8 +3192,14 @@ return (
               </div>
             )}
 
+            {enableRelationalAlgebraMode && subjectMode === "relational_algebra" && (
+              <div className={styles.subjectModeBanner}>
+                מצב אלגברת יחסים פעיל. 
+              </div>
+            )}
+
             <textarea
-              className={styles.input}
+              className={`${styles.input} ${isProfessionalConversation ? styles.inputProfessional : ''}`}
               name="chatMessage"
               value={userInput}
               onChange={(e) => {
@@ -3037,23 +3223,25 @@ return (
               placeholder={
                 isExerciseMode 
                   ? "הקלד את תשובת ה-SQL שלך כאן…" 
-                  : "הקלד כאן…"
+                  : enableRelationalAlgebraMode && subjectMode === "relational_algebra"
+                    ? "שאל על אלגברת יחסים, המרה מ-SQL, או פירוק לביטוי RA…"
+                    : "הקלד כאן…"
               }
               aria-label={isExerciseMode ? "תשובת SQL" : "הודעה לצ'אט"}
               autoComplete="off"
               spellCheck={false}
               style={{
-                paddingTop: '16px',
-                paddingRight: '20px',
-                paddingBottom: '16px',
-                paddingLeft: '50px'
+                paddingTop: isProfessionalConversation ? '18px' : '16px',
+                paddingRight: isProfessionalConversation ? '22px' : '20px',
+                paddingBottom: isProfessionalConversation ? '18px' : '16px',
+                paddingLeft: isProfessionalConversation ? '64px' : '50px'
               }}
             />
             
             {/* Send Button */}
             <button
               type="submit"
-              className={styles.sendButton}
+              className={`${styles.sendButton} ${isProfessionalConversation ? styles.sendButtonProfessional : ''}`}
               disabled={inputDisabled || imageProcessing || (!userInput.trim() && !selectedImage)}
               aria-label="שלח הודעה"
             >
@@ -3074,7 +3262,7 @@ return (
 
             {/* Action Buttons Row */}
             {!minimalMode && (
-            <div className={styles.actionButtons} ref={actionMenuRef}>
+            <div className={`${styles.actionButtons} ${isProfessionalConversation ? styles.actionButtonsProfessional : ''}`} ref={actionMenuRef}>
               {/* Audio Recorder - hidden for clean version */}
               {/* {enableVoice && (
                 <AudioRecorder
@@ -3129,6 +3317,42 @@ return (
                     </div>
                    
                   </button>
+
+                  {enableRelationalAlgebraMode && (
+                    <button
+                      type="button"
+                      className={styles.actionMenuItem}
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        setSubjectMode((previous) =>
+                          previous === "relational_algebra" ? "sql" : "relational_algebra"
+                        );
+                      }}
+                      disabled={inputDisabled || imageProcessing}
+                      title="הפעלת מצב אלגברת יחסים"
+                      role="menuitemcheckbox"
+                      aria-checked={subjectMode === "relational_algebra"}
+                    >
+                      <div className={styles.actionMenuItemBody}>
+                        <span className={styles.actionMenuItemIconText}>π</span>
+                        <span className={styles.actionMenuItemTitle}>אלגברת יחסים</span>
+                        <span className={styles.actionMenuItemDescription}>
+                          {subjectMode === "relational_algebra"
+                            ? "מייקל יסביר בעזרת σ, π, ⋈"
+                            : "מעבר להכוונה באלגברת יחסים"}
+                        </span>
+                        <span
+                          className={`${styles.actionMenuItemBadge} ${
+                            subjectMode === "relational_algebra"
+                              ? styles.actionMenuItemBadgeActive
+                              : styles.actionMenuItemBadgeInactive
+                          }`}
+                        >
+                          {subjectMode === "relational_algebra" ? "פועל" : "כבוי"}
+                        </span>
+                      </div>
+                    </button>
+                  )}
 
                   {isSqlPracticeEnabled && (
                     <button

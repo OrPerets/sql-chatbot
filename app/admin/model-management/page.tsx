@@ -1,5 +1,6 @@
 "use client";
 
+import AdminShell from "@/app/components/admin/AdminShell";
 import { useEffect, useState } from "react";
 import { RECOMMENDED_RUNTIME_MODEL } from "@/lib/openai/model-registry";
 import styles from "./ModelManagement.module.css";
@@ -12,10 +13,62 @@ interface RuntimeConfig {
   source?: string;
 }
 
+interface FeatureFlagDiagnostic {
+  name: string;
+  enabled: boolean;
+  defaultValue: boolean;
+  description: string;
+}
+
+interface ToolBoundary {
+  purpose: string;
+  webSearchAllowed: boolean;
+  notes: string[];
+}
+
+interface ToolMatrixEntry {
+  name: string;
+  lifecycle: string;
+  rolloutPhase: string;
+  allowedRoles: string[];
+  loggingSensitivity: string;
+  runtimeEnabled: boolean;
+  featureFlag?: string | null;
+  featureFlagEnabled?: boolean;
+}
+
+interface ToolMatrixRow {
+  context: string;
+  boundary: ToolBoundary;
+  tools: ToolMatrixEntry[];
+}
+
 interface RuntimeConfigResponse {
   success?: boolean;
   mode?: string;
   config?: RuntimeConfig;
+  featureFlags?: FeatureFlagDiagnostic[];
+  instructorConnectorCapabilities?: Array<{
+    id: string;
+    label: string;
+    delivery: string;
+    connectorId?: string;
+    enabled: boolean;
+    featureFlagEnabled: boolean;
+    authConfigured: boolean;
+    status: string;
+    statusDetail: string;
+    allowedTools: string[];
+    useCases: string[];
+    oauthScopes: string[];
+    implementationDecision: string;
+  }>;
+  toolContextBoundaries?: Record<string, ToolBoundary>;
+  toolRolloutMatrix?: ToolMatrixRow[];
+  toolUsageLoggingPlan?: {
+    destination: string;
+    notes: string[];
+  };
   error?: string;
 }
 
@@ -50,6 +103,12 @@ interface UsageAnalytics {
 export default function ModelManagement() {
   const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig | null>(null);
   const [apiMode, setApiMode] = useState<string>("unknown");
+  const [featureFlags, setFeatureFlags] = useState<FeatureFlagDiagnostic[]>([]);
+  const [instructorConnectorCapabilities, setInstructorConnectorCapabilities] = useState<
+    NonNullable<RuntimeConfigResponse["instructorConnectorCapabilities"]>
+  >([]);
+  const [toolRolloutMatrix, setToolRolloutMatrix] = useState<ToolMatrixRow[]>([]);
+  const [toolUsageLoggingPlan, setToolUsageLoggingPlan] = useState<RuntimeConfigResponse["toolUsageLoggingPlan"] | null>(null);
   const [testResults, setTestResults] = useState<TestResult | null>(null);
   const [usageAnalytics, setUsageAnalytics] = useState<UsageAnalytics | null>(null);
   const [loading, setLoading] = useState(false);
@@ -74,6 +133,14 @@ export default function ModelManagement() {
 
       setRuntimeConfig(data.config);
       setApiMode(data.mode || "unknown");
+      setFeatureFlags(Array.isArray(data.featureFlags) ? data.featureFlags : []);
+      setInstructorConnectorCapabilities(
+        Array.isArray(data.instructorConnectorCapabilities)
+          ? data.instructorConnectorCapabilities
+          : []
+      );
+      setToolRolloutMatrix(Array.isArray(data.toolRolloutMatrix) ? data.toolRolloutMatrix : []);
+      setToolUsageLoggingPlan(data.toolUsageLoggingPlan || null);
     } catch (err: any) {
       setError(err.message || "Failed to load runtime config.");
     }
@@ -173,7 +240,8 @@ export default function ModelManagement() {
   };
 
   return (
-    <div className={styles.container}>
+    <AdminShell>
+      <div className={styles.container}>
       <div className={styles.navigation}>
         <button onClick={() => (window.location.href = "/admin")} className={styles.backButton}>
           ← חזור לדשבורד ניהול
@@ -224,6 +292,129 @@ export default function ModelManagement() {
             {loading ? "מחזיר..." : "Rollback to Previous Stable"}
           </button>
         </div>
+      </section>
+
+      <section className={styles.section}>
+        <h2>Feature Flags</h2>
+        {featureFlags.length ? (
+          <div className={styles.diagnosticGrid}>
+            {featureFlags.map((flag) => (
+              <div key={flag.name} className={styles.diagnosticCard}>
+                <div className={styles.diagnosticHeader}>
+                  <strong>{flag.name}</strong>
+                  <span className={flag.enabled ? styles.flagOn : styles.flagOff}>
+                    {flag.enabled ? "ON" : "OFF"}
+                  </span>
+                </div>
+                <p>{flag.description}</p>
+                <small>Default: {flag.defaultValue ? "ON" : "OFF"}</small>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p>לא נמצאו feature flags.</p>
+        )}
+      </section>
+
+      <section className={styles.section}>
+        <h2>Instructor Connectors</h2>
+        {instructorConnectorCapabilities.length ? (
+          <div className={styles.diagnosticGrid}>
+            {instructorConnectorCapabilities.map((connector) => (
+              <div key={connector.id} className={styles.diagnosticCard}>
+                <div className={styles.diagnosticHeader}>
+                  <strong>{connector.label}</strong>
+                  <span className={connector.status === "ready" ? styles.flagOn : styles.flagOff}>
+                    {connector.status}
+                  </span>
+                </div>
+                <p>{connector.statusDetail}</p>
+                <p>
+                  Delivery: {connector.delivery}
+                  {connector.connectorId ? ` | Connector ID: ${connector.connectorId}` : ""}
+                </p>
+                <p>Enabled: {connector.enabled ? "yes" : "no"} | Auth token: {connector.authConfigured ? "configured" : "missing"}</p>
+                <p>Allowed tools: {connector.allowedTools.join(", ")}</p>
+                <p>Use cases: {connector.useCases.join(", ")}</p>
+                <small>Scopes: {connector.oauthScopes.join(", ")}</small>
+                <p>{connector.implementationDecision}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p>Instructor connector diagnostics are unavailable.</p>
+        )}
+      </section>
+
+      <section className={styles.section}>
+        <h2>Tool Rollout Matrix</h2>
+        {toolRolloutMatrix.length ? (
+          <div className={styles.contextStack}>
+            {toolRolloutMatrix.map((row) => (
+              <div key={row.context} className={styles.contextCard}>
+                <div className={styles.contextHeader}>
+                  <div>
+                    <h3>{row.context}</h3>
+                    <p>{row.boundary.purpose}</p>
+                  </div>
+                  <span className={row.boundary.webSearchAllowed ? styles.flagOn : styles.flagOff}>
+                    web_search {row.boundary.webSearchAllowed ? "allowed" : "blocked"}
+                  </span>
+                </div>
+                <ul className={styles.boundaryNotes}>
+                  {row.boundary.notes.map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
+                </ul>
+                <div className={styles.toolList}>
+                  {row.tools.map((tool) => (
+                    <div key={`${row.context}-${tool.name}`} className={styles.toolCard}>
+                      <div className={styles.diagnosticHeader}>
+                        <strong>{tool.name}</strong>
+                        <span className={tool.runtimeEnabled ? styles.flagOn : styles.flagOff}>
+                          {tool.runtimeEnabled ? "runtime on" : "runtime off"}
+                        </span>
+                      </div>
+                      <p>
+                        Lifecycle: {tool.lifecycle} | Rollout: {tool.rolloutPhase}
+                      </p>
+                      <p>
+                        Roles: {tool.allowedRoles.join(", ")} | Logging: {tool.loggingSensitivity}
+                      </p>
+                      {tool.featureFlag ? (
+                        <small>
+                          Flag: {tool.featureFlag} ({tool.featureFlagEnabled ? "enabled" : "disabled"})
+                        </small>
+                      ) : (
+                        <small>No feature flag gate</small>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p>Tool rollout diagnostics are unavailable.</p>
+        )}
+      </section>
+
+      <section className={styles.section}>
+        <h2>Logging Plan</h2>
+        {toolUsageLoggingPlan ? (
+          <div className={styles.info}>
+            <p>
+              <strong>Destination:</strong> {toolUsageLoggingPlan.destination}
+            </p>
+            <ul className={styles.boundaryNotes}>
+              {toolUsageLoggingPlan.notes.map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p>Logging plan not available.</p>
+        )}
       </section>
 
       <section className={styles.section}>
@@ -322,6 +513,7 @@ export default function ModelManagement() {
           <p>Loading usage analytics...</p>
         )}
       </section>
-    </div>
+      </div>
+    </AdminShell>
   );
 }

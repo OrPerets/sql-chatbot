@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getHomeworkQuestions, getHomeworkSet } from "@/app/homework/services/homeworkService";
@@ -887,6 +886,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       : -1;
 
     return {
+      homeworkSetId: setId,
+      studentId,
       homeworkTitle: homework.title,
       backgroundStory: homework.backgroundStory,
       tables: Object.entries(sidebarTables).map(([name, data]) => ({
@@ -911,7 +912,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         : null,
       studentTableData: submission?.studentTableData,
     };
-  }, [activeQuestion, activeQuestionText, getVisibleQuestionText, homework, questions, sidebarTables, submission?.studentTableData]);
+  }, [activeQuestion, activeQuestionText, getVisibleQuestionText, homework, questions, setId, sidebarTables, studentId, submission?.studentTableData]);
 
   // Debug: Log activeAnswer whenever it changes
   useEffect(() => {

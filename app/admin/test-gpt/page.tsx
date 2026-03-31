@@ -1,8 +1,10 @@
 "use client";
 
+import AdminShell from "@/app/components/admin/AdminShell";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Bot, BrainCircuit, FileText, Loader2, Send, Sparkles, Trash2 } from "lucide-react";
+import type { ResponseCitation, ResponseTurnMetadata } from "@/lib/openai/contracts";
 import styles from "./test-gpt.module.css";
 
 type ReasoningEffort = "medium" | "high" | "xhigh";
@@ -35,6 +37,8 @@ type StreamEvent =
       type: "response.completed";
       responseId?: string;
       outputText?: string;
+      citations?: ResponseCitation[];
+      metadata?: ResponseTurnMetadata | null;
     }
   | {
       type: "response.error";
@@ -68,6 +72,8 @@ export default function TestGptPage() {
   const [reasoningText, setReasoningText] = useState("");
   const [responseText, setResponseText] = useState("");
   const [responseId, setResponseId] = useState("");
+  const [citations, setCitations] = useState<ResponseCitation[]>([]);
+  const [responseMetadata, setResponseMetadata] = useState<ResponseTurnMetadata | null>(null);
   const [eventLog, setEventLog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -184,18 +190,22 @@ export default function TestGptPage() {
     setReasoningText("");
     setResponseText("");
     setResponseId("");
+    setCitations([]);
+    setResponseMetadata(null);
     setEventLog([]);
 
     try {
-      const response = await fetch("/api/admin/test-gpt", {
+      const response = await fetch("/api/responses/messages", {
         method: "POST",
         headers: {
           ...adminHeaders,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          prompt,
+          content: prompt,
           fileIds: uploadedPdfs.map((file) => file.fileId),
+          stream: true,
+          context: "admin",
           reasoningEffort,
           includeReasoningSummary,
         }),
@@ -256,6 +266,23 @@ export default function TestGptPage() {
           if (event.type === "response.completed") {
             setResponseId(event.responseId || "");
             setResponseText(event.outputText || "");
+            setCitations(Array.isArray(event.citations) ? event.citations : []);
+            setResponseMetadata(event.metadata || null);
+
+            if (event.metadata?.webSearchCallCount) {
+              appendLog(
+                `web_search completed: ${event.metadata.webSearchCallCount} call(s), ${event.metadata.webSearchSourceCount || 0} source(s)`
+              );
+            }
+
+            if (event.metadata?.connectorUsage?.length) {
+              appendLog(
+                `Connector sources: ${event.metadata.connectorUsage
+                  .map((entry) => `${entry.label} (${entry.toolNames.join(", ")})`)
+                  .join(" | ")}`
+              );
+            }
+
             appendLog(`Completed ${event.responseId || "response"}`);
             continue;
           }
@@ -273,14 +300,15 @@ export default function TestGptPage() {
   };
 
   return (
-    <div className={styles.page}>
+    <AdminShell>
+      <div className={styles.page}>
       <div className={styles.hero}>
         <div>
           <p className={styles.eyebrow}>Admin Playground</p>
           <h1 className={styles.title}>GPT-5.4 Pro Test Console</h1>
           <p className={styles.subtitle}>
-            Runs on the OpenAI Responses API with <code>gpt-5.4-pro</code>, selectable reasoning
-            effort, PDF attachments, streamed reasoning summaries, and the full final answer.
+            Runs on the shared Responses pipeline with admin-only hosted tools, selectable reasoning
+            effort, PDF attachments, streamed reasoning summaries, citations, and final-answer diagnostics.
           </p>
         </div>
 
@@ -421,12 +449,47 @@ export default function TestGptPage() {
             <h2>Full Response</h2>
           </div>
           <div className={styles.panelMeta}>
-            <span>Model: gpt-5.4-pro</span>
             <span>{responseId ? `Response ID: ${responseId}` : "No response yet"}</span>
+            <span>Sources: {citations.length}</span>
+            <span>Web search calls: {responseMetadata?.webSearchCallCount || 0}</span>
+            <span>Connector calls: {responseMetadata?.connectorCallCount || 0}</span>
           </div>
           <div className={styles.panelBody}>
             {responseText ? (
-              <ReactMarkdown>{responseText}</ReactMarkdown>
+              <>
+                <ReactMarkdown>{responseText}</ReactMarkdown>
+                {responseMetadata?.connectorUsage?.length ? (
+                  <div className={styles.sourcesSection}>
+                    <h3>Connector Sources</h3>
+                    <ul className={styles.sourcesList}>
+                      {responseMetadata.connectorUsage.map((entry) => (
+                        <li key={entry.label}>
+                          <strong>{entry.label}</strong> via {entry.toolNames.join(", ")} ({entry.callCount} call
+                          {entry.callCount === 1 ? "" : "s"})
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {citations.length ? (
+                  <div className={styles.sourcesSection}>
+                    <h3>Sources</h3>
+                    <ul className={styles.sourcesList}>
+                      {citations.map((citation, index) => (
+                        <li key={`${citation.url || citation.fileId || "citation"}-${index}`}>
+                          {citation.type === "url_citation" && citation.url ? (
+                            <a href={citation.url} target="_blank" rel="noreferrer">
+                              {citation.title || citation.url}
+                            </a>
+                          ) : (
+                            <span>{citation.filename || citation.fileId || "Course file"}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </>
             ) : (
               <p className={styles.placeholder}>
                 {running ? "Streaming response..." : "The final model output will appear here."}
@@ -453,6 +516,7 @@ export default function TestGptPage() {
           </div>
         </article>
       </section>
-    </div>
+      </div>
+    </AdminShell>
   );
 }

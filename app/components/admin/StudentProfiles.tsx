@@ -91,6 +91,94 @@ interface StudentProfilesProps {
   onClose?: () => void;
 }
 
+interface StudentIssue {
+  issueId: string;
+  description: string;
+  detectedAt: string;
+  resolvedAt?: string;
+  severity: 'low' | 'medium' | 'high';
+}
+
+interface StudentIssueHistoryResponse {
+  totalIssues: number;
+  unresolvedIssues: number;
+  issueHistory: StudentIssue[];
+}
+
+const toFiniteNumber = (value: unknown, fallback = 0) => {
+  const numericValue = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+};
+
+const normalizeIssue = (issue: Partial<StudentIssue>): StudentIssue => ({
+  issueId: issue.issueId || `issue-${Math.random().toString(36).slice(2, 10)}`,
+  description: issue.description || 'לא סופק תיאור לבעיה זו.',
+  detectedAt: issue.detectedAt || new Date(0).toISOString(),
+  resolvedAt: issue.resolvedAt,
+  severity: issue.severity === 'high' || issue.severity === 'medium' ? issue.severity : 'low'
+});
+
+const normalizeProfile = (profile: StudentProfile): StudentProfile => ({
+  ...profile,
+  name: profile.name || 'ללא שם',
+  email: profile.email || 'ללא אימייל',
+  totalQuestions: toFiniteNumber(profile.totalQuestions),
+  correctAnswers: toFiniteNumber(profile.correctAnswers),
+  homeworkSubmissions: toFiniteNumber(profile.homeworkSubmissions),
+  averageGrade: toFiniteNumber(profile.averageGrade),
+  issueCount: toFiniteNumber(profile.issueCount),
+  commonChallenges: Array.isArray(profile.commonChallenges) ? profile.commonChallenges : [],
+  issueHistory: Array.isArray(profile.issueHistory) ? profile.issueHistory.map(normalizeIssue) : [],
+  engagementMetrics: {
+    chatSessions: toFiniteNumber(profile.engagementMetrics?.chatSessions),
+    averageSessionDuration: toFiniteNumber(profile.engagementMetrics?.averageSessionDuration),
+    helpRequests: toFiniteNumber(profile.engagementMetrics?.helpRequests),
+    selfCorrections: toFiniteNumber(profile.engagementMetrics?.selfCorrections)
+  },
+  learningProgress: {
+    sqlBasics: toFiniteNumber(profile.learningProgress?.sqlBasics),
+    joins: toFiniteNumber(profile.learningProgress?.joins),
+    aggregations: toFiniteNumber(profile.learningProgress?.aggregations),
+    subqueries: toFiniteNumber(profile.learningProgress?.subqueries),
+    advancedQueries: toFiniteNumber(profile.learningProgress?.advancedQueries)
+  },
+  riskFactors: {
+    isAtRisk: Boolean(profile.riskFactors?.isAtRisk),
+    riskLevel:
+      profile.riskFactors?.riskLevel === 'high' || profile.riskFactors?.riskLevel === 'medium'
+        ? profile.riskFactors.riskLevel
+        : 'low',
+    riskFactors: Array.isArray(profile.riskFactors?.riskFactors) ? profile.riskFactors.riskFactors : [],
+    lastAssessment: profile.riskFactors?.lastAssessment || ''
+  }
+});
+
+const normalizeAnalytics = (value: Partial<StudentAnalytics>): StudentAnalytics => ({
+  totalStudents: toFiniteNumber(value.totalStudents),
+  scoreDistribution: {
+    empty: toFiniteNumber(value.scoreDistribution?.empty),
+    good: toFiniteNumber(value.scoreDistribution?.good),
+    needs_attention: toFiniteNumber(value.scoreDistribution?.needs_attention),
+    struggling: toFiniteNumber(value.scoreDistribution?.struggling)
+  },
+  riskDistribution: {
+    low: toFiniteNumber(value.riskDistribution?.low),
+    medium: toFiniteNumber(value.riskDistribution?.medium),
+    high: toFiniteNumber(value.riskDistribution?.high)
+  },
+  averageEngagement: toFiniteNumber(value.averageEngagement),
+  averageGrade: toFiniteNumber(value.averageGrade),
+  topChallenges: Array.isArray(value.topChallenges) ? value.topChallenges : []
+});
+
+const normalizeIssueHistoryResponse = (
+  value: Partial<StudentIssueHistoryResponse>
+): StudentIssueHistoryResponse => ({
+  totalIssues: toFiniteNumber(value.totalIssues),
+  unresolvedIssues: toFiniteNumber(value.unresolvedIssues),
+  issueHistory: Array.isArray(value.issueHistory) ? value.issueHistory.map(normalizeIssue) : []
+});
+
 const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
   const [profiles, setProfiles] = useState<StudentProfile[]>([]);
   const [analytics, setAnalytics] = useState<StudentAnalytics | null>(null);
@@ -107,7 +195,7 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
   const [conversationSummaries, setConversationSummaries] = useState<any[]>([]);
   const [showConversationInsights, setShowConversationInsights] = useState(false);
   const [showIssueHistory, setShowIssueHistory] = useState(false);
-  const [selectedStudentIssues, setSelectedStudentIssues] = useState<any>(null);
+  const [selectedStudentIssues, setSelectedStudentIssues] = useState<StudentIssueHistoryResponse | null>(null);
   const [showChallengesPopup, setShowChallengesPopup] = useState(false);
   const [selectedStudentChallenges, setSelectedStudentChallenges] = useState<string[]>([]);
 
@@ -132,7 +220,7 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
       const data = await response.json();
 
       if (data.success) {
-        setProfiles(data.data.profiles || []);
+        setProfiles((data.data.profiles || []).map(normalizeProfile));
         setTotalPages(data.data.totalPages || 1);
         setTotalStudents(data.data.total || 0);
       } else {
@@ -152,7 +240,7 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
       const data = await response.json();
 
       if (data.success) {
-        setAnalytics(data.data);
+        setAnalytics(normalizeAnalytics(data.data));
       } else {
         console.error('Failed to fetch analytics:', data.error);
       }
@@ -197,7 +285,13 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('he-IL', {
+    const parsedDate = new Date(dateString);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return 'לא זמין';
+    }
+
+    return parsedDate.toLocaleDateString('he-IL', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -207,9 +301,16 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
   };
 
   const calculateAccuracy = (correct: number, total: number) => {
-    if (total === 0) return 0;
-    return Math.round((correct / total) * 100);
+    const safeCorrect = toFiniteNumber(correct);
+    const safeTotal = toFiniteNumber(total);
+
+    if (safeTotal <= 0) return 0;
+    return Math.round((safeCorrect / safeTotal) * 100);
   };
+
+  const formatDecimal = (value: unknown, digits = 1) => toFiniteNumber(value).toFixed(digits);
+
+  const formatInteger = (value: unknown) => Math.round(toFiniteNumber(value)).toString();
 
   const handleExport = async () => {
     try {
@@ -279,7 +380,7 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
   };
 
   const handleViewConversationInsights = async (profile: StudentProfile) => {
-    setSelectedStudent(profile);
+    setSelectedStudent(normalizeProfile(profile));
     setShowConversationInsights(true);
     await fetchConversationSummaries(profile.userId);
   };
@@ -326,8 +427,8 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
       console.log('Response data:', data);
       
       if (data.success) {
-        setSelectedStudentIssues(data.data);
-        setSelectedStudent(profile);
+        setSelectedStudentIssues(normalizeIssueHistoryResponse(data.data));
+        setSelectedStudent(normalizeProfile(profile));
         setShowIssueHistory(true);
       } else {
         console.error('Error response:', data);
@@ -403,7 +504,7 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
   const handleViewChallenges = (profile: StudentProfile) => {
     if (profile.commonChallenges && profile.commonChallenges.length > 0) {
       setSelectedStudentChallenges(profile.commonChallenges);
-      setSelectedStudent(profile);
+      setSelectedStudent(normalizeProfile(profile));
       setShowChallengesPopup(true);
     }
   };
@@ -429,25 +530,25 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
         <div className={studentStyles.analyticsSection}>
             <div className={studentStyles.statCard}>
               <Users className={studentStyles.statIcon} />
-              {analytics.totalStudents}
+              <div className={studentStyles.statNumber}>{formatInteger(analytics.totalStudents)}</div>
               <div className={studentStyles.statLabel}>סה&quot;כ תלמידים</div>
             </div>
 
             <div className={studentStyles.statCard}>
               <TrendingUp className={studentStyles.statIcon} />
-              {analytics.averageGrade.toFixed(1)}
+              <div className={studentStyles.statNumber}>{formatDecimal(analytics.averageGrade)}</div>
               <div className={studentStyles.statLabel}>ציון ממוצע</div>
             </div>
 
             <div className={studentStyles.statCard}>
               <BarChart3 className={studentStyles.statIcon} />
-              {analytics.averageEngagement.toFixed(1)}
+              <div className={studentStyles.statNumber}>{formatDecimal(analytics.averageEngagement)}</div>
               <div className={studentStyles.statLabel}>ממוצע מעורבות</div>
             </div>
 
             <div className={studentStyles.statCard}>
               <AlertTriangle className={studentStyles.statIcon} />
-              {analytics.riskDistribution.high}
+              <div className={studentStyles.statNumber}>{formatInteger(analytics.riskDistribution.high)}</div>
               <div className={studentStyles.statLabel}>בסיכון גבוה</div>
             </div>
         </div>
@@ -628,15 +729,15 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
                           </div>
                           <div className={studentStyles.metricRow}>
                             <span className={studentStyles.metricLabel}>ממוצע:</span>
-                            <span className={studentStyles.metricValue}>{profile.averageGrade.toFixed(1)}</span>
+                            <span className={studentStyles.metricValue}>{formatDecimal(profile.averageGrade)}</span>
                           </div>
                           <div className={studentStyles.metricRow}>
                             <span className={studentStyles.metricLabel}>שיחות:</span>
-                            <span className={studentStyles.metricValue}>{profile.engagementMetrics.chatSessions}</span>
+                            <span className={studentStyles.metricValue}>{formatInteger(profile.engagementMetrics.chatSessions)}</span>
                           </div>
                           <div className={studentStyles.metricRow}>
                             <span className={studentStyles.metricLabel}>ממוצע זמן:</span>
-                            <span className={studentStyles.metricValue}>{profile.engagementMetrics.averageSessionDuration.toFixed(1)} דק&apos;</span>
+                            <span className={studentStyles.metricValue}>{formatDecimal(profile.engagementMetrics.averageSessionDuration)} דק&apos;</span>
                           </div>
                         </div>
                       </td>
@@ -734,8 +835,9 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
                 <button
                   onClick={() => setShowConversationInsights(false)}
                   className="text-gray-400 hover:text-gray-600"
+                  aria-label="סגור חלון"
                 >
-                  <span className="sr-only">סגור</span>
+                  <span className="text-sm font-medium ml-2">סגור</span>
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -822,8 +924,9 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
                 <button
                   onClick={() => setShowIssueHistory(false)}
                   className={studentStyles.modalCloseButton}
+                  aria-label="סגור חלון"
                 >
-                  <span className="sr-only">סגור</span>
+                  <span className={studentStyles.modalCloseText}>סגור</span>
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">                                                               
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />                                              
                   </svg>
@@ -831,87 +934,91 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
               </div>
 
               {/* Issue Content Wrapper */}
-              <div className={studentStyles.challengesModalContent}>
+              <div className={studentStyles.issueHistoryContent}>
               {/* Issue Summary */}
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="bg-gray-50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-gray-900">{selectedStudentIssues.totalIssues}</div>
-                  <div className="text-sm text-gray-600">סה&quot;כ בעיות</div>
+              <div className={studentStyles.issueSummaryGrid}>
+                <div className={studentStyles.issueSummaryCard}>
+                  <div className={studentStyles.issueSummaryValue}>{formatInteger(selectedStudentIssues.totalIssues)}</div>
+                  <div className={studentStyles.issueSummaryLabel}>סה&quot;כ בעיות</div>
                 </div>
-                <div className="bg-red-50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-red-600">{selectedStudentIssues.unresolvedIssues}</div>
-                  <div className="text-sm text-gray-600">בעיות לא פתורות</div>
+                <div className={`${studentStyles.issueSummaryCard} ${studentStyles.issueSummaryCardAlert}`}>
+                  <div className={studentStyles.issueSummaryValue}>{formatInteger(selectedStudentIssues.unresolvedIssues)}</div>
+                  <div className={studentStyles.issueSummaryLabel}>בעיות לא פתורות</div>
                 </div>
-                <div className="bg-green-50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-green-600">{selectedStudentIssues.totalIssues - selectedStudentIssues.unresolvedIssues}</div>
-                  <div className="text-sm text-gray-600">בעיות פתורות</div>
+                <div className={`${studentStyles.issueSummaryCard} ${studentStyles.issueSummaryCardSuccess}`}>
+                  <div className={studentStyles.issueSummaryValue}>
+                    {formatInteger(selectedStudentIssues.totalIssues - selectedStudentIssues.unresolvedIssues)}
+                  </div>
+                  <div className={studentStyles.issueSummaryLabel}>בעיות פתורות</div>
                 </div>
               </div>
 
               {/* Issue History */}
-              <div className="space-y-4">
-                <h4 className="text-md font-medium text-gray-900">היסטוריית בעיות</h4>
+              <div className={studentStyles.issueTimelineSection}>
+                <div className={studentStyles.issueTimelineHeader}>
+                  <h4 className={studentStyles.issueTimelineTitle}>היסטוריית בעיות</h4>
+                  <p className={studentStyles.issueTimelineDescription}>
+                    סקירה מרוכזת של האיתורים האחרונים והטיפול בהם.
+                  </p>
+                </div>
                 {selectedStudentIssues.issueHistory.length === 0 ? (
-                  <div className="text-gray-500 text-center py-8">
+                  <div className={studentStyles.issueEmptyState}>
                     אין בעיות זמינות עבור תלמיד זה
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {selectedStudentIssues.issueHistory.map((issue: any) => (
-                      <div key={issue.issueId} className={`border rounded-lg p-4 ${
-                        issue.resolvedAt ? 'border-green-200 bg-green-50' : 
-                        issue.severity === 'high' ? 'border-red-200 bg-red-50' :
-                        issue.severity === 'medium' ? 'border-yellow-200 bg-yellow-50' :
-                        'border-gray-200 bg-gray-50'
-                      }`}>
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                issue.severity === 'high' ? 'bg-red-100 text-red-800' :
-                                issue.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
+                  <div className={studentStyles.issueTimelineList}>
+                    {selectedStudentIssues.issueHistory.map((issue) => (
+                      <article
+                        key={issue.issueId}
+                        className={`${studentStyles.issueCard} ${
+                          issue.resolvedAt
+                            ? studentStyles.issueResolved
+                            : issue.severity === 'high'
+                              ? studentStyles.issueHigh
+                              : issue.severity === 'medium'
+                                ? studentStyles.issueMedium
+                                : studentStyles.issueLow
+                        }`}
+                      >
+                        <div className={studentStyles.issueCardHeader}>
+                          <div className={studentStyles.issueBadgeGroup}>
+                            <span className={`${studentStyles.issueBadge} ${studentStyles[`severity${issue.severity.charAt(0).toUpperCase() + issue.severity.slice(1)}`]}`}>
                                 {issue.severity === 'high' ? 'גבוהה' :
                                  issue.severity === 'medium' ? 'בינונית' : 'נמוכה'}
-                              </span>
-                              {issue.resolvedAt && (
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                  נפתרה
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-gray-900 font-medium">{issue.description}</p>
+                            </span>
+                            <span className={`${studentStyles.issueBadge} ${issue.resolvedAt ? studentStyles.issueStatusResolved : studentStyles.issueStatusOpen}`}>
+                              {issue.resolvedAt ? 'נפתרה' : 'פתוחה'}
+                            </span>
                           </div>
                           {!issue.resolvedAt && (
                             <button
                               onClick={() => handleResolveIssue(issue.issueId)}
-                              className="ml-4 px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                              className={studentStyles.resolveIssueButton}
                             >
-                              פתור
+                              סמן כנפתרה
                             </button>
                           )}
                         </div>
-                        
-                        <div className="text-sm text-gray-600">
-                          <div>זוהתה: {new Date(issue.detectedAt).toLocaleDateString('he-IL', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}</div>
+
+                        <p className={studentStyles.issueDescription}>{issue.description}</p>
+
+                        <div className={studentStyles.issueMetaGrid}>
+                          <div className={studentStyles.issueMetaItem}>
+                            <span className={studentStyles.issueMetaLabel}>זוהתה</span>
+                            <span className={studentStyles.issueMetaValue}>{formatDate(issue.detectedAt)}</span>
+                          </div>
                           {issue.resolvedAt && (
-                            <div>נפתרה: {new Date(issue.resolvedAt).toLocaleDateString('he-IL', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}</div>
+                            <div className={studentStyles.issueMetaItem}>
+                              <span className={studentStyles.issueMetaLabel}>נפתרה</span>
+                              <span className={studentStyles.issueMetaValue}>{formatDate(issue.resolvedAt)}</span>
+                            </div>
                           )}
+                          <div className={studentStyles.issueMetaItem}>
+                            <span className={studentStyles.issueMetaLabel}>מזהה</span>
+                            <span className={studentStyles.issueMetaValue}>{issue.issueId}</span>
+                          </div>
                         </div>
-                      </div>
+                      </article>
                     ))}
                   </div>
                 )}
@@ -934,8 +1041,9 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
                 <button
                   onClick={() => setShowChallengesPopup(false)}
                   className={studentStyles.modalCloseButton}
+                  aria-label="סגור חלון"
                 >
-                  <span className="sr-only">סגור</span>
+                  <span className={studentStyles.modalCloseText}>סגור</span>
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>

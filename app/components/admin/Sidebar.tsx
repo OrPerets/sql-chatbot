@@ -1,385 +1,117 @@
 "use client";
 
-import React, { useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ChevronLeft, ChevronRight, LogOut, PanelRightClose, User } from "lucide-react";
+
 import {
-  BarChart3,
-  Settings,
-  Users,
-  FileText,
-  Database,
-  BookOpen,
-  Brain,
-  Coins,
-  ChevronRight,
-  ChevronLeft,
-  Home,
-  LogOut,
-  User,
-  Search,
-  Bell,
-  HelpCircle,
-  Sparkles
-} from 'lucide-react';
-import styles from './Sidebar.module.css';
+  ADMIN_BUCKETS,
+  getAdminRouteMatch,
+  getRoutesForBucket,
+} from "./adminRoutes";
+import styles from "./Sidebar.module.css";
 
 interface SidebarProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
-  activeTab: string;
-  onTabChange: (tab: string) => void;
   currentUser?: string | null;
   onLogout: () => void;
 }
 
-interface NavigationItem {
-  id: string;
-  label: string;
-  icon: React.ElementType;
-  type: 'tab' | 'route' | 'section';
-  route?: string;
-  badge?: string;
-  children?: NavigationItem[];
-}
-
-const navigationItems: NavigationItem[] = [
-  {
-    id: 'dashboard',
-    label: 'דשבורד ראשי',
-    icon: Home,
-    type: 'tab'
-  },
-  {
-    id: 'weekly-analytics',
-    label: 'אנליטיקה שבועית',
-    icon: BarChart3,
-    type: 'route',
-    route: '/admin/weekly-analytics'
-  },
-  {
-    id: 'exam-prep-analytics',
-    label: 'אנליטיקת הכנה למבחן',
-    icon: BarChart3,
-    type: 'route',
-    route: '/admin/exam-prep-analytics'
-  },
-  {
-    id: 'overview',
-    label: 'סקירה כללית',
-    icon: BarChart3,
-    type: 'section',
-    children: [
-      {
-        id: 'analytics',
-        label: 'ניתוח נתונים',
-        icon: BarChart3,
-        type: 'tab'
-      },
-      {
-        id: 'reports',
-        label: 'דוחות',
-        icon: FileText,
-        type: 'tab'
-      }
-    ]
-  },
-  {
-    id: 'users',
-    label: 'ניהול משתמשים',
-    icon: Users,
-    type: 'tab',
-  },
-  {
-    id: 'students',
-    label: 'פרופילי סטודנטים',
-    icon: Users,
-    type: 'tab',
-  },
-  {
-    id: 'analysis',
-    label: 'ניתוחי AI',
-    icon: Brain,
-    type: 'tab',
-  },
-  {
-    id: 'settings',
-    label: 'הגדרות מערכת',
-    icon: Settings,
-    type: 'tab'
-  },
-  {
-    id: 'content',
-    label: 'ניהול תוכן',
-    icon: BookOpen,
-    type: 'section',
-    children: [
-      {
-        id: 'questions',
-        label: 'בנק שאלות',
-        icon: FileText,
-        type: 'route',
-        route: '/homework/questions'
-      },
-      {
-        id: 'templates',
-        label: 'תבניות שאלות',
-        icon: FileText,
-        type: 'route',
-        route: '/admin/templates'
-      },
-      {
-        id: 'homework',
-        label: 'מטלות ובחינות',
-        icon: BookOpen,
-        type: 'route',
-        route: '/admin/homework'
-      },
-      {
-        id: 'exam-generator',
-        label: 'יצירת מבחן',
-        icon: FileText,
-        type: 'route',
-        route: '/admin/exam-generator'
-      }
-    ]
-  },
-  {
-    id: 'system',
-    label: 'כלי מערכת',
-    icon: Database,
-    type: 'section',
-    children: [
-      {
-        id: 'databases',
-        label: 'מסדי נתונים לתרגילים',
-        icon: Database,
-        type: 'route',
-        route: '/admin/databases'
-      },
-      {
-        id: 'mcp-michael',
-        label: 'MCP מייקל',
-        icon: Database,
-        type: 'route',
-        route: '/admin/mcp-michael'
-      },
-      {
-        id: 'coins',
-        label: 'מטבעות',
-        icon: Coins,
-        type: 'tab'
-      },
-      {
-        id: 'model-management',
-        label: 'ניהול מודלי AI',
-        icon: Brain,
-        type: 'route',
-        route: '/admin/model-management'
-      },
-      {
-        id: 'test-gpt',
-        label: 'בדיקת GPT-5.4 Pro',
-        icon: Sparkles,
-        type: 'route',
-        route: '/admin/test-gpt'
-      }
-    ]
-  }
-];
-
-const Sidebar: React.FC<SidebarProps> = ({
+export default function Sidebar({
   isCollapsed,
   onToggleCollapse,
-  activeTab,
-  onTabChange,
   currentUser,
-  onLogout
-}) => {
-  const router = useRouter();
+  onLogout,
+}: SidebarProps) {
   const pathname = usePathname();
-  const [expandedSections, setExpandedSections] = useState<string[]>(['content', 'system', 'overview']);
-
-  const handleItemClick = (item: NavigationItem) => {
-    if (item.type === 'route' && item.route) {
-      router.push(item.route);
-    } else if (item.type === 'tab') {
-      onTabChange(item.id);
-    } else if (item.type === 'section') {
-      toggleSection(item.id);
-    }
-  };
-
-  const toggleSection = (sectionId: string) => {
-    setExpandedSections(prev =>
-      prev.includes(sectionId)
-        ? prev.filter(id => id !== sectionId)
-        : [...prev, sectionId]
-    );
-  };
-
-  const isActiveItem = (item: NavigationItem): boolean => {
-    if (item.type === 'tab') {
-      return activeTab === item.id;
-    }
-    if (item.type === 'route' && item.route) {
-      return pathname === item.route;
-    }
-    return false;
-  };
-
-  const renderNavigationItem = (item: NavigationItem, depth = 0) => {
-    const Icon = item.icon;
-    const isActive = isActiveItem(item);
-    const hasChildren = item.children && item.children.length > 0;
-    const isExpanded = expandedSections.includes(item.id);
-    const isChild = depth > 0;
-
-    return (
-      <div key={item.id} className={styles.navItemContainer}>
-        <button
-          className={`
-            ${styles.navItem} 
-            ${isActive ? styles.navItemActive : ''} 
-            ${isChild ? styles.navItemChild : ''}
-            ${isCollapsed ? styles.navItemCollapsed : ''}
-          `}
-          onClick={() => handleItemClick(item)}
-          title={isCollapsed ? item.label : undefined}
-        >
-          <div className={styles.navItemIcon}>
-            {React.createElement(Icon, { size: isChild ? 18 : 20 })}
-          </div>
-
-          {!isCollapsed && (
-            <>
-              <span className={styles.navItemLabel}>{item.label}</span>
-              
-              {item.badge && (
-                <span className={styles.navItemBadge}>
-                  {item.badge}
-                </span>
-              )}
-              
-              {hasChildren && (
-                <ChevronRight 
-                  size={16} 
-                  className={`${styles.navItemChevron} ${isExpanded ? styles.navItemChevronExpanded : ''}`}
-                />
-              )}
-            </>
-          )}
-
-          {isActive && <div className={styles.activeIndicator} />}
-        </button>
-
-        {hasChildren && isExpanded && !isCollapsed && (
-          <div className={styles.navChildren}>
-            {item.children?.map(child => renderNavigationItem(child, depth + 1))}
-          </div>
-        )}
-      </div>
-    );
-  };
+  const activeRoute = getAdminRouteMatch(pathname);
 
   return (
-    <div className={`${styles.sidebar} ${isCollapsed ? styles.sidebarCollapsed : ''}`}>
-      {/* Sidebar Header */}
+    <aside className={`${styles.sidebar} ${isCollapsed ? styles.sidebarCollapsed : ""}`}>
       <div className={styles.sidebarHeader}>
-        {!isCollapsed && (
-          <div className={styles.logo}>
-            <div className={styles.logoIcon}>
-              <Database size={24} />
+        {!isCollapsed ? (
+          <div className={styles.brand}>
+            <div className={styles.brandIcon}>
+              <PanelRightClose size={18} />
             </div>
-            <div className={styles.logoText}>
-              <h1 className={styles.logoTitle}>SQL Admin</h1>
-              <p className={styles.logoSubtitle}>מערכת ניהול</p>
+            <div className={styles.brandText}>
+              <div className={styles.brandTitle}>Admin</div>
             </div>
           </div>
+        ) : (
+          <div className={styles.brandIcon}>
+            <PanelRightClose size={18} />
+          </div>
         )}
-        
+
         <button
+          type="button"
           className={styles.collapseButton}
           onClick={onToggleCollapse}
-          title={isCollapsed ? 'הרחב תפריט' : 'כווץ תפריט'}
+          title={isCollapsed ? "הרחב תפריט" : "כווץ תפריט"}
+          aria-label={isCollapsed ? "הרחב תפריט" : "כווץ תפריט"}
         >
-          {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          {isCollapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
         </button>
       </div>
 
-      {/* Quick Search - Show only when expanded */}
-      {!isCollapsed && (
-        <div className={styles.quickSearch}>
-          <div className={styles.searchInput}>
-            <Search size={16} className={styles.searchIcon} />
-            <input
-              type="text"
-              placeholder="חיפוש מהיר..."
-              className={styles.searchField}
-            />
-          </div>
-        </div>
-      )}
+      <nav className={styles.navigation} aria-label="ניווט אדמין">
+        {ADMIN_BUCKETS.map((bucket) => {
+          const routes = getRoutesForBucket(bucket.id);
+          return (
+            <section key={bucket.id} className={styles.navigationSection}>
+              {!isCollapsed ? <div className={styles.sectionLabel}>{bucket.label}</div> : null}
 
-      {/* Navigation Menu */}
-      <nav className={styles.navigation}>
-        <div className={styles.navList}>
-          {navigationItems.map(item => renderNavigationItem(item))}
-        </div>
+              <div className={styles.routeList}>
+                {routes.map((route) => {
+                  const Icon = route.icon;
+                  const isActive = activeRoute?.id === route.id;
+
+                  return (
+                    <Link
+                      key={route.id}
+                      href={route.href}
+                      className={`${styles.navLink} ${isActive ? styles.navLinkActive : ""} ${
+                        isCollapsed ? styles.navLinkCollapsed : ""
+                      }`}
+                      title={`${route.label}: ${route.description}`}
+                    >
+                      <span className={styles.navLinkIcon}>
+                        <Icon size={18} />
+                      </span>
+                      {!isCollapsed ? (
+                        <span className={styles.navLinkBody}>
+                          <span className={styles.navLinkLabel}>{route.label}</span>
+                        </span>
+                      ) : null}
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
       </nav>
 
-      {/* Sidebar Footer */}
       <div className={styles.sidebarFooter}>
-        {/* User Profile Section */}
-        <div className={styles.userSection}>
+        <div className={styles.profileCard}>
+          <div className={styles.profileAvatar}>
+            <User size={16} />
+          </div>
           {!isCollapsed ? (
-            <div className={styles.userProfile}>
-              <div className={styles.userAvatar}>
-                <User size={18} />
-              </div>
-              <div className={styles.userInfo}>
-                <span className={styles.userName}>{currentUser || 'מנהל מערכת'}</span>
-                <span className={styles.userRole}>מנהל</span>
-              </div>
+            <div className={styles.profileBody}>
+              <div className={styles.profileName}>{currentUser || "מנהל מערכת"}</div>
+              <div className={styles.profileRole}>Admin</div>
             </div>
-          ) : (
-            <div className={styles.userAvatarCollapsed} title={currentUser || 'מנהל מערכת'}>
-              <User size={18} />
-            </div>
-          )}
+          ) : null}
         </div>
 
-        {/* Quick Actions */}
-        <div className={styles.quickActions}>
-          <button 
-            className={styles.quickAction} 
-            title="הודעות"
-            onClick={() => console.log('Notifications')}
-          >
-            <Bell size={18} />
-            {!isCollapsed && <span>הודעות</span>}
-          </button>
-
-          <button 
-            className={styles.quickAction} 
-            title="עזרה"
-            onClick={() => console.log('Help')}
-          >
-            <HelpCircle size={18} />
-            {!isCollapsed && <span>עזרה</span>}
-          </button>
-
-          <button 
-            className={styles.quickAction} 
-            title="יציאה"
-            onClick={onLogout}
-          >
-            <LogOut size={18} />
-            {!isCollapsed && <span>יציאה</span>}
-          </button>
-        </div>
+        <button type="button" className={styles.footerButton} onClick={onLogout}>
+          <LogOut size={16} />
+          {!isCollapsed ? <span>יציאה</span> : null}
+        </button>
       </div>
-    </div>
+    </aside>
   );
-};
-
-export default Sidebar;
+}

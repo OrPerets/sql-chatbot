@@ -819,6 +819,75 @@
   color: #003366;
 }
 
+.raSteps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.raStepCard {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 51, 102, 0.1);
+}
+
+.raStepHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.raStepIndex {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(0, 51, 102, 0.1);
+  color: #003366;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.raStepTitle {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.raStepMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.raStepSymbol {
+  font-family: 'Times New Roman', 'Noto Sans Hebrew', serif;
+  font-size: 1rem;
+  color: #1d4ed8;
+}
+
+.raStepExpression {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #0f172a;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+}
+
+.raStepSqlEquivalent {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: #334155;
+}
+
 .codeMessage {
   padding: 16px 20px;
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
@@ -2173,6 +2242,19 @@
   display: none;
 }
 
+.actionMenuItemIconText {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: #1e3a5f;
+  font-family: 'Times New Roman', 'Noto Sans Hebrew', serif;
+  font-weight: 700;
+  font-size: 16px;
+  grid-column: 3;
+}
+
 .actionMenuItemBadge {
   display: inline-flex;
   align-items: center;
@@ -2206,6 +2288,17 @@
 .actionMenuItemBadgePlaceholder {
   visibility: hidden;
   pointer-events: none;
+}
+
+.subjectModeBanner {
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(29, 78, 216, 0.1), rgba(59, 130, 246, 0.08));
+  border: 1px solid rgba(29, 78, 216, 0.16);
+  color: #1e3a8a;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .actionMenuItemInlineLtr {
@@ -3763,5 +3856,391 @@
   50% {
     opacity: 0.9;
     transform: scale(1.05);
+  }
+}
+
+.mainProfessional {
+  background:
+    radial-gradient(circle at top, rgba(226, 239, 255, 0.5) 0%, rgba(248, 250, 252, 0.88) 32%, #f8fafc 100%);
+}
+
+.chatContainerProfessional {
+  align-items: stretch;
+  margin: 20px;
+  background: linear-gradient(180deg, rgba(252, 252, 253, 0.96) 0%, rgba(248, 250, 252, 0.98) 100%);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow:
+    0 24px 60px rgba(15, 23, 42, 0.06),
+    0 10px 24px rgba(15, 23, 42, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.chatHeader {
+  padding: 22px 28px 18px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.85);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.82) 100%);
+  backdrop-filter: blur(12px);
+}
+
+.chatHeaderMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chatHeaderBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #f8fafc;
+  letter-spacing: 0.06em;
+}
+
+.chatHeaderDivider {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.5);
+}
+
+.chatHeaderContext {
+  color: #475569;
+  letter-spacing: 0.04em;
+}
+
+.chatHeaderTitle {
+  color: #0f172a;
+  font-size: clamp(1.15rem, 1.1rem + 0.45vw, 1.45rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.chatHeaderDescription {
+  margin-top: 6px;
+  max-width: 48rem;
+  color: #64748b;
+  font-size: 0.96rem;
+  line-height: 1.6;
+}
+
+.messagesProfessional {
+  width: 100%;
+  max-width: none;
+  padding: 22px clamp(18px, 4vw, 40px) 20px;
+  gap: 18px;
+  background: linear-gradient(180deg, rgba(252, 252, 253, 0.35) 0%, rgba(248, 250, 252, 0.72) 100%);
+}
+
+.messageRow {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.messageRowProfessional {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  max-width: 860px;
+  margin-inline: auto;
+}
+
+.assistantMessageRow {
+  align-items: stretch;
+}
+
+.userMessageRow {
+  align-items: flex-end;
+}
+
+.assistantMessageRow.messageRowProfessional {
+  justify-content: flex-end;
+}
+
+.userMessageRow.messageRowProfessional {
+  justify-content: flex-start;
+}
+
+.messageRole {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  flex: 0 0 auto;
+}
+
+.messageRoleUser {
+  justify-content: center;
+}
+
+.messageRoleText {
+  color: #334155;
+}
+
+.messageRoleBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.messageRoleBadgeAssistant {
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  color: #f8fafc;
+}
+
+.messageRoleBadgeUser {
+  width: 28px;
+  background: rgba(226, 232, 240, 0.9);
+  color: #334155;
+}
+
+.messageRoleBadgeCode {
+  width: 34px;
+  font-size: 9px;
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+
+.assistantMessageProfessional,
+.codeMessageProfessional {
+  max-width: min(720px, calc(100% - 108px));
+  padding: 18px 20px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow:
+    0 18px 38px rgba(15, 23, 42, 0.06),
+    0 6px 18px rgba(15, 23, 42, 0.03);
+}
+
+.assistantMessageProfessional:hover,
+.codeMessageProfessional:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 24px 44px rgba(15, 23, 42, 0.08),
+    0 8px 18px rgba(15, 23, 42, 0.04);
+}
+
+.userMessageProfessional {
+  max-width: min(720px, calc(100% - 108px));
+  padding: 15px 18px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #eef4ff 0%, #f8fbff 100%);
+  border: 1px solid rgba(96, 165, 250, 0.16);
+  box-shadow:
+    0 14px 32px rgba(37, 99, 235, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.userMessageProfessional:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 18px 36px rgba(37, 99, 235, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.inputFormProfessional {
+  width: 100%;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 0 clamp(18px, 4vw, 32px) 24px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(248, 250, 252, 0.92) 26%, #f8fafc 100%);
+}
+
+.inputContainerProfessional {
+  gap: 14px;
+  padding: 18px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(203, 213, 225, 0.92);
+  box-shadow:
+    0 24px 48px rgba(15, 23, 42, 0.08),
+    0 8px 18px rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96);
+}
+
+.inputContainerProfessional:hover {
+  border-color: rgba(148, 163, 184, 0.8);
+  box-shadow:
+    0 28px 56px rgba(15, 23, 42, 0.1),
+    0 12px 24px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96);
+}
+
+.inputContainerProfessional:focus-within {
+  border-color: rgba(59, 130, 246, 0.7);
+  box-shadow:
+    0 28px 56px rgba(59, 130, 246, 0.12),
+    0 10px 22px rgba(59, 130, 246, 0.08),
+    0 0 0 4px rgba(59, 130, 246, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+.inputProfessional {
+  margin-right: 0;
+  min-height: 56px;
+  border-radius: 20px;
+  border-color: rgba(226, 232, 240, 0.95);
+  background: #ffffff;
+  box-shadow: none;
+  color: #0f172a;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.inputProfessional::placeholder {
+  color: #94a3b8;
+}
+
+.sendButtonProfessional {
+  left: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
+}
+
+.actionButtonsProfessional {
+  padding-top: 12px;
+  margin-top: 2px;
+  border-top: 1px solid rgba(226, 232, 240, 0.88);
+  gap: 10px;
+}
+
+.actionButtonsProfessional .actionButton {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border-color: rgba(203, 213, 225, 0.85);
+  color: #475569;
+}
+
+.actionButtonsProfessional .actionButton:hover:not(:disabled) {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.88);
+  color: #0f172a;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+}
+
+@media (max-width: 1200px) {
+  .chatContainerProfessional {
+    margin: 14px;
+  }
+
+  .messageRowProfessional {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .chatContainerProfessional {
+    margin: 4px;
+    border-radius: 18px;
+  }
+
+  .chatHeader {
+    padding: 16px 16px 14px;
+  }
+
+  .chatHeaderMeta {
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 11px;
+  }
+
+  .chatHeaderTitle {
+    font-size: 1rem;
+  }
+
+  .chatHeaderDescription {
+    font-size: 0.88rem;
+  }
+
+  .messagesProfessional {
+    padding: 16px 12px 12px;
+    gap: 14px;
+  }
+
+  .messageRowProfessional {
+    max-width: 100%;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .assistantMessageProfessional,
+  .codeMessageProfessional {
+    max-width: min(100%, calc(100% - 76px));
+    padding: 14px 15px;
+    border-radius: 18px;
+  }
+
+  .userMessageProfessional {
+    max-width: min(88vw, calc(100% - 76px));
+    padding: 12px 14px;
+    border-radius: 18px;
+  }
+
+  .messageRoleBadge {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+  }
+
+  .messageRoleBadgeUser {
+    width: 24px;
+  }
+
+  .messageRoleBadgeCode {
+    width: 30px;
+    font-size: 8px;
+  }
+
+  .inputFormProfessional {
+    padding: 0 10px 14px;
+  }
+
+  .inputContainerProfessional {
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .inputProfessional {
+    min-height: 48px;
+    border-radius: 16px;
+  }
+
+  .sendButtonProfessional {
+    left: 8px;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+  }
+
+  .actionButtonsProfessional {
+    gap: 8px;
   }
 }

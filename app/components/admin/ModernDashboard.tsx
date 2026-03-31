@@ -163,7 +163,7 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
 
           <div 
             className={styles.quickAction}
-            onClick={() => window.open('/admin/datasets', '_blank')}
+            onClick={() => window.location.assign('/admin/datasets')}
           >
             <div className={styles.quickActionIcon}>
               <Database size={24} />
@@ -191,7 +191,7 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
 
           <div 
             className={styles.quickAction}
-            onClick={() => window.open('/admin/templates', '_blank')}
+            onClick={() => window.location.assign('/admin/templates')}
           >
             <div className={styles.quickActionIcon}>
               <BookOpen size={24} />

@@ -10,7 +10,8 @@ export const dynamic = 'force-dynamic';
 
 const isValidTargetType = (
   value: string | null
-): value is LearningQuizTargetType => value === 'lecture' || value === 'practice';
+): value is LearningQuizTargetType =>
+  value === 'lecture' || value === 'practice' || value === 'personalized_review';
 
 export async function GET(request: NextRequest) {
   try {

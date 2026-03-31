@@ -427,6 +427,7 @@
   font-weight: 500;
   color: #374151;
   font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Common Challenges */
@@ -917,6 +918,7 @@
   padding: 2rem;
   max-width: 100%;
   overflow-x: hidden;
+  direction: rtl;
 }
 
 .modalHeader {
@@ -933,21 +935,32 @@
   font-weight: 700;
   color: #1f2937;
   margin: 0;
+  line-height: 1.3;
 }
 
 .modalCloseButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   color: #9ca3af;
-  background: none;
-  border: none;
+  background: #f8fafc;
+  border: 1px solid #dbe4f0;
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 999px;
   transition: all 0.2s ease;
+  font-weight: 600;
 }
 
 .modalCloseButton:hover {
-  color: #6b7280;
-  background-color: #f3f4f6;
+  color: #1f2937;
+  background-color: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.modalCloseText {
+  font-size: 0.95rem;
+  line-height: 1;
 }
 
 /* Challenges Modal Content */
@@ -1055,6 +1068,226 @@
   direction: rtl;
 }
 
+.issueHistoryContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.issueSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.issueSummaryCard {
+  padding: 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.issueSummaryCardAlert {
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fff1f2 0%, #ffe4e6 100%);
+}
+
+.issueSummaryCardSuccess {
+  border-color: #bbf7d0;
+  background: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
+.issueSummaryValue {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #111827;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.issueSummaryLabel {
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.issueTimelineSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.issueTimelineHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.issueTimelineTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.issueTimelineDescription {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.issueEmptyState {
+  border: 1px dashed #d1d5db;
+  border-radius: 1rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #6b7280;
+  background: #f9fafb;
+}
+
+.issueTimelineList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.issueCard {
+  border-radius: 1rem;
+  padding: 1.1rem 1.15rem;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+}
+
+.issueHigh {
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fff7f7 0%, #fff1f2 100%);
+}
+
+.issueMedium {
+  border-color: #fde68a;
+  background: linear-gradient(180deg, #fffdf5 0%, #fffbeb 100%);
+}
+
+.issueLow {
+  border-color: #d1d5db;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
+}
+
+.issueResolved {
+  border-color: #bbf7d0;
+  background: linear-gradient(180deg, #f6fff9 0%, #ecfdf3 100%);
+}
+
+.issueCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.issueBadgeGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.issueBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.severityHigh {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.severityMedium {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.severityLow {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.issueStatusOpen {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.issueStatusResolved {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.resolveIssueButton {
+  border: none;
+  border-radius: 0.8rem;
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  color: #ffffff;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.resolveIssueButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(22, 163, 74, 0.2);
+}
+
+.issueDescription {
+  margin: 0.9rem 0 0;
+  color: #1f2937;
+  font-size: 1rem;
+  line-height: 1.7;
+  text-align: start;
+  unicode-bidi: plaintext;
+}
+
+.issueMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.issueMetaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.issueMetaLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #6b7280;
+}
+
+.issueMetaValue {
+  font-size: 0.9rem;
+  color: #111827;
+  line-height: 1.5;
+  text-align: start;
+  unicode-bidi: plaintext;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Responsive Modal Styles */
 @media (max-width: 768px) {
   .modalContainer {
@@ -1103,5 +1336,22 @@
   
   .challengeText {
     font-size: 0.875rem;
+  }
+
+  .issueSummaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .issueCardHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .resolveIssueButton {
+    width: 100%;
+  }
+
+  .issueMetaGrid {
+    grid-template-columns: 1fr;
   }
 }
