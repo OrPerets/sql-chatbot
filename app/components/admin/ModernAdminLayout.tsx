@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 import ModernHeader from "./ModernHeader";
 import Sidebar from "./Sidebar";
@@ -17,6 +18,7 @@ export default function ModernAdminLayout({
   currentUser,
   onLogout,
 }: ModernAdminLayoutProps) {
+  const pathname = usePathname();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -52,6 +54,10 @@ export default function ModernAdminLayout({
     };
   }, [isMobileMenuOpen]);
 
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
+
   const handleToggleSidebar = () => {
     if (isMobile) {
       setIsMobileMenuOpen((current) => !current);
@@ -79,6 +85,7 @@ export default function ModernAdminLayout({
         <Sidebar
           isCollapsed={!isMobile && isSidebarCollapsed}
           onToggleCollapse={handleToggleSidebar}
+          onNavigate={() => setIsMobileMenuOpen(false)}
           currentUser={currentUser}
           onLogout={onLogout}
         />

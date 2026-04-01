@@ -114,6 +114,15 @@ export default function ModelManagement() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const runtimeStatusItems = runtimeConfig
+    ? [
+        { label: "מצב API", value: apiMode },
+        { label: "מודל פעיל", value: runtimeConfig.model },
+        { label: "כלים פעילים", value: String(runtimeConfig.toolsCount) },
+        { label: "מקור קונפיגורציה", value: runtimeConfig.source || "default" },
+      ]
+    : [];
+
   useEffect(() => {
     void loadRuntimeConfig();
     void loadUsageAnalytics();
@@ -250,7 +259,38 @@ export default function ModelManagement() {
 
       <div className={styles.header}>
         <h1>ניהול מודלי AI</h1>
-        <p>ניהול קונפיגורציית OpenAI runtime עבור Michael על גבי Responses API. נתיבי ה-Assistants נשארים כ-aliases זמניים בלבד.</p>
+        <p>
+          מסך זה מרכז את מצב ה-runtime, בדיקות תקינות, פיצ׳רים וסטטיסטיקות שימוש - כדי להבין מהר מה פעיל כרגע ומה דורש טיפול.
+        </p>
+      </div>
+
+      {runtimeConfig ? (
+        <section className={styles.overviewSection}>
+          <h2>מה קיים במסך הזה?</h2>
+          <div className={styles.overviewGrid}>
+            {runtimeStatusItems.map((item) => (
+              <div key={item.label} className={styles.overviewCard}>
+                <span className={styles.overviewLabel}>{item.label}</span>
+                <strong className={styles.overviewValue}>{item.value}</strong>
+              </div>
+            ))}
+          </div>
+          <p className={styles.helperText}>
+            עדכון אחרון: {runtimeConfig.updatedAt || "לא זמין"} · מודל מומלץ כעת: {RECOMMENDED_RUNTIME_MODEL}
+          </p>
+        </section>
+      ) : null}
+
+      <div className={styles.quickGuide}>
+        <div className={styles.quickGuideItem}>
+          <strong>1) אימות מצב:</strong> התחילו ב״קונפיגורציית Runtime נוכחית״ כדי לבדוק מודל וכלים פעילים.
+        </div>
+        <div className={styles.quickGuideItem}>
+          <strong>2) בדיקות תקינות:</strong> הריצו בדיקות Runtime כדי לוודא איכות תגובה, עברית ו-Tools.
+        </div>
+        <div className={styles.quickGuideItem}>
+          <strong>3) ניטור שימוש:</strong> עברו ל״ניתוח שימוש״ כדי לזהות עומסים ועלויות.
+        </div>
       </div>
 
       {error && <div className={styles.error}>Error: {error}</div>}
