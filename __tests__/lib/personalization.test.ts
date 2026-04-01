@@ -170,14 +170,28 @@ function makeSources(overrides: Partial<Sources> = {}): Sources {
         key: "preferred_language",
         value: "he",
         source: "student",
+        scope: "stable",
+        confidence: 1,
         updatedAt: new Date("2026-03-30T10:00:00.000Z"),
         createdAt: new Date("2026-03-30T10:00:00.000Z"),
+      },
+      {
+        userId: "student-1",
+        key: "current_study_goal",
+        value: "exam_practice",
+        source: "student",
+        scope: "session",
+        confidence: 1,
+        updatedAt: new Date("2026-03-31T09:30:00.000Z"),
+        createdAt: new Date("2026-03-31T09:30:00.000Z"),
       },
       {
         userId: "student-1",
         key: "repeated_sql_weaknesses",
         value: "JOIN logic, GROUP BY",
         source: "assistant",
+        scope: "stable",
+        confidence: 0.8,
         updatedAt: new Date("2026-03-30T10:00:00.000Z"),
         createdAt: new Date("2026-03-30T10:00:00.000Z"),
       },
@@ -288,7 +302,11 @@ describe("personalization domain helpers", () => {
 
     expect(snapshot.studentId).toBe("student-1");
     expect(snapshot.weaknesses[0]?.label).toBe("JOIN logic");
+    expect(snapshot.topicMastery[0]?.label).toBe("JOIN logic");
+    expect(snapshot.topicMastery[0]?.confidence).toBeGreaterThan(0.4);
+    expect(snapshot.topicMastery[0]?.freshnessLabel).toBe("fresh");
     expect(snapshot.preferenceSummary.preferredLanguage).toBe("he");
+    expect(snapshot.preferenceSummary.currentStudyGoal).toBe("exam_practice");
     expect(snapshot.quizSummary.topicsToRevisit).toContain("JOIN logic");
     expect(snapshot).not.toHaveProperty("name");
     expect(snapshot).not.toHaveProperty("email");
@@ -325,11 +343,47 @@ describe("personalization domain helpers", () => {
 
     expect(recommendation.primary.type).toBe("retry_question");
     expect(recommendation.primary.urgency).toBe("high");
+    expect(recommendation.primary.misconception?.category).toBe("wrong_join_predicate");
+    expect(recommendation.primary.weakSkill).toBe("JOIN logic");
+    expect(recommendation.primary.rationale).toContain("JOIN");
+    expect(recommendation.primary.confidence).toBeGreaterThan(0.5);
+    expect(recommendation.primary.freshnessLabel).toBe("fresh");
+    expect(recommendation.primary.basedOn).toContain("recent_attempts");
     expect(recommendation.primary.action).toMatchObject({
       type: "focus_question",
       homeworkSetId: "hw-1",
       questionId: "q-1",
     });
+  });
+
+  it("marks stale evidence so recommendations are visibly lower freshness", () => {
+    const staleRecommendation = buildRecommendationFromSources(
+      makeSources({
+        profile: makeProfile({
+          lastActivity: new Date("2026-01-01T10:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T10:00:00.000Z"),
+        }),
+        submissions: [
+          makeSubmission({
+            createdAt: "2026-01-01T10:00:00.000Z",
+            updatedAt: "2026-01-01T10:00:00.000Z",
+          }),
+        ],
+        questionAnalytics: [
+          makeAnalytics({
+            updatedAt: "2026-01-01T10:00:00.000Z",
+            metrics: {
+              ...makeAnalytics().metrics,
+              startedAt: "2026-01-01T09:00:00.000Z",
+              lastActivityAt: "2026-01-01T10:00:00.000Z",
+            },
+          }),
+        ],
+      })
+    );
+
+    expect(staleRecommendation.primary.freshnessLabel).toBe("stale");
+    expect(staleRecommendation.primary.freshness).toBeLessThan(0.34);
   });
 
   it("falls back to a calibration recommendation when there is no history", () => {
@@ -359,13 +413,19 @@ describe("personalization domain helpers", () => {
       {
         homeworkSetId: "hw-1",
         questionId: "q-1",
+        sourceAttempt: buildRecentSubmissionAttemptsFromSources(makeSources()).attempts[0],
+        preferenceSummary: buildStudentProgressSnapshotFromSources(makeSources()).preferenceSummary,
+        highDeadlinePressure: true,
       },
       4
     );
 
-    expect(questions.length).toBeGreaterThanOrEqual(3);
-    expect(questions.length).toBeLessThanOrEqual(5);
-    expect(questions.some((question) => question.type === "mcq")).toBe(true);
-    expect(questions.some((question) => question.type === "sql")).toBe(true);
+    expect(questions).toHaveLength(4);
+    expect(questions[0]?.type).toBe("mcq");
+    expect(questions[1]?.type).toBe("sql");
+    expect(questions[2]?.type).toBe("sql");
+    expect(questions[3]?.type).toBe("mcq");
+    expect(questions[0]?.prompt).toContain("JOIN");
+    expect(questions[1]?.prompt).toContain("Write a JOIN query");
   });
 });

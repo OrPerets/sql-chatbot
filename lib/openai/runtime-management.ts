@@ -1,12 +1,10 @@
 import {
-  getAgentInstructions,
   getAgentModel,
   getAgentToolCatalog,
   getAgentTools,
 } from "@/app/agent-config";
 import { getOpenAIApiMode } from "@/lib/openai/api-mode";
 import {
-  RECOMMENDED_RUNTIME_MODEL,
   RUNTIME_ROLLBACK_TARGETS,
 } from "@/lib/openai/model-registry";
 import { getInstructorConnectorCapabilities } from "@/lib/openai/instructor-connectors";
@@ -135,13 +133,11 @@ export async function handleRuntimeConfigPost(request: Request, flavor: RuntimeR
 
   try {
     const body = ((await request.json().catch(() => ({}))) || {}) as UpdatePayload;
-    const defaultTools = getAgentTools();
-    const fallbackToolNames = defaultTools.map((tool) => getToolName(tool));
 
     const nextConfig = await updateRuntimeAgentConfig({
-      model: (body.model || RECOMMENDED_RUNTIME_MODEL).trim(),
-      instructions: body.instructions || getAgentInstructions(),
-      enabledToolNames: body.enabledToolNames || fallbackToolNames,
+      model: typeof body.model === "string" ? body.model.trim() : undefined,
+      instructions: typeof body.instructions === "string" ? body.instructions : undefined,
+      enabledToolNames: Array.isArray(body.enabledToolNames) ? body.enabledToolNames : undefined,
       updatedBy: "admin-model-management",
       reason: body.reason || "manual model config update",
     });

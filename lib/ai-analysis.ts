@@ -1,6 +1,14 @@
 import OpenAI from 'openai';
 import type { Submission, Question, SqlAnswer, Feedback } from '@/app/homework/types';
 import { getModelForRole } from '@/lib/openai/model-registry';
+import {
+  getLearnerTopicLabel,
+  inferLearnerTopicsFromText,
+} from '@/lib/learner-model';
+import {
+  inferSqlMisconceptions,
+  type SqlMisconceptionCategory,
+} from '@/lib/sql-misconceptions';
 
 /**
  * AI Analysis Framework for Student Submissions
@@ -41,6 +49,7 @@ export interface FailedQuestionAnalysis {
   confidence: number;
   suggestedFix?: string;
   topicAreas: string[];
+  misconceptionCategories?: SqlMisconceptionCategory[];
 }
 
 export interface ErrorPattern {
@@ -178,6 +187,16 @@ export class AIAnalysisService {
           failureReasons: this.extractFailureReasons(answer.feedback),
           confidence: 0.8, // Will be refined by AI analysis
           topicAreas: this.extractTopicAreas(question),
+          misconceptionCategories: inferSqlMisconceptions({
+            text: [
+              answer.feedback?.autoNotes,
+              answer.feedback?.instructorNotes,
+            ]
+              .filter(Boolean)
+              .join(" "),
+            sql: answer.sql,
+            prompt: [question.prompt, question.instructions].filter(Boolean).join(" "),
+          }).map((match) => match.category),
         });
       }
     }
@@ -213,46 +232,16 @@ export class AIAnalysisService {
    * Extract topic areas from question
    */
   private extractTopicAreas(question: Question): string[] {
-    const topics: string[] = [];
-    const prompt = question.prompt.toLowerCase();
-    const instructions = question.instructions?.toLowerCase() || '';
-    
-    // Basic topic detection based on keywords
-    const topicKeywords = {
-      'SELECT': ['select', 'query', 'retrieve'],
-      'JOIN': ['join', 'inner join', 'left join', 'right join', 'outer join'],
-      'WHERE': ['where', 'filter', 'condition'],
-      'GROUP BY': ['group by', 'aggregate', 'count', 'sum', 'avg'],
-      'ORDER BY': ['order by', 'sort', 'asc', 'desc'],
-      'HAVING': ['having', 'group condition'],
-      'SUBQUERY': ['subquery', 'nested', 'inner select'],
-      'UNION': ['union', 'combine'],
-      'WINDOW FUNCTIONS': ['window', 'over', 'partition', 'row_number'],
-    };
-    
-    // Always include SELECT as a base topic for SQL queries
-    let hasSelect = false;
-    
-    for (const [topic, keywords] of Object.entries(topicKeywords)) {
-      if (keywords.some(keyword => prompt.includes(keyword) || instructions.includes(keyword))) {
-        topics.push(topic);
-        if (topic === 'SELECT') {
-          hasSelect = true;
-        }
-      }
-    }
-    
-    // If no specific topics found, return GENERAL SQL
+    const topicText = [question.prompt, question.instructions]
+      .filter(Boolean)
+      .join(" ");
+    const topics = inferLearnerTopicsFromText(topicText).map(getLearnerTopicLabel);
+
     if (topics.length === 0) {
-      return ['GENERAL SQL'];
+      return ["General SQL"];
     }
-    
-    // If we found other topics but not SELECT, add it as a base topic
-    if (!hasSelect && topics.length > 0) {
-      topics.unshift('SELECT');
-    }
-    
-    return topics;
+
+    return Array.from(new Set(topics));
   }
 
   /**
@@ -311,6 +300,7 @@ export class AIAnalysisService {
       feedback: fq.studentAnswer.feedback,
       failureReasons: fq.failureReasons,
       topicAreas: fq.topicAreas,
+      misconceptionCategories: fq.misconceptionCategories ?? [],
     }));
 
     return `
@@ -372,9 +362,10 @@ Please provide a JSON response with the following structure:
 Focus on:
 1. Identifying common SQL syntax and logical errors
 2. Mapping failures to specific SQL concepts and topics
-3. Providing actionable improvement recommendations
-4. Assessing difficulty levels and learning gaps
-5. Suggesting specific study resources and practice areas
+3. Naming the exact misconception pattern when possible (for example: wrong join predicate, missing join condition, output column mismatch)
+4. Providing actionable improvement recommendations
+5. Assessing difficulty levels and learning gaps
+6. Suggesting specific study resources and practice areas
 
 Be specific, constructive, and educational in your analysis.
 `;

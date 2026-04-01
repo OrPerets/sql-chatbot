@@ -11,9 +11,6 @@ const mockGetSubmission = jest.fn();
 const mockSaveSubmissionDraft = jest.fn();
 const mockSubmitHomework = jest.fn();
 const mockGetDataset = jest.fn();
-const mockGetHomeworkPersonalization = jest.fn();
-const mockGenerateHomeworkPersonalizedQuiz = jest.fn();
-const mockTrackHomeworkPersonalizationEvent = jest.fn();
 const mockExecuteSql = jest.fn();
 
 jest.mock("@/app/homework/services/homeworkService", () => ({
@@ -29,14 +26,6 @@ jest.mock("@/app/homework/services/submissionService", () => ({
 
 jest.mock("@/app/homework/services/datasetService", () => ({
   getDataset: (...args: unknown[]) => mockGetDataset(...args),
-}));
-
-jest.mock("@/app/homework/services/personalizationService", () => ({
-  getHomeworkPersonalization: (...args: unknown[]) => mockGetHomeworkPersonalization(...args),
-  generateHomeworkPersonalizedQuiz: (...args: unknown[]) =>
-    mockGenerateHomeworkPersonalizedQuiz(...args),
-  trackHomeworkPersonalizationEvent: (...args: unknown[]) =>
-    mockTrackHomeworkPersonalizationEvent(...args),
 }));
 
 jest.mock("@/app/homework/services/sqlService", () => ({
@@ -87,7 +76,7 @@ function renderRunner() {
   );
 }
 
-describe("RunnerClient homework sidebar", () => {
+describe("RunnerClient homework chat sidebar", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
@@ -160,17 +149,13 @@ describe("RunnerClient homework sidebar", () => {
     jest.restoreAllMocks();
   });
 
-  it("keeps the left sidebar focused on Michael chat without personalization UI", async () => {
+  it("keeps only the Michael chat in the sidebar", async () => {
     renderRunner();
 
     expect(await screen.findByText("שאל את Michael")).toBeInTheDocument();
-    expect(screen.queryByText("מה כדאי לעשות עכשיו?")).not.toBeInTheDocument();
     expect(screen.getByTestId("embedded-chat")).toBeInTheDocument();
-
     await waitFor(() => {
-      expect(mockGetHomeworkPersonalization).not.toHaveBeenCalled();
-      expect(mockGenerateHomeworkPersonalizedQuiz).not.toHaveBeenCalled();
-      expect(mockTrackHomeworkPersonalizationEvent).not.toHaveBeenCalled();
+      expect(screen.queryByText("What Michael recommends next")).not.toBeInTheDocument();
     });
   });
 });

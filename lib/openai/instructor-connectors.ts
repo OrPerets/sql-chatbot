@@ -51,6 +51,7 @@ type InstructorConnectorConfigDoc = {
     >;
   };
   updatedAt?: Date;
+  updatedBy?: string;
 };
 
 export type InstructorConnectorCapability = {
@@ -246,7 +247,7 @@ async function readConnectorConfig(): Promise<InstructorConnectorConfigDoc | nul
     const doc = await db.collection(COLLECTIONS.SEMESTER_CONFIG).findOne({
       key: CONNECTOR_CONFIG_KEY,
     });
-    return (doc as InstructorConnectorConfigDoc | null) || null;
+    return (doc as unknown as InstructorConnectorConfigDoc | null) || null;
   });
 }
 
@@ -267,6 +268,53 @@ function mergeConnectorConfig(
       },
     ])
   ) as Record<InstructorConnectorCapabilityId, { enabled: boolean }>;
+}
+
+export async function updateInstructorConnectorCapability(params: {
+  connectorId: InstructorConnectorCapabilityId;
+  enabled: boolean;
+  updatedBy?: string;
+}) {
+  const mergedConfig = await executeWithRetry(async (db) => {
+    const collection = db.collection(COLLECTIONS.SEMESTER_CONFIG);
+    const currentDoc = (await collection.findOne({
+      key: CONNECTOR_CONFIG_KEY,
+    })) as unknown as InstructorConnectorConfigDoc | null;
+    const currentConfig = mergeConnectorConfig(currentDoc);
+
+    currentConfig[params.connectorId] = {
+      enabled: Boolean(params.enabled),
+    };
+
+    await collection.updateOne(
+      { key: CONNECTOR_CONFIG_KEY },
+      {
+        $set: {
+          key: CONNECTOR_CONFIG_KEY,
+          value: {
+            connectors: currentConfig,
+          },
+          updatedAt: new Date(),
+          updatedBy: params.updatedBy || "admin-model-management",
+        },
+        $setOnInsert: {
+          createdAt: new Date(),
+        },
+      },
+      { upsert: true }
+    );
+
+    const updatedDoc = (await collection.findOne({
+      key: CONNECTOR_CONFIG_KEY,
+    })) as unknown as InstructorConnectorConfigDoc | null;
+
+    return mergeConnectorConfig(updatedDoc);
+  });
+
+  return {
+    connectorId: params.connectorId,
+    enabled: mergedConfig[params.connectorId].enabled,
+  };
 }
 
 function resolveStatus(params: {

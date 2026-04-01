@@ -21,6 +21,7 @@ import {
 } from "@/lib/sql-curriculum";
 import { getStudentProfile } from "@/lib/student-profiles";
 import {
+  STUDENT_PREFERENCE_KEYS,
   StudentPreferenceKey,
   listStudentPreferences,
   upsertStudentPreference,
@@ -406,18 +407,13 @@ const rememberStudentPreferenceTool: FunctionToolDefinition = {
   type: "function",
   name: "remember_student_preference",
   description:
-    "Save a stable tutoring preference such as preferred language, explanation depth, repeated SQL weakness, or exam-prep goal.",
+    "Save a tutoring preference or session goal so Michael can adapt language, pacing, hint style, challenge level, and focus.",
   parameters: {
     type: "object",
     properties: {
       preference_key: {
         type: "string",
-        enum: [
-          "preferred_language",
-          "preferred_explanation_depth",
-          "repeated_sql_weaknesses",
-          "exam_prep_goals",
-        ],
+        enum: [...STUDENT_PREFERENCE_KEYS],
       },
       value: { type: "string" },
       notes: { type: "string" },
@@ -2183,6 +2179,7 @@ const toolHandlers: Record<string, ToolHandler> = {
       studentId,
       exists: true,
       knowledgeScore: profile.knowledgeScore,
+      topicMastery: profile.topicMastery ?? [],
       commonChallenges: profile.commonChallenges,
       learningProgress: profile.learningProgress,
       engagementMetrics: profile.engagementMetrics,

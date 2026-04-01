@@ -10,12 +10,15 @@ interface RouteParams {
 
 type AllowedEventType = Extract<
   AnalyticsEvent["type"],
-  "runner.personalization_shown" | "runner.personalization_accepted"
+  | "runner.personalization_shown"
+  | "runner.personalization_accepted"
+  | "runner.personalization_feedback"
 >;
 
 const ALLOWED_EVENT_TYPES = new Set<AllowedEventType>([
   "runner.personalization_shown",
   "runner.personalization_accepted",
+  "runner.personalization_feedback",
 ]);
 
 export async function POST(request: NextRequest, { params }: RouteParams) {

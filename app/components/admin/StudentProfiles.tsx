@@ -1,50 +1,41 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Users,
-  Search,
-  Filter,
-  Download,
-  RefreshCw,
-  TrendingUp,
-  TrendingDown,
   AlertTriangle,
-  CheckCircle,
-  Clock,
   BarChart3,
+  Bot,
+  Clock3,
   Eye,
-  Edit,
-  MoreHorizontal
-} from 'lucide-react';
-import styles from '../admin_page.module.css';
-import studentStyles from './StudentProfiles.module.css';
+  RefreshCw,
+  Search,
+  ShieldAlert,
+  Sparkles,
+  Target,
+  TrendingUp,
+  Users,
+  Wrench,
+  X,
+  XCircle,
+} from "lucide-react";
 
-interface StudentProfile {
+import studentStyles from "./StudentProfiles.module.css";
+
+type KnowledgeScore = "empty" | "good" | "needs_attention" | "struggling";
+
+interface StudentProfileRow {
   _id: string;
   userId: string;
   name?: string;
   email?: string;
-  knowledgeScore: 'empty' | 'good' | 'needs_attention' | 'struggling';
-  knowledgeScoreHistory: Array<{
-    score: string;
-    updatedAt: string;
-    reason: string;
-    updatedBy: string;
-  }>;
+  knowledgeScore: KnowledgeScore;
   lastActivity: string;
   totalQuestions: number;
   correctAnswers: number;
   homeworkSubmissions: number;
   averageGrade: number;
   commonChallenges: string[];
-  learningProgress: {
-    sqlBasics: number;
-    joins: number;
-    aggregations: number;
-    subqueries: number;
-    advancedQueries: number;
-  };
+  issueCount: number;
   engagementMetrics: {
     chatSessions: number;
     averageSessionDuration: number;
@@ -53,154 +44,267 @@ interface StudentProfile {
   };
   riskFactors: {
     isAtRisk: boolean;
-    riskLevel: 'low' | 'medium' | 'high';
+    riskLevel: "low" | "medium" | "high";
     riskFactors: string[];
-    lastAssessment: string;
   };
-  // New issue tracking fields
-  issueCount: number;
-  issueHistory: Array<{
-    issueId: string;
-    description: string;
-    detectedAt: string;
-    resolvedAt?: string;
-    severity: 'low' | 'medium' | 'high';
+  topicMastery?: Array<{
+    topic: string;
+    label: string;
+    estimatedMastery: number;
+    confidence: number;
+    status: "measured" | "insufficient_evidence";
   }>;
-  lastIssueUpdate: string;
 }
 
 interface StudentAnalytics {
   totalStudents: number;
-  scoreDistribution: {
-    empty: number;
-    good: number;
-    needs_attention: number;
-    struggling: number;
-  };
-  riskDistribution: {
-    low: number;
-    medium: number;
-    high: number;
-  };
+  scoreDistribution: Record<KnowledgeScore, number>;
+  riskDistribution: Record<"low" | "medium" | "high", number>;
   averageEngagement: number;
   averageGrade: number;
-  topChallenges: string[];
+}
+
+interface AdminStudentEvidenceBundle {
+  profile: StudentProfileRow & {
+    adminOversight?: {
+      interventions?: Array<{
+        id: string;
+        topic?: string | null;
+        intervention: string;
+        note?: string | null;
+        status: "active" | "expired";
+        expiresAt?: string | null;
+      }>;
+      goalMarkers?: Array<{
+        id: string;
+        goal: string;
+        note?: string | null;
+        createdAt: string;
+      }>;
+    };
+  };
+  pedagogicalSummary: {
+    headline: string;
+    rationale: string;
+    topWeakSkill: string | null;
+    confidence: number;
+    freshnessLabel: string;
+  };
+  evidenceConsole: {
+    weakSkills: Array<{
+      topic: string;
+      label: string;
+      mastery: number;
+      confidence: number;
+      freshness: number;
+      freshnessLabel: string;
+      lastEvidenceTime: string | null;
+      evidenceSummary: string[];
+    }>;
+    recentFailedAttempts: Array<{
+      questionId: string;
+      homeworkTitle: string | null;
+      attempts: number;
+      lastTriedAt: string | null;
+      failureTags: string[];
+      misconceptions: Array<{
+        label: string;
+        studentLabel: string;
+        studentExplanation: string;
+        confidence: number;
+      }>;
+      hintBurden: string;
+    }>;
+    hintUsagePatterns: {
+      totalShowAnswerClicks: number;
+      averageTimeToFirstHintMs: number | null;
+      averageAttemptsBeforeHint: number | null;
+      mostSupportedQuestions: Array<{
+        questionId: string;
+        showAnswerClicks: number;
+        attempts: number;
+      }>;
+    };
+    chatMisconceptions: Array<{
+      label: string;
+      studentExplanation: string;
+      confidence: number;
+      topics: string[];
+      sources: string[];
+    }>;
+    recommendationHistory: Array<{
+      recommendationId: string;
+      recommendationType: string | null;
+      weakSkill: string | null;
+      misconception: string | null;
+      shownAt: string | null;
+      lastEventAt: string | null;
+      feedbackHistory: string[];
+      outcome: "helpful" | "not_helpful" | "pending";
+    }>;
+    issueDetections: Array<{
+      issueId: string;
+      description: string;
+      severity: "low" | "medium" | "high";
+      confidence: number;
+      freshnessLabel: string;
+      source: string | null;
+      status: "open" | "resolved";
+    }>;
+    fieldTraceability: Array<{
+      field: string;
+      computedAt: string | null;
+      confidence: number | null;
+      freshnessLabel: string;
+      sources: string[];
+      evidencePreview: string[];
+    }>;
+  };
 }
 
 interface StudentProfilesProps {
   onClose?: () => void;
 }
 
-interface StudentIssue {
-  issueId: string;
-  description: string;
-  detectedAt: string;
-  resolvedAt?: string;
-  severity: 'low' | 'medium' | 'high';
-}
-
-interface StudentIssueHistoryResponse {
-  totalIssues: number;
-  unresolvedIssues: number;
-  issueHistory: StudentIssue[];
-}
-
 const toFiniteNumber = (value: unknown, fallback = 0) => {
-  const numericValue = typeof value === 'number' ? value : Number(value);
+  const numericValue = typeof value === "number" ? value : Number(value);
   return Number.isFinite(numericValue) ? numericValue : fallback;
 };
 
-const normalizeIssue = (issue: Partial<StudentIssue>): StudentIssue => ({
-  issueId: issue.issueId || `issue-${Math.random().toString(36).slice(2, 10)}`,
-  description: issue.description || 'לא סופק תיאור לבעיה זו.',
-  detectedAt: issue.detectedAt || new Date(0).toISOString(),
-  resolvedAt: issue.resolvedAt,
-  severity: issue.severity === 'high' || issue.severity === 'medium' ? issue.severity : 'low'
-});
-
-const normalizeProfile = (profile: StudentProfile): StudentProfile => ({
+const normalizeProfileRow = (profile: StudentProfileRow): StudentProfileRow => ({
   ...profile,
-  name: profile.name || 'ללא שם',
-  email: profile.email || 'ללא אימייל',
+  name: profile.name || "ללא שם",
+  email: profile.email || "ללא אימייל",
   totalQuestions: toFiniteNumber(profile.totalQuestions),
   correctAnswers: toFiniteNumber(profile.correctAnswers),
   homeworkSubmissions: toFiniteNumber(profile.homeworkSubmissions),
   averageGrade: toFiniteNumber(profile.averageGrade),
   issueCount: toFiniteNumber(profile.issueCount),
   commonChallenges: Array.isArray(profile.commonChallenges) ? profile.commonChallenges : [],
-  issueHistory: Array.isArray(profile.issueHistory) ? profile.issueHistory.map(normalizeIssue) : [],
   engagementMetrics: {
     chatSessions: toFiniteNumber(profile.engagementMetrics?.chatSessions),
     averageSessionDuration: toFiniteNumber(profile.engagementMetrics?.averageSessionDuration),
     helpRequests: toFiniteNumber(profile.engagementMetrics?.helpRequests),
-    selfCorrections: toFiniteNumber(profile.engagementMetrics?.selfCorrections)
-  },
-  learningProgress: {
-    sqlBasics: toFiniteNumber(profile.learningProgress?.sqlBasics),
-    joins: toFiniteNumber(profile.learningProgress?.joins),
-    aggregations: toFiniteNumber(profile.learningProgress?.aggregations),
-    subqueries: toFiniteNumber(profile.learningProgress?.subqueries),
-    advancedQueries: toFiniteNumber(profile.learningProgress?.advancedQueries)
+    selfCorrections: toFiniteNumber(profile.engagementMetrics?.selfCorrections),
   },
   riskFactors: {
     isAtRisk: Boolean(profile.riskFactors?.isAtRisk),
     riskLevel:
-      profile.riskFactors?.riskLevel === 'high' || profile.riskFactors?.riskLevel === 'medium'
+      profile.riskFactors?.riskLevel === "high" || profile.riskFactors?.riskLevel === "medium"
         ? profile.riskFactors.riskLevel
-        : 'low',
-    riskFactors: Array.isArray(profile.riskFactors?.riskFactors) ? profile.riskFactors.riskFactors : [],
-    lastAssessment: profile.riskFactors?.lastAssessment || ''
+        : "low",
+    riskFactors: Array.isArray(profile.riskFactors?.riskFactors)
+      ? profile.riskFactors.riskFactors
+      : [],
+  },
+  topicMastery: Array.isArray(profile.topicMastery) ? profile.topicMastery : [],
+});
+
+function formatDate(value: string | null | undefined) {
+  if (!value) {
+    return "לא זמין";
   }
-});
 
-const normalizeAnalytics = (value: Partial<StudentAnalytics>): StudentAnalytics => ({
-  totalStudents: toFiniteNumber(value.totalStudents),
-  scoreDistribution: {
-    empty: toFiniteNumber(value.scoreDistribution?.empty),
-    good: toFiniteNumber(value.scoreDistribution?.good),
-    needs_attention: toFiniteNumber(value.scoreDistribution?.needs_attention),
-    struggling: toFiniteNumber(value.scoreDistribution?.struggling)
-  },
-  riskDistribution: {
-    low: toFiniteNumber(value.riskDistribution?.low),
-    medium: toFiniteNumber(value.riskDistribution?.medium),
-    high: toFiniteNumber(value.riskDistribution?.high)
-  },
-  averageEngagement: toFiniteNumber(value.averageEngagement),
-  averageGrade: toFiniteNumber(value.averageGrade),
-  topChallenges: Array.isArray(value.topChallenges) ? value.topChallenges : []
-});
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "לא זמין";
+  }
 
-const normalizeIssueHistoryResponse = (
-  value: Partial<StudentIssueHistoryResponse>
-): StudentIssueHistoryResponse => ({
-  totalIssues: toFiniteNumber(value.totalIssues),
-  unresolvedIssues: toFiniteNumber(value.unresolvedIssues),
-  issueHistory: Array.isArray(value.issueHistory) ? value.issueHistory.map(normalizeIssue) : []
-});
+  return parsed.toLocaleDateString("he-IL", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
-const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
-  const [profiles, setProfiles] = useState<StudentProfile[]>([]);
+function formatPercent(value: number) {
+  return `${Math.round(value * 100)}%`;
+}
+
+function formatAccuracy(correct: number, total: number) {
+  if (total <= 0) {
+    return "0%";
+  }
+
+  return `${Math.round((correct / total) * 100)}%`;
+}
+
+function formatKnowledgeScore(score: KnowledgeScore) {
+  switch (score) {
+    case "good":
+      return "טוב";
+    case "needs_attention":
+      return "זקוק לתשומת לב";
+    case "struggling":
+      return "מתקשה";
+    default:
+      return "ריק";
+  }
+}
+
+function getKnowledgeScoreClass(score: KnowledgeScore) {
+  switch (score) {
+    case "good":
+      return studentStyles.scoreGood;
+    case "needs_attention":
+      return studentStyles.scoreNeedsAttention;
+    case "struggling":
+      return studentStyles.scoreStruggling;
+    default:
+      return studentStyles.scoreEmpty;
+  }
+}
+
+function getPedagogicalSummary(profile: StudentProfileRow) {
+  const measuredWeakness = (profile.topicMastery || [])
+    .filter((record) => record.status === "measured")
+    .sort((left, right) => left.estimatedMastery - right.estimatedMastery)[0];
+
+  const headline = measuredWeakness
+    ? `${measuredWeakness.label} היא נקודת התורפה המרכזית כרגע.`
+    : profile.commonChallenges[0]
+      ? `האתגר החוזר הבולט: ${profile.commonChallenges[0]}.`
+      : "עדיין אין מספיק ראיות פדגוגיות חזקות.";
+
+  const detail = measuredWeakness
+    ? `שליטה ${formatPercent(measuredWeakness.estimatedMastery)}, ביטחון ${formatPercent(
+        measuredWeakness.confidence
+      )}`
+    : profile.riskFactors.riskFactors[0] || "מומלץ לפתוח את קונסולת הראיות.";
+
+  return {
+    headline,
+    detail,
+    confidence: measuredWeakness?.confidence ?? 0,
+  };
+}
+
+function getFreshnessTone(label: string) {
+  if (label === "fresh") return studentStyles.freshnessFresh;
+  if (label === "aging") return studentStyles.freshnessAging;
+  if (label === "stale") return studentStyles.freshnessStale;
+  return studentStyles.freshnessUnknown;
+}
+
+export default function StudentProfiles({ onClose }: StudentProfilesProps) {
+  const [profiles, setProfiles] = useState<StudentProfileRow[]>([]);
   const [analytics, setAnalytics] = useState<StudentAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedScore, setSelectedScore] = useState<string>('');
-  const [selectedRisk, setSelectedRisk] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedScore, setSelectedScore] = useState("");
+  const [selectedRisk, setSelectedRisk] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalStudents, setTotalStudents] = useState(0);
-  const [showAnalytics, setShowAnalytics] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
-  const [conversationSummaries, setConversationSummaries] = useState<any[]>([]);
-  const [showConversationInsights, setShowConversationInsights] = useState(false);
-  const [showIssueHistory, setShowIssueHistory] = useState(false);
-  const [selectedStudentIssues, setSelectedStudentIssues] = useState<StudentIssueHistoryResponse | null>(null);
-  const [showChallengesPopup, setShowChallengesPopup] = useState(false);
-  const [selectedStudentChallenges, setSelectedStudentChallenges] = useState<string[]>([]);
-
-  // Show all students (including those with "ריק" scores)
-  const filteredProfiles = profiles;
+  const [selectedProfile, setSelectedProfile] = useState<StudentProfileRow | null>(null);
+  const [selectedEvidence, setSelectedEvidence] = useState<AdminStudentEvidenceBundle | null>(null);
+  const [drawerLoading, setDrawerLoading] = useState(false);
+  const [drawerError, setDrawerError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [interventionDraft, setInterventionDraft] = useState("");
+  const [goalDraft, setGoalDraft] = useState("");
 
   const fetchProfiles = useCallback(async () => {
     try {
@@ -209,360 +313,227 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
 
       const params = new URLSearchParams({
         page: currentPage.toString(),
-        limit: '20'
+        limit: "20",
       });
 
-      if (searchTerm) params.append('search', searchTerm);
-      if (selectedScore) params.append('knowledgeScore', selectedScore);
-      if (selectedRisk) params.append('riskLevel', selectedRisk);
+      if (searchTerm) params.append("search", searchTerm);
+      if (selectedScore) params.append("knowledgeScore", selectedScore);
+      if (selectedRisk) params.append("riskLevel", selectedRisk);
 
       const response = await fetch(`/api/admin/students?${params}`);
       const data = await response.json();
 
-      if (data.success) {
-        setProfiles((data.data.profiles || []).map(normalizeProfile));
-        setTotalPages(data.data.totalPages || 1);
-        setTotalStudents(data.data.total || 0);
-      } else {
-        setError(data.error || 'שגיאה בטעינת פרופילי התלמידים');
+      if (!data.success) {
+        setError(data.error || "שגיאה בטעינת פרופילי הסטודנטים");
+        return;
       }
-    } catch (err) {
-      setError('שגיאת רשת בטעינת הנתונים');
-      console.error('Error fetching profiles:', err);
+
+      setProfiles((data.data.profiles || []).map(normalizeProfileRow));
+      setTotalPages(data.data.totalPages || 1);
+    } catch (fetchError) {
+      console.error("Failed to fetch student profiles:", fetchError);
+      setError("שגיאת רשת בטעינת פרופילי הסטודנטים");
     } finally {
       setLoading(false);
     }
   }, [currentPage, searchTerm, selectedRisk, selectedScore]);
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
-      const response = await fetch('/api/admin/students/analytics');
+      const response = await fetch("/api/admin/students/analytics");
       const data = await response.json();
-
-      if (data.success) {
-        setAnalytics(normalizeAnalytics(data.data));
-      } else {
-        console.error('Failed to fetch analytics:', data.error);
+      if (!data.success) {
+        return;
       }
-    } catch (err) {
-      console.error('Error fetching analytics:', err);
+
+      setAnalytics({
+        totalStudents: toFiniteNumber(data.data.totalStudents),
+        scoreDistribution: {
+          empty: toFiniteNumber(data.data.scoreDistribution?.empty),
+          good: toFiniteNumber(data.data.scoreDistribution?.good),
+          needs_attention: toFiniteNumber(data.data.scoreDistribution?.needs_attention),
+          struggling: toFiniteNumber(data.data.scoreDistribution?.struggling),
+        },
+        riskDistribution: {
+          low: toFiniteNumber(data.data.riskDistribution?.low),
+          medium: toFiniteNumber(data.data.riskDistribution?.medium),
+          high: toFiniteNumber(data.data.riskDistribution?.high),
+        },
+        averageEngagement: toFiniteNumber(data.data.averageEngagement),
+        averageGrade: toFiniteNumber(data.data.averageGrade),
+      });
+    } catch (fetchError) {
+      console.error("Failed to fetch analytics:", fetchError);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchProfiles();
+    void fetchProfiles();
   }, [fetchProfiles]);
 
   useEffect(() => {
-    fetchAnalytics();
+    void fetchAnalytics();
+  }, [fetchAnalytics]);
+
+  const openEvidenceConsole = useCallback(async (profile: StudentProfileRow) => {
+    try {
+      setSelectedProfile(profile);
+      setDrawerLoading(true);
+      setDrawerError(null);
+      const response = await fetch(`/api/admin/students/${profile.userId}`);
+      const data = await response.json();
+
+      if (!data.success) {
+        setDrawerError(data.error || "לא הצלחנו לטעון את קונסולת הראיות.");
+        return;
+      }
+
+      setSelectedEvidence(data.data);
+      setInterventionDraft("");
+      setGoalDraft("");
+    } catch (fetchError) {
+      console.error("Failed to open admin evidence console:", fetchError);
+      setDrawerError("שגיאת רשת בטעינת קונסולת הראיות.");
+    } finally {
+      setDrawerLoading(false);
+    }
   }, []);
 
-  const getScoreColor = (score: string) => {
-    switch (score) {
-      case 'good': return 'text-green-600 bg-green-100';
-      case 'needs_attention': return 'text-yellow-600 bg-yellow-100';
-      case 'struggling': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getScoreIcon = (score: string) => {
-    switch (score) {
-      case 'good': return <CheckCircle size={16} />;
-      case 'needs_attention': return <Clock size={16} />;
-      case 'struggling': return <AlertTriangle size={16} />;
-      default: return <Clock size={16} />;
-    }
-  };
-
-  const getRiskColor = (riskLevel: string) => {
-    switch (riskLevel) {
-      case 'high': return 'text-red-600 bg-red-100';
-      case 'medium': return 'text-yellow-600 bg-yellow-100';
-      case 'low': return 'text-green-600 bg-green-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const parsedDate = new Date(dateString);
-
-    if (Number.isNaN(parsedDate.getTime())) {
-      return 'לא זמין';
+  const refreshSelectedEvidence = useCallback(async () => {
+    if (!selectedProfile) {
+      return;
     }
 
-    return parsedDate.toLocaleDateString('he-IL', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+    await openEvidenceConsole(selectedProfile);
+    await fetchProfiles();
+  }, [fetchProfiles, openEvidenceConsole, selectedProfile]);
 
-  const calculateAccuracy = (correct: number, total: number) => {
-    const safeCorrect = toFiniteNumber(correct);
-    const safeTotal = toFiniteNumber(total);
-
-    if (safeTotal <= 0) return 0;
-    return Math.round((safeCorrect / safeTotal) * 100);
-  };
-
-  const formatDecimal = (value: unknown, digits = 1) => toFiniteNumber(value).toFixed(digits);
-
-  const formatInteger = (value: unknown) => Math.round(toFiniteNumber(value)).toString();
-
-  const handleExport = async () => {
-    try {
-      const response = await fetch('/api/admin/students/export?format=excel&includeActivities=true');
-      const data = await response.json();
-
-      if (data.success) {
-        // Create and download the file
-        const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = data.filename || 'student-profiles-export.json';
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      } else {
-        alert('Export failed: ' + data.error);
+  const runAdminAction = useCallback(
+    async (payload: Record<string, unknown>, loadingKey: string) => {
+      if (!selectedProfile) {
+        return;
       }
-    } catch (err) {
-      console.error('Export error:', err);
-      alert('Export failed');
-    }
-  };
 
-  const handleMigrate = async () => {
-    try {
-      const response = await fetch('/api/admin/students/migrate', {
-        method: 'POST'
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        alert(`Migration completed: ${data.data.migrated} users migrated`);
-        fetchProfiles();
-        fetchAnalytics();
-      } else {
-        alert('Migration failed: ' + data.error);
-      }
-    } catch (err) {
-      console.error('Migration error:', err);
-      alert('Migration failed');
-    }
-  };
-
-  const fetchConversationSummaries = async (userId: string) => {
-    try {
-      const response = await fetch(`/api/conversation-summary/student/${userId}?insights=true`, {
-        headers: {
-          'x-user-id': userId,
-        },
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        setConversationSummaries(data.data.summaries || []);
-        return data.data.insights;
-      } else {
-        console.error('Failed to fetch conversation summaries:', data.error);
-        return null;
-      }
-    } catch (err) {
-      console.error('Error fetching conversation summaries:', err);
-      return null;
-    }
-  };
-
-  const handleViewConversationInsights = async (profile: StudentProfile) => {
-    setSelectedStudent(normalizeProfile(profile));
-    setShowConversationInsights(true);
-    await fetchConversationSummaries(profile.userId);
-  };
-
-  const handleCalculateProfiles = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/admin/students/calculate-profiles', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      try {
+        setActionLoading(loadingKey);
+        const response = await fetch(`/api/admin/students/${selectedProfile.userId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!data.success) {
+          alert(data.error || "הפעולה לא הושלמה.");
+          return;
         }
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        alert(`פרופילים חושבו בהצלחה! נוצרו ${data.data.created} פרופילים חדשים ועודכנו ${data.data.updated} פרופילים קיימים.`);
-        fetchProfiles();
-        fetchAnalytics();
-      } else {
-        alert('שגיאה בחישוב הפרופילים: ' + data.error);
-      }
-    } catch (err) {
-      console.error('Error calculating profiles:', err);
-      alert('שגיאה בחישוב הפרופילים');
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const handleViewIssueHistory = async (profile: StudentProfile) => {
-    try {
-      console.log('Opening issue history for profile:', profile);
-      
-      // Convert userId to string if it's an ObjectId
-      const userId = profile.userId?.toString ? profile.userId.toString() : profile.userId;
-      console.log('Fetching issues for userId:', userId);
-      
-      const response = await fetch(`/api/admin/students/${userId}/issues`);
-      console.log('Response status:', response.status);
-      
-      const data = await response.json();
-      console.log('Response data:', data);
-      
-      if (data.success) {
-        setSelectedStudentIssues(normalizeIssueHistoryResponse(data.data));
-        setSelectedStudent(normalizeProfile(profile));
-        setShowIssueHistory(true);
-      } else {
-        console.error('Error response:', data);
-        alert('שגיאה בטעינת היסטוריית הבעיות: ' + data.error);
+        setSelectedEvidence(data.data);
+        await fetchProfiles();
+      } catch (actionError) {
+        console.error("Failed to apply admin oversight action:", actionError);
+        alert("שגיאה בביצוע הפעולה.");
+      } finally {
+        setActionLoading(null);
       }
-    } catch (err) {
-      console.error('Error fetching issue history:', err);
-      alert('שגיאה בטעינת היסטוריית הבעיות');
-    }
-  };
+    },
+    [fetchProfiles, selectedProfile]
+  );
 
-  const handleResolveIssue = async (issueId: string) => {
-    if (!selectedStudent) return;
-    
+  const handleAnalyzeIssues = useCallback(async (profile: StudentProfileRow) => {
     try {
-      const response = await fetch(`/api/admin/students/${selectedStudent.userId}/resolve-issue`, {
-        method: 'PUT',
+      setActionLoading(`analyze:${profile.userId}`);
+      const response = await fetch("/api/admin/students/analyze-issues", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ issueId })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        alert('בעיה נפתרה בהצלחה');
-        // Refresh issue history
-        await handleViewIssueHistory(selectedStudent);
-        // Refresh profiles to update issue count
-        fetchProfiles();
-      } else {
-        alert('שגיאה בפתרון הבעיה: ' + data.error);
-      }
-    } catch (err) {
-      console.error('Error resolving issue:', err);
-      alert('שגיאה בפתרון הבעיה');
-    }
-  };
-
-  const handleAnalyzeIssues = async (profile: StudentProfile) => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/admin/students/analyze-issues', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           studentId: profile.userId,
-          analysisType: 'manual',
-          triggerReason: 'Manual analysis requested by admin'
-        })
+          analysisType: "manual",
+          triggerReason: "Manual analysis requested by admin evidence console",
+        }),
       });
-      
       const data = await response.json();
-      
-      if (data.success) {
-        alert('ניתוח הבעיות הושלם בהצלחה');
-        fetchProfiles();
-        fetchAnalytics();
-      } else {
-        alert('שגיאה בניתוח הבעיות: ' + data.error);
+      if (!data.success) {
+        alert(data.error || "הניתוח לא הושלם.");
+        return;
       }
-    } catch (err) {
-      console.error('Error analyzing issues:', err);
-      alert('שגיאה בניתוח הבעיות');
+
+      await fetchProfiles();
+      if (selectedProfile?.userId === profile.userId) {
+        await refreshSelectedEvidence();
+      }
+    } catch (actionError) {
+      console.error("Failed to analyze issues:", actionError);
+      alert("שגיאה בהרצת ניתוח הבעיות.");
+    } finally {
+      setActionLoading(null);
+    }
+  }, [fetchProfiles, refreshSelectedEvidence, selectedProfile?.userId]);
+
+  const handleCalculateProfiles = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/admin/students/calculate-profiles", {
+        method: "POST",
+      });
+      const data = await response.json();
+      if (!data.success) {
+        alert(data.error || "חישוב הפרופילים נכשל.");
+        return;
+      }
+
+      await fetchProfiles();
+      await fetchAnalytics();
+      if (selectedProfile) {
+        await refreshSelectedEvidence();
+      }
+    } catch (actionError) {
+      console.error("Failed to recalculate student profiles:", actionError);
+      alert("שגיאה בחישוב הפרופילים.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchAnalytics, fetchProfiles, refreshSelectedEvidence, selectedProfile]);
 
-  const handleViewChallenges = (profile: StudentProfile) => {
-    if (profile.commonChallenges && profile.commonChallenges.length > 0) {
-      setSelectedStudentChallenges(profile.commonChallenges);
-      setSelectedStudent(normalizeProfile(profile));
-      setShowChallengesPopup(true);
-    }
-  };
-
-  if (loading && profiles.length === 0) {
-    return (
-      <div className={studentStyles.studentProfilesContainer}>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="mr-2 text-gray-600">טוען פרופילי תלמידים...</span>
-        </div>
-      </div>
-    );
-  }
+  const activeWeakSkills = useMemo(
+    () => selectedEvidence?.evidenceConsole.weakSkills || [],
+    [selectedEvidence]
+  );
 
   return (
-    <>
     <div className={studentStyles.studentProfilesContainer}>
-      
-
-      {/* Analytics Section */}
-      {showAnalytics && analytics && (
-        <div className={studentStyles.analyticsSection}>
-            <div className={studentStyles.statCard}>
-              <Users className={studentStyles.statIcon} />
-              <div className={studentStyles.statNumber}>{formatInteger(analytics.totalStudents)}</div>
-              <div className={studentStyles.statLabel}>סה&quot;כ תלמידים</div>
-            </div>
-
-            <div className={studentStyles.statCard}>
-              <TrendingUp className={studentStyles.statIcon} />
-              <div className={studentStyles.statNumber}>{formatDecimal(analytics.averageGrade)}</div>
-              <div className={studentStyles.statLabel}>ציון ממוצע</div>
-            </div>
-
-            <div className={studentStyles.statCard}>
-              <BarChart3 className={studentStyles.statIcon} />
-              <div className={studentStyles.statNumber}>{formatDecimal(analytics.averageEngagement)}</div>
-              <div className={studentStyles.statLabel}>ממוצע מעורבות</div>
-            </div>
-
-            <div className={studentStyles.statCard}>
-              <AlertTriangle className={studentStyles.statIcon} />
-              <div className={studentStyles.statNumber}>{formatInteger(analytics.riskDistribution.high)}</div>
-              <div className={studentStyles.statLabel}>בסיכון גבוה</div>
-            </div>
+      <div className={studentStyles.analyticsSection}>
+        <div className={studentStyles.statCard}>
+          <Users className={studentStyles.statIcon} />
+          <div className={studentStyles.statNumber}>{analytics?.totalStudents ?? profiles.length}</div>
+          <div className={studentStyles.statLabel}>סה&quot;כ סטודנטים</div>
         </div>
-      )}
+        <div className={studentStyles.statCard}>
+          <TrendingUp className={studentStyles.statIcon} />
+          <div className={studentStyles.statNumber}>{toFiniteNumber(analytics?.averageGrade).toFixed(1)}</div>
+          <div className={studentStyles.statLabel}>ציון ממוצע</div>
+        </div>
+        <div className={studentStyles.statCard}>
+          <ShieldAlert className={studentStyles.statIcon} />
+          <div className={studentStyles.statNumber}>{analytics?.riskDistribution.high ?? 0}</div>
+          <div className={studentStyles.statLabel}>בסיכון גבוה</div>
+        </div>
+        <div className={studentStyles.statCard}>
+          <Sparkles className={studentStyles.statIcon} />
+          <div className={studentStyles.statNumber}>{toFiniteNumber(analytics?.averageEngagement).toFixed(1)}</div>
+          <div className={studentStyles.statLabel}>מעורבות ממוצעת</div>
+        </div>
+      </div>
 
-      {/* Filters Section */}
       <div className={studentStyles.filtersSection}>
-        {/* Force horizontal layout - search bar should be side by side */}
         <div className={studentStyles.searchContainer}>
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+          <Search className={studentStyles.searchIcon} size={16} />
           <input
-            type="text"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="חיפוש לפי שם או אימייל..."
             className={studentStyles.searchInput}
           />
@@ -570,10 +541,10 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
 
         <select
           value={selectedScore}
-          onChange={(e) => setSelectedScore(e.target.value)}
+          onChange={(event) => setSelectedScore(event.target.value)}
           className={studentStyles.filterSelect}
         >
-          <option value="">כל הציונים</option>
+          <option value="">כל ציוני הידע</option>
           <option value="empty">ריק</option>
           <option value="good">טוב</option>
           <option value="needs_attention">זקוק לתשומת לב</option>
@@ -582,506 +553,586 @@ const StudentProfiles: React.FC<StudentProfilesProps> = ({ onClose }) => {
 
         <select
           value={selectedRisk}
-          onChange={(e) => setSelectedRisk(e.target.value)}
+          onChange={(event) => setSelectedRisk(event.target.value)}
           className={studentStyles.filterSelect}
         >
-          <option value="">כל הרמות</option>
+          <option value="">כל רמות הסיכון</option>
           <option value="low">נמוכה</option>
           <option value="medium">בינונית</option>
           <option value="high">גבוהה</option>
         </select>
 
-        <button
-          onClick={fetchProfiles}
-          className={studentStyles.quickActionButton}
-        >
+        <button onClick={() => void fetchProfiles()} className={studentStyles.quickActionButton}>
           <RefreshCw size={16} />
           <div className={studentStyles.buttonContent}>
-            <div className={studentStyles.buttonTitle}>רענן</div>
-            <div className={studentStyles.buttonDescription}>רענן רשימת תלמידים</div>
+            <div className={studentStyles.buttonTitle}>רענון</div>
+            <div className={studentStyles.buttonDescription}>טען מחדש את רשימת הסטודנטים</div>
           </div>
         </button>
+
+        <button onClick={() => void handleCalculateProfiles()} className={studentStyles.headerActionButton}>
+          <BarChart3 size={16} />
+          <span>חישוב מחדש</span>
+        </button>
+
+        {onClose ? (
+          <button onClick={onClose} className={studentStyles.secondaryActionButton}>
+            <X size={16} />
+            <span>סגור</span>
+          </button>
+        ) : null}
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className={studentStyles.errorContainer}>
-          <AlertTriangle className={studentStyles.errorIcon} />
-          <div>
-            <h3 className="text-sm font-medium text-red-800">שגיאה</h3>
-            <div className={studentStyles.errorMessage}>{error}</div>
-          </div>
-        </div>
-      )}
+      {error ? <div className={studentStyles.errorBanner}>{error}</div> : null}
 
-      {/* Students Table */}
       <div className={studentStyles.tableSection}>
         <div className={studentStyles.tableHeader}>
-          <h3 className={studentStyles.tableTitle}>
-            סטודנטים ({filteredProfiles.length})
-          </h3>
-          <button
-            onClick={handleCalculateProfiles}
-            className={studentStyles.headerActionButton}
-          >
-            <BarChart3 size={16} />
-            <span>חשב פרופילים</span>
-          </button>
+          <h3 className={studentStyles.tableTitle}>קונסולת פיקוח אדמינית</h3>
+          <p className={studentStyles.tableSubtitle}>
+            הטבלה מציגה סיכום פדגוגי, לא רק ספירת בעיות. פתחו את קונסולת הראיות כדי לראות בדיוק למה הסטודנט סומן ומה כדאי לעשות.
+          </p>
         </div>
 
         {loading ? (
-          <div className={studentStyles.loadingContainer}>
-            <div className={studentStyles.loadingSpinner}></div>
-            <span>טוען...</span>
-          </div>
-        ) : filteredProfiles.length === 0 ? (
-          <div className={studentStyles.emptyContainer}>
-            <Users className={studentStyles.emptyIcon} />
-            <div className={studentStyles.emptyMessage}>אין תלמידים</div>
-            <div className={studentStyles.emptyMessage}>לא נמצאו תלמידים התואמים לקריטריונים שלך.</div>
-          </div>
+          <div className={studentStyles.loadingState}>טוען נתונים...</div>
         ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className={studentStyles.studentTable}>
-                <thead>
-                  <tr className={studentStyles.tableHeaderRow}>
-                    <th className={`${studentStyles.tableHeaderCell} ${studentStyles.colStudent}`}>תלמיד</th>
-                    <th className={`${studentStyles.tableHeaderCell} ${studentStyles.colKnowledgeScore}`}>ציון ידע</th>
-                    <th className={`${studentStyles.tableHeaderCell} ${studentStyles.colIssues}`}>בעיות</th>
-                    <th className={`${studentStyles.tableHeaderCell} ${studentStyles.colChallenges}`}>אתגרים נפוצים</th>
-                    <th className={`${studentStyles.tableHeaderCell} ${studentStyles.colMetrics}`}>מדדים</th>
-                    <th className={`${studentStyles.tableHeaderCell} ${studentStyles.colActions}`}>פעולות</th>
-                  </tr>
-                </thead>
-                <tbody className={studentStyles.tableBody}>
-                  {filteredProfiles.map((profile) => (
+          <div className={studentStyles.tableWrap}>
+            <table className={studentStyles.studentTable}>
+              <thead>
+                <tr className={studentStyles.tableHeaderRow}>
+                  <th className={studentStyles.tableHeaderCell}>סטודנט</th>
+                  <th className={studentStyles.tableHeaderCell}>סיכום פדגוגי</th>
+                  <th className={studentStyles.tableHeaderCell}>דיוק ופעילות</th>
+                  <th className={studentStyles.tableHeaderCell}>פעולות</th>
+                </tr>
+              </thead>
+              <tbody className={studentStyles.tableBody}>
+                {profiles.map((profile) => {
+                  const pedagogicalSummary = getPedagogicalSummary(profile);
+                  return (
                     <tr key={profile._id} className={studentStyles.tableRow}>
-                      <td className={`${studentStyles.tableCell} ${studentStyles.colStudent}`}>
+                      <td className={studentStyles.tableCell}>
                         <div className={studentStyles.studentInfo}>
                           <div className={studentStyles.studentAvatar}>
-                            <Users className="h-4 w-4" />
+                            <Users size={16} />
                           </div>
                           <div className={studentStyles.studentDetails}>
-                            <div className={studentStyles.studentName}>
-                              {profile.name || 'ללא שם'}
-                            </div>
-                            <div className={studentStyles.studentEmail}>
-                              {profile.email || 'ללא אימייל'}
+                            <div className={studentStyles.studentName}>{profile.name}</div>
+                            <div className={studentStyles.studentEmail}>{profile.email}</div>
+                            <div className={studentStyles.inlineBadges}>
+                              <span className={`${studentStyles.scoreBadge} ${getKnowledgeScoreClass(profile.knowledgeScore)}`}>
+                                {formatKnowledgeScore(profile.knowledgeScore)}
+                              </span>
+                              <span className={studentStyles.riskBadge}>{profile.riskFactors.riskLevel}</span>
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className={`${studentStyles.tableCell} ${studentStyles.colKnowledgeScore}`}>
-                        <div className={`${studentStyles.knowledgeScore} ${studentStyles[`score${profile.knowledgeScore.charAt(0).toUpperCase() + profile.knowledgeScore.slice(1).replace('_', '')}`]}`}>
-                          {getScoreIcon(profile.knowledgeScore)}
-                          <span>
-                            {profile.knowledgeScore === 'empty' ? 'ריק' :
-                             profile.knowledgeScore === 'good' ? 'טוב' :
-                             profile.knowledgeScore === 'needs_attention' ? 'זקוק לתשומת לב' : 'מתקשה'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className={`${studentStyles.tableCell} ${studentStyles.colIssues}`}>
-                        <div className={studentStyles.issuesContainer}>
-                          <div className={studentStyles.issueCounter}>
-                            <span className={studentStyles.issueCount}>
-                              {profile.issueCount || 0}
-                            </span>
-                            <span className={studentStyles.issueLabel}>בעיות</span>
+                      <td className={studentStyles.tableCell}>
+                        <div className={studentStyles.summaryCell}>
+                          <div className={studentStyles.summaryHeadline}>{pedagogicalSummary.headline}</div>
+                          <div className={studentStyles.summaryDetail}>{pedagogicalSummary.detail}</div>
+                          <div className={studentStyles.summaryFooter}>
+                            <span>אתגרים: {profile.commonChallenges.slice(0, 2).join(", ") || "אין"}</span>
+                            <span>התראות פתוחות: {profile.issueCount}</span>
                           </div>
-                          {profile.issueCount > 0 && (
-                            <button
-                              onClick={() => handleViewIssueHistory(profile)}
-                              className={studentStyles.viewIssuesButton}
-                              title="צפה בהיסטוריית בעיות"
-                            >
-                              <Eye size={14} />
-                            </button>
-                          )}
                         </div>
                       </td>
-                      <td className={`${studentStyles.tableCell} ${studentStyles.colChallenges}`}>
-                        <div className={studentStyles.challengesContainer}>
-                          {profile.commonChallenges && profile.commonChallenges.length > 0 ? (
-                            <button
-                              onClick={() => handleViewChallenges(profile)}
-                              className={studentStyles.challengesButton}
-                              title="לחץ לצפייה בכל האתגרים"
-                            >
-                              <div className={studentStyles.challengesButtonContent}>
-                                <span className={studentStyles.challengesCount}>
-                                  {profile.commonChallenges.length}
-                                </span>
-                                <span className={studentStyles.challengesLabel}>אתגרים</span>
-                              </div>
-                            </button>
-                          ) : (
-                            <span className="text-gray-400">אין אתגרים זמינים</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className={`${studentStyles.tableCell} ${studentStyles.colMetrics}`}>
+                      <td className={studentStyles.tableCell}>
                         <div className={studentStyles.metricsContainer}>
                           <div className={studentStyles.metricRow}>
-                            <span className={studentStyles.metricLabel}>דיוק:</span>
-                            <span className={studentStyles.metricValue}>{calculateAccuracy(profile.correctAnswers, profile.totalQuestions)}%</span>
+                            <span className={studentStyles.metricLabel}>דיוק</span>
+                            <span className={studentStyles.metricValue}>
+                              {formatAccuracy(profile.correctAnswers, profile.totalQuestions)}
+                            </span>
                           </div>
                           <div className={studentStyles.metricRow}>
-                            <span className={studentStyles.metricLabel}>ממוצע:</span>
-                            <span className={studentStyles.metricValue}>{formatDecimal(profile.averageGrade)}</span>
+                            <span className={studentStyles.metricLabel}>ממוצע</span>
+                            <span className={studentStyles.metricValue}>{profile.averageGrade.toFixed(1)}</span>
                           </div>
                           <div className={studentStyles.metricRow}>
-                            <span className={studentStyles.metricLabel}>שיחות:</span>
-                            <span className={studentStyles.metricValue}>{formatInteger(profile.engagementMetrics.chatSessions)}</span>
+                            <span className={studentStyles.metricLabel}>שיחות</span>
+                            <span className={studentStyles.metricValue}>{profile.engagementMetrics.chatSessions}</span>
                           </div>
                           <div className={studentStyles.metricRow}>
-                            <span className={studentStyles.metricLabel}>ממוצע זמן:</span>
-                            <span className={studentStyles.metricValue}>{formatDecimal(profile.engagementMetrics.averageSessionDuration)} דק&apos;</span>
+                            <span className={studentStyles.metricLabel}>עזרה</span>
+                            <span className={studentStyles.metricValue}>{profile.engagementMetrics.helpRequests}</span>
+                          </div>
+                          <div className={studentStyles.metricRow}>
+                            <span className={studentStyles.metricLabel}>פעילות אחרונה</span>
+                            <span className={studentStyles.metricValue}>{formatDate(profile.lastActivity)}</span>
                           </div>
                         </div>
                       </td>
-                      <td className={`${studentStyles.tableCell} ${studentStyles.colActions}`}>
+                      <td className={studentStyles.tableCell}>
                         <div className={studentStyles.actions}>
-                          <button 
-                            onClick={() => handleAnalyzeIssues(profile)}
+                          <button
                             className={studentStyles.actionButton}
-                            title="נתח בעיות"
+                            onClick={() => void openEvidenceConsole(profile)}
+                            title="פתח קונסולת ראיות"
                           >
-                            <AlertTriangle size={14} />
+                            <Eye size={16} />
                           </button>
-                          <button 
-                            onClick={() => handleViewConversationInsights(profile)}
+                          <button
                             className={studentStyles.actionButton}
-                            title="צפה בתובנות שיחה"
+                            onClick={() => void handleAnalyzeIssues(profile)}
+                            title="הרץ ניתוח בעיות"
+                            disabled={actionLoading === `analyze:${profile.userId}`}
                           >
-                            <BarChart3 size={14} />
-                          </button>
-                          <button 
-                            className={studentStyles.actionButton}
-                            title="צפה בפרטים"
-                          >
-                            <Eye size={14} />
-                          </button>
-                          <button 
-                            className={studentStyles.actionButton}
-                            title="ערוך"
-                          >
-                            <Edit size={14} />
+                            <AlertTriangle size={16} />
                           </button>
                         </div>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className={studentStyles.paginationSection}>
-                <div className={studentStyles.paginationInfo}>
-                  מציג <span className="font-medium">{(currentPage - 1) * 20 + 1}</span> עד{' '}
-                  <span className="font-medium">{Math.min(currentPage * 20, filteredProfiles.length)}</span> מתוך{' '}
-                  <span className="font-medium">{filteredProfiles.length}</span> תוצאות
-                </div>
-                <div className={studentStyles.paginationControls}>
-                  <div>
-                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                      <button
-                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                        disabled={currentPage === 1}
-                        className={studentStyles.paginationButton}
-                      >
-                        הקודם
-                      </button>
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        const page = i + 1;
-                        return (
-                          <button
-                            key={page}
-                            onClick={() => setCurrentPage(page)}
-                            className={`${studentStyles.paginationButton} ${currentPage === page ? studentStyles.active : ''}`}
-                          >
-                            {page}
-                          </button>
-                        );
-                      })}
-                      <button
-                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                        disabled={currentPage === totalPages}
-                        className={studentStyles.paginationButton}
-                      >
-                        הבא
-                      </button>
-                    </nav>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
+
+        {totalPages > 1 ? (
+          <div className={studentStyles.paginationSection}>
+            <button
+              className={studentStyles.paginationButton}
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((value) => Math.max(1, value - 1))}
+            >
+              הקודם
+            </button>
+            <span className={studentStyles.paginationInfo}>עמוד {currentPage} מתוך {totalPages}</span>
+            <button
+              className={studentStyles.paginationButton}
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((value) => Math.min(totalPages, value + 1))}
+            >
+              הבא
+            </button>
+          </div>
+        ) : null}
       </div>
 
-      {/* Conversation Insights Modal */}
-      {showConversationInsights && selectedStudent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  תובנות שיחה - {selectedStudent.name || selectedStudent.email}
-                </h3>
-                <button
-                  onClick={() => setShowConversationInsights(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                  aria-label="סגור חלון"
-                >
-                  <span className="text-sm font-medium ml-2">סגור</span>
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+      {selectedProfile ? (
+        <div className={studentStyles.drawerOverlay}>
+          <aside className={studentStyles.evidenceDrawer}>
+            <div className={studentStyles.drawerHeader}>
+              <div>
+                <h3 className={studentStyles.drawerTitle}>קונסולת ראיות: {selectedProfile.name}</h3>
+                <p className={studentStyles.drawerSubtitle}>{selectedProfile.email}</p>
               </div>
+              <button
+                className={studentStyles.drawerCloseButton}
+                onClick={() => {
+                  setSelectedProfile(null);
+                  setSelectedEvidence(null);
+                  setDrawerError(null);
+                }}
+                aria-label="סגור"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-              {/* Conversation Summaries */}
-              <div className="space-y-4">
-                <h4 className="text-md font-medium text-gray-900">סיכומי שיחות אחרונות</h4>
-                {conversationSummaries.length === 0 ? (
-                  <div className="text-gray-500 text-center py-8">
-                    אין סיכומי שיחות זמינים עבור תלמיד זה
+            {drawerLoading ? <div className={studentStyles.loadingState}>טוען את קונסולת הראיות...</div> : null}
+            {drawerError ? <div className={studentStyles.errorBanner}>{drawerError}</div> : null}
+
+            {selectedEvidence ? (
+              <div className={studentStyles.drawerContent}>
+                <section className={studentStyles.consoleSection}>
+                  <div className={studentStyles.consoleHero}>
+                    <div>
+                      <div className={studentStyles.consoleEyebrow}>סיכום פדגוגי</div>
+                      <h4>{selectedEvidence.pedagogicalSummary.headline}</h4>
+                      <p>{selectedEvidence.pedagogicalSummary.rationale}</p>
+                    </div>
+                    <div className={studentStyles.consoleMetaStack}>
+                      <span className={studentStyles.metaPill}>
+                        ביטחון {formatPercent(selectedEvidence.pedagogicalSummary.confidence)}
+                      </span>
+                      <span
+                        className={`${studentStyles.metaPill} ${getFreshnessTone(
+                          selectedEvidence.pedagogicalSummary.freshnessLabel
+                        )}`}
+                      >
+                        {selectedEvidence.pedagogicalSummary.freshnessLabel}
+                      </span>
+                    </div>
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {conversationSummaries.slice(0, 5).map((summary, index) => (
-                      <div key={summary._id || index} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <h5 className="font-medium text-gray-900">{summary.sessionTitle}</h5>
-                          <span className="text-sm text-gray-500">
-                            {new Date(summary.createdAt).toLocaleDateString('he-IL')}
+                </section>
+
+                <section className={studentStyles.consoleSection}>
+                  <div className={studentStyles.sectionTitleRow}>
+                    <h4>חולשות מובילות</h4>
+                    <span className={studentStyles.sectionHint}>אפשר לאשר או לדחות כל אות מהמסך הזה</span>
+                  </div>
+                  <div className={studentStyles.cardList}>
+                    {selectedEvidence.evidenceConsole.weakSkills.map((skill) => (
+                      <article key={skill.topic} className={studentStyles.consoleCard}>
+                        <div className={studentStyles.cardHeader}>
+                          <div>
+                            <h5>{skill.label}</h5>
+                            <p>
+                              שליטה {formatPercent(skill.mastery)} • ביטחון {formatPercent(skill.confidence)}
+                            </p>
+                          </div>
+                          <span className={`${studentStyles.metaPill} ${getFreshnessTone(skill.freshnessLabel)}`}>
+                            {skill.freshnessLabel}
                           </span>
                         </div>
-                        
-                        <div className="mb-3">
-                          <h6 className="text-sm font-medium text-gray-700 mb-1">תובנות עיקריות:</h6>
-                          <ul className="text-sm text-gray-600 space-y-1">
-                            {summary.summaryPoints.map((point: string, pointIndex: number) => (
-                              <li key={pointIndex} className="flex items-start">
-                                <span className="text-blue-500 mr-2">•</span>
-                                {point}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <span className="font-medium text-gray-700">נושאים:</span>
-                            <div className="text-gray-600">
-                              {summary.keyTopics.join(', ')}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="font-medium text-gray-700">רמת הבנה:</span>
-                            <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
-                              summary.learningIndicators.comprehensionLevel === 'high' ? 'bg-green-100 text-green-800' :
-                              summary.learningIndicators.comprehensionLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {summary.learningIndicators.comprehensionLevel === 'high' ? 'גבוהה' :
-                               summary.learningIndicators.comprehensionLevel === 'medium' ? 'בינונית' : 'נמוכה'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {summary.learningIndicators.challengeAreas.length > 0 && (
-                          <div className="mt-3">
-                            <span className="text-sm font-medium text-gray-700">אזורי אתגר:</span>
-                            <div className="text-sm text-gray-600 mt-1">
-                              {summary.learningIndicators.challengeAreas.join(', ')}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-            {/* Issue History Modal */}
-      {showIssueHistory && selectedStudent && selectedStudentIssues && (
-        <div className={studentStyles.modalOverlay}>
-          <div className={studentStyles.modalContainer}>
-            <div className={studentStyles.modalContent}>
-              <div className={studentStyles.modalHeader}>
-                <h3 className={studentStyles.modalTitle}>
-                  היסטוריית בעיות - {selectedStudent.name || selectedStudent.email}                                                                             
-                </h3>
-                <button
-                  onClick={() => setShowIssueHistory(false)}
-                  className={studentStyles.modalCloseButton}
-                  aria-label="סגור חלון"
-                >
-                  <span className={studentStyles.modalCloseText}>סגור</span>
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">                                                               
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />                                              
-                  </svg>
-                </button>
-              </div>
-
-              {/* Issue Content Wrapper */}
-              <div className={studentStyles.issueHistoryContent}>
-              {/* Issue Summary */}
-              <div className={studentStyles.issueSummaryGrid}>
-                <div className={studentStyles.issueSummaryCard}>
-                  <div className={studentStyles.issueSummaryValue}>{formatInteger(selectedStudentIssues.totalIssues)}</div>
-                  <div className={studentStyles.issueSummaryLabel}>סה&quot;כ בעיות</div>
-                </div>
-                <div className={`${studentStyles.issueSummaryCard} ${studentStyles.issueSummaryCardAlert}`}>
-                  <div className={studentStyles.issueSummaryValue}>{formatInteger(selectedStudentIssues.unresolvedIssues)}</div>
-                  <div className={studentStyles.issueSummaryLabel}>בעיות לא פתורות</div>
-                </div>
-                <div className={`${studentStyles.issueSummaryCard} ${studentStyles.issueSummaryCardSuccess}`}>
-                  <div className={studentStyles.issueSummaryValue}>
-                    {formatInteger(selectedStudentIssues.totalIssues - selectedStudentIssues.unresolvedIssues)}
-                  </div>
-                  <div className={studentStyles.issueSummaryLabel}>בעיות פתורות</div>
-                </div>
-              </div>
-
-              {/* Issue History */}
-              <div className={studentStyles.issueTimelineSection}>
-                <div className={studentStyles.issueTimelineHeader}>
-                  <h4 className={studentStyles.issueTimelineTitle}>היסטוריית בעיות</h4>
-                  <p className={studentStyles.issueTimelineDescription}>
-                    סקירה מרוכזת של האיתורים האחרונים והטיפול בהם.
-                  </p>
-                </div>
-                {selectedStudentIssues.issueHistory.length === 0 ? (
-                  <div className={studentStyles.issueEmptyState}>
-                    אין בעיות זמינות עבור תלמיד זה
-                  </div>
-                ) : (
-                  <div className={studentStyles.issueTimelineList}>
-                    {selectedStudentIssues.issueHistory.map((issue) => (
-                      <article
-                        key={issue.issueId}
-                        className={`${studentStyles.issueCard} ${
-                          issue.resolvedAt
-                            ? studentStyles.issueResolved
-                            : issue.severity === 'high'
-                              ? studentStyles.issueHigh
-                              : issue.severity === 'medium'
-                                ? studentStyles.issueMedium
-                                : studentStyles.issueLow
-                        }`}
-                      >
-                        <div className={studentStyles.issueCardHeader}>
-                          <div className={studentStyles.issueBadgeGroup}>
-                            <span className={`${studentStyles.issueBadge} ${studentStyles[`severity${issue.severity.charAt(0).toUpperCase() + issue.severity.slice(1)}`]}`}>
-                                {issue.severity === 'high' ? 'גבוהה' :
-                                 issue.severity === 'medium' ? 'בינונית' : 'נמוכה'}
-                            </span>
-                            <span className={`${studentStyles.issueBadge} ${issue.resolvedAt ? studentStyles.issueStatusResolved : studentStyles.issueStatusOpen}`}>
-                              {issue.resolvedAt ? 'נפתרה' : 'פתוחה'}
-                            </span>
-                          </div>
-                          {!issue.resolvedAt && (
+                        <ul className={studentStyles.evidenceList}>
+                          {skill.evidenceSummary.map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ul>
+                        <div className={studentStyles.cardFooter}>
+                          <span>עדכון אחרון: {formatDate(skill.lastEvidenceTime)}</span>
+                          <div className={studentStyles.inlineActions}>
                             <button
-                              onClick={() => handleResolveIssue(issue.issueId)}
-                              className={studentStyles.resolveIssueButton}
+                              className={studentStyles.successButton}
+                              disabled={actionLoading === `confirm:${skill.topic}`}
+                              onClick={() =>
+                                void runAdminAction(
+                                  {
+                                    actionType: "confirm_weakness",
+                                    topic: skill.topic,
+                                    note: `Confirmed from admin evidence console for ${skill.label}`,
+                                  },
+                                  `confirm:${skill.topic}`
+                                )
+                              }
                             >
-                              סמן כנפתרה
+                              <span aria-hidden="true">+</span>
+                              אשר חולשה
                             </button>
-                          )}
-                        </div>
-
-                        <p className={studentStyles.issueDescription}>{issue.description}</p>
-
-                        <div className={studentStyles.issueMetaGrid}>
-                          <div className={studentStyles.issueMetaItem}>
-                            <span className={studentStyles.issueMetaLabel}>זוהתה</span>
-                            <span className={studentStyles.issueMetaValue}>{formatDate(issue.detectedAt)}</span>
-                          </div>
-                          {issue.resolvedAt && (
-                            <div className={studentStyles.issueMetaItem}>
-                              <span className={studentStyles.issueMetaLabel}>נפתרה</span>
-                              <span className={studentStyles.issueMetaValue}>{formatDate(issue.resolvedAt)}</span>
-                            </div>
-                          )}
-                          <div className={studentStyles.issueMetaItem}>
-                            <span className={studentStyles.issueMetaLabel}>מזהה</span>
-                            <span className={studentStyles.issueMetaValue}>{issue.issueId}</span>
+                            <button
+                              className={studentStyles.dangerButton}
+                              disabled={actionLoading === `dismiss:${skill.topic}`}
+                              onClick={() =>
+                                void runAdminAction(
+                                  {
+                                    actionType: "dismiss_false_positive",
+                                    topic: skill.topic,
+                                    note: `Dismissed as false positive from admin evidence console for ${skill.label}`,
+                                  },
+                                  `dismiss:${skill.topic}`
+                                )
+                              }
+                            >
+                              <XCircle size={14} />
+                              דחה כ-positive false
+                            </button>
                           </div>
                         </div>
                       </article>
                     ))}
                   </div>
-                )}
-              </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+                </section>
 
-      {/* Challenges Popup Modal */}
-      {showChallengesPopup && selectedStudent && (
-        <div className={studentStyles.modalOverlay}>
-          <div className={studentStyles.modalContainer}>
-            <div className={studentStyles.modalContent}>
-              <div className={studentStyles.modalHeader}>
-                <h3 className={studentStyles.modalTitle}>
-                  אתגרים נפוצים - {selectedStudent.name || selectedStudent.email}
-                </h3>
-                <button
-                  onClick={() => setShowChallengesPopup(false)}
-                  className={studentStyles.modalCloseButton}
-                  aria-label="סגור חלון"
-                >
-                  <span className={studentStyles.modalCloseText}>סגור</span>
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+                <section className={studentStyles.consoleSection}>
+                  <h4>ניסיונות אחרונים שנכשלו</h4>
+                  <div className={studentStyles.cardList}>
+                    {selectedEvidence.evidenceConsole.recentFailedAttempts.map((attempt) => (
+                      <article key={`${attempt.questionId}:${attempt.lastTriedAt}`} className={studentStyles.consoleCard}>
+                        <div className={studentStyles.cardHeader}>
+                          <div>
+                            <h5>{attempt.homeworkTitle || "מטלה"} / {attempt.questionId}</h5>
+                            <p>{attempt.hintBurden}</p>
+                          </div>
+                          <span className={studentStyles.metaPill}>{attempt.attempts} ניסיונות</span>
+                        </div>
+                        <div className={studentStyles.tagRow}>
+                          {attempt.failureTags.map((tag) => (
+                            <span key={tag} className={studentStyles.tag}>
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                        <div className={studentStyles.subtleBlock}>
+                          {attempt.misconceptions.map((misconception) => (
+                            <div key={misconception.label} className={studentStyles.misconceptionRow}>
+                              <Bot size={14} />
+                              <span>
+                                {misconception.studentLabel} • ביטחון {formatPercent(misconception.confidence)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className={studentStyles.cardFooter}>
+                          <span>עודכן: {formatDate(attempt.lastTriedAt)}</span>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
 
-              {/* Challenges List */}
-              <div className={studentStyles.challengesModalContent}>
-                <div className={studentStyles.challengesSummary}>
-                  <div className={studentStyles.challengesSummaryIcon}>
-                    <AlertTriangle size={20} />
-                  </div>
-                  <div className={studentStyles.challengesSummaryText}>
-                    <span className={studentStyles.challengesSummaryCount}>{selectedStudentChallenges.length}</span>
-                    <span className={studentStyles.challengesSummaryLabel}>אתגרים זוהו עבור תלמיד זה</span>
-                  </div>
-                </div>
-                
-                <div className={studentStyles.challengesList}>
-                  {selectedStudentChallenges.map((challenge, index) => (
-                    <div key={index} className={studentStyles.challengeCard}>
-                      <div className={studentStyles.challengeNumber}>
-                        {index + 1}
+                <section className={studentStyles.consoleGrid}>
+                  <article className={studentStyles.consoleCard}>
+                    <div className={studentStyles.cardHeader}>
+                      <div>
+                        <h5>דפוסי שימוש ברמזים</h5>
+                        <p>האם הסטודנט נעזר מוקדם מדי או רק אחרי רצף כשלונות.</p>
                       </div>
-                      <div className={studentStyles.challengeContent}>
-                        <p className={studentStyles.challengeText}>{challenge}</p>
+                      <Wrench size={16} />
+                    </div>
+                    <div className={studentStyles.metricsGrid}>
+                      <div>
+                        <strong>{selectedEvidence.evidenceConsole.hintUsagePatterns.totalShowAnswerClicks}</strong>
+                        <span>פתיחות רמז</span>
+                      </div>
+                      <div>
+                        <strong>
+                          {selectedEvidence.evidenceConsole.hintUsagePatterns.averageTimeToFirstHintMs
+                            ? `${Math.round(
+                                selectedEvidence.evidenceConsole.hintUsagePatterns.averageTimeToFirstHintMs / 60000
+                              )} דק׳`
+                            : "—"}
+                        </strong>
+                        <span>זמן ממוצע לרמז ראשון</span>
+                      </div>
+                      <div>
+                        <strong>
+                          {selectedEvidence.evidenceConsole.hintUsagePatterns.averageAttemptsBeforeHint ?? "—"}
+                        </strong>
+                        <span>ניסיונות לפני רמז</span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-    </>
-  );
-};
+                  </article>
 
-export default StudentProfiles;
+                  <article className={studentStyles.consoleCard}>
+                    <div className={studentStyles.cardHeader}>
+                      <div>
+                        <h5>מיסקונספציות מהצ׳אט ומהניתוח</h5>
+                        <p>כאן רואים אילו טעויות קונספטואליות חזרו שוב ושוב.</p>
+                      </div>
+                      <Bot size={16} />
+                    </div>
+                    <div className={studentStyles.evidenceListCompact}>
+                      {selectedEvidence.evidenceConsole.chatMisconceptions.map((item) => (
+                        <div key={`${item.label}:${item.studentExplanation}`} className={studentStyles.miniCard}>
+                          <strong>{item.label}</strong>
+                          <span>{item.studentExplanation}</span>
+                          <small>ביטחון {formatPercent(item.confidence)} • {item.topics.join(", ")}</small>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+                </section>
+
+                <section className={studentStyles.consoleSection}>
+                  <h4>היסטוריית המלצות</h4>
+                  <div className={studentStyles.cardList}>
+                    {selectedEvidence.evidenceConsole.recommendationHistory.map((item) => (
+                      <article key={item.recommendationId} className={studentStyles.consoleCard}>
+                        <div className={studentStyles.cardHeader}>
+                          <div>
+                            <h5>{item.recommendationType || "Recommendation"}</h5>
+                            <p>{item.weakSkill || item.misconception || "ללא תיוג"}</p>
+                          </div>
+                          <span
+                            className={`${studentStyles.metaPill} ${
+                              item.outcome === "helpful"
+                                ? studentStyles.outcomeHelpful
+                                : item.outcome === "not_helpful"
+                                  ? studentStyles.outcomeNotHelpful
+                                  : studentStyles.outcomePending
+                            }`}
+                          >
+                            {item.outcome === "helpful"
+                              ? "עזר"
+                              : item.outcome === "not_helpful"
+                                ? "לא עזר"
+                                : "ממתין"}
+                          </span>
+                        </div>
+                        <div className={studentStyles.cardFooter}>
+                          <span>הוצג: {formatDate(item.shownAt)}</span>
+                          <span>אירוע אחרון: {formatDate(item.lastEventAt)}</span>
+                        </div>
+                        <div className={studentStyles.tagRow}>
+                          {item.feedbackHistory.map((feedback) => (
+                            <span key={`${item.recommendationId}:${feedback}`} className={studentStyles.tag}>
+                              {feedback}
+                            </span>
+                          ))}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+
+                <section className={studentStyles.consoleGrid}>
+                  <article className={studentStyles.consoleCard}>
+                    <div className={studentStyles.cardHeader}>
+                      <div>
+                        <h5>זיהויי בעיות</h5>
+                        <p>האם האותות פתוחים, כמה הם בטוחים, ומאיזה מקור הגיעו.</p>
+                      </div>
+                      <AlertTriangle size={16} />
+                    </div>
+                    <div className={studentStyles.evidenceListCompact}>
+                      {selectedEvidence.evidenceConsole.issueDetections.map((issue) => (
+                        <div key={issue.issueId} className={studentStyles.miniCard}>
+                          <strong>{issue.description}</strong>
+                          <span>
+                            {issue.severity} • {issue.status} • ביטחון {formatPercent(issue.confidence)}
+                          </span>
+                          <small>{issue.source || "unknown"} • {issue.freshnessLabel}</small>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+
+                  <article className={studentStyles.consoleCard}>
+                    <div className={studentStyles.cardHeader}>
+                      <div>
+                        <h5>עקיבות שדות</h5>
+                        <p>מתי כל שדה התעדכן, מאילו מקורות ועל בסיס אילו ראיות.</p>
+                      </div>
+                      <Clock3 size={16} />
+                    </div>
+                    <div className={studentStyles.evidenceListCompact}>
+                      {selectedEvidence.evidenceConsole.fieldTraceability.map((trace) => (
+                        <div key={trace.field} className={studentStyles.miniCard}>
+                          <strong>{trace.field}</strong>
+                          <span>
+                            {trace.computedAt ? formatDate(trace.computedAt) : "לא זמין"} •{" "}
+                            {trace.confidence === null ? "ללא ביטחון" : `ביטחון ${formatPercent(trace.confidence)}`}
+                          </span>
+                          <small>{trace.sources.join(", ")}</small>
+                          <ul className={studentStyles.evidenceList}>
+                            {trace.evidencePreview.map((preview) => (
+                              <li key={preview}>{preview}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+                </section>
+
+                <section className={studentStyles.consoleSection}>
+                  <div className={studentStyles.sectionTitleRow}>
+                    <h4>פעולות אדמין</h4>
+                    <span className={studentStyles.sectionHint}>הפעולות נכתבות לפרופיל ומשפיעות על מודל הלומד</span>
+                  </div>
+                  <div className={studentStyles.actionComposerGrid}>
+                    <div className={studentStyles.actionComposer}>
+                      <label htmlFor="intervention-draft">התערבות זמנית</label>
+                      <textarea
+                        id="intervention-draft"
+                        value={interventionDraft}
+                        onChange={(event) => setInterventionDraft(event.target.value)}
+                        placeholder="למשל: לעבוד השבוע רק עם רמזים תמציתיים ולהתמקד ב-JOINs."
+                      />
+                      <button
+                        className={studentStyles.successButton}
+                        disabled={!interventionDraft.trim() || actionLoading === "intervention"}
+                        onClick={async () => {
+                          await runAdminAction(
+                            {
+                              actionType: "set_temporary_intervention",
+                              topic: activeWeakSkills[0]?.topic,
+                              intervention: interventionDraft.trim(),
+                              note: "Temporary intervention from admin evidence console",
+                            },
+                            "intervention"
+                          );
+                          setInterventionDraft("");
+                        }}
+                      >
+                        <Wrench size={14} />
+                        שמור התערבות
+                      </button>
+                    </div>
+
+                    <div className={studentStyles.actionComposer}>
+                      <label htmlFor="goal-draft">מטרת סטודנט מסומנת</label>
+                      <textarea
+                        id="goal-draft"
+                        value={goalDraft}
+                        onChange={(event) => setGoalDraft(event.target.value)}
+                        placeholder="למשל: לעבור למצב הכנה למבחן ולהתמקד בפתרון מהיר."
+                      />
+                      <button
+                        className={studentStyles.successButton}
+                        disabled={!goalDraft.trim() || actionLoading === "goal"}
+                        onClick={async () => {
+                          await runAdminAction(
+                            {
+                              actionType: "mark_student_goal",
+                              goal: goalDraft.trim(),
+                              note: "Marked from admin evidence console",
+                            },
+                            "goal"
+                          );
+                          setGoalDraft("");
+                        }}
+                      >
+                        <Target size={14} />
+                        סמן מטרה
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className={studentStyles.inlineActions}>
+                    <button
+                      className={studentStyles.secondaryActionButton}
+                      disabled={actionLoading === "recalibration"}
+                      onClick={() =>
+                        void runAdminAction(
+                          {
+                            actionType: "force_recalibration",
+                            note: "Forced from admin evidence console",
+                          },
+                          "recalibration"
+                        )
+                      }
+                    >
+                      <RefreshCw size={14} />
+                      כפה כיול מחדש
+                    </button>
+                    <button
+                      className={studentStyles.secondaryActionButton}
+                      disabled={actionLoading === `analyze:${selectedProfile.userId}`}
+                      onClick={() => void handleAnalyzeIssues(selectedProfile)}
+                    >
+                      <Sparkles size={14} />
+                      הרץ ניתוח בעיות נוסף
+                    </button>
+                  </div>
+
+                  <div className={studentStyles.consoleGrid}>
+                    <article className={studentStyles.consoleCard}>
+                      <h5>התערבויות פעילות</h5>
+                      <div className={studentStyles.evidenceListCompact}>
+                        {(selectedEvidence.profile.adminOversight?.interventions || []).map((item) => (
+                          <div key={item.id} className={studentStyles.miniCard}>
+                            <strong>{item.intervention}</strong>
+                            <span>{item.topic || "ללא נושא"}</span>
+                            <small>{item.status} • {item.expiresAt ? formatDate(item.expiresAt) : "ללא תפוגה"}</small>
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                    <article className={studentStyles.consoleCard}>
+                      <h5>מטרות שסומנו</h5>
+                      <div className={studentStyles.evidenceListCompact}>
+                        {(selectedEvidence.profile.adminOversight?.goalMarkers || []).map((item) => (
+                          <div key={item.id} className={studentStyles.miniCard}>
+                            <strong>{item.goal}</strong>
+                            <span>{item.note || "ללא הערה"}</span>
+                            <small>{formatDate(item.createdAt)}</small>
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                  </div>
+                </section>
+              </div>
+            ) : null}
+          </aside>
+        </div>
+      ) : null}
+    </div>
+  );
+}

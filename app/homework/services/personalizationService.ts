@@ -55,7 +55,10 @@ export async function trackHomeworkPersonalizationEvent(
   setId: string,
   payload: {
     studentId: string;
-    eventType: "runner.personalization_shown" | "runner.personalization_accepted";
+    eventType:
+      | "runner.personalization_shown"
+      | "runner.personalization_accepted"
+      | "runner.personalization_feedback";
     questionId?: string | null;
     metadata?: Record<string, unknown>;
   }

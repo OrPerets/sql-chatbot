@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 
-import { getUsersService, UserModel } from '@/lib/users';
+import { resolveLearnerIdentity } from '@/lib/learner-identity';
+import type { UserModel } from '@/lib/users';
 
 type AuthResult =
   | { ok: true; user: UserModel; userId: string }
@@ -11,13 +12,15 @@ const resolveUserFromIdentifier = async (identifier: string | null) => {
     return null;
   }
 
-  const usersService = await getUsersService();
-  return usersService.findUserByIdOrEmail(identifier);
-};
+  const identity = await resolveLearnerIdentity(identifier, 'request-auth.resolveUserFromIdentifier');
+  if (!identity.user) {
+    return null;
+  }
 
-const matchesUser = (user: UserModel, identifier: string) => {
-  const resolvedId = user.id ?? user._id?.toString();
-  return [resolvedId, user.email].filter(Boolean).includes(identifier);
+  return {
+    identity,
+    user: identity.user,
+  };
 };
 
 export async function requireAuthenticatedUser(
@@ -44,7 +47,11 @@ export async function requireAuthenticatedUser(
     return { ok: false, status: 403, error: 'Unauthorized' };
   }
 
-  if (headerUser && cookieUser && headerUser.email !== cookieUser.email) {
+  if (
+    headerUser &&
+    cookieUser &&
+    headerUser.identity.canonicalId !== cookieUser.identity.canonicalId
+  ) {
     return { ok: false, status: 403, error: 'Unauthorized' };
   }
 
@@ -54,16 +61,20 @@ export async function requireAuthenticatedUser(
     return { ok: false, status: 403, error: 'Unauthorized' };
   }
 
-  if (expectedUserId && !matchesUser(authenticatedUser, expectedUserId)) {
-    return { ok: false, status: 403, error: 'Unauthorized' };
+  if (expectedUserId) {
+    const expectedIdentity = await resolveLearnerIdentity(
+      expectedUserId,
+      'request-auth.expectedUserId'
+    );
+
+    if (expectedIdentity.canonicalId !== authenticatedUser.identity.canonicalId) {
+      return { ok: false, status: 403, error: 'Unauthorized' };
+    }
   }
 
-  const resolvedUserId =
-    authenticatedUser.id ??
-    authenticatedUser._id?.toString() ??
-    authenticatedUser.email ??
-    headerUserId ??
-    cookieUserId;
-
-  return { ok: true, user: authenticatedUser, userId: resolvedUserId };
+  return {
+    ok: true,
+    user: authenticatedUser.user as UserModel,
+    userId: authenticatedUser.identity.canonicalId,
+  };
 }

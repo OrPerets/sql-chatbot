@@ -1,6 +1,11 @@
 import { ObjectId } from 'mongodb';
 
 import { COLLECTIONS, executeWithRetry } from '@/lib/database';
+import {
+  buildLearnerIdentifierQuery,
+  normalizeLearnerRecords,
+  resolveLearnerIdentityFromDb,
+} from '@/lib/learner-identity';
 
 export type LearningQuizTargetType = 'lecture' | 'practice' | 'personalized_review';
 
@@ -50,6 +55,8 @@ export interface LearningQuiz {
     themes: string[];
     sourceQuestionIds: string[];
     sourceSubmissionIds: string[];
+    misconceptions?: string[];
+    sourceQuestionPrompt?: string | null;
   };
 }
 
@@ -137,23 +144,42 @@ export async function createLearningQuiz(quiz: LearningQuiz): Promise<LearningQu
 export async function createLearningQuizResult(
   result: LearningQuizResult
 ): Promise<LearningQuizResult> {
-  await executeWithRetry(async (db) =>
-    db.collection<LearningQuizResult>(COLLECTIONS.LEARNING_QUIZ_RESULTS).insertOne(result)
-  );
+  return executeWithRetry(async (db) => {
+    const identity = await resolveLearnerIdentityFromDb(
+      db,
+      result.userId,
+      'learning-quizzes.createResult'
+    );
+    await normalizeLearnerRecords(db, identity, 'learning-quizzes.createResult');
 
-  return result;
+    const payload = {
+      ...result,
+      userId: identity.canonicalId,
+    };
+
+    await db.collection<LearningQuizResult>(COLLECTIONS.LEARNING_QUIZ_RESULTS).insertOne(payload);
+
+    return payload;
+  });
 }
 
 export async function getLearningQuizResultsForUser(
   userId: string
 ): Promise<LearningQuizResult[]> {
-  return executeWithRetry(async (db) =>
-    db
+  return executeWithRetry(async (db) => {
+    const identity = await resolveLearnerIdentityFromDb(
+      db,
+      userId,
+      'learning-quizzes.getResultsForUser'
+    );
+    await normalizeLearnerRecords(db, identity, 'learning-quizzes.getResultsForUser');
+
+    return db
       .collection<LearningQuizResult>(COLLECTIONS.LEARNING_QUIZ_RESULTS)
-      .find({ userId })
+      .find(buildLearnerIdentifierQuery('userId', identity))
       .sort({ completedAt: -1 })
-      .toArray()
-  );
+      .toArray();
+  });
 }
 
 export async function getLearningQuizzesByIds(

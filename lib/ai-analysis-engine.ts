@@ -4,6 +4,10 @@ import { StudentProfilesService } from './student-profiles'
 import { ActivityTracker } from './activity-tracker'
 import OpenAI from 'openai'
 import { getModelForRole } from '@/lib/openai/model-registry'
+import {
+  normalizeLearnerRecords,
+  resolveLearnerIdentityFromDb,
+} from '@/lib/learner-identity'
 
 export interface AnalysisTriggers {
   conversationBased: {
@@ -126,9 +130,16 @@ export class AIAnalysisEngine {
    */
   async checkTriggers(studentId: string): Promise<{ shouldAnalyze: boolean; reason: string }> {
     return executeWithRetry(async (db) => {
+      const identity = await resolveLearnerIdentityFromDb(
+        db,
+        studentId,
+        'ai-analysis-engine.checkTriggers'
+      )
+      await normalizeLearnerRecords(db, identity, 'ai-analysis-engine.checkTriggers')
+
       // Get recent activities
-      const recentActivities = await this.activityTracker.getStudentActivityHistory(studentId, 100)
-      const profile = await this.studentProfilesService.getStudentProfile(studentId)
+      const recentActivities = await this.activityTracker.getStudentActivityHistory(identity.canonicalId, 100)
+      const profile = await this.studentProfilesService.getStudentProfile(identity.canonicalId)
       
       if (!profile) {
         return { shouldAnalyze: false, reason: 'No profile found' }
@@ -176,16 +187,24 @@ export class AIAnalysisEngine {
    */
   async analyzeStudent(request: AnalysisRequest): Promise<StudentAnalysis> {
     return executeWithRetry(async (db) => {
+      const identity = await resolveLearnerIdentityFromDb(
+        db,
+        request.studentId,
+        'ai-analysis-engine.analyzeStudent'
+      )
+      await normalizeLearnerRecords(db, identity, 'ai-analysis-engine.analyzeStudent')
+
+      const canonicalStudentId = identity.canonicalId
       const analysisId = this.generateAnalysisId()
       const analysisDate = new Date()
 
       try {
         // Gather all relevant data
         const [profile, activities, conversationData, performanceData] = await Promise.all([
-          this.studentProfilesService.getStudentProfile(request.studentId),
-          this.activityTracker.getStudentActivityHistory(request.studentId, 200),
-          this.getConversationData(request.studentId),
-          this.getPerformanceData(request.studentId)
+          this.studentProfilesService.getStudentProfile(canonicalStudentId),
+          this.activityTracker.getStudentActivityHistory(canonicalStudentId, 200),
+          this.getConversationData(identity.identifiers),
+          this.getPerformanceData(identity.identifiers)
         ])
 
         if (!profile) {
@@ -206,14 +225,14 @@ export class AIAnalysisEngine {
 
         // Detect and add issues based on analysis
         const detectedIssues = await this.detectAndAddIssues(
-          request.studentId,
+          canonicalStudentId,
           processedAnalysis,
           profile
         )
 
         // Create comprehensive analysis result
         const analysis: StudentAnalysis = {
-          studentId: request.studentId,
+          studentId: canonicalStudentId,
           analysisDate,
           analysisType: request.analysisType,
           triggerReason: request.triggerReason,
@@ -235,7 +254,7 @@ export class AIAnalysisEngine {
         // Update student profile if confidence is high enough
         if (scoreUpdate.confidenceLevel >= 70 && !scoreUpdate.adminReviewRequired) {
           await this.studentProfilesService.updateKnowledgeScore(
-            request.studentId,
+            canonicalStudentId,
             scoreUpdate.newScore,
             scoreUpdate.reasoning,
             'ai'
@@ -245,7 +264,7 @@ export class AIAnalysisEngine {
         // Update knowledge score based on detected issues
         if (detectedIssues.length > 0) {
           await this.updateKnowledgeScoreBasedOnIssues(
-            request.studentId,
+            canonicalStudentId,
             detectedIssues,
             profile
           )
@@ -308,6 +327,7 @@ Please analyze the following student data and provide insights for their SQL lea
 
 STUDENT PROFILE:
 - Current Knowledge Score: ${analysisData.profile.knowledgeScore}
+- Topic Mastery: ${JSON.stringify(analysisData.profile.topicMastery || [])}
 - Total Questions: ${analysisData.profile.totalQuestions}
 - Correct Answers: ${analysisData.profile.correctAnswers}
 - Average Grade: ${analysisData.profile.averageGrade}
@@ -471,10 +491,11 @@ Please provide your analysis in the following JSON format:
   /**
    * Get conversation data for analysis
    */
-  private async getConversationData(studentId: string): Promise<any[]> {
+  private async getConversationData(studentIdentifiers: string | string[]): Promise<any[]> {
+    const identifiers = Array.isArray(studentIdentifiers) ? studentIdentifiers : [studentIdentifiers]
     return executeWithRetry(async (db) => {
       const messages = await db.collection(COLLECTIONS.CHAT_MESSAGES)
-        .find({ userId: studentId })
+        .find({ userId: { $in: identifiers } })
         .sort({ timestamp: -1 })
         .limit(50)
         .toArray()
@@ -486,10 +507,11 @@ Please provide your analysis in the following JSON format:
   /**
    * Get performance data for analysis
    */
-  private async getPerformanceData(studentId: string): Promise<any[]> {
+  private async getPerformanceData(studentIdentifiers: string | string[]): Promise<any[]> {
+    const identifiers = Array.isArray(studentIdentifiers) ? studentIdentifiers : [studentIdentifiers]
     return executeWithRetry(async (db) => {
       const submissions = await db.collection(COLLECTIONS.SUBMISSIONS)
-        .find({ studentId })
+        .find({ studentId: { $in: identifiers } })
         .sort({ submittedAt: -1 })
         .limit(20)
         .toArray()

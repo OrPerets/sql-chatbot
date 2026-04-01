@@ -28,7 +28,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     const bundle = await getStudentPersonalizationBundle({
-      studentId,
+      studentId: authResult.userId,
       homeworkSetId: setId,
       questionId: questionId || null,
     });
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const quiz = await generatePersonalizedQuizFromMistakes({
-      studentId,
+      studentId: authResult.userId,
       homeworkSetId: setId,
       questionId: questionId || null,
       maxQuestions,

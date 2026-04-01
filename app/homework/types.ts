@@ -183,6 +183,7 @@ export interface AnalyticsEvent {
     | "runner.submit"
     | "runner.personalization_shown"
     | "runner.personalization_accepted"
+    | "runner.personalization_feedback"
     | "runner.personalized_quiz_started"
     | "runner.personalized_quiz_completed"
     | "builder.grade_update"
