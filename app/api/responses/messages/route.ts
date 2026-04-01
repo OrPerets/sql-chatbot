@@ -27,6 +27,7 @@ import {
   buildInstructorConnectorTools,
 } from "@/lib/openai/instructor-connectors";
 import { buildRetrievalInstructions, shouldUseRetrieval } from "@/lib/openai/retrieval";
+import { buildSqlDebuggerPolicySnippet } from "@/lib/openai/sql-debugger";
 import { getOpenAIApiMode } from "@/lib/openai/api-mode";
 import { getOpenAIFeatureFlag } from "@/lib/openai/feature-flags";
 import { getStudentPersonalizationBundle } from "@/lib/personalization";
@@ -281,6 +282,16 @@ function isWebSearchUnavailableError(error: unknown): boolean {
 
 function buildWebSearchFallbackInstructions(extraInstructions: string) {
   return `${extraInstructions}\n\n[WEB SEARCH FALLBACK]\nLive web search is unavailable for this turn. Answer without web search. If freshness matters, say briefly that live web search was unavailable.`;
+}
+
+function appendRetrievalFallbackMarker(text: string, retrievalNeeded: boolean, retrievalUsed: boolean): string {
+  if (!retrievalNeeded || retrievalUsed) {
+    return text;
+  }
+  if (text.includes("couldn't find exact course source")) {
+    return text;
+  }
+  return `${text}\n\nNote: I couldn't find exact course source for this question, so this is constrained general guidance.`;
 }
 
 function hasTutorIntent(
@@ -608,6 +619,12 @@ export async function POST(request: Request) {
       retrievalNeeded,
     });
     const skillId = body.skillId || (tutorIntent ? "sql-debugger" : "general");
+    const sqlDebuggerPolicy =
+      skillId === "sql-debugger"
+        ? `\n\n${buildSqlDebuggerPolicySnippet(
+            Number(body?.metadata?.sql_attempt_count || body?.metadata?.attempt_count || 0)
+          )}`
+        : "";
     const personalizationInstructions =
       resolvedContext.toolContext !== "homework_runner" &&
       getOpenAIFeatureFlag("FEATURE_PERSONALIZATION_TOOLS")
@@ -630,12 +647,12 @@ Use student-personalization tools deliberately, not on every turn.
             .catch(() => "")
         : "";
     const extraInstructions = tutorIntent
-      ? `${weeklyPolicy.extraInstructions}${retrievalInstructions}${personalizationInstructions}${personalizationContext}\n\n${
+      ? `${weeklyPolicy.extraInstructions}${retrievalInstructions}${personalizationInstructions}${personalizationContext}${sqlDebuggerPolicy}\n\n${
           tutorSubjectMode === "relational_algebra"
             ? relationalAlgebraTutorInstructions
             : tutorInstructions
         }${reasoningLanguageInstructions}`
-      : `${weeklyPolicy.extraInstructions}${retrievalInstructions}${personalizationInstructions}${personalizationContext}${reasoningLanguageInstructions}`;
+      : `${weeklyPolicy.extraInstructions}${retrievalInstructions}${personalizationInstructions}${personalizationContext}${sqlDebuggerPolicy}${reasoningLanguageInstructions}`;
 
     if (textInput) {
       inputItems.push({ type: "input_text", text: textInput });
@@ -932,6 +949,11 @@ Use student-personalization tools deliberately, not on every turn.
                 store: true,
                 truncation: "auto",
               });
+              iterationOutputText = appendRetrievalFallbackMarker(
+                iterationOutputText,
+                retrievalNeeded,
+                Boolean(finalMetadata?.retrievalUsed)
+              );
               const webSearchMetrics = extractWebSearchMetrics(event.response);
               if (webSearchMetrics.callCount > 0) {
                 await logToolUsageAuditEvent({
@@ -1116,7 +1138,6 @@ Use student-personalization tools deliberately, not on every turn.
       const calls = extractFunctionCalls(response);
       if (!calls.length) {
         const citations = extractResponseCitations(response);
-        const outputText = appendVisibleCitations(extractOutputText(response), citations);
         const metadata = buildResponseTurnMetadata({
           response,
           requestId,
@@ -1134,6 +1155,11 @@ Use student-personalization tools deliberately, not on every turn.
           store: true,
           truncation: "auto",
         });
+        const outputText = appendRetrievalFallbackMarker(
+          appendVisibleCitations(extractOutputText(response), citations),
+          retrievalNeeded,
+          Boolean(metadata?.retrievalUsed)
+        );
         const payload: ChatResponseDto = {
           sessionId: sessionId || null,
           responseId: response?.id || "",
@@ -1205,7 +1231,6 @@ Use student-personalization tools deliberately, not on every turn.
     }
 
     const citations = extractResponseCitations(response);
-    const outputText = appendVisibleCitations(extractOutputText(response), citations);
     const metadata = buildResponseTurnMetadata({
       response,
       requestId,
@@ -1223,6 +1248,11 @@ Use student-personalization tools deliberately, not on every turn.
       store: true,
       truncation: "auto",
     });
+    const outputText = appendRetrievalFallbackMarker(
+      appendVisibleCitations(extractOutputText(response), citations),
+      retrievalNeeded,
+      Boolean(metadata?.retrievalUsed)
+    );
     const payload: ChatResponseDto = {
       sessionId: sessionId || null,
       responseId: response?.id || "",
