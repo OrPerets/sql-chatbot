@@ -23,6 +23,65 @@
   font-size: 1.1rem;
 }
 
+.overviewSection {
+  background: linear-gradient(180deg, #f5fbff 0%, #ffffff 100%);
+  border: 1px solid #d9ebfa;
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.overviewSection h2 {
+  margin: 0 0 0.75rem;
+  color: #145b90;
+  font-size: 1.15rem;
+}
+
+.overviewGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.overviewCard {
+  background: #fff;
+  border: 1px solid #dfeaf2;
+  border-radius: 10px;
+  padding: 0.75rem;
+}
+
+.overviewLabel {
+  display: block;
+  color: #4f6475;
+  font-size: 0.82rem;
+  margin-bottom: 0.2rem;
+}
+
+.overviewValue {
+  color: #12344c;
+  font-size: 1rem;
+}
+
+.helperText {
+  margin: 0.75rem 0 0;
+  color: #486175;
+  font-size: 0.9rem;
+}
+
+.quickGuide {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.quickGuideItem {
+  background: #f8f9fa;
+  border: 1px solid #e7ebef;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  color: #2f3f4a;
+}
+
 .navigation {
   margin-bottom: 2rem;
 }
@@ -319,5 +378,9 @@
   
   .analytics {
     grid-template-columns: 1fr;
+  }
+
+  .header h1 {
+    font-size: 2rem;
   }
 }

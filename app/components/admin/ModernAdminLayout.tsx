@@ -79,6 +79,11 @@ export default function ModernAdminLayout({
         <Sidebar
           isCollapsed={!isMobile && isSidebarCollapsed}
           onToggleCollapse={handleToggleSidebar}
+          onNavigate={() => {
+            if (isMobile) {
+              setIsMobileMenuOpen(false);
+            }
+          }}
           currentUser={currentUser}
           onLogout={onLogout}
         />
