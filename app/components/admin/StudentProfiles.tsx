@@ -713,8 +713,18 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
       </div>
 
       {selectedProfile ? (
-        <div className={studentStyles.drawerOverlay}>
-          <aside className={studentStyles.evidenceDrawer}>
+        <div
+          className={studentStyles.drawerOverlay}
+          onClick={() => {
+            setSelectedProfile(null);
+            setSelectedEvidence(null);
+            setDrawerError(null);
+          }}
+        >
+          <aside
+            className={studentStyles.evidenceDrawer}
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className={studentStyles.drawerHeader}>
               <div>
                 <h3 className={studentStyles.drawerTitle}>קונסולת ראיות: {selectedProfile.name}</h3>
