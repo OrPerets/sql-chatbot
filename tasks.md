@@ -102,6 +102,10 @@ This plan translates roadmap **Section 1 (platform features)** and **Section 3 (
   - [ ] top-k chunks
   - [ ] source doc ids
   - [ ] retrieval latency
+- [ ] Add student-intent retrieval handling for curriculum lookup chat prompts:
+  - [ ] detect prompts like “what tables exist in practice 2”
+  - [ ] detect prompts like “what examples have in lecture 4”
+  - [ ] answer with retrieved, source-grounded tables/examples from the referenced practice or lecture materials
 
 #### 1.3 `sql-debugger` skill MVP
 - [ ] Implement skill prompt + tool contract:
