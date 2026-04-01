@@ -160,6 +160,7 @@ For detailed documentation on specific features, see the `docs/` directory:
 - [Conversation Summary System](./docs/conversation-summary-system.md) - AI conversation analysis
 - [Admin Panel Enhancement](./docs/admin-panel-enhancement.md) - Admin dashboard features
 - [Responses API Runbook](./docs/responses-api-runbook.md) - rollout, monitoring, rollback
+- [OpenAI Capability Roadmap](./docs/openai-capability-roadmap.md) - recommended features, tools, and skills roadmap
 
 ## Interactive Learning
 
