@@ -27,7 +27,8 @@
     "generate:michael-table": "ts-node --project tsconfig.scripts.json scripts/generate-michael-analytics-table.ts",
     "db-report": "ts-node --project tsconfig.scripts.json scripts/db-report.ts",
     "drop-unused-collections": "ts-node --project tsconfig.scripts.json scripts/drop-unused-collections.ts",
-    "security:prune-image-cache": "ts-node --project tsconfig.scripts.json scripts/prune-next-image-cache.ts"
+    "security:prune-image-cache": "ts-node --project tsconfig.scripts.json scripts/prune-next-image-cache.ts",
+    "ingest:course-artifacts": "ts-node --project tsconfig.scripts.json scripts/ingest-course-artifacts.ts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",

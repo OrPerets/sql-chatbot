@@ -77,49 +77,49 @@ This plan translates roadmap **Section 1 (platform features)** and **Section 3 (
 ### Detailed TODOs
 
 #### 1.1 Document ingestion pipeline
-- [ ] Build ingestion script/service for course artifacts:
-  - [ ] PDFs (lectures, homework, rubric docs)
-  - [ ] SQL schema guides
-  - [ ] solution explanation docs (if approved)
-- [ ] Implement chunking strategy (size + overlap) and attach metadata:
-  - [ ] `course_id`, `term`, `doc_type`, `module`, `version`
-- [ ] Add versioning and re-index workflow:
-  - [ ] detect changed files
-  - [ ] incremental upsert
-  - [ ] safe delete of stale chunks
-- [ ] Add ingestion validation checks:
-  - [ ] chunk count threshold
-  - [ ] metadata completeness
-  - [ ] broken/empty file detection
+- [x] Build ingestion script/service for course artifacts:
+  - [x] PDFs (lectures, homework, rubric docs)
+  - [x] SQL schema guides
+  - [x] solution explanation docs (if approved)
+- [x] Implement chunking strategy (size + overlap) and attach metadata:
+  - [x] `course_id`, `term`, `doc_type`, `module`, `version`
+- [x] Add versioning and re-index workflow:
+  - [x] detect changed files
+  - [x] incremental upsert
+  - [x] safe delete of stale chunks
+- [x] Add ingestion validation checks:
+  - [x] chunk count threshold
+  - [x] metadata completeness
+  - [x] broken/empty file detection
 
 #### 1.2 Retrieval in tutoring routes
-- [ ] Wire `file_search` tool into student tutor endpoint(s).
-- [ ] Enforce citation/snippet requirement in response formatter.
-- [ ] Add fallback path when retrieval fails:
-  - [ ] return constrained general guidance
-  - [ ] include “couldn’t find exact course source” marker
-- [ ] Add admin debug panel/log output for retrieval traces:
-  - [ ] top-k chunks
-  - [ ] source doc ids
-  - [ ] retrieval latency
-- [ ] Add student-intent retrieval handling for curriculum lookup chat prompts:
-  - [ ] detect prompts like “what tables exist in practice 2”
-  - [ ] detect prompts like “what examples have in lecture 4”
-  - [ ] answer with retrieved, source-grounded tables/examples from the referenced practice or lecture materials
+- [x] Wire `file_search` tool into student tutor endpoint(s).
+- [x] Enforce citation/snippet requirement in response formatter.
+- [x] Add fallback path when retrieval fails:
+  - [x] return constrained general guidance
+  - [x] include “couldn’t find exact course source” marker
+- [x] Add admin debug panel/log output for retrieval traces:
+  - [x] top-k chunks
+  - [x] source doc ids
+  - [x] retrieval latency
+- [x] Add student-intent retrieval handling for curriculum lookup chat prompts:
+  - [x] detect prompts like “what tables exist in practice 2”
+  - [x] detect prompts like “what examples have in lecture 4”
+  - [x] answer with retrieved, source-grounded tables/examples from the referenced practice or lecture materials
 
 #### 1.3 `sql-debugger` skill MVP
-- [ ] Implement skill prompt + tool contract:
-  - [ ] inputs: student SQL, expected objective, schema context
-  - [ ] outputs: diagnosis, stepwise hints, optional full fix
-- [ ] Add pedagogical policy:
-  - [ ] first response gives hints, not full answer
-  - [ ] configurable “reveal answer” threshold
-- [ ] Add error taxonomy detection:
-  - [ ] syntax
-  - [ ] wrong join keys
-  - [ ] grouping/aggregation misuse
-  - [ ] null-handling mistakes
-- [ ] Add deterministic unit fixtures for common query failures.
+- [x] Implement skill prompt + tool contract:
+  - [x] inputs: student SQL, expected objective, schema context
+  - [x] outputs: diagnosis, stepwise hints, optional full fix
+- [x] Add pedagogical policy:
+  - [x] first response gives hints, not full answer
+  - [x] configurable “reveal answer” threshold
+- [x] Add error taxonomy detection:
+  - [x] syntax
+  - [x] wrong join keys
+  - [x] grouping/aggregation misuse
+  - [x] null-handling mistakes
+- [x] Add deterministic unit fixtures for common query failures.
 
 #### 1.4 Exit criteria
 - [ ] ≥80% of tutoring responses for covered modules contain valid citations.
