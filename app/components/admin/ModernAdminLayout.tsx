@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import ModernHeader from "./ModernHeader";
@@ -19,6 +19,7 @@ export default function ModernAdminLayout({
   onLogout,
 }: ModernAdminLayoutProps) {
   const pathname = usePathname();
+  const sidebarContainerRef = useRef<HTMLDivElement | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -58,6 +59,26 @@ export default function ModernAdminLayout({
     setIsMobileMenuOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+
+      if (sidebarContainerRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsMobileMenuOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+    };
+  }, [isMobileMenuOpen]);
+
   const handleToggleSidebar = () => {
     if (isMobile) {
       setIsMobileMenuOpen((current) => !current);
@@ -78,6 +99,7 @@ export default function ModernAdminLayout({
       ) : null}
 
       <div
+        ref={sidebarContainerRef}
         className={`${styles.sidebarContainer} ${
           isMobileMenuOpen ? styles.sidebarContainerOpen : ""
         }`}

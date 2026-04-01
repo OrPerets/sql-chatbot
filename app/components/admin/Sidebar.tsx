@@ -30,7 +30,17 @@ export default function Sidebar({
   const activeRoute = getAdminRouteMatch(pathname);
 
   return (
-    <aside className={`${styles.sidebar} ${isCollapsed ? styles.sidebarCollapsed : ""}`}>
+    <aside
+      className={`${styles.sidebar} ${isCollapsed ? styles.sidebarCollapsed : ""}`}
+      onClickCapture={(event) => {
+        const target = event.target as HTMLElement | null;
+        if (!target) return;
+
+        if (target.closest("a[href]")) {
+          onNavigate?.();
+        }
+      }}
+    >
       <div className={styles.sidebarHeader}>
         {!isCollapsed ? (
           <div className={styles.brand}>
