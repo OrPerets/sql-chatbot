@@ -3,11 +3,19 @@ import {
   ResponseCitation,
   ResponseTokenUsage,
   ResponseTurnMetadata,
+  TaskClass,
   ToolCallUsage,
 } from "@/lib/openai/contracts";
 import { hasVisibleCitationSection } from "@/lib/openai/retrieval";
 
 type UnknownRecord = Record<string, any>;
+
+const MODEL_TOKEN_COST_USD_PER_1K: Record<string, number> = {
+  "gpt-4.1": 0.01,
+  "gpt-4.1-mini": 0.002,
+  "gpt-5.4-mini": 0.0025,
+  "gpt-5.3-mini": 0.0025,
+};
 
 function getMessageOutputItems(response: UnknownRecord): UnknownRecord[] {
   const output = Array.isArray(response?.output) ? response.output : [];
@@ -197,10 +205,16 @@ export function appendVisibleCitations(
 
 export function buildResponseTurnMetadata(params: {
   response: UnknownRecord;
+  requestId?: string | null;
+  actorId?: string | null;
+  route?: string | null;
+  taskClass?: TaskClass | null;
+  skillId?: string | null;
   sessionId?: string | null;
   previousResponseId?: string | null;
   latencyMs: number;
   toolCalls: ToolCallUsage[];
+  fallbackTriggered?: boolean;
   failureReason?: string | null;
   promptCacheKey?: string | null;
   safetyIdentifier?: string | null;
@@ -210,14 +224,28 @@ export function buildResponseTurnMetadata(params: {
   const fileSearchQueries = extractFileSearchQueries(params.response);
   const webSearchMetrics = extractWebSearchMetrics(params.response);
   const connectorUsage = extractConnectorUsage(params.response);
+  const tokenUsage = extractTokenUsage(params.response);
+  const model = params.response?.model ? String(params.response.model) : null;
+  const normalizedModel = model?.toLowerCase() || "";
+  const per1k = MODEL_TOKEN_COST_USD_PER_1K[normalizedModel];
+  const costEstimateUsd =
+    tokenUsage && typeof per1k === "number"
+      ? Number((((tokenUsage.totalTokens || 0) / 1000) * per1k).toFixed(6))
+      : null;
+
   return {
+    requestId: params.requestId ?? null,
+    actorId: params.actorId ?? null,
+    route: params.route ?? null,
+    taskClass: params.taskClass ?? null,
+    skillId: params.skillId ?? null,
     canonicalStateStrategy: "previous_response_id",
     sessionId: params.sessionId ?? null,
     responseId: params.response?.id ? String(params.response.id) : null,
     previousResponseId: params.previousResponseId ?? null,
-    model: params.response?.model ? String(params.response.model) : null,
+    model,
     latencyMs: params.latencyMs,
-    tokenUsage: extractTokenUsage(params.response),
+    tokenUsage,
     toolCalls: params.toolCalls,
     failureReason: params.failureReason ?? null,
     store: params.store,
@@ -231,5 +259,8 @@ export function buildResponseTurnMetadata(params: {
     webSearchSourceCount: webSearchMetrics.sourceCount,
     connectorUsage,
     connectorCallCount: connectorUsage.reduce((total, entry) => total + entry.callCount, 0),
+    toolUsed: params.toolCalls.map((call) => call.name),
+    fallbackTriggered: Boolean(params.fallbackTriggered),
+    costEstimateUsd,
   };
 }
