@@ -32,6 +32,25 @@ export type ChatRequestDto = {
   metadata?: Record<string, string>;
   context?: "main_chat" | "homework_runner" | "admin" | "voice";
   reasoningEffort?: "minimal" | "low" | "medium" | "high" | "xhigh";
+  taskClass?: TaskClass;
+  skillId?: string;
+};
+
+export type TaskClass =
+  | "live_tutoring"
+  | "grading"
+  | "long_summary"
+  | "nightly_analytics"
+  | "content_audit";
+
+export type SkillDefinition = {
+  id: string;
+  displayName: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+  outputSchema: Record<string, unknown>;
+  safetyConstraints: string[];
+  telemetryTags: string[];
 };
 
 export type TutorSubjectMode = "sql" | "relational_algebra";
@@ -74,6 +93,11 @@ export type ConnectorUsage = {
 };
 
 export type ResponseTurnMetadata = {
+  requestId?: string | null;
+  actorId?: string | null;
+  route?: string | null;
+  taskClass?: TaskClass | null;
+  skillId?: string | null;
   canonicalStateStrategy: "previous_response_id";
   sessionId?: string | null;
   responseId?: string | null;
@@ -94,6 +118,9 @@ export type ResponseTurnMetadata = {
   webSearchSourceCount?: number;
   connectorUsage?: ConnectorUsage[];
   connectorCallCount?: number;
+  toolUsed?: string[];
+  fallbackTriggered?: boolean;
+  costEstimateUsd?: number | null;
 };
 
 export type ToolCallRequest = {

@@ -18,49 +18,49 @@ This plan translates roadmap **Section 1 (platform features)** and **Section 3 (
 ### Detailed TODOs
 
 #### 0.1 Architecture and contracts
-- [ ] Create an Architecture Decision Record (ADR) for OpenAI integration strategy:
-  - [ ] Primary request path (sync chat)
-  - [ ] Async path (background + batch)
-  - [ ] Tool invocation strategy (direct tools + remote MCP)
-  - [ ] Failure domains and fallback order
-- [ ] Define canonical `SkillDefinition` schema used across backend/frontend:
-  - [ ] `id` (e.g., `sql-debugger`)
-  - [ ] `displayName`, `description`
-  - [ ] `inputSchema`, `outputSchema`
-  - [ ] `safetyConstraints`
-  - [ ] `telemetryTags`
-- [ ] Define shared `TaskClass` enum for routing:
-  - [ ] `live_tutoring`
-  - [ ] `grading`
-  - [ ] `long_summary`
-  - [ ] `nightly_analytics`
-  - [ ] `content_audit`
+- [x] Create an Architecture Decision Record (ADR) for OpenAI integration strategy:
+  - [x] Primary request path (sync chat)
+  - [x] Async path (background + batch)
+  - [x] Tool invocation strategy (direct tools + remote MCP)
+  - [x] Failure domains and fallback order
+- [x] Define canonical `SkillDefinition` schema used across backend/frontend:
+  - [x] `id` (e.g., `sql-debugger`)
+  - [x] `displayName`, `description`
+  - [x] `inputSchema`, `outputSchema`
+  - [x] `safetyConstraints`
+  - [x] `telemetryTags`
+- [x] Define shared `TaskClass` enum for routing:
+  - [x] `live_tutoring`
+  - [x] `grading`
+  - [x] `long_summary`
+  - [x] `nightly_analytics`
+  - [x] `content_audit`
 
 #### 0.2 Quality + rollout controls
-- [ ] Add feature flags for each Section 1 capability:
-  - [ ] `ff_file_search`
-  - [ ] `ff_tool_search_mcp`
-  - [ ] `ff_realtime_voice`
-  - [ ] `ff_background_mode`
-  - [ ] `ff_batch_jobs`
-- [ ] Add skill-level flags for each Section 3 skill:
-  - [ ] `ff_skill_sql_debugger`
-  - [ ] `ff_skill_rubric_grader`
-  - [ ] `ff_skill_misconception_coach`
-  - [ ] `ff_skill_office_hours_simulator`
-  - [ ] `ff_skill_assessment_auditor`
-  - [ ] `ff_skill_student_progress_analyst`
-- [ ] Add baseline telemetry fields in all AI request logs:
-  - [ ] `request_id`, `student_id/admin_id`, `route`
-  - [ ] `task_class`, `skill_id`
-  - [ ] `model`, `tool_used[]`, `latency_ms`
-  - [ ] `cache_hit` (if available), `fallback_triggered`
-  - [ ] token usage and cost estimate
+- [x] Add feature flags for each Section 1 capability:
+  - [x] `ff_file_search`
+  - [x] `ff_tool_search_mcp`
+  - [x] `ff_realtime_voice`
+  - [x] `ff_background_mode`
+  - [x] `ff_batch_jobs`
+- [x] Add skill-level flags for each Section 3 skill:
+  - [x] `ff_skill_sql_debugger`
+  - [x] `ff_skill_rubric_grader`
+  - [x] `ff_skill_misconception_coach`
+  - [x] `ff_skill_office_hours_simulator`
+  - [x] `ff_skill_assessment_auditor`
+  - [x] `ff_skill_student_progress_analyst`
+- [x] Add baseline telemetry fields in all AI request logs:
+  - [x] `request_id`, `student_id/admin_id`, `route`
+  - [x] `task_class`, `skill_id`
+  - [x] `model`, `tool_used[]`, `latency_ms`
+  - [x] `cache_hit` (if available), `fallback_triggered`
+  - [x] token usage and cost estimate
 
 #### 0.3 Exit criteria
-- [ ] Contracts are reviewed by product + engineering.
-- [ ] Feature flags are wired end-to-end.
-- [ ] Logs provide enough data to compare old vs new behavior.
+- [x] Contracts are reviewed by product + engineering.
+- [x] Feature flags are wired end-to-end.
+- [x] Logs provide enough data to compare old vs new behavior.
 
 ---
 

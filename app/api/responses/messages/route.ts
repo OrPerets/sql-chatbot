@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import { randomUUID } from "crypto";
 
 import { openai } from "@/app/openai";
 import { getAgentToolsForContext } from "@/app/agent-config";
@@ -12,6 +13,7 @@ import {
   TutorResponse,
   ToolCallUsage,
   TutorSubjectMode,
+  TaskClass,
 } from "@/lib/openai/contracts";
 import {
   appendVisibleCitations,
@@ -50,6 +52,20 @@ import { insufficientCoinsResponse } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const maxDuration = 50;
+
+function resolveTaskClass(params: {
+  context: MichaelToolContext;
+  tutorIntent: boolean;
+  retrievalNeeded: boolean;
+}): TaskClass {
+  if (params.context === "admin" && !params.tutorIntent) {
+    return "content_audit";
+  }
+  if (params.retrievalNeeded && params.context !== "admin") {
+    return "long_summary";
+  }
+  return "live_tutoring";
+}
 
 type MessageRequestDto = ChatRequestDto & {
   stream?: boolean;
@@ -508,6 +524,7 @@ async function buildFallbackInputFromChat(
 
 export async function POST(request: Request) {
   const mode = getOpenAIApiMode();
+  const requestId = randomUUID();
 
   try {
     const body = (await request.json()) as MessageRequestDto;
@@ -585,6 +602,12 @@ export async function POST(request: Request) {
       ? "\n\n[REASONING SUMMARY LANGUAGE]\nWhen generating reasoning summaries, always write them in natural Hebrew (עברית) only. Keep each summary concise, student-friendly, and focused on what helps the user. Do not mention tools, function calls, APIs, or internal system actions. If a draft appears in English, rewrite it to Hebrew before returning it."
       : "";
     const retrievalInstructions = retrievalNeeded ? `\n\n${buildRetrievalInstructions()}` : "";
+    const taskClass = body.taskClass || resolveTaskClass({
+      context: resolvedContext.toolContext,
+      tutorIntent,
+      retrievalNeeded,
+    });
+    const skillId = body.skillId || (tutorIntent ? "sql-debugger" : "general");
     const personalizationInstructions =
       resolvedContext.toolContext !== "homework_runner" &&
       getOpenAIFeatureFlag("FEATURE_PERSONALIZATION_TOOLS")
@@ -698,6 +721,7 @@ Use student-personalization tools deliberately, not on every turn.
         let activeTools = tools;
         let activeExtraInstructions = combinedExtraInstructions;
         let includeReasoningSummary = reasoningModeEnabled;
+        let fallbackTriggered = false;
         let finalCitations: ResponseCitation[] = [];
         let finalMetadata: ResponseTurnMetadata | null = null;
 
@@ -736,6 +760,7 @@ Use student-personalization tools deliberately, not on every turn.
           } catch (error) {
             if (includeReasoningSummary && isReasoningSummaryError(error)) {
               includeReasoningSummary = false;
+              fallbackTriggered = true;
               stream = await streamResponse({
                 input: iterationInput,
                 previousResponseId,
@@ -757,6 +782,7 @@ Use student-personalization tools deliberately, not on every turn.
               hasBuiltInTool(activeTools, "web_search") &&
               isWebSearchUnavailableError(error)
             ) {
+              fallbackTriggered = true;
               activeTools = activeTools.filter((tool) => getToolName(tool as any) !== "web_search");
               activeExtraInstructions = buildWebSearchFallbackInstructions(extraInstructions);
               await logToolUsageAuditEvent({
@@ -891,10 +917,16 @@ Use student-personalization tools deliberately, not on every turn.
               }
               finalMetadata = buildResponseTurnMetadata({
                 response: event.response,
+                requestId,
+                actorId: resolvedContext.actorEmail || userEmail || null,
+                route: "/api/responses/messages",
+                taskClass,
+                skillId,
                 sessionId: sessionId || null,
                 previousResponseId: iterationPreviousResponseId,
                 latencyMs: Date.now() - requestStartedAt,
                 toolCalls: toolUsage,
+                fallbackTriggered,
                 promptCacheKey,
                 safetyIdentifier,
                 store: true,
@@ -997,6 +1029,7 @@ Use student-personalization tools deliberately, not on every turn.
     let activeTools = tools;
     let activeExtraInstructions = combinedExtraInstructions;
     let includeReasoningSummary = reasoningModeEnabled;
+    let fallbackTriggered = false;
     let lastPreviousResponseId: string | null = previousResponseId || null;
 
     for (let iteration = 1; iteration <= maxIterations; iteration += 1) {
@@ -1021,6 +1054,7 @@ Use student-personalization tools deliberately, not on every turn.
       } catch (error) {
         if (includeReasoningSummary && isReasoningSummaryError(error)) {
           includeReasoningSummary = false;
+          fallbackTriggered = true;
           response = await createResponse({
             input: loopInput,
             previousResponseId,
@@ -1042,6 +1076,7 @@ Use student-personalization tools deliberately, not on every turn.
           hasBuiltInTool(activeTools, "web_search") &&
           isWebSearchUnavailableError(error)
         ) {
+          fallbackTriggered = true;
           activeTools = activeTools.filter((tool) => getToolName(tool as any) !== "web_search");
           activeExtraInstructions = buildWebSearchFallbackInstructions(extraInstructions);
           await logToolUsageAuditEvent({
@@ -1084,10 +1119,16 @@ Use student-personalization tools deliberately, not on every turn.
         const outputText = appendVisibleCitations(extractOutputText(response), citations);
         const metadata = buildResponseTurnMetadata({
           response,
+          requestId,
+          actorId: resolvedContext.actorEmail || userEmail || null,
+          route: "/api/responses/messages",
+          taskClass,
+          skillId,
           sessionId: sessionId || null,
           previousResponseId: lastPreviousResponseId,
           latencyMs: Date.now() - requestStartedAt,
           toolCalls: toolUsage,
+          fallbackTriggered,
           promptCacheKey,
           safetyIdentifier,
           store: true,
@@ -1167,10 +1208,16 @@ Use student-personalization tools deliberately, not on every turn.
     const outputText = appendVisibleCitations(extractOutputText(response), citations);
     const metadata = buildResponseTurnMetadata({
       response,
+      requestId,
+      actorId: resolvedContext.actorEmail || userEmail || null,
+      route: "/api/responses/messages",
+      taskClass,
+      skillId,
       sessionId: sessionId || null,
       previousResponseId: lastPreviousResponseId,
       latencyMs: Date.now() - requestStartedAt,
       toolCalls: toolUsage,
+      fallbackTriggered,
       promptCacheKey,
       safetyIdentifier,
       store: true,
