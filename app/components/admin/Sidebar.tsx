@@ -14,6 +14,7 @@ import styles from "./Sidebar.module.css";
 interface SidebarProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  onNavigate?: () => void;
   currentUser?: string | null;
   onLogout: () => void;
 }
@@ -21,6 +22,7 @@ interface SidebarProps {
 export default function Sidebar({
   isCollapsed,
   onToggleCollapse,
+  onNavigate,
   currentUser,
   onLogout,
 }: SidebarProps) {
@@ -28,7 +30,17 @@ export default function Sidebar({
   const activeRoute = getAdminRouteMatch(pathname);
 
   return (
-    <aside className={`${styles.sidebar} ${isCollapsed ? styles.sidebarCollapsed : ""}`}>
+    <aside
+      className={`${styles.sidebar} ${isCollapsed ? styles.sidebarCollapsed : ""}`}
+      onClickCapture={(event) => {
+        const target = event.target as HTMLElement | null;
+        if (!target) return;
+
+        if (target.closest("a[href]")) {
+          onNavigate?.();
+        }
+      }}
+    >
       <div className={styles.sidebarHeader}>
         {!isCollapsed ? (
           <div className={styles.brand}>
@@ -72,6 +84,7 @@ export default function Sidebar({
                     <Link
                       key={route.id}
                       href={route.href}
+                      onClick={onNavigate}
                       className={`${styles.navLink} ${isActive ? styles.navLinkActive : ""} ${
                         isCollapsed ? styles.navLinkCollapsed : ""
                       }`}
