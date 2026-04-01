@@ -2,7 +2,6 @@ import { createHash } from "crypto";
 import { randomUUID } from "crypto";
 
 import { openai } from "@/app/openai";
-import { getAgentToolsForContext } from "@/app/agent-config";
 import { requireInstructorOrAdmin } from "@/lib/admin-auth";
 import { getChatMessages } from "@/lib/chat";
 import {
@@ -44,6 +43,7 @@ import {
   MichaelToolContext,
   executeToolCall,
   getToolName,
+  selectToolsForRequest,
   ToolExecutionContext,
 } from "@/lib/openai/tools";
 import { logToolUsageAuditEvent } from "@/lib/openai/tool-usage-logging";
@@ -684,7 +684,12 @@ Use student-personalization tools deliberately, not on every turn.
     const fallbackInput = chatId
       ? await buildFallbackInputFromChat(chatId, initialInput)
       : undefined;
-    const baseTools = getAgentToolsForContext(resolvedContext.toolContext);
+    const selection = selectToolsForRequest({
+      context: resolvedContext.toolContext,
+      role: resolvedContext.userRole,
+      query: body.content || "",
+    });
+    const baseTools = selection.tools;
     const connectorTools =
       resolvedContext.toolContext === "admin" &&
       (resolvedContext.userRole === "admin" || resolvedContext.userRole === "instructor")
@@ -1009,12 +1014,30 @@ Use student-personalization tools deliberately, not on every turn.
           const toolUsageStartIndex = toolUsage.length - calls.length;
           const toolResults = await Promise.all(
             calls.map(async (call, index) => {
+              const startedAt = Date.now();
               const result = await executeToolCall(call, toolExecutionContext);
+              const durationMs = Date.now() - startedAt;
               const preview = result.slice(0, 240);
               toolUsage[toolUsageStartIndex + index] = {
                 ...toolUsage[toolUsageStartIndex + index],
                 outputPreview: preview,
               };
+              await logToolUsageAuditEvent({
+                route: "/api/responses/messages",
+                toolContext: resolvedContext.toolContext,
+                userRole: resolvedContext.userRole,
+                userEmail: resolvedContext.actorEmail || userEmail || null,
+                responseId: previousResponseId || null,
+                toolName: call.name,
+                latencyMs: durationMs,
+                status: result.includes('"success":false') ? "failed" : "completed",
+                details: {
+                  selectedToolReason:
+                    selection.reasons.find((entry) => entry.toolName === call.name)?.reason ||
+                    "Selected by tool catalog.",
+                  errorClass: result.includes('"error"') ? "tool_execution_error" : undefined,
+                },
+              });
               return result;
             })
           );
@@ -1217,12 +1240,30 @@ Use student-personalization tools deliberately, not on every turn.
       );
       const toolResults = await Promise.all(
         calls.map(async (call, index) => {
+          const startedAt = Date.now();
           const result = await executeToolCall(call, toolExecutionContext);
+          const durationMs = Date.now() - startedAt;
           const toolUsageIndex = toolUsage.length - calls.length + index;
           toolUsage[toolUsageIndex] = {
             ...toolUsage[toolUsageIndex],
             outputPreview: result.slice(0, 240),
           };
+          await logToolUsageAuditEvent({
+            route: "/api/responses/messages",
+            toolContext: resolvedContext.toolContext,
+            userRole: resolvedContext.userRole,
+            userEmail: resolvedContext.actorEmail || userEmail || null,
+            responseId: response?.id || null,
+            toolName: call.name,
+            latencyMs: durationMs,
+            status: result.includes('"success":false') ? "failed" : "completed",
+            details: {
+              selectedToolReason:
+                selection.reasons.find((entry) => entry.toolName === call.name)?.reason ||
+                "Selected by tool catalog.",
+              errorClass: result.includes('"error"') ? "tool_execution_error" : undefined,
+            },
+          });
           return result;
         })
       );

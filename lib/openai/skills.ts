@@ -39,4 +39,19 @@ export const sprintSkillDefinitions: SkillDefinition[] = [
     safetyConstraints: ["hint_first", "no_direct_answer_until_threshold"],
     telemetryTags: ["skill", "sql-debugger", "student"],
   },
+  {
+    id: "rubric-grader",
+    displayName: "Rubric Grader",
+    description: "Scores assignment responses against weighted rubric dimensions and returns rationale plus correction guidance.",
+    inputSchema: {
+      type: "object",
+      required: ["rubric", "studentResponse"],
+    },
+    outputSchema: {
+      type: "object",
+      required: ["totalScore", "confidence", "reviewRequired", "scores", "correctionGuidance"],
+    },
+    safetyConstraints: ["flag_low_confidence_for_human_review", "rationale_required_per_dimension"],
+    telemetryTags: ["skill", "rubric-grader", "admin"],
+  },
 ];

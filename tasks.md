@@ -141,38 +141,38 @@ This plan translates roadmap **Section 1 (platform features)** and **Section 3 (
 ### Detailed TODOs
 
 #### 2.1 Tool Search + Remote MCP integration
-- [ ] Register internal tools with semantic descriptions:
-  - [ ] SQL sandbox execution
-  - [ ] grading lookup
-  - [ ] homework metadata fetch
-  - [ ] student profile fetch
-- [ ] Stand up remote MCP server adapter for internal systems:
-  - [ ] gradebook
-  - [ ] LMS exports
-  - [ ] content registry
-- [ ] Add allowlist and auth boundaries:
-  - [ ] per-role tool access (student vs admin)
-  - [ ] per-route tool constraints
-- [ ] Add tool-call observability:
-  - [ ] selected tool reason
-  - [ ] call duration
-  - [ ] error class
+- [x] Register internal tools with semantic descriptions:
+  - [x] SQL sandbox execution
+  - [x] grading lookup
+  - [x] homework metadata fetch
+  - [x] student profile fetch
+- [x] Stand up remote MCP server adapter for internal systems:
+  - [x] gradebook
+  - [x] LMS exports
+  - [x] content registry
+- [x] Add allowlist and auth boundaries:
+  - [x] per-role tool access (student vs admin)
+  - [x] per-route tool constraints
+- [x] Add tool-call observability:
+  - [x] selected tool reason
+  - [x] call duration
+  - [x] error class
 
 #### 2.2 `rubric-grader` implementation
-- [ ] Define rubric dimension schema (weights + criteria + examples).
-- [ ] Build grading pipeline:
-  - [ ] parse rubric
-  - [ ] evaluate student response
-  - [ ] produce dimension scores + rationale
-  - [ ] generate correction guidance
-- [ ] Add confidence flags and escalation logic:
-  - [ ] low confidence => “review required” state
-- [ ] Build admin-facing grader output audit view.
+- [x] Define rubric dimension schema (weights + criteria + examples).
+- [x] Build grading pipeline:
+  - [x] parse rubric
+  - [x] evaluate student response
+  - [x] produce dimension scores + rationale
+  - [x] generate correction guidance
+- [x] Add confidence flags and escalation logic:
+  - [x] low confidence => “review required” state
+- [x] Build admin-facing grader output audit view.
 
 #### 2.3 Exit criteria
-- [ ] Tools are selected dynamically with no hardcoded per-route tool arrays for migrated routes.
-- [ ] `rubric-grader` outputs structured scores + rationale consistently.
-- [ ] Permission model blocks disallowed tool calls by role.
+- [x] Tools are selected dynamically with no hardcoded per-route tool arrays for migrated routes.
+- [x] `rubric-grader` outputs structured scores + rationale consistently.
+- [x] Permission model blocks disallowed tool calls by role.
 
 ---
 
