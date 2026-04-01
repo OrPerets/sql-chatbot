@@ -4,6 +4,7 @@ import { getCurrentWeekContextNormalized, getWeekContextByNumberNormalized } fro
 import { getHomeworkSetById } from "@/lib/homework";
 import { ToolCallRequest } from "@/lib/openai/contracts";
 import { listInstructorConnectorCapabilities } from "@/lib/openai/instructor-connectors";
+import { gradeWithRubric } from "@/lib/openai/rubric-grader";
 import { getPracticeTables } from "@/lib/practice";
 import {
   generatePersonalizedQuizFromMistakes,
@@ -532,6 +533,39 @@ const explainRelationalAlgebraStepTool: FunctionToolDefinition = {
   strict: true,
 };
 
+
+const gradeWithRubricTool: FunctionToolDefinition = {
+  type: "function",
+  name: "grade_with_rubric",
+  description:
+    "Evaluate a student response using weighted rubric dimensions and return structured scores, rationale, correction guidance, and review-required flags.",
+  parameters: {
+    type: "object",
+    properties: {
+      rubric: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            label: { type: "string" },
+            weight: { type: "number" },
+            criteria: { type: "string" },
+            examples: { type: "array", items: { type: "string" } },
+          },
+          required: ["id", "label", "weight", "criteria"],
+          additionalProperties: false,
+        },
+      },
+      student_response: { type: "string" },
+      assignment_context: { type: "string" },
+    },
+    required: ["rubric", "student_response"],
+    additionalProperties: false,
+  },
+  strict: true,
+};
+
 const listInstructorMcpCapabilitiesTool: FunctionToolDefinition = {
   type: "function",
   name: "list_instructor_mcp_capabilities",
@@ -757,6 +791,17 @@ const TOOL_CATALOG: ToolCatalogEntry[] = [
       "Used for relational algebra tutoring and SQL-to-RA mapping. Kept out of voice mode to avoid noisy low-latency responses.",
   },
   {
+    schema: gradeWithRubricTool,
+    lifecycle: "production",
+    enabledContexts: ["admin"],
+    allowedRoles: ["instructor", "admin"],
+    rolloutPhase: "admin_only",
+    loggingSensitivity: "restricted",
+    featureFlag: "FF_SKILL_RUBRIC_GRADER",
+    statusNote:
+      "Structured rubric grading for assignment review workflows with confidence-based escalation.",
+  },
+  {
     schema: listInstructorMcpCapabilitiesTool,
     lifecycle: "production",
     enabledContexts: ["admin"],
@@ -878,6 +923,56 @@ export function getToolSchemas(options: ToolCatalogOptions = {}): MichaelToolDef
 }
 
 export const SHARED_TOOL_SCHEMAS: MichaelToolDefinition[] = getToolSchemas();
+
+
+export type ToolSelectionReason = {
+  toolName: string;
+  reason: string;
+};
+
+export function selectToolsForRequest(params: {
+  context: MichaelToolContext;
+  role: MichaelToolRole;
+  query: string;
+}): { tools: MichaelToolDefinition[]; reasons: ToolSelectionReason[] } {
+  const normalizedQuery = (params.query || "").toLowerCase();
+  const catalog = getToolCatalog({ context: params.context }).filter(
+    (entry) => entry.allowedRoles.includes(params.role) && isToolRuntimeEnabled(entry)
+  );
+
+  const selected = catalog.filter((entry) => {
+    const name = getToolName(entry.schema);
+    if (!getOpenAIFeatureFlag("FF_TOOL_SEARCH_MCP")) {
+      return true;
+    }
+
+    if (params.context !== "admin") {
+      return !["list_instructor_mcp_capabilities", "code_interpreter", "web_search", "grade_with_rubric"].includes(name);
+    }
+
+    if (name === "grade_with_rubric") {
+      return /rubric|grade|grading|assessment|score|evaluate/.test(normalizedQuery);
+    }
+    if (name === "list_instructor_mcp_capabilities") {
+      return /mcp|connector|drive|gmail|calendar|gradebook|lms|registry/.test(normalizedQuery);
+    }
+    if (name === "web_search") {
+      return /latest|today|current|official docs|documentation|news/.test(normalizedQuery);
+    }
+    return true;
+  });
+
+  return {
+    tools: selected.map((entry) => normalizeToolSchema(entry.schema)),
+    reasons: selected.map((entry) => ({
+      toolName: getToolName(entry.schema),
+      reason:
+        params.context === "admin"
+          ? "Selected by dynamic admin tool routing from semantic query match and role allowlist."
+          : "Selected by context allowlist for tutoring route.",
+    })),
+  };
+}
 
 function inferSqlType(value: unknown): string {
   if (typeof value === "number") {
@@ -2430,6 +2525,14 @@ const toolHandlers: Record<string, ToolHandler> = {
     };
   },
 
+  async grade_with_rubric(args) {
+    return gradeWithRubric({
+      rubric: Array.isArray(args.rubric) ? (args.rubric as any[]) : [],
+      studentResponse: String(args.student_response ?? ""),
+      assignmentContext: typeof args.assignment_context === "string" ? args.assignment_context : undefined,
+    });
+  },
+
   async list_instructor_mcp_capabilities() {
     return listInstructorConnectorCapabilities();
   },
@@ -2440,6 +2543,19 @@ export async function executeToolCall(
   context: ToolExecutionContext = {}
 ): Promise<string> {
   const handler = toolHandlers[request.name];
+  const role = context.userRole || "student";
+  const toolContext = context.toolContext || "main_chat";
+  const catalogEntry = getToolCatalog({ context: toolContext, includeExperimental: true, includeDisabled: true }).find(
+    (entry) => getToolName(entry.schema) === request.name
+  );
+
+  if (catalogEntry && !catalogEntry.allowedRoles.includes(role)) {
+    return JSON.stringify({ success: false, error: `Tool ${request.name} is not allowed for role ${role}.` });
+  }
+
+  if (catalogEntry && !isToolRuntimeEnabled(catalogEntry)) {
+    return JSON.stringify({ success: false, error: `Tool ${request.name} is disabled by feature flag.` });
+  }
   if (!handler) {
     return JSON.stringify({ error: `Unknown tool: ${request.name}` });
   }

@@ -5,7 +5,10 @@ export type InstructorConnectorCapabilityId =
   | "google_drive"
   | "gmail"
   | "google_calendar"
-  | "google_sheets_tabular";
+  | "google_sheets_tabular"
+  | "gradebook"
+  | "lms_exports"
+  | "content_registry";
 
 export type InstructorConnectorDelivery =
   | "openai_connector"
@@ -83,6 +86,60 @@ type McpConnectorTool = {
 const CONNECTOR_CONFIG_KEY = "responses_instructor_connector_config";
 
 const FIRST_WAVE_CONNECTORS: InstructorConnectorManifestEntry[] = [
+  {
+    id: "gradebook",
+    label: "Internal Gradebook Adapter",
+    serverLabel: "Internal Gradebook",
+    delivery: "official_remote_mcp",
+    authEnvVar: "INTERNAL_MCP_GRADEBOOK_TOKEN",
+    readOnly: true,
+    defaultEnabled: true,
+    allowedTools: ["lookup_student_grades", "lookup_assignment_grades", "lookup_rubric_snapshots"],
+    useCases: ["grading lookup", "assignment score checks", "rubric audit support"],
+    notes: [
+      "Remote MCP adapter for internal gradebook services.",
+      "Read-only in Sprint 2 with per-role allowlist enforcement.",
+    ],
+    oauthScopes: ["gradebook.read"],
+    implementationDecision:
+      "Official remote MCP adapter for gradebook system in dynamic tool-search rollout.",
+  },
+  {
+    id: "lms_exports",
+    label: "LMS Export Adapter",
+    serverLabel: "LMS Exports",
+    delivery: "official_remote_mcp",
+    authEnvVar: "INTERNAL_MCP_LMS_EXPORTS_TOKEN",
+    readOnly: true,
+    defaultEnabled: true,
+    allowedTools: ["fetch_course_export", "fetch_assignment_export", "search_lms_announcements"],
+    useCases: ["LMS exports", "submission snapshots", "course operations"],
+    notes: [
+      "Remote MCP adapter for LMS export bundles.",
+      "Restricted to instructor/admin contexts.",
+    ],
+    oauthScopes: ["lms.read"],
+    implementationDecision:
+      "Official remote MCP adapter for LMS exports to avoid hardcoded API coupling in routes.",
+  },
+  {
+    id: "content_registry",
+    label: "Content Registry Adapter",
+    serverLabel: "Content Registry",
+    delivery: "official_remote_mcp",
+    authEnvVar: "INTERNAL_MCP_CONTENT_REGISTRY_TOKEN",
+    readOnly: true,
+    defaultEnabled: true,
+    allowedTools: ["search_content", "fetch_content_version", "list_registry_modules"],
+    useCases: ["content registry", "module metadata", "version audit"],
+    notes: [
+      "Remote MCP adapter for canonical content metadata.",
+      "Use to ground admin investigations and rubric context checks.",
+    ],
+    oauthScopes: ["content_registry.read"],
+    implementationDecision:
+      "Official remote MCP adapter for content registry discovery and provenance checks.",
+  },
   {
     id: "google_drive",
     label: "Google Drive",
