@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Plus } from 'lucide-react';
 import styles from './sidebar.module.css';
 
 type ChatSession = {
@@ -44,7 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, handleLog
   return (
     <div className={styles.sidebar}>
       <div className={styles.header}>
-            <button
+            {/* <button
               type="button"
               className={styles.userIcon}
               title="User Menu"
@@ -52,9 +53,17 @@ const Sidebar: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, handleLog
               aria-label="User Icon"
             >
               {userInitial}
-            </button>
-        <h2 className={styles.sidebarTitle}>שיחות קודמות</h2>
+            </button> */}
+        <h2 className={styles.sidebarTitle}>  <button
+            onClick={onNewChat}
+            className={styles.newChatButton}
+            aria-label="New Chat"
+            title="שיחה חדשה"
+          >
+            <Plus size={14} strokeWidth={2.4} aria-hidden="true" />
+          </button>&nbsp;&nbsp; שיחות קודמות </h2>
         <div className={styles.headerButtons}>
+          
           {/* Close Button */}
           {onToggleSidebar && (
             <button
@@ -101,13 +110,6 @@ const Sidebar: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, handleLog
           </li>
         ))}
       </ul>
-      <button
-        onClick={onNewChat}
-        className={styles.newChatButton}
-        aria-label="New Chat"
-      >
-        +
-      </button>
     </div>
   );
 };

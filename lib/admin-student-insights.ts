@@ -10,6 +10,104 @@ import { getStudentProfile, type StudentProfile, type StudentIssueRecord } from 
 
 type RecommendationOutcome = "helpful" | "not_helpful" | "pending";
 
+const TOPIC_LABELS_HE: Record<string, string> = {
+  selection_projection: "בחירה והקרנה",
+  "Selection and projection": "בחירה והקרנה",
+  filtering: "סינון",
+  Filtering: "סינון",
+  sorting: "מיון",
+  Sorting: "מיון",
+  joins: "לוגיקת JOIN",
+  "JOIN logic": "לוגיקת JOIN",
+  grouping_aggregation: "קיבוץ ואגרגציה",
+  "Grouping and aggregation": "קיבוץ ואגרגציה",
+  subqueries: "תתי-שאילתות",
+  Subqueries: "תתי-שאילתות",
+  set_operations: "פעולות קבוצה",
+  "Set operations": "פעולות קבוצה",
+  null_handling: "טיפול ב-NULL",
+  "NULL handling": "טיפול ב-NULL",
+  schema_comprehension: "הבנת מבנה הנתונים",
+  "Schema comprehension": "הבנת מבנה הנתונים",
+  debugging: "דיבוג",
+  Debugging: "דיבוג",
+  relational_algebra: "אלגברה יחסית",
+  "Relational algebra": "אלגברה יחסית",
+  exam_speed_fluency: "שטף פתרון בקצב מבחן",
+  "Exam-speed fluency": "שטף פתרון בקצב מבחן",
+};
+
+function localizeTopicLabel(value: string | null | undefined) {
+  if (!value) {
+    return "לא ידוע";
+  }
+
+  return TOPIC_LABELS_HE[value] ?? value;
+}
+
+function localizeInsightText(value: string | null | undefined) {
+  if (!value) {
+    return "לא זמין.";
+  }
+
+  let text = value.trim();
+  const replacements: Array<[RegExp, string]> = [
+    [/No hint reliance recorded\.?/gi, "לא זוהתה הסתמכות על רמזים."],
+    [/(\d+)\s+hint opens recorded\.?/gi, "תועדו $1 פתיחות רמז."],
+    [/(\d+)\s+hint opens, first after about\s+(\d+)\s+minutes\.?/gi, "$1 פתיחות רמז, והרמז הראשון נפתח אחרי כ-$2 דקות."],
+    [/Repeated attempts or long time-on-task suggest low exam-speed fluency\.?/gi, "ניסיונות חוזרים או זמן עבודה ממושך מצביעים על קושי בפתרון בקצב מבחן."],
+    [/The student eventually solved the question, but only after a slow or repeated attempt pattern\.?/gi, "הסטודנט פתר לבסוף את השאלה, אבל רק אחרי עבודה איטית או ניסיונות חוזרים."],
+    [/Recent attempt succeeded in\s+([^.]*)\./gi, "הניסיון האחרון הצליח בתחום $1."],
+    [/Recent attempt struggled in\s+([^.]*)\./gi, "הניסיון האחרון הראה קושי בתחום $1."],
+    [/Focused quiz performance stayed weak for\s+([^.]*)\./gi, "בבוחן הממוקד נותרה חולשה בתחום $1."],
+    [/AI analysis reports low success in\s+([^.]*)\./gi, "ניתוח ה-AI מצביע על הצלחה נמוכה בתחום $1."],
+    [/Confidence\s+(\d+)%\.?/gi, "רמת ביטחון $1%."],
+    [/not_relevant/gi, "לא רלוונטי"],
+    [/too_easy/gi, "קל מדי"],
+    [/too_hard/gi, "קשה מדי"],
+    [/The learner model does not yet have enough measured evidence to rank a precise weakness\.?/gi, "למודל הלומד עדיין אין מספיק ראיות מדודות כדי לדרג חולשה מדויקת."],
+    [/The learner model has enough evidence to justify a focused check\.?/gi, "יש מספיק ראיות כדי להצדיק בדיקה ממוקדת."],
+  ];
+
+  replacements.forEach(([pattern, replacement]) => {
+    text = text.replace(pattern, replacement);
+  });
+
+  Object.entries(TOPIC_LABELS_HE).forEach(([source, target]) => {
+    text = text.replace(new RegExp(source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), target);
+  });
+
+  return text;
+}
+
+function buildPedagogicalSummary(
+  studentLabel: string,
+  topWeakSkill: { label: string; confidence: number; reasons: string[]; freshnessLabel: string } | null,
+  fallbackConfidence: number,
+  fallbackFreshnessLabel: string
+) {
+  if (!topWeakSkill) {
+    return {
+      headline: `עדיין אין מספיק ראיות כדי לקבוע חולשה מרכזית עבור ${studentLabel}.`,
+      rationale: "כדאי לאסוף עוד ניסיון עבודה או להריץ כיול מחדש לפני קבלת החלטה פדגוגית.",
+      topWeakSkill: null,
+      confidence: fallbackConfidence,
+      freshnessLabel: fallbackFreshnessLabel,
+    };
+  }
+
+  const localizedLabel = localizeTopicLabel(topWeakSkill.label);
+  return {
+    headline: `החולשה המרכזית כרגע היא ${localizedLabel}.`,
+    rationale:
+      localizeInsightText(topWeakSkill.reasons[0]) ??
+      `הראיות האחרונות מצביעות על קושי מתמשך בתחום ${localizedLabel}.`,
+    topWeakSkill: localizedLabel,
+    confidence: topWeakSkill.confidence,
+    freshnessLabel: topWeakSkill.freshnessLabel,
+  };
+}
+
 export type AdminStudentEvidenceBundle = {
   profile: StudentProfile;
   pedagogicalSummary: {
@@ -88,15 +186,15 @@ export type AdminStudentEvidenceBundle = {
 
 function formatHintBurden(attempt: RecentSubmissionAttempt) {
   if (attempt.supportSignals.showAnswerClicks <= 0) {
-    return "No hint reliance recorded.";
+    return "לא זוהתה הסתמכות על רמזים.";
   }
 
   if (attempt.supportSignals.timeToFirstShowAnswerMs === null) {
-    return `${attempt.supportSignals.showAnswerClicks} hint opens recorded.`;
+    return `תועדו ${attempt.supportSignals.showAnswerClicks} פתיחות רמז.`;
   }
 
   const minutes = Math.round(attempt.supportSignals.timeToFirstShowAnswerMs / 60000);
-  return `${attempt.supportSignals.showAnswerClicks} hint opens, first after about ${minutes} minutes.`;
+  return `${attempt.supportSignals.showAnswerClicks} פתיחות רמז, והרמז הראשון נפתח אחרי כ-${minutes} דקות.`;
 }
 
 function buildRecommendationHistory(events: AnalyticsEventModel[]) {
@@ -328,28 +426,31 @@ export async function getAdminStudentEvidenceBundle(studentId: string): Promise<
   ]);
 
   const topWeakSkill = bundle.snapshot.weaknesses[0] ?? null;
+  const studentLabel = profile.name || profile.email || "הסטודנט";
+  const summary = buildPedagogicalSummary(
+    studentLabel,
+    topWeakSkill
+      ? {
+          label: topWeakSkill.label,
+          confidence: topWeakSkill.confidence,
+          reasons: topWeakSkill.reasons,
+          freshnessLabel: topWeakSkill.freshnessLabel,
+        }
+      : null,
+    bundle.recommendation.primary.confidence,
+    bundle.recommendation.primary.freshnessLabel
+  );
 
   return {
     profile,
-    pedagogicalSummary: {
-      headline: topWeakSkill
-        ? `${profile.name || profile.email || "Student"} is currently weakest in ${topWeakSkill.label}.`
-        : `${profile.name || profile.email || "Student"} needs a fresh calibration before stronger claims are made.`,
-      rationale: topWeakSkill
-        ? topWeakSkill.reasons[0] ??
-          `Recent evidence shows low mastery with ${Math.round(topWeakSkill.confidence * 100)}% confidence.`
-        : "The learner model does not yet have enough measured evidence to rank a precise weakness.",
-      topWeakSkill: topWeakSkill?.label ?? null,
-      confidence: topWeakSkill?.confidence ?? bundle.recommendation.primary.confidence,
-      freshnessLabel: topWeakSkill?.freshnessLabel ?? bundle.recommendation.primary.freshnessLabel,
-    },
+    pedagogicalSummary: summary,
     evidenceConsole: {
       weakSkills: bundle.snapshot.topicMastery
         .filter((record) => record.status === "measured")
         .slice(0, 5)
         .map((record) => ({
           topic: record.topic,
-          label: record.label,
+          label: localizeTopicLabel(record.label),
           mastery: record.estimatedMastery,
           confidence: record.confidence,
           freshness:
@@ -358,22 +459,36 @@ export async function getAdminStudentEvidenceBundle(studentId: string): Promise<
             record.freshnessLabel ??
             getFreshnessLabel(record.freshnessScore ?? getFreshnessScore(record.lastEvidenceTime)),
           lastEvidenceTime: record.lastEvidenceTime,
-          evidenceSummary: record.evidenceSummary,
+          evidenceSummary: record.evidenceSummary.map((item) => localizeInsightText(item)),
         })),
       recentFailedAttempts: bundle.recentAttempts.attempts.slice(0, 5).map((attempt) => ({
         questionId: attempt.questionId,
         homeworkTitle: attempt.homeworkTitle,
         attempts: attempt.attempts,
         lastTriedAt: attempt.lastTriedAt,
-        failureTags: attempt.failureTags,
-        misconceptions: attempt.misconceptions,
+        failureTags: attempt.failureTags.map((tag) => localizeInsightText(tag)),
+        misconceptions: attempt.misconceptions.map((misconception) => ({
+          ...misconception,
+          label: localizeInsightText(misconception.label),
+          studentLabel: localizeInsightText(misconception.studentLabel),
+          studentExplanation: localizeInsightText(misconception.studentExplanation),
+        })),
         hintBurden: formatHintBurden(attempt),
       })),
       hintUsagePatterns: buildHintUsagePatterns(questionAnalytics),
-      chatMisconceptions: buildChatMisconceptions(analyses, bundle.recentAttempts.attempts),
+      chatMisconceptions: buildChatMisconceptions(analyses, bundle.recentAttempts.attempts).map((item) => ({
+        ...item,
+        label: localizeInsightText(item.label),
+        studentExplanation: localizeInsightText(item.studentExplanation),
+        topics: item.topics.map((topic) => localizeTopicLabel(topic)),
+        sources: item.sources.map((source) => localizeInsightText(source)),
+      })),
       recommendationHistory: buildRecommendationHistory(analyticsEvents),
       issueDetections: buildIssueDetections(profile),
-      fieldTraceability: buildFieldTraceability(profile),
+      fieldTraceability: buildFieldTraceability(profile).map((entry) => ({
+        ...entry,
+        evidencePreview: entry.evidencePreview.map((item) => localizeInsightText(item)),
+      })),
     },
   };
 }

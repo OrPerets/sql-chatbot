@@ -273,6 +273,30 @@ describe('CoinsService', () => {
       homeworkHintOpen: 1,
     })
     expect(mockStatusCollection.updateOne).toHaveBeenCalledTimes(1)
+    expect(mockStatusCollection.updateOne).toHaveBeenCalledWith(
+      { sid: 'admin' },
+      {
+        $set: expect.objectContaining({
+          status: 'ON',
+          messageCost: 2,
+          starterBalance: 20,
+          costs: {
+            mainChatMessage: 2,
+            sqlPracticeOpen: 4,
+            homeworkHintOpen: 1,
+          },
+          modules: {
+            mainChat: true,
+            homeworkHints: false,
+            sqlPractice: true,
+          },
+          updatedBy: 'admin@example.com',
+        }),
+        $setOnInsert: { sid: 'admin' },
+      },
+      { upsert: true }
+    )
+    expect(mockStatusCollection.updateOne.mock.calls[0][1].$set).not.toHaveProperty('sid')
   })
 
   it('adjustBalanceAdmin does not reduce a balance below zero and logs the actual delta', async () => {

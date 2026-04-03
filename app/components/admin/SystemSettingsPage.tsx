@@ -33,6 +33,8 @@ export default function SystemSettingsPage() {
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [togglingMichael, setTogglingMichael] = useState(false);
+  const [togglingCoins, setTogglingCoins] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
 
@@ -66,29 +68,86 @@ export default function SystemSettingsPage() {
   const toggleMichael = async () => {
     if (!overview) return;
     setError(null);
-    await fetch("/api/admin/status", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAdminHeaders(),
-      },
-      body: JSON.stringify({ newStatus: overview.statuses.michaelEnabled ? "OFF" : "ON" }),
-    });
-    await loadOverview();
+    setTogglingMichael(true);
+    try {
+      const nextEnabled = !overview.statuses.michaelEnabled;
+      const response = await fetch("/api/admin/status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAdminHeaders(),
+        },
+        body: JSON.stringify({ newStatus: nextEnabled ? "ON" : "OFF" }),
+      });
+
+      if (!response.ok) {
+        const result = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(result?.error || `עדכון מצב Michael נכשל (${response.status})`);
+      }
+
+      setOverview((current) =>
+        current
+          ? {
+              ...current,
+              statuses: {
+                ...current.statuses,
+                michaelEnabled: nextEnabled,
+              },
+            }
+          : current
+      );
+      await loadOverview();
+    } catch (toggleError) {
+      console.error("Failed to toggle Michael:", toggleError);
+      setError(toggleError instanceof Error ? toggleError.message : "עדכון מצב Michael נכשל.");
+    } finally {
+      setTogglingMichael(false);
+    }
   };
 
   const toggleCoinsVisibility = async () => {
     if (!overview) return;
     setError(null);
-    await fetch("/api/users/coins", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAdminHeaders(),
-      },
-      body: JSON.stringify({ newStatus: overview.statuses.coinsVisible ? "OFF" : "ON" }),
-    });
-    await loadOverview();
+    setTogglingCoins(true);
+    try {
+      const nextVisible = !overview.statuses.coinsVisible;
+      const response = await fetch("/api/users/coins", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAdminHeaders(),
+        },
+        body: JSON.stringify({
+          newStatus: nextVisible ? "ON" : "OFF",
+          modules: nextVisible
+            ? { mainChat: true }
+            : { mainChat: false, homeworkHints: false, sqlPractice: false },
+        }),
+      });
+
+      if (!response.ok) {
+        const result = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(result?.error || `עדכון מצב המטבעות נכשל (${response.status})`);
+      }
+
+      setOverview((current) =>
+        current
+          ? {
+              ...current,
+              statuses: {
+                ...current.statuses,
+                coinsVisible: nextVisible,
+              },
+            }
+          : current
+      );
+      await loadOverview();
+    } catch (toggleError) {
+      console.error("Failed to toggle coins visibility:", toggleError);
+      setError(toggleError instanceof Error ? toggleError.message : "עדכון מצב המטבעות נכשל.");
+    } finally {
+      setTogglingCoins(false);
+    }
   };
 
   const handleUploadExtraTime = async () => {
@@ -195,9 +254,17 @@ export default function SystemSettingsPage() {
               תחזוקה או בדיקות.
             </p>
             <div className={styles.toggleActions}>
-              <button className={styles.primaryButton} onClick={toggleMichael}>
+              <button
+                className={styles.primaryButton}
+                onClick={toggleMichael}
+                disabled={!overview || togglingMichael}
+              >
                 <Bot size={16} />
-                {overview?.statuses.michaelEnabled ? "כבה Michael" : "הפעל Michael"}
+                {togglingMichael
+                  ? "מעדכן..."
+                  : overview?.statuses.michaelEnabled
+                    ? "כבה Michael"
+                    : "הפעל Michael"}
               </button>
             </div>
           </div>
@@ -219,9 +286,17 @@ export default function SystemSettingsPage() {
               נפרד.
             </p>
             <div className={styles.toggleActions}>
-              <button className={styles.primaryButton} onClick={toggleCoinsVisibility}>
+              <button
+                className={styles.primaryButton}
+                onClick={toggleCoinsVisibility}
+                disabled={!overview || togglingCoins}
+              >
                 <Coins size={16} />
-                {overview?.statuses.coinsVisible ? "הסתר מטבעות" : "הצג מטבעות"}
+                {togglingCoins
+                  ? "מעדכן..."
+                  : overview?.statuses.coinsVisible
+                    ? "הסתר מטבעות"
+                    : "הצג מטבעות"}
               </button>
               <Link href="/admin/coins" className={styles.linkButton}>
                 <ArrowUpRight size={16} />

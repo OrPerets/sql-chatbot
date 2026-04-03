@@ -56,12 +56,16 @@ function normalizeClasses(payload: unknown): Class[] {
   });
 }
 
+function buildClassOptions(payload: unknown): Class[] {
+  return [{ id: 0, name: "כל הכיתות" }, ...normalizeClasses(payload)];
+}
+
 export default function UsersManagementPage() {
   const { currentAdminEmail } = useAdminShell();
   const searchParams = useSearchParams();
 
   const [users, setUsers] = useState<UserRecord[]>([]);
-  const [classes, setClasses] = useState<Class[]>([{ id: 0, name: "כל הכיתות" }]);
+  const [classes, setClasses] = useState<Class[]>(buildClassOptions([]));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,7 +120,7 @@ export default function UsersManagementPage() {
 
       if (classesResponse?.ok) {
         const classesPayload = await classesResponse.json();
-        setClasses([{ id: 0, name: "כל הכיתות" }, ...normalizeClasses(classesPayload)]);
+        setClasses(buildClassOptions(classesPayload));
       }
     } catch (loadError) {
       console.error("Failed to load users:", loadError);
@@ -383,8 +387,8 @@ export default function UsersManagementPage() {
         <div className={styles.toolbarField}>
           <Users size={18} color="#64748b" />
           <select value={selectedClass} onChange={(event) => setSelectedClass(Number(event.target.value))}>
-            {classes.map((item) => (
-              <option key={item.id} value={item.id}>
+            {classes.map((item, index) => (
+              <option key={`class-${item.id}-${index}`} value={item.id}>
                 {item.name}
               </option>
             ))}
@@ -463,12 +467,12 @@ export default function UsersManagementPage() {
               <div>עריכה</div>
             </div>
 
-            {filteredUsers.map((user) => {
+            {filteredUsers.map((user, index) => {
               const selected = selectedSet.has(user.uiKey);
               const displayName = getDisplayName(user);
               return (
                 <div
-                  key={user.uiKey}
+                  key={`user-${user.uiKey}-${index}`}
                   className={`${styles.tableRow} ${selected ? styles.selectedRow : ""}`}
                 >
                   <div className={styles.checkboxCell}>

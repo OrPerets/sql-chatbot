@@ -301,12 +301,13 @@ export class CoinsService {
       updatedAt: new Date(),
       updatedBy: updatedBy || current.updatedBy,
     }
+    const { sid: _sid, ...persistedConfig } = nextConfig
 
     await executeWithRetry(async (db) => {
       return db.collection(COLLECTIONS.COINS_STATUS).updateOne(
         { sid: COINS_CONFIG_SID },
         {
-          $set: nextConfig,
+          $set: persistedConfig,
           $setOnInsert: { sid: COINS_CONFIG_SID },
         },
         { upsert: true }

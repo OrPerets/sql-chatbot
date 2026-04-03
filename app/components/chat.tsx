@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, useReducer } 
 import styles from "./chat.module.css";
 import "./mobile-optimizations.css";
 import Markdown from "react-markdown";
-import { ThumbsUp, ThumbsDown, ClipboardCopy, Plus, Sparkles, ImagePlus, Braces, BarChart3, ChevronDown, BrainCircuit } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ClipboardCopy, Plus, Sparkles, ImagePlus, Braces, BarChart3, ChevronDown, BrainCircuit, ArrowUp } from 'lucide-react';
 import Link from 'next/link';
 import Sidebar from './sidebar';
 import { useRouter } from 'next/navigation';
@@ -3245,19 +3245,7 @@ return (
               disabled={inputDisabled || imageProcessing || (!userInput.trim() && !selectedImage)}
               aria-label="שלח הודעה"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M15 18V6M9 12l6-6 6 6" transform="rotate(90 12 12)" />
-              </svg>
+              <ArrowUp size={17} strokeWidth={2.35} aria-hidden="true" />
             </button>
 
             {/* Action Buttons Row */}

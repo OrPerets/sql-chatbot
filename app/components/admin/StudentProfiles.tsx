@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertTriangle,
   BarChart3,
@@ -200,6 +201,81 @@ const normalizeProfileRow = (profile: StudentProfileRow): StudentProfileRow => (
   topicMastery: Array.isArray(profile.topicMastery) ? profile.topicMastery : [],
 });
 
+const TOPIC_LABELS_HE: Record<string, string> = {
+  selection_projection: "בחירה והקרנה",
+  "Selection and projection": "בחירה והקרנה",
+  filtering: "סינון",
+  Filtering: "סינון",
+  sorting: "מיון",
+  Sorting: "מיון",
+  joins: "לוגיקת JOIN",
+  "JOIN logic": "לוגיקת JOIN",
+  grouping_aggregation: "קיבוץ ואגרגציה",
+  "Grouping and aggregation": "קיבוץ ואגרגציה",
+  subqueries: "תתי-שאילתות",
+  Subqueries: "תתי-שאילתות",
+  set_operations: "פעולות קבוצה",
+  "Set operations": "פעולות קבוצה",
+  null_handling: "טיפול ב-NULL",
+  "NULL handling": "טיפול ב-NULL",
+  schema_comprehension: "הבנת מבנה הנתונים",
+  "Schema comprehension": "הבנת מבנה הנתונים",
+  debugging: "דיבוג",
+  Debugging: "דיבוג",
+  relational_algebra: "אלגברה יחסית",
+  "Relational algebra": "אלגברה יחסית",
+  exam_speed_fluency: "שטף פתרון בקצב מבחן",
+  "Exam-speed fluency": "שטף פתרון בקצב מבחן",
+};
+
+function localizeTopicLabel(value: string | null | undefined) {
+  if (!value) {
+    return "טרם נקבע";
+  }
+
+  return TOPIC_LABELS_HE[value] ?? value;
+}
+
+function localizeText(value: string | null | undefined) {
+  if (!value) {
+    return "לא זמין";
+  }
+
+  let text = value.trim();
+  const replacements: Array<[RegExp, string]> = [
+    [/No hint reliance recorded\.?/gi, "לא זוהתה הסתמכות על רמזים."],
+    [/(\d+)\s+hint opens recorded\.?/gi, "תועדו $1 פתיחות רמז."],
+    [/(\d+)\s+hint opens, first after about\s+(\d+)\s+minutes\.?/gi, "$1 פתיחות רמז, והרמז הראשון נפתח אחרי כ-$2 דקות."],
+    [/Confidence\s+(\d+)%\.?/gi, "רמת ביטחון $1%."],
+    [/ai_analysis/gi, "ניתוח AI"],
+    [/runner_attempts/gi, "ניסיונות בפתרון"],
+    [/question_analytics_speed/gi, "מהירות פתרון"],
+    [/question_analytics/gi, "אנליטיקת שאלות"],
+    [/not_relevant/gi, "לא רלוונטי"],
+    [/too_easy/gi, "קל מדי"],
+    [/too_hard/gi, "קשה מדי"],
+    [/helpful/gi, "עזר"],
+    [/pending/gi, "ממתין"],
+    [/Low comprehension level detected in conversations\.?/gi, "זוהתה רמת הבנה נמוכה בשיחות האחרונות."],
+    [/Manual analysis requested by admin evidence console/gi, "ניתוח ידני מתוך מסך הראיות"],
+    [/Temporary intervention from admin evidence console/gi, "התערבות זמנית ממסך הראיות"],
+    [/Marked from admin evidence console/gi, "מטרה שסומנה ממסך הראיות"],
+    [/Forced from admin evidence console/gi, "כיול מחדש שנכפה ממסך הראיות"],
+    [/Confirmed from admin evidence console/gi, "אושר ממסך הראיות"],
+    [/Dismissed as false positive from admin evidence console/gi, "נדחה כחיובי שגוי ממסך הראיות"],
+  ];
+
+  replacements.forEach(([pattern, replacement]) => {
+    text = text.replace(pattern, replacement);
+  });
+
+  Object.entries(TOPIC_LABELS_HE).forEach(([source, target]) => {
+    text = text.replace(new RegExp(source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), target);
+  });
+
+  return text;
+}
+
 function formatDate(value: string | null | undefined) {
   if (!value) {
     return "לא זמין";
@@ -221,6 +297,57 @@ function formatDate(value: string | null | undefined) {
 
 function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
+}
+
+function formatRiskLevel(value: "low" | "medium" | "high") {
+  switch (value) {
+    case "high":
+      return "סיכון גבוה";
+    case "medium":
+      return "סיכון בינוני";
+    default:
+      return "סיכון נמוך";
+  }
+}
+
+function formatFreshnessLabel(value: string) {
+  if (value === "fresh") return "עדכני";
+  if (value === "aging") return "מתיישן";
+  if (value === "stale") return "התיישן";
+  return "לא ידוע";
+}
+
+function formatIssueStatus(value: "open" | "resolved") {
+  return value === "resolved" ? "טופל" : "פתוח";
+}
+
+function formatSeverity(value: "low" | "medium" | "high") {
+  if (value === "high") return "חומרה גבוהה";
+  if (value === "medium") return "חומרה בינונית";
+  return "חומרה נמוכה";
+}
+
+function formatRecommendationOutcome(value: "helpful" | "not_helpful" | "pending") {
+  if (value === "helpful") return "עזר";
+  if (value === "not_helpful") return "לא עזר";
+  return "ממתין";
+}
+
+function formatRecommendationType(value: string | null | undefined) {
+  if (!value) return "המלצה";
+
+  const mapping: Record<string, string> = {
+    personalized_quiz: "בוחן מותאם",
+    review_topic: "חזרה על נושא",
+    targeted_hint: "רמז ממוקד",
+    calibration_check: "בדיקת כיול",
+  };
+
+  return mapping[value] ?? localizeText(value.replace(/_/g, " "));
+}
+
+function formatActionStatus(value: "active" | "expired") {
+  return value === "expired" ? "פג תוקף" : "פעיל";
 }
 
 function formatAccuracy(correct: number, total: number) {
@@ -263,16 +390,18 @@ function getPedagogicalSummary(profile: StudentProfileRow) {
     .sort((left, right) => left.estimatedMastery - right.estimatedMastery)[0];
 
   const headline = measuredWeakness
-    ? `${measuredWeakness.label} היא נקודת התורפה המרכזית כרגע.`
+    ? `${localizeTopicLabel(measuredWeakness.label)} היא נקודת התורפה המרכזית כרגע.`
     : profile.commonChallenges[0]
-      ? `האתגר החוזר הבולט: ${profile.commonChallenges[0]}.`
+      ? `האתגר החוזר הבולט: ${localizeText(profile.commonChallenges[0])}.`
       : "עדיין אין מספיק ראיות פדגוגיות חזקות.";
 
   const detail = measuredWeakness
     ? `שליטה ${formatPercent(measuredWeakness.estimatedMastery)}, ביטחון ${formatPercent(
         measuredWeakness.confidence
       )}`
-    : profile.riskFactors.riskFactors[0] || "מומלץ לפתוח את קונסולת הראיות.";
+    : profile.riskFactors.riskFactors[0]
+      ? localizeText(profile.riskFactors.riskFactors[0])
+      : "מומלץ לפתוח את קונסולת הראיות.";
 
   return {
     headline,
@@ -288,7 +417,46 @@ function getFreshnessTone(label: string) {
   return studentStyles.freshnessUnknown;
 }
 
+function buildLecturerActionItems(bundle: AdminStudentEvidenceBundle) {
+  const items: string[] = [];
+  const topWeakSkill = bundle.evidenceConsole.weakSkills[0];
+  const hintUsage = bundle.evidenceConsole.hintUsagePatterns;
+  const topIssue = bundle.evidenceConsole.issueDetections.find((issue) => issue.status === "open");
+
+  if (topWeakSkill) {
+    const localizedLabel = localizeTopicLabel(topWeakSkill.label);
+    if (topWeakSkill.topic === "exam_speed_fluency") {
+      items.push(`לתת לסטודנט תרגול קצר ומדוד בזמן סביב ${localizedLabel}, עם דגש על פתרון מהיר של תבניות מוכרות.`);
+    } else {
+      items.push(`לקבוע חיזוק ממוקד בנושא ${localizedLabel}, לפני מעבר לתרגול רחב יותר.`);
+    }
+  }
+
+  if (hintUsage.totalShowAnswerClicks > 0) {
+    if ((hintUsage.averageAttemptsBeforeHint ?? 3) <= 1.5) {
+      items.push("להנחות את הסטודנט לנסות לפחות ניסיון אחד עצמאי לפני פתיחת רמז או תשובה.");
+    } else {
+      items.push("להשתמש ברמזים מדורגים בלבד, כדי להבין אם הקושי הוא מושגי או נובע מביצוע לא יציב.");
+    }
+  }
+
+  if (topIssue) {
+    items.push(`לעקוב השבוע אחרי האות הפתוח: ${localizeText(topIssue.description)}.`);
+  }
+
+  if (bundle.evidenceConsole.chatMisconceptions[0] && items.length < 3) {
+    items.push(`לבדוק בעל פה את המושג "${localizeText(bundle.evidenceConsole.chatMisconceptions[0].label)}" לפני המטלה הבאה.`);
+  }
+
+  if (items.length === 0) {
+    items.push("כדאי לאסוף עוד ראיות דרך מטלה קצרה או הרצת כיול מחדש לפני התערבות ממוקדת.");
+  }
+
+  return items.slice(0, 3);
+}
+
 export default function StudentProfiles({ onClose }: StudentProfilesProps) {
+  const [isMounted, setIsMounted] = useState(false);
   const [profiles, setProfiles] = useState<StudentProfileRow[]>([]);
   const [analytics, setAnalytics] = useState<StudentAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -368,12 +536,29 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
   }, []);
 
   useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
     void fetchProfiles();
   }, [fetchProfiles]);
 
   useEffect(() => {
     void fetchAnalytics();
   }, [fetchAnalytics]);
+
+  useEffect(() => {
+    if (!selectedProfile) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [selectedProfile]);
 
   const openEvidenceConsole = useCallback(async (profile: StudentProfileRow) => {
     try {
@@ -587,7 +772,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
 
       <div className={studentStyles.tableSection}>
         <div className={studentStyles.tableHeader}>
-          <h3 className={studentStyles.tableTitle}>קונסולת פיקוח אדמינית</h3>
+          <h3 className={studentStyles.tableTitle}>פרופילי סטודנטים למרצה</h3>
           <p className={studentStyles.tableSubtitle}>
             הטבלה מציגה סיכום פדגוגי, לא רק ספירת בעיות. פתחו את קונסולת הראיות כדי לראות בדיוק למה הסטודנט סומן ומה כדאי לעשות.
           </p>
@@ -623,7 +808,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                               <span className={`${studentStyles.scoreBadge} ${getKnowledgeScoreClass(profile.knowledgeScore)}`}>
                                 {formatKnowledgeScore(profile.knowledgeScore)}
                               </span>
-                              <span className={studentStyles.riskBadge}>{profile.riskFactors.riskLevel}</span>
+                              <span className={studentStyles.riskBadge}>{formatRiskLevel(profile.riskFactors.riskLevel)}</span>
                             </div>
                           </div>
                         </div>
@@ -633,7 +818,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                           <div className={studentStyles.summaryHeadline}>{pedagogicalSummary.headline}</div>
                           <div className={studentStyles.summaryDetail}>{pedagogicalSummary.detail}</div>
                           <div className={studentStyles.summaryFooter}>
-                            <span>אתגרים: {profile.commonChallenges.slice(0, 2).join(", ") || "אין"}</span>
+                            <span>אתגרים: {profile.commonChallenges.slice(0, 2).map((item) => localizeText(item)).join(", ") || "אין"}</span>
                             <span>התראות פתוחות: {profile.issueCount}</span>
                           </div>
                         </div>
@@ -712,19 +897,20 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
         ) : null}
       </div>
 
-      {selectedProfile ? (
-        <div
-          className={studentStyles.drawerOverlay}
-          onClick={() => {
-            setSelectedProfile(null);
-            setSelectedEvidence(null);
-            setDrawerError(null);
-          }}
-        >
-          <aside
-            className={studentStyles.evidenceDrawer}
-            onClick={(event) => event.stopPropagation()}
-          >
+      {selectedProfile && isMounted
+        ? createPortal(
+            <div
+              className={studentStyles.drawerOverlay}
+              onClick={() => {
+                setSelectedProfile(null);
+                setSelectedEvidence(null);
+                setDrawerError(null);
+              }}
+            >
+              <aside
+                className={studentStyles.evidenceDrawer}
+                onClick={(event) => event.stopPropagation()}
+              >
             <div className={studentStyles.drawerHeader}>
               <div>
                 <h3 className={studentStyles.drawerTitle}>קונסולת ראיות: {selectedProfile.name}</h3>
@@ -748,50 +934,84 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
 
             {selectedEvidence ? (
               <div className={studentStyles.drawerContent}>
-                <section className={studentStyles.consoleSection}>
-                  <div className={studentStyles.consoleHero}>
-                    <div>
-                      <div className={studentStyles.consoleEyebrow}>סיכום פדגוגי</div>
-                      <h4>{selectedEvidence.pedagogicalSummary.headline}</h4>
-                      <p>{selectedEvidence.pedagogicalSummary.rationale}</p>
+                <section className={`${studentStyles.consoleSection} ${studentStyles.overviewSection}`}>
+                  <div className={studentStyles.consoleEyebrow}>תקציר על</div>
+                  <div className={studentStyles.overviewGrid}>
+                    <div className={studentStyles.overviewLead}>
+                      <h4>{localizeText(selectedEvidence.pedagogicalSummary.headline)}</h4>
+                      <p>{localizeText(selectedEvidence.pedagogicalSummary.rationale)}</p>
                     </div>
-                    <div className={studentStyles.consoleMetaStack}>
-                      <span className={studentStyles.metaPill}>
-                        ביטחון {formatPercent(selectedEvidence.pedagogicalSummary.confidence)}
-                      </span>
-                      <span
-                        className={`${studentStyles.metaPill} ${getFreshnessTone(
-                          selectedEvidence.pedagogicalSummary.freshnessLabel
-                        )}`}
-                      >
-                        {selectedEvidence.pedagogicalSummary.freshnessLabel}
-                      </span>
+                    <div className={studentStyles.overviewMetric}>
+                      <span className={studentStyles.overviewMetricLabel}>החולשה העיקרית כרגע</span>
+                      <strong>{localizeTopicLabel(selectedEvidence.pedagogicalSummary.topWeakSkill)}</strong>
                     </div>
+                    <div className={studentStyles.overviewMetric}>
+                      <span className={studentStyles.overviewMetricLabel}>מה מצב הראיות</span>
+                      <strong>{formatFreshnessLabel(selectedEvidence.pedagogicalSummary.freshnessLabel)}</strong>
+                    </div>
+                    <div className={studentStyles.overviewMetric}>
+                      <span className={studentStyles.overviewMetricLabel}>רמת ודאות</span>
+                      <strong>{formatPercent(selectedEvidence.pedagogicalSummary.confidence)}</strong>
+                    </div>
+                    <div className={studentStyles.overviewMetric}>
+                      <span className={studentStyles.overviewMetricLabel}>מצב פדגוגי כללי</span>
+                      <strong>{formatRiskLevel(selectedEvidence.profile.riskFactors.riskLevel)}</strong>
+                    </div>
+                  </div>
+                  <div className={studentStyles.consoleMetaStack}>
+                    <span className={studentStyles.metaPill}>
+                      {selectedEvidence.evidenceConsole.issueDetections.filter((issue) => issue.status === "open").length} אותות פתוחים
+                    </span>
+                    <span className={studentStyles.metaPill}>
+                      {selectedEvidence.evidenceConsole.recentFailedAttempts.length} ניסיונות אחרונים שנכשלו
+                    </span>
+                    <span
+                      className={`${studentStyles.metaPill} ${getFreshnessTone(
+                        selectedEvidence.pedagogicalSummary.freshnessLabel
+                      )}`}
+                    >
+                      {formatFreshnessLabel(selectedEvidence.pedagogicalSummary.freshnessLabel)}
+                    </span>
+                  </div>
+                </section>
+
+                <section className={`${studentStyles.consoleSection} ${studentStyles.actionSummarySection}`}>
+                  <div className={studentStyles.sectionTitleRow}>
+                    <h4>מה כדאי לעשות עכשיו</h4>
+                    <span className={studentStyles.sectionHint}>2-3 פעולות ממוקדות למרצה</span>
+                  </div>
+                  <div className={studentStyles.actionSummaryList}>
+                    {buildLecturerActionItems(selectedEvidence).map((item) => (
+                      <div key={item} className={studentStyles.actionSummaryItem}>
+                        <Target size={16} />
+                        <span>{item}</span>
+                      </div>
+                    ))}
                   </div>
                 </section>
 
                 <section className={studentStyles.consoleSection}>
                   <div className={studentStyles.sectionTitleRow}>
-                    <h4>חולשות מובילות</h4>
-                    <span className={studentStyles.sectionHint}>אפשר לאשר או לדחות כל אות מהמסך הזה</span>
+                    <h4>למה אנחנו חושבים כך</h4>
+                    <span className={studentStyles.sectionHint}>ראיות מרכזיות שאפשר גם לאשר או לדחות מתוכן</span>
                   </div>
                   <div className={studentStyles.cardList}>
                     {selectedEvidence.evidenceConsole.weakSkills.map((skill) => (
                       <article key={skill.topic} className={studentStyles.consoleCard}>
                         <div className={studentStyles.cardHeader}>
                           <div>
-                            <h5>{skill.label}</h5>
+                            <h5>{localizeTopicLabel(skill.label)}</h5>
                             <p>
                               שליטה {formatPercent(skill.mastery)} • ביטחון {formatPercent(skill.confidence)}
                             </p>
                           </div>
                           <span className={`${studentStyles.metaPill} ${getFreshnessTone(skill.freshnessLabel)}`}>
-                            {skill.freshnessLabel}
+                            {formatFreshnessLabel(skill.freshnessLabel)}
                           </span>
                         </div>
                         <ul className={studentStyles.evidenceList}>
                           {skill.evidenceSummary.map((item) => (
-                            <li key={item}>{item}</li>
+                            <li key={item}>{localizeText(item)}</li>
                           ))}
                         </ul>
                         <div className={studentStyles.cardFooter}>
@@ -829,7 +1049,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                               }
                             >
                               <XCircle size={14} />
-                              דחה כ-positive false
+                              דחה כחיובי שגוי
                             </button>
                           </div>
                         </div>
@@ -846,14 +1066,14 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                         <div className={studentStyles.cardHeader}>
                           <div>
                             <h5>{attempt.homeworkTitle || "מטלה"} / {attempt.questionId}</h5>
-                            <p>{attempt.hintBurden}</p>
+                            <p>{localizeText(attempt.hintBurden)}</p>
                           </div>
                           <span className={studentStyles.metaPill}>{attempt.attempts} ניסיונות</span>
                         </div>
                         <div className={studentStyles.tagRow}>
                           {attempt.failureTags.map((tag) => (
                             <span key={tag} className={studentStyles.tag}>
-                              {tag}
+                              {localizeText(tag)}
                             </span>
                           ))}
                         </div>
@@ -862,7 +1082,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                             <div key={misconception.label} className={studentStyles.misconceptionRow}>
                               <Bot size={14} />
                               <span>
-                                {misconception.studentLabel} • ביטחון {formatPercent(misconception.confidence)}
+                                {localizeText(misconception.studentLabel)} • ביטחון {formatPercent(misconception.confidence)}
                               </span>
                             </div>
                           ))}
@@ -880,7 +1100,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                     <div className={studentStyles.cardHeader}>
                       <div>
                         <h5>דפוסי שימוש ברמזים</h5>
-                        <p>האם הסטודנט נעזר מוקדם מדי או רק אחרי רצף כשלונות.</p>
+                        <p>כאן רואים אם הסטודנט ניגש מהר מדי לעזרה או רק אחרי רצף כשלונות.</p>
                       </div>
                       <Wrench size={16} />
                     </div>
@@ -912,16 +1132,16 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                     <div className={studentStyles.cardHeader}>
                       <div>
                         <h5>מיסקונספציות מהצ׳אט ומהניתוח</h5>
-                        <p>כאן רואים אילו טעויות קונספטואליות חזרו שוב ושוב.</p>
+                        <p>טעויות קונספטואליות שחזרו שוב ושוב, גם אם הניסוח השתנה.</p>
                       </div>
                       <Bot size={16} />
                     </div>
                     <div className={studentStyles.evidenceListCompact}>
                       {selectedEvidence.evidenceConsole.chatMisconceptions.map((item) => (
                         <div key={`${item.label}:${item.studentExplanation}`} className={studentStyles.miniCard}>
-                          <strong>{item.label}</strong>
-                          <span>{item.studentExplanation}</span>
-                          <small>ביטחון {formatPercent(item.confidence)} • {item.topics.join(", ")}</small>
+                          <strong>{localizeText(item.label)}</strong>
+                          <span>{localizeText(item.studentExplanation)}</span>
+                          <small>ביטחון {formatPercent(item.confidence)} • {item.topics.map((topic) => localizeTopicLabel(topic)).join(", ")}</small>
                         </div>
                       ))}
                     </div>
@@ -935,8 +1155,8 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                       <article key={item.recommendationId} className={studentStyles.consoleCard}>
                         <div className={studentStyles.cardHeader}>
                           <div>
-                            <h5>{item.recommendationType || "Recommendation"}</h5>
-                            <p>{item.weakSkill || item.misconception || "ללא תיוג"}</p>
+                            <h5>{formatRecommendationType(item.recommendationType)}</h5>
+                            <p>{localizeText(item.weakSkill || item.misconception || "ללא תיוג")}</p>
                           </div>
                           <span
                             className={`${studentStyles.metaPill} ${
@@ -947,11 +1167,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                                   : studentStyles.outcomePending
                             }`}
                           >
-                            {item.outcome === "helpful"
-                              ? "עזר"
-                              : item.outcome === "not_helpful"
-                                ? "לא עזר"
-                                : "ממתין"}
+                            {formatRecommendationOutcome(item.outcome)}
                           </span>
                         </div>
                         <div className={studentStyles.cardFooter}>
@@ -961,7 +1177,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                         <div className={studentStyles.tagRow}>
                           {item.feedbackHistory.map((feedback) => (
                             <span key={`${item.recommendationId}:${feedback}`} className={studentStyles.tag}>
-                              {feedback}
+                              {localizeText(feedback)}
                             </span>
                           ))}
                         </div>
@@ -975,18 +1191,18 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                     <div className={studentStyles.cardHeader}>
                       <div>
                         <h5>זיהויי בעיות</h5>
-                        <p>האם האותות פתוחים, כמה הם בטוחים, ומאיזה מקור הגיעו.</p>
+                        <p>אותות פתוחים או מטופלים, יחד עם החומרה, הביטחון ומקור הראיה.</p>
                       </div>
                       <AlertTriangle size={16} />
                     </div>
                     <div className={studentStyles.evidenceListCompact}>
                       {selectedEvidence.evidenceConsole.issueDetections.map((issue) => (
                         <div key={issue.issueId} className={studentStyles.miniCard}>
-                          <strong>{issue.description}</strong>
+                          <strong>{localizeText(issue.description)}</strong>
                           <span>
-                            {issue.severity} • {issue.status} • ביטחון {formatPercent(issue.confidence)}
+                            {formatSeverity(issue.severity)} • {formatIssueStatus(issue.status)} • ביטחון {formatPercent(issue.confidence)}
                           </span>
-                          <small>{issue.source || "unknown"} • {issue.freshnessLabel}</small>
+                          <small>{localizeText(issue.source || "לא ידוע")} • {formatFreshnessLabel(issue.freshnessLabel)}</small>
                         </div>
                       ))}
                     </div>
@@ -996,22 +1212,22 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                     <div className={studentStyles.cardHeader}>
                       <div>
                         <h5>עקיבות שדות</h5>
-                        <p>מתי כל שדה התעדכן, מאילו מקורות ועל בסיס אילו ראיות.</p>
+                        <p>מתי כל שדה התעדכן, מאילו מקורות, ומה היו הראיות הקצרות שהשפיעו עליו.</p>
                       </div>
                       <Clock3 size={16} />
                     </div>
                     <div className={studentStyles.evidenceListCompact}>
                       {selectedEvidence.evidenceConsole.fieldTraceability.map((trace) => (
                         <div key={trace.field} className={studentStyles.miniCard}>
-                          <strong>{trace.field}</strong>
+                          <strong>{localizeText(trace.field)}</strong>
                           <span>
                             {trace.computedAt ? formatDate(trace.computedAt) : "לא זמין"} •{" "}
                             {trace.confidence === null ? "ללא ביטחון" : `ביטחון ${formatPercent(trace.confidence)}`}
                           </span>
-                          <small>{trace.sources.join(", ")}</small>
+                          <small>{trace.sources.map((source) => localizeText(source)).join(", ")}</small>
                           <ul className={studentStyles.evidenceList}>
                             {trace.evidencePreview.map((preview) => (
-                              <li key={preview}>{preview}</li>
+                              <li key={preview}>{localizeText(preview)}</li>
                             ))}
                           </ul>
                         </div>
@@ -1117,9 +1333,9 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                       <div className={studentStyles.evidenceListCompact}>
                         {(selectedEvidence.profile.adminOversight?.interventions || []).map((item) => (
                           <div key={item.id} className={studentStyles.miniCard}>
-                            <strong>{item.intervention}</strong>
-                            <span>{item.topic || "ללא נושא"}</span>
-                            <small>{item.status} • {item.expiresAt ? formatDate(item.expiresAt) : "ללא תפוגה"}</small>
+                            <strong>{localizeText(item.intervention)}</strong>
+                            <span>{localizeTopicLabel(item.topic || "ללא נושא")}</span>
+                            <small>{formatActionStatus(item.status)} • {item.expiresAt ? formatDate(item.expiresAt) : "ללא תפוגה"}</small>
                           </div>
                         ))}
                       </div>
@@ -1129,8 +1345,8 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                       <div className={studentStyles.evidenceListCompact}>
                         {(selectedEvidence.profile.adminOversight?.goalMarkers || []).map((item) => (
                           <div key={item.id} className={studentStyles.miniCard}>
-                            <strong>{item.goal}</strong>
-                            <span>{item.note || "ללא הערה"}</span>
+                            <strong>{localizeText(item.goal)}</strong>
+                            <span>{localizeText(item.note || "ללא הערה")}</span>
                             <small>{formatDate(item.createdAt)}</small>
                           </div>
                         ))}
@@ -1140,9 +1356,11 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                 </section>
               </div>
             ) : null}
-          </aside>
-        </div>
-      ) : null}
+              </aside>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }
