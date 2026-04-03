@@ -7,6 +7,7 @@ import { getChatMessages } from "@/lib/chat";
 import {
   ChatRequestDto,
   ChatResponseDto,
+  ComposerDirective,
   ResponseCitation,
   ResponseTurnMetadata,
   TutorResponse,
@@ -75,6 +76,13 @@ type MessageRequestDto = ChatRequestDto & {
   thinkingMode?: boolean;
   includeReasoningSummary?: boolean;
 };
+
+const composerDirectiveValues: ComposerDirective[] = [
+  "personalize",
+  "explain",
+  "optimize",
+  "mistakes",
+];
 
 type ResponseCreateLike = {
   id?: string;
@@ -314,6 +322,58 @@ function hasTutorIntent(
 function hasPersonalizationIntent(content: string): boolean {
   const normalized = content.toLowerCase();
   return personalizationIntentKeywords.some((keyword) => normalized.includes(keyword));
+}
+
+function normalizeComposerDirectives(input: unknown): ComposerDirective[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+
+  const normalized = input
+    .map((item) => (typeof item === "string" ? item.trim().toLowerCase() : ""))
+    .filter((item): item is ComposerDirective =>
+      composerDirectiveValues.includes(item as ComposerDirective)
+    );
+
+  return Array.from(new Set(normalized));
+}
+
+function buildComposerDirectiveInstructions(directives: ComposerDirective[]): string {
+  if (directives.length === 0) {
+    return "";
+  }
+
+  const instructions: string[] = [];
+
+  if (directives.includes("explain")) {
+    instructions.push(
+      "- Give a step-by-step explanation before the final answer, with beginner-friendly wording."
+    );
+  }
+
+  if (directives.includes("optimize")) {
+    instructions.push(
+      "- Focus on performance and readability, and call out a better query shape when appropriate."
+    );
+  }
+
+  if (directives.includes("mistakes")) {
+    instructions.push(
+      "- Prioritize likely mistakes, why they happen, and how to fix them clearly."
+    );
+  }
+
+  if (directives.includes("personalize")) {
+    instructions.push(
+      "- Use the student's measured personalization evidence directly to recommend the next best study step."
+    );
+  }
+
+  if (instructions.length === 0) {
+    return "";
+  }
+
+  return `\n\n[COMPOSER DIRECTIVES]\n${instructions.join("\n")}`;
 }
 
 function resolveTutorSubjectMode(
@@ -582,13 +642,19 @@ export async function POST(request: Request) {
     }> = [];
     const weeklyPolicy = buildWeeklyPolicy(resolvedContext.toolContext);
     const textInput = content || "";
+    const composerDirectives = normalizeComposerDirectives(body.composerDirectives);
     const tutorSubjectMode = resolveTutorSubjectMode(textInput, body.metadata);
+    const composerForcesTutorIntent = composerDirectives.some(
+      (directive) => directive !== "personalize"
+    );
     const tutorIntent =
-      tutorSubjectMode === "relational_algebra" || hasTutorIntent(textInput, body.tutorMode, body.metadata);
+      tutorSubjectMode === "relational_algebra" ||
+      composerForcesTutorIntent ||
+      hasTutorIntent(textInput, body.tutorMode, body.metadata);
     const personalizationIntent =
       resolvedContext.toolContext === "main_chat" &&
       getOpenAIFeatureFlag("FEATURE_PERSONALIZATION_TOOLS") &&
-      hasPersonalizationIntent(textInput);
+      (composerDirectives.includes("personalize") || hasPersonalizationIntent(textInput));
     const retrievalNeeded = shouldUseRetrieval(textInput);
     const responseFormat = tutorIntent
       ? tutorSubjectMode === "relational_algebra"
@@ -646,13 +712,14 @@ Use student-personalization tools deliberately, not on every turn.
             .then((bundle) => `\n\n${buildPersonalizationContextBlock(bundle)}`)
             .catch(() => "")
         : "";
+    const composerDirectiveInstructions = buildComposerDirectiveInstructions(composerDirectives);
     const extraInstructions = tutorIntent
-      ? `${weeklyPolicy.extraInstructions}${retrievalInstructions}${personalizationInstructions}${personalizationContext}${sqlDebuggerPolicy}\n\n${
+      ? `${weeklyPolicy.extraInstructions}${retrievalInstructions}${personalizationInstructions}${personalizationContext}${composerDirectiveInstructions}${sqlDebuggerPolicy}\n\n${
           tutorSubjectMode === "relational_algebra"
             ? relationalAlgebraTutorInstructions
             : tutorInstructions
         }${reasoningLanguageInstructions}`
-      : `${weeklyPolicy.extraInstructions}${retrievalInstructions}${personalizationInstructions}${personalizationContext}${sqlDebuggerPolicy}${reasoningLanguageInstructions}`;
+      : `${weeklyPolicy.extraInstructions}${retrievalInstructions}${personalizationInstructions}${personalizationContext}${composerDirectiveInstructions}${sqlDebuggerPolicy}${reasoningLanguageInstructions}`;
 
     if (textInput) {
       inputItems.push({ type: "input_text", text: textInput });

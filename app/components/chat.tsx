@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, useReducer } 
 import styles from "./chat.module.css";
 import "./mobile-optimizations.css";
 import Markdown from "react-markdown";
-import { ThumbsUp, ThumbsDown, ClipboardCopy, Plus, Sparkles, ImagePlus, Braces, BarChart3, ChevronDown, BrainCircuit, ArrowUp } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ClipboardCopy, Plus, Sparkles, ImagePlus, Braces, BarChart3, ChevronDown, BrainCircuit, ArrowUp, X } from 'lucide-react';
 import Link from 'next/link';
 import Sidebar from './sidebar';
 import { useRouter } from 'next/navigation';
@@ -25,6 +25,7 @@ import { analyzeMessage } from "../utils/sql-query-analyzer";
 // import { avatarAnalytics } from "../utils/avatar-analytics";
 import PracticeModal from "./PracticeModal";
 import type {
+  ComposerDirective,
   RelationalAlgebraTutorResponse,
   ResponseCitation,
   ResponseStreamEvent,
@@ -79,6 +80,37 @@ type ClientFunctionToolCall = {
 
 type StreamFailureKind = "tool_timeout" | "invalid_function_args" | "stream_interruption" | "generic";
 
+type ComposerCommandId =
+  | "thinking"
+  | "algebra"
+  | "sql"
+  | ComposerDirective;
+
+type ComposerCommandKind = "persistent" | "one_shot";
+
+type ComposerCommandGroup = "modes" | "shortcuts";
+
+type ComposerCommandDefinition = {
+  id: ComposerCommandId;
+  token: `@${string}`;
+  label: string;
+  description: string;
+  group: ComposerCommandGroup;
+  kind: ComposerCommandKind;
+  aliases: string[];
+  icon: React.ComponentType<{
+    className?: string;
+    size?: string | number;
+    strokeWidth?: string | number;
+  }>;
+};
+
+type ComposerTokenContext = {
+  query: string;
+  start: number;
+  end: number;
+};
+
 type ChatMessage = {
   role: "user" | "assistant" | "code";
   text: string;
@@ -89,6 +121,83 @@ type ChatMessage = {
   citations?: ResponseCitation[];
   metadata?: ResponseTurnMetadata | null;
 };
+
+const COMPOSER_COMMANDS: ComposerCommandDefinition[] = [
+  {
+    id: "thinking",
+    token: "@thinking",
+    label: "מצב חשיבה",
+    description: "מפעיל תשובות עם תהליך חשיבה גלוי",
+    group: "modes",
+    kind: "persistent",
+    aliases: ["thinking", "reasoning", "חשיבה"],
+    icon: BrainCircuit,
+  },
+  {
+    id: "algebra",
+    token: "@algebra",
+    label: "אלגברת יחסים",
+    description: "מעביר את השיחה למצב σ, π, ⋈",
+    group: "modes",
+    kind: "persistent",
+    aliases: ["algebra", "ra", "relational", "אלגברה", "יחסים"],
+    icon: Braces,
+  },
+  {
+    id: "sql",
+    token: "@sql",
+    label: "מצב SQL",
+    description: "מחזיר להסבר ושיח רגיל ב-SQL",
+    group: "modes",
+    kind: "persistent",
+    aliases: ["sql", "query", "שאילתה"],
+    icon: BarChart3,
+  },
+  {
+    id: "personalize",
+    token: "@personalize",
+    label: "התאמה אישית",
+    description: "מה כדאי לי ללמוד לפי הטעויות שלי",
+    group: "shortcuts",
+    kind: "one_shot",
+    aliases: ["personalize", "personal", "tailor", "אישי", "התאמה"],
+    icon: Sparkles,
+  },
+  {
+    id: "explain",
+    token: "@explain",
+    label: "הסבר שלב-שלב",
+    description: "מבקש פירוק ברור ומדורג של הפתרון",
+    group: "shortcuts",
+    kind: "one_shot",
+    aliases: ["explain", "steps", "step", "הסבר", "שלבים"],
+    icon: ClipboardCopy,
+  },
+  {
+    id: "optimize",
+    token: "@optimize",
+    label: "שיפור שאילתה",
+    description: "מתמקד בביצועים, קריאות וניסוח טוב יותר",
+    group: "shortcuts",
+    kind: "one_shot",
+    aliases: ["optimize", "performance", "improve", "ביצועים", "שפר"],
+    icon: BarChart3,
+  },
+  {
+    id: "mistakes",
+    token: "@mistakes",
+    label: "איתור טעויות",
+    description: "מתמקד בשגיאות אפשריות ואיך לתקן אותן",
+    group: "shortcuts",
+    kind: "one_shot",
+    aliases: ["mistakes", "errors", "bugs", "טעויות", "שגיאות"],
+    icon: ThumbsDown,
+  },
+];
+
+const COMPOSER_COMMAND_BY_TOKEN = new Map(
+  COMPOSER_COMMANDS.map((command) => [command.token.toLowerCase(), command])
+);
 
 // Add these types
 type ChatSession = {
@@ -569,6 +678,7 @@ type ChatProps = {
   homeworkContext?: HomeworkChatContext | null;
   embeddedMode?: boolean;
   enableRelationalAlgebraMode?: boolean;
+  enableComposerCommands?: boolean;
   initialSubjectMode?: TutorSubjectMode;
   conversationVariant?: "default" | "professional";
 };
@@ -584,12 +694,18 @@ const Chat = ({
   homeworkContext = null,
   embeddedMode = false,
   enableRelationalAlgebraMode = false,
+  enableComposerCommands = false,
   initialSubjectMode = "sql",
   conversationVariant = "default",
 }: ChatProps) => {
   void functionCallHandler;
   const isProfessionalConversation = conversationVariant === "professional";
   const [userInput, setUserInput] = useState("");
+  const [pendingComposerDirectives, setPendingComposerDirectives] = useState<ComposerDirective[]>([]);
+  const [isComposerPaletteOpen, setIsComposerPaletteOpen] = useState(false);
+  const [composerQuery, setComposerQuery] = useState("");
+  const [highlightedComposerCommandIndex, setHighlightedComposerCommandIndex] = useState(0);
+  const [composerTokenContext, setComposerTokenContext] = useState<ComposerTokenContext | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputDisabled, setInputDisabled] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -642,6 +758,8 @@ const Chat = ({
   // Add hydration state to prevent layout shift
   const [isHydrated, setIsHydrated] = useState(false);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
+  const composerPaletteRef = useRef<HTMLDivElement | null>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [isThinkingModeEnabled, setIsThinkingModeEnabled] = useState(true);
 
   useEffect(() => {
@@ -783,6 +901,244 @@ const Chat = ({
   useEffect(() => {
     activeTutorSubjectModeRef.current = subjectMode;
   }, [subjectMode]);
+
+  const persistentComposerChips = useMemo(
+    () =>
+      [
+        isThinkingModeEnabled
+          ? {
+              key: "thinking",
+              label: "מצב חשיבה פעיל",
+              onRemove: () => setIsThinkingModeEnabled(false),
+            }
+          : null,
+        enableRelationalAlgebraMode
+          ? {
+              key: subjectMode,
+              label: subjectMode === "relational_algebra" ? "מצב אלגברת יחסים" : "מצב SQL",
+              onRemove:
+                subjectMode === "relational_algebra" ? () => setSubjectMode("sql") : undefined,
+            }
+          : null,
+      ].filter(Boolean) as Array<{
+        key: string;
+        label: string;
+        onRemove?: () => void;
+      }>,
+    [enableRelationalAlgebraMode, isThinkingModeEnabled, subjectMode]
+  );
+
+  const pendingComposerCommandDefinitions = useMemo(
+    () =>
+      pendingComposerDirectives
+        .map((directive) =>
+          COMPOSER_COMMANDS.find((command) => command.id === directive && command.kind === "one_shot")
+        )
+        .filter(Boolean) as ComposerCommandDefinition[],
+    [pendingComposerDirectives]
+  );
+
+  const filteredComposerCommands = useMemo(() => {
+    if (!enableComposerCommands) {
+      return [];
+    }
+
+    const normalizedQuery = composerQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return COMPOSER_COMMANDS;
+    }
+
+    return COMPOSER_COMMANDS.filter((command) => {
+      const haystack = [command.token.slice(1), command.label, ...command.aliases]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalizedQuery);
+    });
+  }, [composerQuery, enableComposerCommands]);
+
+  const groupedComposerCommands = useMemo(
+    () =>
+      [
+        {
+          key: "modes" as const,
+          label: "Modes",
+          commands: filteredComposerCommands.filter((command) => command.group === "modes"),
+        },
+        {
+          key: "shortcuts" as const,
+          label: "Shortcuts",
+          commands: filteredComposerCommands.filter((command) => command.group === "shortcuts"),
+        },
+      ].filter((group) => group.commands.length > 0),
+    [filteredComposerCommands]
+  );
+
+  const syncComposerTextareaHeight = useCallback(() => {
+    if (!composerInputRef.current) {
+      return;
+    }
+
+    composerInputRef.current.style.height = "auto";
+    composerInputRef.current.style.height = `${composerInputRef.current.scrollHeight}px`;
+  }, []);
+
+  const resolveComposerTokenContext = useCallback(
+    (value: string, caretPosition: number | null | undefined): ComposerTokenContext | null => {
+      if (!enableComposerCommands || typeof caretPosition !== "number") {
+        return null;
+      }
+
+      let tokenStart = caretPosition;
+      while (tokenStart > 0 && !/\s/.test(value[tokenStart - 1])) {
+        tokenStart -= 1;
+      }
+
+      let tokenEnd = caretPosition;
+      while (tokenEnd < value.length && !/\s/.test(value[tokenEnd])) {
+        tokenEnd += 1;
+      }
+
+      const fullToken = value.slice(tokenStart, tokenEnd);
+      if (!fullToken.startsWith("@")) {
+        return null;
+      }
+
+      return {
+        query: value.slice(tokenStart + 1, caretPosition).toLowerCase(),
+        start: tokenStart,
+        end: tokenEnd,
+      };
+    },
+    [enableComposerCommands]
+  );
+
+  const syncComposerPalette = useCallback(
+    (value: string, caretPosition: number | null | undefined) => {
+      const nextContext = resolveComposerTokenContext(value, caretPosition);
+      setComposerTokenContext(nextContext);
+      setComposerQuery(nextContext?.query || "");
+      setIsComposerPaletteOpen(Boolean(nextContext));
+      setHighlightedComposerCommandIndex(0);
+    },
+    [resolveComposerTokenContext]
+  );
+
+  const focusComposerInput = useCallback(
+    (nextValue?: string, caretPosition?: number) => {
+      window.requestAnimationFrame(() => {
+        if (!composerInputRef.current) {
+          return;
+        }
+
+        composerInputRef.current.focus();
+        if (typeof caretPosition === "number") {
+          composerInputRef.current.setSelectionRange(caretPosition, caretPosition);
+        }
+        syncComposerTextareaHeight();
+        if (typeof nextValue === "string") {
+          syncComposerPalette(nextValue, caretPosition ?? composerInputRef.current.selectionStart);
+        }
+      });
+    },
+    [syncComposerPalette, syncComposerTextareaHeight]
+  );
+
+  const closeComposerPalette = useCallback(() => {
+    setIsComposerPaletteOpen(false);
+    setComposerQuery("");
+    setComposerTokenContext(null);
+    setHighlightedComposerCommandIndex(0);
+  }, []);
+
+  const applyPersistentComposerCommand = useCallback(
+    (commandId: ComposerCommandId) => {
+      if (commandId === "thinking") {
+        setIsThinkingModeEnabled(true);
+        return;
+      }
+
+      if (commandId === "algebra") {
+        setSubjectMode("relational_algebra");
+        return;
+      }
+
+      if (commandId === "sql") {
+        setSubjectMode("sql");
+      }
+    },
+    []
+  );
+
+  const removeComposerTokenFromInput = useCallback(
+    (value: string, tokenContext: ComposerTokenContext) => {
+      const before = value.slice(0, tokenContext.start);
+      const after = value.slice(tokenContext.end);
+      const shouldCollapseSingleSpace =
+        before.endsWith(" ") && after.startsWith(" ") && !before.endsWith("\n") && !after.startsWith("\n");
+      const normalizedAfter = shouldCollapseSingleSpace ? after.slice(1) : after;
+      return {
+        nextValue: `${before}${normalizedAfter}`,
+        nextCaretPosition: before.length,
+      };
+    },
+    []
+  );
+
+  const insertComposerCommand = useCallback(
+    (command: ComposerCommandDefinition) => {
+      if (!composerTokenContext) {
+        return;
+      }
+
+      const { nextValue, nextCaretPosition } = removeComposerTokenFromInput(userInput, composerTokenContext);
+
+      if (command.kind === "persistent") {
+        applyPersistentComposerCommand(command.id);
+      } else {
+        setPendingComposerDirectives((previous) =>
+          previous.includes(command.id as ComposerDirective)
+            ? previous
+            : [...previous, command.id as ComposerDirective]
+        );
+      }
+
+      setUserInput(nextValue);
+      focusComposerInput(nextValue, nextCaretPosition);
+    },
+    [
+      applyPersistentComposerCommand,
+      composerTokenContext,
+      focusComposerInput,
+      removeComposerTokenFromInput,
+      userInput,
+    ]
+  );
+
+  useEffect(() => {
+    if (!isComposerPaletteOpen) {
+      return;
+    }
+
+    const handlePointerDownOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (composerPaletteRef.current?.contains(target) || composerInputRef.current?.contains(target)) {
+        return;
+      }
+      closeComposerPalette();
+    };
+
+    document.addEventListener("mousedown", handlePointerDownOutside);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDownOutside);
+    };
+  }, [closeComposerPalette, isComposerPaletteOpen]);
+
+  useEffect(() => {
+    if (highlightedComposerCommandIndex < filteredComposerCommands.length) {
+      return;
+    }
+    setHighlightedComposerCommandIndex(0);
+  }, [filteredComposerCommands.length, highlightedComposerCommandIndex]);
 
   const activeAvatarMode = useMemo<AvatarMode>(() => {
     if (!enableAvatar || displayMode !== 'avatar') {
@@ -2156,7 +2512,11 @@ useEffect(() => {
     endStreamResponse();
   };
 
-  const sendMessage = async (text, image: File | null = selectedImage) => { 
+  const sendMessage = async (
+    text,
+    image: File | null = selectedImage,
+    composerDirectives: ComposerDirective[] = []
+  ) => {
     setImageProcessing(true);
     clearBalanceErrorNotice();
     setIsReasoningCollapsed(false);
@@ -2255,6 +2615,7 @@ useEffect(() => {
             userEmail: userEmail ?? undefined,
             homeworkRunner: !!homeworkContext, // Allow all SQL (subqueries, CONCAT, ALL, TOP) in homework
             thinkingMode: isThinkingModeEnabled,
+            composerDirectives,
             stream: true,
             metadata: {
               student_id: homeworkContext?.studentId || studentId || "",
@@ -2360,9 +2721,64 @@ useEffect(() => {
 
   };
 
-  const submitMessage = (messageText: string, displayText?: string, image: File | null = null) => {
+  const extractComposerCommandsFromInput = useCallback((value: string) => {
+    const persistentCommands = new Set<ComposerCommandId>();
+    const directives = new Set<ComposerDirective>(pendingComposerDirectives);
+    const cleanedParts: string[] = [];
+
+    for (const part of value.split(/(\s+)/)) {
+      const normalized = part.trim().toLowerCase();
+      const matchedCommand = COMPOSER_COMMAND_BY_TOKEN.get(normalized);
+
+      if (!matchedCommand) {
+        cleanedParts.push(part);
+        continue;
+      }
+
+      if (matchedCommand.kind === "persistent") {
+        persistentCommands.add(matchedCommand.id);
+      } else {
+        directives.add(matchedCommand.id as ComposerDirective);
+      }
+    }
+
+    return {
+      cleanedText: cleanedParts.join("").trim(),
+      persistentCommands: Array.from(persistentCommands),
+      directives: Array.from(directives),
+    };
+  }, [pendingComposerDirectives]);
+
+  const buildDirectiveOnlyPrompt = useCallback((directives: ComposerDirective[]) => {
+    const prompts: string[] = [];
+
+    if (directives.includes("personalize")) {
+      prompts.push("מה כדאי לי ללמוד או לתרגל עכשיו לפי הטעויות האחרונות שלי?");
+    }
+
+    if (directives.includes("explain")) {
+      prompts.push("הסבר לי את זה שלב-שלב.");
+    }
+
+    if (directives.includes("optimize")) {
+      prompts.push("בדוק איך אפשר לשפר את השאילתה מבחינת ביצועים וקריאות.");
+    }
+
+    if (directives.includes("mistakes")) {
+      prompts.push("התמקד בטעויות אפשריות ובאיך לתקן אותן.");
+    }
+
+    return prompts.join(" ");
+  }, []);
+
+  const submitMessage = (
+    messageText: string,
+    displayText?: string,
+    image: File | null = null,
+    composerDirectives: ComposerDirective[] = []
+  ) => {
     const trimmed = messageText.trim();
-    if (!trimmed) return;
+    if (!trimmed && !image) return;
 
     flushAll('user_input');
     speechDispatch({ type: 'SET_STREAMING', streaming: false });
@@ -2371,12 +2787,14 @@ useEffect(() => {
     }
     setIsUserTyping(false);
 
-    sendMessage(trimmed, image);
+    sendMessage(trimmed, image, composerDirectives);
     setMessages((prevMessages) => [
       ...prevMessages,
       { role: "user", text: displayText ?? trimmed, hasImage: !!image },
     ]);
     setUserInput("");
+    setPendingComposerDirectives([]);
+    closeComposerPalette();
     setInputDisabled(true);
     setIsThinking(true);
     autoScrollRef.current = true;
@@ -2456,12 +2874,24 @@ const loadChatMessages = (chatId: string) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!userInput.trim() && !selectedImage) return;
+    const { cleanedText, persistentCommands, directives } = extractComposerCommandsFromInput(userInput);
+
+    persistentCommands.forEach((commandId) => {
+      applyPersistentComposerCommand(commandId);
+    });
+
+    const messageText = cleanedText || buildDirectiveOnlyPrompt(directives);
+    if (!messageText.trim() && !selectedImage) {
+      setUserInput("");
+      setPendingComposerDirectives([]);
+      closeComposerPalette();
+      return;
+    }
     
     // Display message with image info if present
     const displayText = selectedImage 
-      ? `${userInput}${userInput ? '\n' : ''}[תמונה מצורפת: ${selectedImage.name}]`
-      : userInput;
+      ? `${messageText}${messageText ? '\n' : ''}[תמונה מצורפת: ${selectedImage.name}]`
+      : messageText;
     
     // Check if we're in exercise mode (but exercises are now handled in modal)
     if (isExerciseMode && currentExercise) {
@@ -2469,7 +2899,7 @@ const loadChatMessages = (chatId: string) => {
       return;
     }
     
-    submitMessage(userInput, displayText, selectedImage);
+    submitMessage(messageText, displayText, selectedImage, directives);
   };
 
   /* Stream Event Handlers */
@@ -3198,20 +3628,95 @@ return (
               </div>
             )}
 
+            {enableComposerCommands && (persistentComposerChips.length > 0 || pendingComposerCommandDefinitions.length > 0) && (
+              <div className={styles.composerCommandChips} aria-label="פקודות פעילות">
+                {persistentComposerChips.map((chip) => (
+                  <div key={chip.key} className={`${styles.composerCommandChip} ${styles.composerCommandChipPersistent}`}>
+                    <span>{chip.label}</span>
+                    {chip.onRemove && (
+                      <button
+                        type="button"
+                        className={styles.composerCommandChipRemove}
+                        onClick={chip.onRemove}
+                        aria-label={`הסר ${chip.label}`}
+                      >
+                        <X size={12} strokeWidth={2.2} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {pendingComposerCommandDefinitions.map((command) => (
+                  <div key={command.id} className={`${styles.composerCommandChip} ${styles.composerCommandChipEphemeral}`}>
+                    <span>{command.label}</span>
+                    <button
+                      type="button"
+                      className={styles.composerCommandChipRemove}
+                      onClick={() =>
+                        setPendingComposerDirectives((previous) =>
+                          previous.filter((directive) => directive !== command.id)
+                        )
+                      }
+                      aria-label={`הסר ${command.label}`}
+                    >
+                      <X size={12} strokeWidth={2.2} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <textarea
+              ref={composerInputRef}
               className={`${styles.input} ${isProfessionalConversation ? styles.inputProfessional : ''}`}
               name="chatMessage"
               value={userInput}
               onChange={(e) => {
                 if (streamError) setStreamError(null);
                 setUserInput(e.target.value);
+                syncComposerPalette(e.target.value, e.target.selectionStart);
                 e.target.style.height = 'auto';
                 e.target.style.height = e.target.scrollHeight + 'px';
                 
                 // Detect user typing for avatar state
                 handleUserTyping();
               }}
+              onClick={(e) => syncComposerPalette(e.currentTarget.value, e.currentTarget.selectionStart)}
+              onSelect={(e) => syncComposerPalette(e.currentTarget.value, e.currentTarget.selectionStart)}
               onKeyDown={(e) => {
+                if (isComposerPaletteOpen) {
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (filteredComposerCommands.length > 0) {
+                      setHighlightedComposerCommandIndex((previous) =>
+                        (previous + 1) % filteredComposerCommands.length
+                      );
+                    }
+                    return;
+                  }
+
+                  if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (filteredComposerCommands.length > 0) {
+                      setHighlightedComposerCommandIndex((previous) =>
+                        previous === 0 ? filteredComposerCommands.length - 1 : previous - 1
+                      );
+                    }
+                    return;
+                  }
+
+                  if ((e.key === 'Enter' || e.key === 'Tab') && filteredComposerCommands.length > 0) {
+                    e.preventDefault();
+                    insertComposerCommand(filteredComposerCommands[highlightedComposerCommandIndex]);
+                    return;
+                  }
+
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    closeComposerPalette();
+                    return;
+                  }
+                }
+
                 if (e.key === 'Enter' && e.shiftKey) {
                   // Allow default behavior for Shift+Enter (line break)
                   return;
@@ -3230,6 +3735,7 @@ return (
               aria-label={isExerciseMode ? "תשובת SQL" : "הודעה לצ'אט"}
               autoComplete="off"
               spellCheck={false}
+              data-testid="chat-message-input"
               style={{
                 paddingTop: isProfessionalConversation ? '18px' : '16px',
                 paddingRight: isProfessionalConversation ? '22px' : '20px',
@@ -3237,12 +3743,65 @@ return (
                 paddingLeft: isProfessionalConversation ? '64px' : '50px'
               }}
             />
+
+            {enableComposerCommands && isComposerPaletteOpen && (
+              <div
+                ref={composerPaletteRef}
+                className={styles.composerCommandPalette}
+                role="listbox"
+                aria-label="פקודות צ'אט"
+              >
+                {groupedComposerCommands.length > 0 ? (
+                  groupedComposerCommands.map((group) => (
+                    <div key={group.key} className={styles.composerCommandGroup}>
+                      <div className={styles.composerCommandGroupLabel}>{group.label}</div>
+                      <div className={styles.composerCommandGroupItems}>
+                        {group.commands.map((command) => {
+                          const globalIndex = filteredComposerCommands.findIndex(
+                            (candidate) => candidate.id === command.id
+                          );
+                          const isActive = globalIndex === highlightedComposerCommandIndex;
+                          const CommandIcon = command.icon;
+
+                          return (
+                            <button
+                              key={command.id}
+                              type="button"
+                              className={`${styles.composerCommandItem} ${isActive ? styles.composerCommandItemActive : ''}`}
+                              onMouseDown={(event) => {
+                                event.preventDefault();
+                                insertComposerCommand(command);
+                              }}
+                              role="option"
+                              aria-selected={isActive}
+                            >
+                              <span className={styles.composerCommandItemIcon} aria-hidden="true">
+                                <CommandIcon size={16} strokeWidth={2.1} />
+                              </span>
+                              <span className={styles.composerCommandItemToken}>{command.token}</span>
+                              <span className={styles.composerCommandItemLabel}>{command.label}</span>
+                              <span className={styles.composerCommandItemDescription}>{command.description}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className={styles.composerCommandEmptyState}>לא נמצאו פקודות מתאימות</div>
+                )}
+              </div>
+            )}
             
             {/* Send Button */}
             <button
               type="submit"
               className={`${styles.sendButton} ${isProfessionalConversation ? styles.sendButtonProfessional : ''}`}
-              disabled={inputDisabled || imageProcessing || (!userInput.trim() && !selectedImage)}
+              disabled={
+                inputDisabled ||
+                imageProcessing ||
+                (!userInput.trim() && !selectedImage && pendingComposerDirectives.length === 0)
+              }
               aria-label="שלח הודעה"
             >
               <ArrowUp size={17} strokeWidth={2.35} aria-hidden="true" />
@@ -3524,7 +4083,7 @@ return (
                     <MichaelAvatarDirect
                       text={lastAssistantMessage}
                       state={avatarState}
-                      size="medium"
+                      size="large"
                       progressiveMode={speechController.assistantStreaming}
                       isStreaming={speechController.assistantStreaming}
                       speechStatus={speechController.status}
@@ -3535,7 +4094,7 @@ return (
                   ) : (
                     <VoiceModeCircle
                       state={avatarState}
-                      size="medium"
+                      size="large"
                       text={lastAssistantMessage}
                       speechStatus={speechController.status}
                       gesturePlan={speechController.currentUtterance?.gesturePlan ?? null}
@@ -3569,7 +4128,7 @@ return (
                 </>
               ) : (
                 <StaticLogoMode
-                  size="medium"
+                  size="large"
                   state={avatarState}
                   userName={currentUser}
                 />

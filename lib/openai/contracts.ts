@@ -34,6 +34,7 @@ export type ChatRequestDto = {
   reasoningEffort?: "minimal" | "low" | "medium" | "high" | "xhigh";
   taskClass?: TaskClass;
   skillId?: string;
+  composerDirectives?: ComposerDirective[];
 };
 
 export type TaskClass =
@@ -42,6 +43,12 @@ export type TaskClass =
   | "long_summary"
   | "nightly_analytics"
   | "content_audit";
+
+export type ComposerDirective =
+  | "personalize"
+  | "explain"
+  | "optimize"
+  | "mistakes";
 
 export type SkillDefinition = {
   id: string;

@@ -8,6 +8,7 @@ const mockGetCoinsConfig = jest.fn();
 const mockChargeMainChatMessage = jest.fn();
 const mockGetChatMessages = jest.fn();
 const mockGetStudentPersonalizationBundle = jest.fn();
+const mockRequireInstructorOrAdmin = jest.fn();
 
 jest.mock("@/lib/openai/api-mode", () => ({
   getOpenAIApiMode: () => "responses",
@@ -39,6 +40,18 @@ jest.mock("@/app/agent-config", () => ({
 
 jest.mock("@/lib/openai/tools", () => ({
   executeToolCall: jest.fn(),
+  getToolName: (tool: { name?: string; type?: string }) => tool?.name || tool?.type || "",
+  selectToolsForRequest: jest.fn(({ context }: { context: string }) => ({
+    tools:
+      context === "admin"
+        ? [{ type: "web_search" }]
+        : [{ type: "function", name: "get_course_week_context", parameters: { type: "object" } }],
+    reasons: [],
+  })),
+}));
+
+jest.mock("@/lib/admin-auth", () => ({
+  requireInstructorOrAdmin: (...args: any[]) => mockRequireInstructorOrAdmin(...args),
 }));
 
 jest.mock("@/lib/personalization", () => ({
@@ -72,6 +85,7 @@ describe("Responses API routes", () => {
     mockGetCoinsConfig.mockReset();
     mockChargeMainChatMessage.mockReset();
     mockGetChatMessages.mockReset();
+    mockRequireInstructorOrAdmin.mockReset();
     mockGetOrCreateVectorStoreId.mockResolvedValue(null);
     mockGetChatMessages.mockResolvedValue([]);
     mockGetStudentPersonalizationBundle.mockReset();
@@ -153,6 +167,23 @@ describe("Responses API routes", () => {
       updatedAt: new Date(0),
     });
     mockChargeMainChatMessage.mockResolvedValue({ ok: true });
+    mockRequireInstructorOrAdmin.mockImplementation(async (request: Request) => {
+      const email = request.headers.get("x-user-email");
+      const userRole = request.headers.get("x-user-role");
+      const cookie = request.headers.get("cookie") || "";
+
+      if (email === "orperets11@gmail.com") {
+        return { email, role: "admin" as const };
+      }
+
+      if (userRole === "instructor" || cookie.includes("michael-role=instructor")) {
+        return { email: email || "teacher@example.com", role: "instructor" as const };
+      }
+
+      const error = new Error("Forbidden") as Error & { status?: number };
+      error.status = 403;
+      throw error;
+    });
   });
 
   afterAll(() => {
@@ -316,6 +347,69 @@ describe("Responses API routes", () => {
       homeworkSetId: undefined,
       questionId: undefined,
     });
+  });
+
+  it("preloads personalization evidence when the composer personalize directive is sent", async () => {
+    mockGetOrCreateVectorStoreId.mockResolvedValue(null);
+    mockCreateResponse.mockResolvedValue({
+      id: "resp_personal_3",
+      output_text: "Based on your mistakes, review JOIN logic next.",
+      output: [],
+    });
+
+    const { POST } = await import("../../app/api/responses/messages/route");
+    const request = new Request("http://localhost:3000/api/responses/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "sess_personal_3",
+        content: "help me",
+        userEmail: "student@example.com",
+        composerDirectives: ["personalize"],
+        stream: false,
+      }),
+    });
+
+    const response = await POST(request);
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.outputText).toBe("Based on your mistakes, review JOIN logic next.");
+    expect(mockGetStudentPersonalizationBundle).toHaveBeenCalledWith({
+      studentId: "student@example.com",
+      homeworkSetId: undefined,
+      questionId: undefined,
+    });
+    expect(mockCreateResponse.mock.calls[0][0].extraInstructions).toContain("[COMPOSER DIRECTIVES]");
+  });
+
+  it("treats explain and mistakes composer directives as tutoring instructions", async () => {
+    mockGetOrCreateVectorStoreId.mockResolvedValue(null);
+    mockCreateResponse.mockResolvedValue({
+      id: "resp_directives_1",
+      output_text: "Tutor response",
+      output: [],
+    });
+
+    const { POST } = await import("../../app/api/responses/messages/route");
+    const request = new Request("http://localhost:3000/api/responses/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "sess_directives_1",
+        content: "SELECT * FROM employees",
+        composerDirectives: ["explain", "mistakes"],
+        stream: false,
+      }),
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(200);
+    expect(mockCreateResponse.mock.calls[0][0].extraInstructions).toContain("[TUTORING RESPONSE FORMAT]");
+    expect(mockCreateResponse.mock.calls[0][0].extraInstructions).toContain("[COMPOSER DIRECTIVES]");
+    expect(mockCreateResponse.mock.calls[0][0].extraInstructions).toContain("step-by-step explanation");
+    expect(mockCreateResponse.mock.calls[0][0].extraInstructions).toContain("likely mistakes");
   });
 
   it("switches to relational algebra tutor mode when requested by metadata", async () => {

@@ -8,7 +8,12 @@ const Home = () => {
   return (
     <div>
       <main className={styles.main}>
-        <Chat chatId={null} enableRelationalAlgebraMode={true} conversationVariant="professional" />
+        <Chat
+          chatId={null}
+          enableRelationalAlgebraMode={true}
+          enableComposerCommands={true}
+          conversationVariant="professional"
+        />
       </main>
     </div>
   );
