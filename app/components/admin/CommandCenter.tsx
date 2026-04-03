@@ -3,11 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Activity,
-  AlertTriangle,
   ArrowUpRight,
-  Bell,
-  Bot,
   Coins,
   Database,
   FileUp,
@@ -245,47 +241,34 @@ export default function CommandCenter() {
           {error && <div className={styles.errorState}>{error}</div>}
 
           <div className={styles.attentionGrid}>
-            <div className={styles.attentionCard} title="התראות שעדיין לא נקראו">
+            <div className={styles.attentionCard} title="סה״כ משתמשים במערכת">
               <div className={styles.attentionHeader}>
-                <Bell size={18} />
+                <Users size={18} />
               </div>
               <div className={styles.attentionValue}>
-                {loading ? "..." : overview?.attention.unreadNotifications ?? 0}
+                {loading ? "..." : overview?.statuses.totalUsers ?? 0}
               </div>
-              <p className={styles.attentionLabel}>התראות</p>
+              <p className={styles.attentionLabel}>Total Users</p>
             </div>
 
-            <div
-              className={`${styles.attentionCard} ${
-                (overview?.attention.pendingAnalysisReviews || 0) > 0 ? styles.attentionCardCritical : ""
-              }`}
-              title="סקירות AI שמחכות לאישור או בדיקה"
-            >
+            <div className={styles.attentionCard} title="סה״כ מטלות בית במערכת">
               <div className={styles.attentionHeader}>
-                <Activity size={18} />
+                <Layers3 size={18} />
               </div>
               <div className={styles.attentionValue}>
-                {loading ? "..." : overview?.attention.pendingAnalysisReviews ?? 0}
+                {loading ? "..." : overview?.statuses.totalHomeworkSets ?? 0}
               </div>
-              <p className={styles.attentionLabel}>AI ממתין</p>
+              <p className={styles.attentionLabel}>Total HW</p>
             </div>
 
-            <div className={styles.attentionCard} title="שאלות שחסר להן פתרון או ולידציה">
+            <div className={styles.attentionCard} title="מצב נראות המטבעות לסטודנטים">
               <div className={styles.attentionHeader}>
-                <AlertTriangle size={18} />
+                <Coins size={18} />
               </div>
               <div className={styles.attentionValue}>
-                {loading ? "..." : overview?.attention.missingAnswers ?? 0}
+                {loading ? "..." : overview?.statuses.coinsVisible ? "ON" : "OFF"}
               </div>
-              <p className={styles.attentionLabel}>חסרים</p>
-            </div>
-
-            <div className={styles.attentionCard} title="המודל הפעיל כרגע ב-runtime">
-              <div className={styles.attentionHeader}>
-                <Bot size={18} />
-              </div>
-              <div className={styles.attentionValue}>{loading ? "..." : overview?.statuses.runtimeModel || "—"}</div>
-              <p className={styles.attentionLabel}>Runtime</p>
+              <p className={styles.attentionLabel}>Coins</p>
             </div>
           </div>
 
