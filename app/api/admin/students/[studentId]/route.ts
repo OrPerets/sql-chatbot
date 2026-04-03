@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { AdminAuthError, requireAdmin } from "@/lib/admin-auth";
 import { getAdminStudentEvidenceBundle } from "@/lib/admin-student-insights";
 import { applyAdminOversightAction, updateKnowledgeScore } from "@/lib/student-profiles";
 
@@ -8,6 +9,8 @@ export async function GET(
   context: { params: Promise<{ studentId: string }> }
 ) {
   try {
+    await requireAdmin(_request);
+
     const params = await context.params;
     const { studentId } = params;
 
@@ -32,6 +35,13 @@ export async function GET(
       data: evidenceBundle,
     });
   } catch (error) {
+    if (error instanceof AdminAuthError) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     console.error("Error fetching student evidence bundle:", error);
     return NextResponse.json(
       {
@@ -49,6 +59,7 @@ export async function PUT(
   context: { params: Promise<{ studentId: string }> }
 ) {
   try {
+    const { email: adminEmail } = await requireAdmin(request);
     const params = await context.params;
     const { studentId } = params;
     const body = await request.json();
@@ -70,10 +81,7 @@ export async function PUT(
         expiresAt: typeof body.expiresAt === "string" ? body.expiresAt : null,
         recommendationId:
           typeof body.recommendationId === "string" ? body.recommendationId : null,
-        createdBy:
-          request.headers.get("x-user-email")?.trim() ||
-          request.headers.get("x-admin-email")?.trim() ||
-          "admin",
+        createdBy: adminEmail,
       });
 
       if (!updatedProfile) {
@@ -90,19 +98,19 @@ export async function PUT(
       });
     }
 
-    const { knowledgeScore, reason, updatedBy } = body;
+    const { knowledgeScore, reason } = body;
 
-    if (!knowledgeScore || !reason || !updatedBy) {
+    if (!knowledgeScore || !reason) {
       return NextResponse.json(
         {
           success: false,
-          error: "knowledgeScore, reason, and updatedBy are required",
+          error: "knowledgeScore and reason are required",
         },
         { status: 400 }
       );
     }
 
-    const success = await updateKnowledgeScore(studentId, knowledgeScore, reason, updatedBy);
+    const success = await updateKnowledgeScore(studentId, knowledgeScore, reason, adminEmail);
 
     if (!success) {
       return NextResponse.json(
@@ -118,6 +126,13 @@ export async function PUT(
       message: "Knowledge score updated successfully",
     });
   } catch (error) {
+    if (error instanceof AdminAuthError) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     console.error("Error updating student profile:", error);
     return NextResponse.json(
       {

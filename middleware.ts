@@ -1,12 +1,14 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { hasBlockedNextResumeHeader } from "@/lib/security/next-resume";
+import { readSessionFromRequest } from "@/lib/session-auth";
 
-const PROTECTED_PREFIXES = ["/homework/builder", "/admin/homework"] as const;
+const ADMIN_PAGE_PREFIXES = ["/admin", "/homework/builder"] as const;
+const ADMIN_API_PREFIX = "/api/admin";
 const SUPPORTED_LOCALES = new Set(["he", "en"]);
 const DEFAULT_LOCALE = "he";
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (hasBlockedNextResumeHeader(request.headers)) {
@@ -37,21 +39,38 @@ export function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-michael-locale", localeCookie);
 
-  if (PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
-    const role =
-      request.headers.get("x-michael-role") ??
-      request.cookies.get("michael-role")?.value ??
-      "guest";
+  const session = await readSessionFromRequest(request);
+  const sessionRole = session?.role ?? "guest";
 
-    const allowedRoles = new Set(["admin"]);
-    if (!allowedRoles.has(role)) {
+  if (pathname.startsWith(ADMIN_API_PREFIX) && sessionRole !== "admin") {
+    const status = session ? 403 : 401;
+    return NextResponse.json(
+      { error: status === 401 ? "Unauthorized" : "Forbidden" },
+      { status }
+    );
+  }
+
+  if (ADMIN_PAGE_PREFIXES.some((prefix) => pathname.startsWith(prefix)) && sessionRole !== "admin") {
+    if (session) {
       const url = request.nextUrl.clone();
       url.pathname = "/403";
       const forbiddenResponse = NextResponse.redirect(url);
       forbiddenResponse.cookies.set("michael-locale", localeCookie, { path: "/" });
       return forbiddenResponse;
     }
+
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "";
+    const loginResponse = NextResponse.redirect(url);
+    loginResponse.cookies.set("michael-locale", localeCookie, { path: "/" });
+    return loginResponse;
   }
+
+  if (session?.sub) {
+    requestHeaders.set("x-michael-authenticated-user-id", session.sub);
+  }
+  requestHeaders.set("x-michael-authenticated-role", sessionRole);
 
   const response = NextResponse.next({
     request: {

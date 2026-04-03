@@ -5,6 +5,11 @@
 const mockGetAdminStudentEvidenceBundle = jest.fn();
 const mockApplyAdminOversightAction = jest.fn();
 const mockUpdateKnowledgeScore = jest.fn();
+const mockRequireAdmin = jest.fn();
+
+class MockAdminAuthError extends Error {
+  status = 403 as const;
+}
 
 jest.mock("@/lib/admin-student-insights", () => ({
   getAdminStudentEvidenceBundle: (...args: unknown[]) => mockGetAdminStudentEvidenceBundle(...args),
@@ -15,9 +20,15 @@ jest.mock("@/lib/student-profiles", () => ({
   updateKnowledgeScore: (...args: unknown[]) => mockUpdateKnowledgeScore(...args),
 }));
 
+jest.mock("@/lib/admin-auth", () => ({
+  AdminAuthError: MockAdminAuthError,
+  requireAdmin: (...args: unknown[]) => mockRequireAdmin(...args),
+}));
+
 describe("/api/admin/students/[studentId] route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRequireAdmin.mockResolvedValue({ email: "admin@example.com" });
   });
 
   it("returns the admin evidence bundle for a student", async () => {
@@ -91,7 +102,6 @@ describe("/api/admin/students/[studentId] route", () => {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "x-user-email": "admin@example.com",
         },
         body: JSON.stringify({
           actionType: "confirm_weakness",

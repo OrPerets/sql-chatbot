@@ -6,12 +6,22 @@ const mockGetCoinsAdminOverview = jest.fn()
 const mockGetCoinsConfig = jest.fn()
 const mockSetCoinsConfig = jest.fn()
 const mockAdjustBalanceAdmin = jest.fn()
+const mockRequireAdmin = jest.fn()
+
+class MockAdminAuthError extends Error {
+  status = 403 as const
+}
 
 jest.mock('@/lib/coins', () => ({
   getCoinsAdminOverview: (...args: any[]) => mockGetCoinsAdminOverview(...args),
   getCoinsConfig: (...args: any[]) => mockGetCoinsConfig(...args),
   setCoinsConfig: (...args: any[]) => mockSetCoinsConfig(...args),
   adjustBalanceAdmin: (...args: any[]) => mockAdjustBalanceAdmin(...args),
+}))
+
+jest.mock('@/lib/admin-auth', () => ({
+  AdminAuthError: MockAdminAuthError,
+  requireAdmin: (...args: any[]) => mockRequireAdmin(...args),
 }))
 
 describe('/api/users/coins route', () => {
@@ -47,7 +57,8 @@ describe('/api/users/coins route', () => {
     expect(mockGetCoinsAdminOverview).not.toHaveBeenCalled()
   })
 
-  it('GET ?all=1 returns 403 without admin header', async () => {
+  it('GET ?all=1 returns 403 when admin auth fails', async () => {
+    mockRequireAdmin.mockRejectedValueOnce(new MockAdminAuthError('Forbidden'))
     const { GET } = await import('../../app/api/users/coins/route')
     const request = new Request('http://localhost:3000/api/users/coins?all=1')
 
@@ -59,16 +70,15 @@ describe('/api/users/coins route', () => {
     expect(mockGetCoinsAdminOverview).not.toHaveBeenCalled()
   })
 
-  it('GET ?all=1 returns overview for valid admin header', async () => {
+  it('GET ?all=1 returns overview for authenticated admins', async () => {
+    mockRequireAdmin.mockResolvedValueOnce({ email: adminEmail })
     mockGetCoinsAdminOverview.mockResolvedValue({
       users: [{ user: 'student@example.com', coins: 7 }],
       summary: { totalUsers: 1 },
       config: { status: 'OFF' },
     })
     const { GET } = await import('../../app/api/users/coins/route')
-    const request = new Request('http://localhost:3000/api/users/coins?all=1', {
-      headers: { 'x-user-email': adminEmail },
-    })
+    const request = new Request('http://localhost:3000/api/users/coins?all=1')
 
     const response = await GET(request)
     const payload = await response.json()
@@ -82,7 +92,8 @@ describe('/api/users/coins route', () => {
     expect(mockGetCoinsAdminOverview).toHaveBeenCalledTimes(1)
   })
 
-  it('POST returns 403 without admin header', async () => {
+  it('POST returns 403 when admin auth fails', async () => {
+    mockRequireAdmin.mockRejectedValueOnce(new MockAdminAuthError('Forbidden'))
     const { POST } = await import('../../app/api/users/coins/route')
     const request = new Request('http://localhost:3000/api/users/coins', {
       method: 'POST',
@@ -99,14 +110,14 @@ describe('/api/users/coins route', () => {
     expect(mockAdjustBalanceAdmin).not.toHaveBeenCalled()
   })
 
-  it('POST with admin header updates config', async () => {
+  it('POST updates config for authenticated admins', async () => {
+    mockRequireAdmin.mockResolvedValueOnce({ email: adminEmail })
     mockSetCoinsConfig.mockResolvedValue({ status: 'ON' })
     const { POST } = await import('../../app/api/users/coins/route')
     const request = new Request('http://localhost:3000/api/users/coins', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-user-email': 'OrPerets11@gmail.com',
       },
       body: JSON.stringify({
         config: {
@@ -132,14 +143,14 @@ describe('/api/users/coins route', () => {
     )
   })
 
-  it('POST with admin header adjusts balances for users', async () => {
+  it('POST adjusts balances for authenticated admins', async () => {
+    mockRequireAdmin.mockResolvedValueOnce({ email: adminEmail })
     mockAdjustBalanceAdmin.mockResolvedValue({ matchedCount: 1, modifiedCount: 1 })
     const { POST } = await import('../../app/api/users/coins/route')
     const request = new Request('http://localhost:3000/api/users/coins', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-user-email': adminEmail,
       },
       body: JSON.stringify({ users: ['student@example.com'], amount: 5 }),
     })

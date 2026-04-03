@@ -1,5 +1,5 @@
 import { DEFAULT_ADMIN_EMAILS } from "@/lib/admin-emails";
-import { getUsersService } from "@/lib/users";
+import { resolveAuthenticatedSession } from "@/lib/session-auth";
 
 function normalizeEmail(value: string | null | undefined): string | null {
   if (!value) return null
@@ -20,24 +20,6 @@ export const ADMIN_EMAILS: string[] =
   parseAdminEmailsFromEnv(process.env.ADMIN_EMAILS) ??
   DEFAULT_ADMIN_EMAILS.map((email) => email.toLowerCase())
 
-function readCookie(request: Request, cookieName: string): string | null {
-  const rawCookies = request.headers.get('cookie');
-  if (!rawCookies) {
-    return null;
-  }
-
-  const cookie = rawCookies
-    .split(';')
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(`${cookieName}=`));
-
-  if (!cookie) {
-    return null;
-  }
-
-  return decodeURIComponent(cookie.slice(cookieName.length + 1));
-}
-
 function normalizePrivilegedRole(value: string | null | undefined): "admin" | "instructor" | null {
   const normalized = value?.trim().toLowerCase();
   if (!normalized) {
@@ -55,16 +37,14 @@ function normalizePrivilegedRole(value: string | null | undefined): "admin" | "i
   return null;
 }
 
-export function getAdminFromRequest(request: Request): { isAdmin: boolean; email: string | null } {
-  const email =
-    normalizeEmail(request.headers.get('x-user-email')) ??
-    normalizeEmail(request.headers.get('x-admin-email'))
-
-  if (!email) {
-    return { isAdmin: false, email: null }
-  }
-
-  return { isAdmin: ADMIN_EMAILS.includes(email), email }
+export async function getAdminFromRequest(
+  request: Request
+): Promise<{ isAdmin: boolean; email: string | null }> {
+  const resolved = await resolvePrivilegedRoleFromRequest(request);
+  return {
+    isAdmin: resolved.role === "admin",
+    email: resolved.email,
+  };
 }
 
 export class AdminAuthError extends Error {
@@ -77,7 +57,7 @@ export class AdminAuthError extends Error {
 }
 
 export async function requireAdmin(request: Request): Promise<{ email: string }> {
-  const { isAdmin, email } = getAdminFromRequest(request)
+  const { isAdmin, email } = await getAdminFromRequest(request)
   if (!isAdmin || !email) {
     throw new AdminAuthError('Forbidden')
   }
@@ -87,42 +67,30 @@ export async function requireAdmin(request: Request): Promise<{ email: string }>
 export async function resolvePrivilegedRoleFromRequest(
   request: Request
 ): Promise<{ email: string | null; role: "student" | "instructor" | "admin" }> {
-  const email =
-    normalizeEmail(request.headers.get('x-user-email')) ??
-    normalizeEmail(request.headers.get('x-admin-email'));
+  const resolvedSession = await resolveAuthenticatedSession(
+    request,
+    "admin-auth.resolvePrivilegedRoleFromRequest"
+  );
 
-  if (!email) {
+  if (!resolvedSession) {
     return { email: null, role: 'student' };
   }
 
-  if (ADMIN_EMAILS.includes(email)) {
+  const email =
+    normalizeEmail(resolvedSession.user.email) ?? normalizeEmail(resolvedSession.session.email);
+
+  if (email && ADMIN_EMAILS.includes(email)) {
     return { email, role: 'admin' };
   }
 
-  const hintedRole =
-    normalizePrivilegedRole(request.headers.get('x-user-role')) ??
-    normalizePrivilegedRole(readCookie(request, 'michael-role'));
+  const databaseRole = normalizePrivilegedRole(resolvedSession.user.role);
+  if (databaseRole) {
+    return { email, role: databaseRole };
+  }
 
-  if (hintedRole === 'instructor') {
+  const sessionRole = normalizePrivilegedRole(resolvedSession.session.role);
+  if (sessionRole === 'instructor') {
     return { email, role: 'instructor' };
-  }
-
-  if (hintedRole === 'admin') {
-    return { email, role: 'admin' };
-  }
-
-  try {
-    const usersService = await getUsersService();
-    const user = await usersService.getUserByEmail(email);
-    const databaseRole = normalizePrivilegedRole(user?.role);
-    if (databaseRole) {
-      return { email, role: databaseRole };
-    }
-  } catch (error) {
-    console.warn(
-      '[admin-auth] failed to resolve privileged role from user record:',
-      error instanceof Error ? error.message : error
-    );
   }
 
   return { email, role: 'student' };

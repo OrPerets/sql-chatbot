@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUsersService } from '@/lib/users';
+import {
+  createSessionToken,
+  getSessionCookieOptions,
+  SESSION_COOKIE_NAME,
+} from '@/lib/session-auth';
 
 const ADMIN_EMAILS = new Set([
   'liorbs89@gmail.com',
@@ -55,6 +60,11 @@ export async function POST(request: NextRequest) {
       : ADMIN_EMAILS.has(normalizedEmail)
         ? 'admin'
         : 'student';
+    const sessionToken = await createSessionToken({
+      userId,
+      email: normalizedEmail,
+      role: resolvedRole,
+    });
 
     const response = NextResponse.json({
       success: true,
@@ -65,20 +75,14 @@ export async function POST(request: NextRequest) {
       lastName: user.lastName,
     });
 
-    response.cookies.set('michael-user', userId, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24 * 7,
-      path: '/',
+    response.cookies.set(SESSION_COOKIE_NAME, sessionToken, getSessionCookieOptions());
+    response.cookies.set('michael-user', '', {
+      ...getSessionCookieOptions(),
+      maxAge: 0,
     });
-
-    response.cookies.set('michael-role', resolvedRole, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24 * 7,
-      path: '/',
+    response.cookies.set('michael-role', '', {
+      ...getSessionCookieOptions(),
+      maxAge: 0,
     });
 
     return response;
