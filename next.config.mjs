@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 const require = createRequire(import.meta.url);
 const webpack = require('webpack');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const isProduction = process.env.NODE_ENV === 'production';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -11,7 +12,7 @@ const nextConfig = {
   allowedDevOrigins: ['localhost', '127.0.0.1', '10.0.0.8'],
   // Security headers for production
   async headers() {
-    return [
+    const headers = [
       {
         source: '/(.*)',
         headers: [
@@ -48,13 +49,6 @@ const nextConfig = {
           { key: 'Access-Control-Allow-Origin', value: '*' }
         ],
       },
-      // Next.js static chunks with hash - immutable cache
-      {
-        source: '/_next/static/:path*',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
-        ],
-      },
       // HTML pages - always revalidate to get fresh bundles
       {
         source: '/:path*',
@@ -66,11 +60,20 @@ const nextConfig = {
         ],
       },
     ];
+
+    if (isProduction) {
+      headers.push({
+        source: '/_next/static/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
+        ],
+      });
+    }
+
+    return headers;
   },
   // Reduce bundle size
-  experimental: {
-    optimizePackageImports: ['lucide-react'],
-  },
+  experimental: {},
   // Next.js 16: moved out of experimental
   serverExternalPackages: ['pdfkit'],
   // Next.js 16 defaults to Turbopack for build; keep explicit to avoid mixed-config error

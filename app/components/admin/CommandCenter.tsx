@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowUpRight,
+  Bot,
   Coins,
   Database,
   FileUp,
@@ -307,7 +308,7 @@ export default function CommandCenter() {
           </div>
         </section>
 
-        <aside className={styles.secondaryPanel}>
+        {/* <aside className={styles.secondaryPanel}>
           <div>
             <h2 className={styles.panelTitle}>מצב מערכת</h2>
           </div>
@@ -391,7 +392,7 @@ export default function CommandCenter() {
           ) : (
             <div className={styles.emptyState}>אין כרגע עדכונים טריים להצגה.</div>
           )}
-        </aside>
+        </aside> */}
       </div>
 
       <section className={styles.section}>
