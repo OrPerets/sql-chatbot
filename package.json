@@ -26,6 +26,7 @@
     "export:michael": "ts-node --project tsconfig.scripts.json scripts/export-michael-usage.ts",
     "generate:michael-table": "ts-node --project tsconfig.scripts.json scripts/generate-michael-analytics-table.ts",
     "db-report": "ts-node --project tsconfig.scripts.json scripts/db-report.ts",
+    "export:hw-interactions": "ts-node --project tsconfig.scripts.json scripts/export-hw-interactions-unified.ts",
     "drop-unused-collections": "ts-node --project tsconfig.scripts.json scripts/drop-unused-collections.ts",
     "security:prune-image-cache": "ts-node --project tsconfig.scripts.json scripts/prune-next-image-cache.ts",
     "ingest:course-artifacts": "ts-node --project tsconfig.scripts.json scripts/ingest-course-artifacts.ts"
