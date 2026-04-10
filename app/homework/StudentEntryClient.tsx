@@ -297,7 +297,7 @@ export function StudentEntryClient({ forcedSetId }: StudentEntryClientProps) {
     setStep("loading");
 
     try {
-      const loginResponse = await fetch("/api/users/login", {
+      const loginResponse = await fetch("/api/homework/student-login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
