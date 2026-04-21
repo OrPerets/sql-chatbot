@@ -3,7 +3,7 @@ import type { DatasetTablePreview } from "@/app/homework/types";
 export const EXAM_PREP_TITLES = ["תרגיל הכנה למבחן", "הכנה למבחן"] as const;
 export const EXAM_PREP_TITLE = "הכנה למבחן";
 export const EXAM_PREP_DATASET_NAME = "הכנה למבחן - מסד תחרות דיבייט";
-export const EXAM_PREP_ANNOUNCEMENT = "שאלות לקראת הבחינה שתערך ב 12/03";
+export const EXAM_PREP_ANNOUNCEMENT = "שאלות לקראת הבחינה שתערך ב 15.04";
 
 export const EXAM_PREP_OVERVIEW =
   "סט תרגול להכנה למבחן SQL המתמקד בניתוח תחרות דיבייט, הרשמות ותוצאות.";
