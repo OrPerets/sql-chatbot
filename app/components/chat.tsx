@@ -3525,6 +3525,7 @@ return (
         onNewChat={openNewChat} 
         currentUser={currentUser}
         onToggleSidebar={toggleSidebar}
+        variant={isProfessionalConversation ? "professional" : "default"}
       />
     )}
          <div 
@@ -3665,84 +3666,100 @@ return (
               </div>
             )}
 
-            <textarea
-              ref={composerInputRef}
-              className={`${styles.input} ${isProfessionalConversation ? styles.inputProfessional : ''}`}
-              name="chatMessage"
-              value={userInput}
-              onChange={(e) => {
-                if (streamError) setStreamError(null);
-                setUserInput(e.target.value);
-                syncComposerPalette(e.target.value, e.target.selectionStart);
-                e.target.style.height = 'auto';
-                e.target.style.height = e.target.scrollHeight + 'px';
-                
-                // Detect user typing for avatar state
-                handleUserTyping();
-              }}
-              onClick={(e) => syncComposerPalette(e.currentTarget.value, e.currentTarget.selectionStart)}
-              onSelect={(e) => syncComposerPalette(e.currentTarget.value, e.currentTarget.selectionStart)}
-              onKeyDown={(e) => {
-                if (isComposerPaletteOpen) {
-                  if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    if (filteredComposerCommands.length > 0) {
-                      setHighlightedComposerCommandIndex((previous) =>
-                        (previous + 1) % filteredComposerCommands.length
-                      );
+            <div className={styles.composerInputFrame}>
+              <textarea
+                ref={composerInputRef}
+                className={`${styles.input} ${isProfessionalConversation ? styles.inputProfessional : ''}`}
+                name="chatMessage"
+                value={userInput}
+                onChange={(e) => {
+                  if (streamError) setStreamError(null);
+                  setUserInput(e.target.value);
+                  syncComposerPalette(e.target.value, e.target.selectionStart);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
+                  
+                  // Detect user typing for avatar state
+                  handleUserTyping();
+                }}
+                onClick={(e) => syncComposerPalette(e.currentTarget.value, e.currentTarget.selectionStart)}
+                onSelect={(e) => syncComposerPalette(e.currentTarget.value, e.currentTarget.selectionStart)}
+                onKeyDown={(e) => {
+                  if (isComposerPaletteOpen) {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      if (filteredComposerCommands.length > 0) {
+                        setHighlightedComposerCommandIndex((previous) =>
+                          (previous + 1) % filteredComposerCommands.length
+                        );
+                      }
+                      return;
                     }
-                    return;
-                  }
 
-                  if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    if (filteredComposerCommands.length > 0) {
-                      setHighlightedComposerCommandIndex((previous) =>
-                        previous === 0 ? filteredComposerCommands.length - 1 : previous - 1
-                      );
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      if (filteredComposerCommands.length > 0) {
+                        setHighlightedComposerCommandIndex((previous) =>
+                          previous === 0 ? filteredComposerCommands.length - 1 : previous - 1
+                        );
+                      }
+                      return;
                     }
-                    return;
+
+                    if ((e.key === 'Enter' || e.key === 'Tab') && filteredComposerCommands.length > 0) {
+                      e.preventDefault();
+                      insertComposerCommand(filteredComposerCommands[highlightedComposerCommandIndex]);
+                      return;
+                    }
+
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      closeComposerPalette();
+                      return;
+                    }
                   }
 
-                  if ((e.key === 'Enter' || e.key === 'Tab') && filteredComposerCommands.length > 0) {
+                  if (e.key === 'Enter' && e.shiftKey) {
+                    // Allow default behavior for Shift+Enter (line break)
+                    return;
+                  } else if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    insertComposerCommand(filteredComposerCommands[highlightedComposerCommandIndex]);
-                    return;
+                    handleSubmit(e);
                   }
-
-                  if (e.key === 'Escape') {
-                    e.preventDefault();
-                    closeComposerPalette();
-                    return;
-                  }
+                }}
+                placeholder={
+                  isExerciseMode 
+                    ? "הקלד את תשובת ה-SQL שלך כאן…" 
+                    : enableRelationalAlgebraMode && subjectMode === "relational_algebra"
+                      ? "שאל על אלגברת יחסים, המרה מ-SQL, או פירוק לביטוי RA…"
+                      : "הקלד כאן…"
                 }
+                aria-label={isExerciseMode ? "תשובת SQL" : "הודעה לצ'אט"}
+                autoComplete="off"
+                spellCheck={false}
+                data-testid="chat-message-input"
+                style={{
+                  paddingTop: isProfessionalConversation ? '18px' : '16px',
+                  paddingRight: isProfessionalConversation ? '22px' : '20px',
+                  paddingBottom: isProfessionalConversation ? '18px' : '16px',
+                  paddingLeft: isProfessionalConversation ? '64px' : '50px'
+                }}
+              />
 
-                if (e.key === 'Enter' && e.shiftKey) {
-                  // Allow default behavior for Shift+Enter (line break)
-                  return;
-                } else if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit(e);
+              {/* Send Button */}
+              <button
+                type="submit"
+                className={`${styles.sendButton} ${isProfessionalConversation ? styles.sendButtonProfessional : ''}`}
+                disabled={
+                  inputDisabled ||
+                  imageProcessing ||
+                  (!userInput.trim() && !selectedImage && pendingComposerDirectives.length === 0)
                 }
-              }}
-              placeholder={
-                isExerciseMode 
-                  ? "הקלד את תשובת ה-SQL שלך כאן…" 
-                  : enableRelationalAlgebraMode && subjectMode === "relational_algebra"
-                    ? "שאל על אלגברת יחסים, המרה מ-SQL, או פירוק לביטוי RA…"
-                    : "הקלד כאן…"
-              }
-              aria-label={isExerciseMode ? "תשובת SQL" : "הודעה לצ'אט"}
-              autoComplete="off"
-              spellCheck={false}
-              data-testid="chat-message-input"
-              style={{
-                paddingTop: isProfessionalConversation ? '18px' : '16px',
-                paddingRight: isProfessionalConversation ? '22px' : '20px',
-                paddingBottom: isProfessionalConversation ? '18px' : '16px',
-                paddingLeft: isProfessionalConversation ? '64px' : '50px'
-              }}
-            />
+                aria-label="שלח הודעה"
+              >
+                <ArrowUp size={17} strokeWidth={2.35} aria-hidden="true" />
+              </button>
+            </div>
 
             {enableComposerCommands && isComposerPaletteOpen && (
               <div
@@ -3792,21 +3809,6 @@ return (
                 )}
               </div>
             )}
-            
-            {/* Send Button */}
-            <button
-              type="submit"
-              className={`${styles.sendButton} ${isProfessionalConversation ? styles.sendButtonProfessional : ''}`}
-              disabled={
-                inputDisabled ||
-                imageProcessing ||
-                (!userInput.trim() && !selectedImage && pendingComposerDirectives.length === 0)
-              }
-              aria-label="שלח הודעה"
-            >
-              <ArrowUp size={17} strokeWidth={2.35} aria-hidden="true" />
-            </button>
-
             {/* Action Buttons Row */}
             {!minimalMode && (
             <div className={`${styles.actionButtons} ${isProfessionalConversation ? styles.actionButtonsProfessional : ''}`} ref={actionMenuRef}>
@@ -4048,10 +4050,10 @@ return (
     
     {/* Right Column - Avatar Section */}
     {!hideAvatar && !minimalMode && (
-      <div className={styles.rightColumn}>
+      <div className={`${styles.rightColumn} ${isProfessionalConversation ? styles.rightColumnProfessional : ''}`}>
         {!isHydrated ? (
           <div 
-            className={styles.avatarHydrationPlaceholder}
+            className={`${styles.avatarHydrationPlaceholder} ${isProfessionalConversation ? styles.avatarHydrationPlaceholderProfessional : ''}`}
             role="status"
             aria-label="טוען אווטאר"
             aria-live="polite"

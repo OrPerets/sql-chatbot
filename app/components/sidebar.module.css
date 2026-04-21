@@ -1,5 +1,5 @@
 .sidebar {
-  width: 288px;
+  width: 264px;
   height: 100%;
   background: rgba(251, 249, 244, 0.94);
   padding: 20px 18px 18px;
@@ -372,6 +372,86 @@
 
 .closeButton:active {
   transform: scale(0.95);
+}
+
+.sidebarProfessional {
+  --sidebar-royal: #0b1f4d;
+  --sidebar-royal-strong: #071936;
+  --sidebar-royal-soft: #153e75;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(11, 31, 77, 0.1) 0%, rgba(11, 31, 77, 0) 42%),
+    linear-gradient(180deg, rgba(241, 245, 249, 0.96) 0%, rgba(248, 250, 252, 0.96) 100%);
+  border-right-color: rgba(148, 163, 184, 0.28);
+  box-shadow: 10px 0 34px rgba(11, 31, 77, 0.06);
+}
+
+.sidebarProfessional::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.14);
+}
+
+.sidebarProfessional::-webkit-scrollbar-thumb {
+  background: rgba(11, 31, 77, 0.22);
+}
+
+.sidebarProfessional::-webkit-scrollbar-thumb:hover {
+  background: rgba(11, 31, 77, 0.38);
+}
+
+.sidebarProfessional .sidebarTitle {
+  color: var(--sidebar-royal);
+}
+
+.sidebarProfessional .newChatButton {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--sidebar-royal);
+  border-color: rgba(148, 163, 184, 0.36);
+}
+
+.sidebarProfessional .newChatButton:hover {
+  background: #ffffff;
+  color: var(--sidebar-royal-soft);
+  border-color: rgba(11, 31, 77, 0.28);
+  box-shadow: 0 6px 16px rgba(11, 31, 77, 0.12);
+}
+
+.sidebarProfessional .closeButton:hover {
+  color: var(--sidebar-royal);
+}
+
+.sidebarProfessional .sidebarLink {
+  color: #334155;
+}
+
+.sidebarProfessional .sidebarLink:hover {
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--sidebar-royal);
+  border-color: rgba(148, 163, 184, 0.36);
+}
+
+.sidebarProfessional .sidebarLink:hover::before {
+  background: rgba(11, 31, 77, 0.24);
+}
+
+.sidebarProfessional .sidebarLinkActive {
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--sidebar-royal);
+  border-color: rgba(11, 31, 77, 0.24);
+  box-shadow:
+    0 8px 18px rgba(11, 31, 77, 0.06),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.92);
+}
+
+.sidebarProfessional .sidebarLinkActive::before {
+  background: var(--sidebar-royal-soft);
+}
+
+.sidebarProfessional .sessionDate {
+  color: #64748b;
+}
+
+.sidebarProfessional .dropdownMenu {
+  border-color: rgba(148, 163, 184, 0.34);
+  box-shadow: 0 16px 30px rgba(11, 31, 77, 0.1);
 }
 
 /* Mobile responsive - hide sidebar on small screens */

@@ -17,6 +17,7 @@ type SidebarProps = {
   onNewChat: () => void;
   currentUser: string;
   onToggleSidebar?: () => void;
+  variant?: "default" | "professional";
 };
 
 const formatSessionDate = (timestamp: number) => {
@@ -33,7 +34,7 @@ const formatSessionDate = (timestamp: number) => {
     .replace(/\//g, "-");
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, handleLogout, onNewChat, currentUser, onToggleSidebar }) => {
+const Sidebar: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, handleLogout, onNewChat, currentUser, onToggleSidebar, variant = "default" }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
   const userInitial = currentUser?.charAt(0)?.toUpperCase() ?? "?";
@@ -43,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, handleLog
   };
 
   return (
-    <div className={styles.sidebar}>
+    <div className={`${styles.sidebar} ${variant === "professional" ? styles.sidebarProfessional : ""}`}>
       <div className={styles.header}>
             {/* <button
               type="button"
