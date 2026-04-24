@@ -119,11 +119,16 @@ export function PublishStep({
           <h4>כיסוי שאלות</h4>
           <p className={styles.mutedText}>ודאו שלכל שאלה יש ניסוח ברור, תיאור פלט צפוי, SQL התחלתי וקריטריוני רובריקה.</p>
           <ul className={styles.list}>
-            {questions.map((question, index) => (
-              <li key={question.id} className={styles.card}>
+            {questions.map((question, index) => {
+              const parameterized = (question.parameterMode ?? (question.parameters?.length ? "parameterized" : "static")) === "parameterized";
+              const parameterCount = question.parameters?.length ?? 0;
+              return (
+                <li key={question.id} className={styles.card}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <strong>שאלה {index + 1}</strong>
-                  <span className={styles.badge}>{question.rubric.length} פריטי רובריקה</span>
+                  <span className={styles.badge}>
+                    {parameterized ? `${parameterCount} פרמטרים` : `${question.rubric.length} פריטי רובריקה`}
+                  </span>
                 </div>
                 <p className={styles.mutedText}>{question.prompt.slice(0, 160) || "לא סופק ניסוח משימה"}</p>
                 <p className={styles.mutedText}>{question.expectedOutputDescription.slice(0, 160) || "לא סופק תיאור פלט צפוי"}</p>
@@ -131,8 +136,16 @@ export function PublishStep({
                   <p className={styles.mutedText}>{question.instructions.slice(0, 160)}</p>
                 ) : null}
                 <p className={styles.mutedText}>נקודות: {question.points} • ניסיונות מקסימליים: {question.maxAttempts}</p>
+                <p className={styles.mutedText}>
+                  מוכנות: {question.prompt.trim() ? "ניסוח" : "חסר ניסוח"} • {question.expectedOutputDescription.trim() ? "פלט צפוי" : "חסר פלט צפוי"} •
+                  {" "}
+                  {(validationSummary.questionSummaries.find((entry) => entry.id === question.id)?.hasValidParameters ?? true)
+                    ? "פרמטרים תקינים"
+                    : "הגדרות פרמטרים חסרות"}
+                </p>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
       </section>

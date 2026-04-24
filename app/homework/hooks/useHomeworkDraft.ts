@@ -49,6 +49,7 @@ function toDraft(set: Awaited<ReturnType<typeof getHomeworkSet>>, questions: Que
       availableFrom: toDateTimeLocalValue(set.availableFrom || set.createdAt),
       availableUntil: toDateTimeLocalValue(set.availableUntil || set.dueAt),
       visibility: set.visibility,
+      homeworkType: set.homeworkType || "sql",
       datasetPolicy: set.datasetPolicy,
       overview: set.overview,
       dataStructureNotes: set.dataStructureNotes,
@@ -74,6 +75,9 @@ function toDraft(set: Awaited<ReturnType<typeof getHomeworkSet>>, questions: Que
       datasetId: question.datasetId,
       rubric: question.gradingRubric,
       evaluationMode: question.evaluationMode ?? "auto",
+      parameterMode: question.parameterMode ?? ((question.parameters?.length ?? 0) > 0 ? "parameterized" : "static"),
+      parameters: question.parameters ?? [],
+      templateId: question.templateId,
     })),
     publishNotes: "",
   };

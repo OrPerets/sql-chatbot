@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getQuestionGenerator } from '@/lib/question-generator';
 import { getHomeworkService } from '@/lib/homework';
 import { getQuestionsService } from '@/lib/questions';
+import { instantiateInlineQuestion } from '@/app/homework/utils/inline-question-parameters';
 
 interface RouteParams {
   params: Promise<{
@@ -41,10 +42,25 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const questionsService = await getQuestionsService();
     const regularQuestions = await questionsService.getQuestionsByHomeworkSet(setId);
     
-    // If we have regular questions, this is not a parametric homework set
+    // If we have regular questions, return them directly or instantiate inline parameters deterministically
     if (regularQuestions.length > 0) {
-      console.log(`📋 Homework set ${setId} has ${regularQuestions.length} regular questions, returning them for student ${studentId}`);
-      return NextResponse.json(regularQuestions);
+      const resolvedQuestions = regularQuestions.map((question) => {
+        const isInlineParameterized =
+          (question.parameterMode ?? (question.parameters?.length ? 'parameterized' : 'static')) === 'parameterized' &&
+          (question.parameters?.length ?? 0) > 0;
+
+        if (!isInlineParameterized) {
+          return question;
+        }
+
+        return instantiateInlineQuestion(question, {
+          homeworkSetId: setId,
+          studentId,
+        }).question;
+      });
+
+      console.log(`📋 Homework set ${setId} has ${resolvedQuestions.length} regular questions, returning them for student ${studentId}`);
+      return NextResponse.json(resolvedQuestions);
     }
     
     // Otherwise, check if it uses parametric templates

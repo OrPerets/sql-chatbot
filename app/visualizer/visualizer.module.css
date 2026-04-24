@@ -203,6 +203,29 @@
   border-bottom: 1px solid rgba(148, 163, 184, 0.2);
 }
 
+.queryActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.databaseInfoButton {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #1e3a8a;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.databaseInfoButton:hover {
+  background: #eff6ff;
+  border-color: #1e3a8a;
+}
+
 .stepBannerQueryLabel {
   font-size: 11px;
   font-weight: 800;
@@ -2492,6 +2515,24 @@
   border: 1px solid #e2e8f0;
 }
 
+.sqlValidationState {
+  margin: 0;
+  font-size: 12px;
+  color: #475569;
+  font-weight: 600;
+}
+
+.sqlValidationError {
+  margin: 0;
+  font-size: 12px;
+  color: #991b1b;
+  font-weight: 700;
+  padding: 10px 12px;
+  background: #fee2e2;
+  border-radius: 8px;
+  border-right: 3px solid #dc2626;
+}
+
 .sqlEditorHintIcon {
   font-size: 16px;
 }
@@ -2559,6 +2600,106 @@
   gap: 6px;
 }
 
+.databaseModal {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(30, 58, 138, 0.15);
+  width: min(980px, 95vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease-out;
+  direction: rtl;
+}
+
+.databaseModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 16px 16px 0 0;
+}
+
+.databaseModalTitle {
+  margin: 0;
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.databaseModalBody {
+  padding: 16px 20px 20px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.databaseName {
+  margin: 0;
+  color: #1e3a8a;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.databaseTableList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.databaseTableCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.databaseTableTitle {
+  margin: 0;
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.databaseTableSubtitle {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.databaseSampleWrapper {
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.databaseSampleTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  direction: ltr;
+}
+
+.databaseSampleTable th,
+.databaseSampleTable td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+  white-space: nowrap;
+}
+
+.databaseSampleTable thead {
+  background: #f8fafc;
+}
+
 @media (max-width: 640px) {
   .sqlEditorModal {
     width: 95%;
@@ -2590,5 +2731,22 @@
 
   .sqlEditorShortcut {
     display: none;
+  }
+
+  .queryActions {
+    gap: 6px;
+  }
+
+  .databaseInfoButton {
+    font-size: 11px;
+    padding: 5px 8px;
+  }
+
+  .databaseModalBody {
+    padding: 12px;
+  }
+
+  .databaseTableList {
+    grid-template-columns: 1fr;
   }
 }

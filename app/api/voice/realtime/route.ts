@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getVoiceRuntimeConfig, isVoiceFeatureEnabled } from '@/lib/openai/voice-config';
 
 export async function POST(request: NextRequest) {
   try {
-    const featureVoiceEnabled = process.env.FEATURE_VOICE === '1';
+    const featureVoiceEnabled = isVoiceFeatureEnabled();
     if (!featureVoiceEnabled) {
       return NextResponse.json({ error: 'Voice feature disabled' }, { status: 404 });
     }
@@ -12,40 +13,34 @@ export async function POST(request: NextRequest) {
     }
 
     const { action, data } = await request.json();
+    const voiceConfig = getVoiceRuntimeConfig();
     
     switch (action) {
       case 'connect':
-        // Return connection configuration for client-side realtime service
         return NextResponse.json({ 
           success: true,
-          config: {
-            model: 'gpt-4o-realtime-preview-2024-10-01',
-            voice: 'alloy',
-            instructions: `You are Michael, an expert SQL tutor. 
-              Provide clear, concise explanations about SQL concepts.
-              Support both Hebrew and English languages.
-              Keep responses conversational and educational.
-              When explaining SQL queries, be practical and give examples.`
-          }
+          mode: voiceConfig.mode,
+          config: voiceConfig,
+          productionReady: voiceConfig.mode === 'chained'
         });
         
       case 'configure':
-        // Update realtime configuration
-        const { voice, instructions, model } = data || {};
+        const { voice, instructions, mode } = data || {};
         return NextResponse.json({ 
           success: true,
           config: {
-            model: model || 'gpt-4o-realtime-preview-2024-10-01',
-            voice: voice || 'alloy',
-            instructions: instructions || 'You are Michael, an expert SQL tutor.'
+            ...voiceConfig,
+            mode: mode === 'realtime_experimental' ? 'realtime_experimental' : voiceConfig.mode,
+            voice: voice || voiceConfig.voice,
+            instructions: instructions || voiceConfig.instructions
           }
         });
         
       case 'health':
-        // Health check for realtime service
         return NextResponse.json({ 
           success: true,
           status: 'healthy',
+          mode: voiceConfig.mode,
           timestamp: new Date().toISOString()
         });
         
@@ -59,12 +54,16 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
+  const voiceConfig = getVoiceRuntimeConfig();
   return NextResponse.json({
-    service: 'OpenAI Realtime Voice API',
+    service: 'Michael Voice Runtime',
     version: '1.0.0',
     status: 'available',
+    mode: voiceConfig.mode,
+    config: voiceConfig,
     features: [
-      'real-time voice conversation',
+      'chained voice orchestration',
+      'realtime experimental contract',
       'speech-to-text transcription',
       'text-to-speech generation',
       'context-aware responses',

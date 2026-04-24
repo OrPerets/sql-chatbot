@@ -1,7 +1,12 @@
 import { randomUUID } from "crypto";
 
 import { openai } from "@/app/openai";
-import { SqlTutorResponse, ToolCallOutput, ToolCallRequest } from "@/lib/openai/contracts";
+import {
+  RelationalAlgebraTutorResponse,
+  SqlTutorResponse,
+  ToolCallOutput,
+  ToolCallRequest,
+} from "@/lib/openai/contracts";
 import { getRuntimeAgentConfig } from "@/lib/openai/runtime-config";
 import { executeToolCall } from "@/lib/openai/tools";
 
@@ -9,7 +14,9 @@ type UnknownRecord = Record<string, unknown>;
 
 type CreateResponseInput = {
   input: unknown;
+  fallbackInput?: unknown;
   previousResponseId?: string;
+  conversation?: string;
   metadata?: Record<string, string>;
   tools?: unknown[];
   model?: string;
@@ -19,6 +26,13 @@ type CreateResponseInput = {
   parallelToolCalls?: boolean | null;
   responseFormat?: unknown;
   reasoning?: unknown;
+  include?: string[];
+  store?: boolean;
+  truncation?: "auto" | "disabled" | string;
+  promptCacheKey?: string;
+  promptCacheRetention?: "24h";
+  safetyIdentifier?: string;
+  background?: boolean;
 };
 
 type ToolCallHandler = (toolCall: ToolCallRequest) => Promise<string>;
@@ -67,6 +81,93 @@ function createTraceId(): string {
   return `rsp_${randomUUID()}`;
 }
 
+function isRecoverablePreviousResponseError(error: any): boolean {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    message.includes("previous_response_id") &&
+    (message.includes("invalid") ||
+      message.includes("missing") ||
+      message.includes("not found") ||
+      message.includes("does not exist") ||
+      message.includes("expired") ||
+      message.includes("cannot"))
+  );
+}
+
+async function buildPayload(params: CreateResponseInput, traceId: string, stream: boolean) {
+  const runtimeConfig = await getRuntimeAgentConfig();
+  const model = params.model || runtimeConfig.model;
+  const baseInstructions = params.instructions || runtimeConfig.instructions;
+  const instructions = params.extraInstructions
+    ? `${baseInstructions}\n\n${params.extraInstructions}`
+    : baseInstructions;
+  const tools = params.tools || runtimeConfig.tools;
+  const toolChoice = normalizeToolChoice(params.toolChoice, tools);
+
+  const payload: Record<string, unknown> = {
+    model,
+    instructions,
+    tools,
+    tool_choice: toolChoice,
+    parallel_tool_calls: params.parallelToolCalls,
+    input: params.input,
+    previous_response_id: params.previousResponseId,
+    conversation: params.conversation,
+    stream,
+    include: params.include,
+    store: params.store,
+    truncation: params.truncation,
+    prompt_cache_key: params.promptCacheKey,
+    prompt_cache_retention: params.promptCacheRetention,
+    safety_identifier: params.safetyIdentifier,
+    background: params.background,
+    metadata: {
+      trace_id: traceId,
+      ...(params.metadata || {}),
+    },
+  };
+
+  if (typeof params.responseFormat !== "undefined") {
+    payload.text = { format: normalizeTextFormat(params.responseFormat) };
+  }
+  if (typeof params.reasoning !== "undefined") {
+    payload.reasoning = params.reasoning;
+  }
+
+  if (!params.previousResponseId) {
+    delete payload.previous_response_id;
+  }
+  if (!params.conversation) {
+    delete payload.conversation;
+  }
+  if (!params.include?.length) {
+    delete payload.include;
+  }
+  if (typeof params.store === "undefined") {
+    delete payload.store;
+  }
+  if (!params.truncation) {
+    delete payload.truncation;
+  }
+  if (!params.promptCacheKey) {
+    delete payload.prompt_cache_key;
+  }
+  if (!params.promptCacheRetention) {
+    delete payload.prompt_cache_retention;
+  }
+  if (!params.safetyIdentifier) {
+    delete payload.safety_identifier;
+  }
+  if (typeof params.background === "undefined") {
+    delete payload.background;
+  }
+  if (!stream) {
+    delete payload.stream;
+  }
+
+  return { payload, model };
+}
+
 function logAdapterEvent(level: "info" | "error", event: string, payload: UnknownRecord): void {
   const logPayload = {
     source: "responses-client",
@@ -88,37 +189,27 @@ export async function createResponse(params: CreateResponseInput) {
   const start = Date.now();
 
   try {
-    const runtimeConfig = await getRuntimeAgentConfig();
-    const model = params.model || runtimeConfig.model;
-    const baseInstructions = params.instructions || runtimeConfig.instructions;
-    const instructions = params.extraInstructions
-      ? `${baseInstructions}\n\n${params.extraInstructions}`
-      : baseInstructions;
-    const tools = params.tools || runtimeConfig.tools;
-    const toolChoice = normalizeToolChoice(params.toolChoice, tools);
+    const { payload, model } = await buildPayload(params, traceId, false);
+    let response: any;
 
-    const payload: Record<string, unknown> = {
-      model,
-      instructions,
-      tools,
-      tool_choice: toolChoice,
-      parallel_tool_calls: params.parallelToolCalls,
-      input: params.input,
-      previous_response_id: params.previousResponseId,
-      metadata: {
-        trace_id: traceId,
-        ...(params.metadata || {}),
-      },
-    };
+    try {
+      response = await (openai as any).responses.create(payload);
+    } catch (error: any) {
+      if (!params.fallbackInput || !isRecoverablePreviousResponseError(error)) {
+        throw error;
+      }
 
-    if (typeof params.responseFormat !== "undefined") {
-      payload.text = { format: normalizeTextFormat(params.responseFormat) };
+      logAdapterEvent("info", "create_response.previous_response_fallback", {
+        traceId,
+        previousResponseId: params.previousResponseId || null,
+      });
+
+      response = await (openai as any).responses.create({
+        ...payload,
+        input: params.fallbackInput,
+        previous_response_id: undefined,
+      });
     }
-    if (typeof params.reasoning !== "undefined") {
-      payload.reasoning = params.reasoning;
-    }
-
-    const response = await (openai as any).responses.create(payload);
 
     logAdapterEvent("info", "create_response.success", {
       traceId,
@@ -143,38 +234,27 @@ export async function streamResponse(params: CreateResponseInput) {
   const start = Date.now();
 
   try {
-    const runtimeConfig = await getRuntimeAgentConfig();
-    const model = params.model || runtimeConfig.model;
-    const baseInstructions = params.instructions || runtimeConfig.instructions;
-    const instructions = params.extraInstructions
-      ? `${baseInstructions}\n\n${params.extraInstructions}`
-      : baseInstructions;
-    const tools = params.tools || runtimeConfig.tools;
-    const toolChoice = normalizeToolChoice(params.toolChoice, tools);
+    const { payload, model } = await buildPayload(params, traceId, true);
+    let stream: any;
 
-    const payload: Record<string, unknown> = {
-      model,
-      instructions,
-      tools,
-      tool_choice: toolChoice,
-      parallel_tool_calls: params.parallelToolCalls,
-      input: params.input,
-      previous_response_id: params.previousResponseId,
-      stream: true,
-      metadata: {
-        trace_id: traceId,
-        ...(params.metadata || {}),
-      },
-    };
+    try {
+      stream = await (openai as any).responses.create(payload);
+    } catch (error: any) {
+      if (!params.fallbackInput || !isRecoverablePreviousResponseError(error)) {
+        throw error;
+      }
 
-    if (typeof params.responseFormat !== "undefined") {
-      payload.text = { format: normalizeTextFormat(params.responseFormat) };
+      logAdapterEvent("info", "stream_response.previous_response_fallback", {
+        traceId,
+        previousResponseId: params.previousResponseId || null,
+      });
+
+      stream = await (openai as any).responses.create({
+        ...payload,
+        input: params.fallbackInput,
+        previous_response_id: undefined,
+      });
     }
-    if (typeof params.reasoning !== "undefined") {
-      payload.reasoning = params.reasoning;
-    }
-
-    const stream = await (openai as any).responses.create(payload);
 
     logAdapterEvent("info", "stream_response.started", {
       traceId,
@@ -255,8 +335,90 @@ const sqlTutorResponseFormat = {
   },
 } as const;
 
+const relationalAlgebraTutorResponseFormat = {
+  type: "json_schema",
+  json_schema: {
+    name: "relational_algebra_tutor_response",
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        summary: {
+          type: "string",
+          description: "Short overview of the relational algebra approach.",
+        },
+        relationalAlgebraExpression: {
+          type: "string",
+          description: "The relational algebra expression using course-appropriate notation.",
+        },
+        steps: {
+          type: "array",
+          description: "Ordered relational algebra explanation steps.",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              title: { type: "string" },
+              operator: { type: "string" },
+              symbol: { type: "string" },
+              expression: { type: "string" },
+              explanation: { type: "string" },
+              sqlEquivalent: { type: ["string", "null"] },
+            },
+            required: [
+              "title",
+              "operator",
+              "symbol",
+              "expression",
+              "explanation",
+              "sqlEquivalent",
+            ],
+          },
+        },
+        commonMistakes: {
+          type: "array",
+          items: {
+            type: "string",
+          },
+        },
+        examples: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              concept: { type: "string" },
+              sqlExample: { type: "string" },
+              relationalAlgebraExample: { type: "string" },
+              note: { type: "string" },
+            },
+            required: ["concept", "sqlExample", "relationalAlgebraExample", "note"],
+          },
+        },
+        scopeNote: {
+          type: "string",
+          description: "Clarifies scope limitations and non-classical SQL features when relevant.",
+        },
+      },
+      required: [
+        "summary",
+        "relationalAlgebraExpression",
+        "steps",
+        "commonMistakes",
+        "examples",
+        "scopeNote",
+      ],
+    },
+    strict: true,
+  },
+} as const;
+
 export function getSqlTutorResponseFormat() {
   return sqlTutorResponseFormat;
+}
+
+export function getRelationalAlgebraTutorResponseFormat() {
+  return relationalAlgebraTutorResponseFormat;
 }
 
 function isSqlTutorResponse(value: unknown): value is SqlTutorResponse {
@@ -273,6 +435,45 @@ function isSqlTutorResponse(value: unknown): value is SqlTutorResponse {
   );
 }
 
+function isRelationalAlgebraTutorResponse(
+  value: unknown
+): value is RelationalAlgebraTutorResponse {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as RelationalAlgebraTutorResponse;
+  return (
+    typeof candidate.summary === "string" &&
+    typeof candidate.relationalAlgebraExpression === "string" &&
+    typeof candidate.scopeNote === "string" &&
+    Array.isArray(candidate.commonMistakes) &&
+    candidate.commonMistakes.every((item) => typeof item === "string") &&
+    Array.isArray(candidate.steps) &&
+    candidate.steps.every(
+      (step) =>
+        step &&
+        typeof step === "object" &&
+        typeof step.title === "string" &&
+        typeof step.operator === "string" &&
+        typeof step.symbol === "string" &&
+        typeof step.expression === "string" &&
+        typeof step.explanation === "string" &&
+        (typeof step.sqlEquivalent === "undefined" || typeof step.sqlEquivalent === "string")
+    ) &&
+    Array.isArray(candidate.examples) &&
+    candidate.examples.every(
+      (example) =>
+        example &&
+        typeof example === "object" &&
+        typeof example.concept === "string" &&
+        typeof example.sqlExample === "string" &&
+        typeof example.relationalAlgebraExample === "string" &&
+        typeof example.note === "string"
+    )
+  );
+}
+
 export function extractSqlTutorResponse(response: any): SqlTutorResponse | null {
   const outputText = extractOutputText(response);
   if (!outputText) {
@@ -282,6 +483,22 @@ export function extractSqlTutorResponse(response: any): SqlTutorResponse | null 
   try {
     const parsed = JSON.parse(outputText) as unknown;
     return isSqlTutorResponse(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export function extractRelationalAlgebraTutorResponse(
+  response: any
+): RelationalAlgebraTutorResponse | null {
+  const outputText = extractOutputText(response);
+  if (!outputText) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(outputText) as unknown;
+    return isRelationalAlgebraTutorResponse(parsed) ? parsed : null;
   } catch {
     return null;
   }

@@ -21,6 +21,7 @@ import { PublishStep } from "./wizard/PublishStep";
 import type { Question } from "@/app/homework/types";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 import { validateHomeworkDraft } from "./wizard/validation";
+import styles from "./wizard/Wizard.module.css";
 
 const stepConfig: Array<{ id: WizardStepId; labelKey: string }> = [
   { id: "metadata", labelKey: "builder.wizard.step.metadata" },
@@ -66,6 +67,10 @@ function buildQuestionsPayload(draft: HomeworkDraftState): Question[] {
     maxAttempts: question.maxAttempts,
     points: question.points,
     evaluationMode: question.evaluationMode,
+    parameterMode: question.parameterMode,
+    parameters: question.parameters ?? [],
+    templateId: question.templateId,
+    isTemplate: false,
   }));
 }
 
@@ -77,6 +82,7 @@ function buildDraftPayload(draft: HomeworkDraftState): SaveHomeworkDraftPayload 
     availableFrom: draft.metadata.availableFrom,
     availableUntil: draft.metadata.availableUntil,
     visibility: draft.metadata.visibility,
+    homeworkType: draft.metadata.homeworkType,
     datasetPolicy: draft.metadata.datasetPolicy,
     overview: draft.metadata.overview,
     dataStructureNotes: draft.metadata.dataStructureNotes,
@@ -104,7 +110,6 @@ interface HomeworkWizardProps {
 export function HomeworkWizard({ initialState, existingSetId, initialStep = "metadata" }: HomeworkWizardProps) {
   const router = useRouter();
   const { t, direction } = useHomeworkLocale();
-  const backArrow = direction === "rtl" ? "→" : "←";
   const initialDraft = useMemo(() => initialState ?? createInitialDraft(), [initialState]);
   const [controller, setController] = useState<WizardControllerState>({
     step: initialStep,
@@ -134,13 +139,7 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
     [t],
   );
 
-  const currentStepIndex = useMemo(
-    () => stepConfig.findIndex((step) => step.id === controller.step),
-    [controller.step],
-  );
   const validationSummary = useMemo(() => validateHomeworkDraft(controller.draft), [controller.draft]);
-
-  const canNavigateBack = currentStepIndex > 0;
 
   const createSetMutation = useMutation({
     mutationFn: (payload: CreateHomeworkPayload) => createHomeworkSet(payload),
@@ -172,6 +171,7 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
             availableFrom: toDateTimeLocalValue(serverSet.availableFrom || serverSet.createdAt),
             availableUntil: toDateTimeLocalValue(serverSet.availableUntil || serverSet.dueAt),
             visibility: serverSet.visibility,
+            homeworkType: serverSet.homeworkType || "sql",
             datasetPolicy: serverSet.datasetPolicy,
             overview: serverSet.overview,
             dataStructureNotes: serverSet.dataStructureNotes,
@@ -194,6 +194,9 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
             datasetId: q.datasetId,
             rubric: q.gradingRubric,
             evaluationMode: q.evaluationMode ?? "auto",
+            parameterMode: q.parameterMode ?? ((q.parameters?.length ?? 0) > 0 ? "parameterized" : "static"),
+            parameters: q.parameters ?? [],
+            templateId: q.templateId,
           })),
           publishNotes: prev.draft.publishNotes,
         };
@@ -305,12 +308,13 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
   const publishDisabled = publishMutation.isPending || !controller.setId || !validationSummary.canPublish;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }} dir={direction}>
+    <div className={styles.wizardShell} dir={direction}>
       <Stepper
         steps={localizedSteps}
         activeStep={controller.step}
         onStepClick={(step) => !disabledSteps.includes(step) && navigateToStep(step)}
         disabledSteps={disabledSteps}
+        autoSaveState={autoSaveState}
       />
 
       {controller.step === "metadata" && (
@@ -338,6 +342,7 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
           onBack={navigateToStep}
           onNext={navigateToStepWithSave}
           primaryDatasetId={controller.draft.dataset.selectedDatasetId}
+          setId={controller.setId}
         />
       )}
 
@@ -370,15 +375,6 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
         />
       )}
 
-      {canNavigateBack && controller.step !== "metadata" && (
-        <button
-          type="button"
-          style={{ alignSelf: "flex-start", background: "none", border: "none", color: "#2e83e6", cursor: "pointer" }}
-          onClick={() => navigateToStep(stepConfig[currentStepIndex - 1]?.id ?? "metadata")}
-        >
-          {backArrow} {t("builder.wizard.back")}
-        </button>
-      )}
     </div>
   );
 }

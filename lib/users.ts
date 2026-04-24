@@ -1,6 +1,7 @@
 import { Db } from 'mongodb'
 import { connectToDatabase, executeWithRetry, COLLECTIONS } from './database'
 import crypto from 'crypto'
+import { resolveLearnerIdentityFromDb } from '@/lib/learner-identity'
 
 export interface UserModel {
   _id?: any
@@ -153,6 +154,13 @@ export class UsersService {
       // Try by id field
       const userById = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({ id: identifier })
       return userById || null
+    })
+  }
+
+  async resolveCanonicalUserId(identifier: string): Promise<string | null> {
+    return executeWithRetry(async (db) => {
+      const identity = await resolveLearnerIdentityFromDb(db, identifier, 'users.resolveCanonicalUserId')
+      return identity.canonicalId ?? null
     })
   }
 
@@ -337,4 +345,8 @@ export async function findUserByIdOrEmail(identifier: string) {
   return service.findUserByIdOrEmail(identifier)
 }
 
+export async function resolveCanonicalUserId(identifier: string) {
+  const service = await getUsersService()
+  return service.resolveCanonicalUserId(identifier)
+}
 

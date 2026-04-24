@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getHomeworkQuestions, getHomeworkSet } from "@/app/homework/services/homeworkService";
@@ -13,12 +12,13 @@ import {
   SubmitHomeworkPayload,
 } from "@/app/homework/services/submissionService";
 import { executeSql } from "@/app/homework/services/sqlService";
-import type { Dataset, Question, SqlExecutionRequest, Submission } from "@/app/homework/types";
+import type { Dataset, HomeworkType, Question, SqlExecutionRequest, Submission } from "@/app/homework/types";
 import styles from "./runner.module.css";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 import { SubmittedPage } from "./SubmittedPage";
 import Chat from "@/app/components/chat";
 import { InstructionsSection } from "./InstructionsSection";
+import { RelationalAlgebraEditor } from "./RelationalAlgebraEditor";
 
 import Editor from "@monaco-editor/react";
 
@@ -31,6 +31,20 @@ const STUDENT_NAMES: Record<string, string> = {
 interface RunnerClientProps {
   setId: string;
   studentId: string;
+}
+
+interface HomeworkHintResponse {
+  hint: string;
+  currentBalance?: number;
+}
+
+interface CoinsConfigResponse {
+  modules?: {
+    homeworkHints?: boolean;
+  };
+  costs?: {
+    homeworkHintOpen?: number;
+  };
 }
 
 interface PendingSave {
@@ -201,6 +215,7 @@ const FALLBACK_SAMPLE_DATA: Record<string, SidebarTable> = {
 
 export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const queryClient = useQueryClient();
+  const isPreviewContext = studentId === "student-demo";
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const [editorValues, setEditorValues] = useState<Record<string, string>>({});
   const [autosaveState, setAutosaveState] = useState<"idle" | "saving" | "saved">("idle");
@@ -209,6 +224,11 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
   const [solutionModalQuestionId, setSolutionModalQuestionId] = useState<string | null>(null);
   const [copyAnswerStatus, setCopyAnswerStatus] = useState<Record<string, "idle" | "copied">>({});
+  const [hintModalOpen, setHintModalOpen] = useState(false);
+  const [hintText, setHintText] = useState("");
+  const [hintQuestionPrompt, setHintQuestionPrompt] = useState("");
+  const [hintErrorMessage, setHintErrorMessage] = useState<string | null>(null);
+  const [hintSuccessMessage, setHintSuccessMessage] = useState<string | null>(null);
   const pendingRef = useRef<Record<string, PendingSave>>({});
   const analyticsRef = useRef<Record<string, QuestionAnalyticsState>>({});
   const activeQuestionRef = useRef<string | null>(null);
@@ -234,13 +254,16 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
 
   const homeworkQuery = useQuery({
     queryKey: ["homework", setId],
-    queryFn: () => getHomeworkSet(setId),
+    queryFn: () => getHomeworkSet(setId, isPreviewContext ? "admin" : undefined),
   });
   const datasetQuery = useQuery({
     queryKey: ["dataset", homeworkQuery.data?.selectedDatasetId ?? null],
     queryFn: () => getDataset(homeworkQuery.data!.selectedDatasetId!),
     enabled: Boolean(homeworkQuery.data?.selectedDatasetId),
   });
+
+  const homeworkType: HomeworkType = (homeworkQuery.data?.homeworkType as HomeworkType) || "sql";
+  const isRelationalAlgebra = homeworkType === "relational_algebra";
 
   const questionsQuery = useQuery({
     queryKey: ["homework", setId, "questions", studentId],
@@ -251,6 +274,18 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     queryKey: ["submission", setId, studentId],
     queryFn: () => getSubmission(setId, studentId),
     enabled: Boolean(setId && studentId),
+  });
+  const coinsConfigQuery = useQuery<CoinsConfigResponse>({
+    queryKey: ["coins-config", "homework-hints"],
+    queryFn: async () => {
+      const response = await fetch("/api/users/coins?status=1", { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error("Failed to load coins config");
+      }
+      return (await response.json()) as CoinsConfigResponse;
+    },
+    enabled: !isPreviewContext,
+    staleTime: 30_000,
   });
 
   const questionsById = useMemo(() => {
@@ -278,7 +313,11 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       setEditorValues((prev) => {
         const next: Record<string, string> = { ...prev };
         Object.entries(submissionQuery.data!.answers ?? {}).forEach(([questionId, answer]) => {
-          next[questionId] = typeof answer?.sql === "string" ? answer.sql : "";
+          if (isRelationalAlgebra) {
+            next[questionId] = typeof answer?.expression === "string" ? answer.expression : "";
+          } else {
+            next[questionId] = typeof answer?.sql === "string" ? answer.sql : "";
+          }
         });
         return next;
       });
@@ -452,9 +491,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       saveSubmissionDraft(setId, {
         studentId,
         answers: {
-          [payload.questionId]: {
-            sql: payload.sql,
-          },
+          [payload.questionId]: isRelationalAlgebra
+            ? { sql: "", expression: payload.sql }
+            : { sql: payload.sql },
         },
       }),
     onMutate: () => {
@@ -552,6 +591,71 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const handleSubmitClick = useCallback(() => {
     submitMutation.mutate({ studentId });
   }, [studentId, submitMutation]);
+
+  const hintMutation = useMutation<
+    HomeworkHintResponse,
+    Error & { status?: number; payload?: any },
+    { questionId: string; questionPrompt: string }
+  >({
+    mutationFn: async ({ questionId }) => {
+      const response = await fetch("/api/homework/hints", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          setId,
+          studentId,
+          questionId,
+        }),
+      });
+
+      if (!response.ok) {
+        let payload: any = null;
+        try {
+          payload = await response.json();
+        } catch {
+          payload = null;
+        }
+
+        const error = new Error(payload?.error || "Failed to open homework hint") as Error & {
+          status?: number;
+          payload?: any;
+        };
+        error.status = response.status;
+        error.payload = payload;
+        throw error;
+      }
+
+      return (await response.json()) as HomeworkHintResponse;
+    },
+    onMutate: () => {
+      setHintErrorMessage(null);
+      setHintSuccessMessage(null);
+    },
+    onSuccess: (payload, variables) => {
+      setHintText(payload.hint);
+      setHintQuestionPrompt(variables.questionPrompt);
+      setHintSuccessMessage("הרמז נפתח בהצלחה");
+      setHintModalOpen(true);
+      void queryClient.invalidateQueries({ queryKey: ["coins-config", "homework-hints"] });
+    },
+    onError: (error) => {
+      const balance = Number(error.payload?.balance);
+      const required = Number(error.payload?.required);
+
+      if (error.status === 402 && Number.isFinite(balance) && Number.isFinite(required)) {
+        setHintErrorMessage(`אין מספיק מטבעות. יתרה: ${balance}, נדרש: ${required}.`);
+        return;
+      }
+
+      setHintErrorMessage(
+        typeof error.payload?.error === "string" && error.payload.error.trim().length > 0
+          ? error.payload.error
+          : "לא ניתן לפתוח רמז כרגע."
+      );
+    },
+  });
 
   const scheduleAutosave = useCallback(
     (questionId: string, value: string) => {
@@ -681,7 +785,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const dataStructureNotes = homework?.dataStructureNotes?.trim() || homework?.backgroundStory?.trim() || "";
   const questionInstructions = activeQuestion?.instructions?.trim() ?? "";
   const expectedOutputDescription = activeQuestion?.expectedOutputDescription?.trim() ?? "";
-  const isPreviewContext = studentId === "student-demo";
   const schemaColumnSummary = activeQuestion?.expectedResultSchema?.length
     ? activeQuestion.expectedResultSchema.map((column) => column.column).join(", ")
     : "";
@@ -695,6 +798,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     () => (activeQuestion ? getVisibleQuestionText(activeQuestion) : ""),
     [activeQuestion, getVisibleQuestionText],
   );
+  const homeworkHintsEnabled = Boolean(coinsConfigQuery.data?.modules?.homeworkHints) && !isPreviewContext;
+  const homeworkHintCost = Number(coinsConfigQuery.data?.costs?.homeworkHintOpen ?? 1);
   const sidebarTables = useMemo<Record<string, SidebarTable>>(() => {
     if (submission?.studentTableData && Object.keys(submission.studentTableData).length > 0) {
       return Object.fromEntries(
@@ -760,6 +865,19 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     return () => window.removeEventListener("keydown", handleEscape);
   }, [solutionModalQuestionId]);
 
+  useEffect(() => {
+    if (!hintModalOpen) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setHintModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [hintModalOpen]);
+
   const chatHomeworkContext = useMemo(() => {
     if (!homework) return null;
 
@@ -768,6 +886,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       : -1;
 
     return {
+      homeworkSetId: setId,
+      studentId,
       homeworkTitle: homework.title,
       backgroundStory: homework.backgroundStory,
       tables: Object.entries(sidebarTables).map(([name, data]) => ({
@@ -792,7 +912,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         : null,
       studentTableData: submission?.studentTableData,
     };
-  }, [activeQuestion, activeQuestionText, getVisibleQuestionText, homework, questions, sidebarTables, submission?.studentTableData]);
+  }, [activeQuestion, activeQuestionText, getVisibleQuestionText, homework, questions, setId, sidebarTables, studentId, submission?.studentTableData]);
 
   // Debug: Log activeAnswer whenever it changes
   useEffect(() => {
@@ -967,6 +1087,35 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                     {resolvedExpectedOutputDescription}
                   </p>
                 )}
+                {homeworkHintsEnabled ? (
+                  <div className={styles.questionSummaryActions}>
+                    <button
+                      type="button"
+                      className={styles.hintButton}
+                      onClick={() =>
+                        activeQuestionId &&
+                        hintMutation.mutate({
+                          questionId: activeQuestionId,
+                          questionPrompt: activeQuestionText,
+                        })
+                      }
+                      disabled={!activeQuestionId || hintMutation.isPending}
+                    >
+                      {hintMutation.isPending ? "פותח רמז..." : "הצג רמז"}
+                    </button>
+                    <span className={styles.hintMeta}>עלות פתיחה: {homeworkHintCost} מטבע</span>
+                  </div>
+                ) : null}
+                {hintErrorMessage ? (
+                  <p className={styles.hintErrorText} role="alert">
+                    {hintErrorMessage}
+                  </p>
+                ) : null}
+                {hintSuccessMessage ? (
+                  <p className={styles.hintSuccessText} role="status">
+                    {hintSuccessMessage}
+                  </p>
+                ) : null}
               </div>
             ) : (
               <h3>{t("runner.question.placeholder")}</h3>
@@ -977,37 +1126,51 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         <div className={styles.editorSection}>
           <div className={styles.editorContainer}>
             <div className={styles.editorLabel}>
-              <span>SQL</span>
+              <span>{isRelationalAlgebra ? "אלגברת יחסים" : "SQL"}</span>
               <span className={styles.autosaveIndicator}>
                 {autosaveState === "saving" ? "שומר..." : autosaveState === "saved" ? "נשמר ✓" : ""}
               </span>
             </div>
-            <div style={{ width: '100%', height: '260px' }}>
-              <div dir="ltr" style={{ width: '100%', height: '100%' }}>
-                <Editor
-                  height="260px"
-                  value={activeQuestionId ? (editorValues[activeQuestionId] || "") : ""}
-                  defaultLanguage="sql"
-                  options={{
-                    fontSize: 15,
-                    fontFamily: "ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace",
-                    minimap: { enabled: false },
-                    lineNumbers: "on",
-                    scrollBeyondLastLine: false,
-                    padding: { top: 12 },
-                    renderLineHighlight: "gutter",
-                  }}
-                  onChange={(value) => {
-                    if (activeQuestionId) {
-                      handleSqlChange(activeQuestionId, value || "");
-                    }
-                  }}
-                  onMount={(editor) => {
-                    editor.focus();
-                  }}
-                />
+
+            {isRelationalAlgebra ? (
+              <RelationalAlgebraEditor
+                value={activeQuestionId ? (editorValues[activeQuestionId] || "") : ""}
+                onChange={(value) => {
+                  if (activeQuestionId) {
+                    handleSqlChange(activeQuestionId, value);
+                  }
+                }}
+                disabled={!activeQuestionId}
+              />
+            ) : (
+              <div style={{ width: '100%', height: '260px' }}>
+                <div dir="ltr" style={{ width: '100%', height: '100%' }}>
+                  <Editor
+                    height="260px"
+                    value={activeQuestionId ? (editorValues[activeQuestionId] || "") : ""}
+                    defaultLanguage="sql"
+                    options={{
+                      fontSize: 15,
+                      fontFamily: "ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace",
+                      minimap: { enabled: false },
+                      lineNumbers: "on",
+                      scrollBeyondLastLine: false,
+                      padding: { top: 12 },
+                      renderLineHighlight: "gutter",
+                    }}
+                    onChange={(value) => {
+                      if (activeQuestionId) {
+                        handleSqlChange(activeQuestionId, value || "");
+                      }
+                    }}
+                    onMount={(editor) => {
+                      editor.focus();
+                    }}
+                  />
+                </div>
               </div>
-            </div>
+            )}
+
             <div className={styles.editorActions}>
               <div className={styles.navigationButtons}>
                 <button
@@ -1036,29 +1199,31 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 >
                   הבאה ←
                 </button>
-                <button
+                {/* <button
                   type="button"
                   className={styles.showAnswerButton}
                   onClick={() => activeQuestionId && handleShowAnswer(activeQuestionId)}
                   disabled={!activeQuestionId}
                 >
                   הצג פתרון
-                </button>
+                </button> */}
               </div>
               
-              <button
-                type="button"
-                className={styles.runButton}
-                onClick={handleExecute}
-                disabled={executeMutation.isPending || !activeQuestionId}
-              >
-                {executeMutation.isPending ? (
-                  <span className={styles.runButtonSpinner} />
-                ) : (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                )}
-                {executeMutation.isPending ? t("runner.actions.running") : t("runner.actions.run")}
-              </button>
+              {!isRelationalAlgebra && (
+                <button
+                  type="button"
+                  className={styles.runButton}
+                  onClick={handleExecute}
+                  disabled={executeMutation.isPending || !activeQuestionId}
+                >
+                  {executeMutation.isPending ? (
+                    <span className={styles.runButtonSpinner} />
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  )}
+                  {executeMutation.isPending ? t("runner.actions.running") : t("runner.actions.run")}
+                </button>
+              )}
             </div>
           </div>
 
@@ -1243,6 +1408,47 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 type="button"
                 className={styles.showAnswerButton}
                 onClick={() => setSolutionModalQuestionId(null)}
+              >
+                סגור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {hintModalOpen && (
+        <div
+          className={styles.solutionModalOverlay}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setHintModalOpen(false);
+            }
+          }}
+        >
+          <div className={styles.hintModal} dir="rtl">
+            <div className={styles.solutionModalHeader}>
+              <h4 className={styles.solutionModalTitle}>רמז</h4>
+              <button
+                type="button"
+                className={styles.solutionModalClose}
+                onClick={() => setHintModalOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {hintQuestionPrompt ? <p className={styles.solutionModalPrompt}>{hintQuestionPrompt}</p> : null}
+
+            <div className={styles.solutionModalBody}>
+              <span className={styles.solutionModalLabel}>כיוון לפתרון:</span>
+              <p className={styles.hintText}>{hintText}</p>
+            </div>
+
+            <div className={styles.solutionModalActions}>
+              <button
+                type="button"
+                className={styles.showAnswerButton}
+                onClick={() => setHintModalOpen(false)}
               >
                 סגור
               </button>

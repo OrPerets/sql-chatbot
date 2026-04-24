@@ -1,18 +1,20 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useRouter } from 'next/navigation';
+import React from "react";
 import styles from "./page.module.css";
 import Chat from "../../components/chat";
-import SQLQueryEditor from "@/app/components/query-vizualizer";
 
 const Home = () => {
-
   return (
     <div>
-    <main className={styles.main}>
-        <Chat chatId={null}/>
-    </main>
+      <main className={styles.main}>
+        <Chat
+          chatId={null}
+          enableRelationalAlgebraMode={true}
+          enableComposerCommands={true}
+          conversationVariant="professional"
+        />
+      </main>
     </div>
   );
 };

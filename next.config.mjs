@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 const require = createRequire(import.meta.url);
 const webpack = require('webpack');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const isProduction = process.env.NODE_ENV === 'production';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -11,7 +12,7 @@ const nextConfig = {
   allowedDevOrigins: ['localhost', '127.0.0.1', '10.0.0.8'],
   // Security headers for production
   async headers() {
-    return [
+    const headers = [
       {
         source: '/(.*)',
         headers: [
@@ -33,19 +34,19 @@ const nextConfig = {
           },
         ],
       },
+      // PDF viewer in interactive-learning iframe: allow same-origin framing only
+      {
+        source: '/api/learning/pdfs/(.*)',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+        ],
+      },
       // Static 3D/audio assets - long-term cache
       {
         source: '/:all*(gltf|glb|ktx2|basis|wasm|mp3|opus)',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
           { key: 'Access-Control-Allow-Origin', value: '*' }
-        ],
-      },
-      // Next.js static chunks with hash - immutable cache
-      {
-        source: '/_next/static/:path*',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
         ],
       },
       // HTML pages - always revalidate to get fresh bundles
@@ -59,11 +60,20 @@ const nextConfig = {
         ],
       },
     ];
+
+    if (isProduction) {
+      headers.push({
+        source: '/_next/static/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
+        ],
+      });
+    }
+
+    return headers;
   },
   // Reduce bundle size
-  experimental: {
-    optimizePackageImports: ['lucide-react'],
-  },
+  experimental: {},
   // Next.js 16: moved out of experimental
   serverExternalPackages: ['pdfkit'],
   // Next.js 16 defaults to Turbopack for build; keep explicit to avoid mixed-config error
@@ -72,8 +82,16 @@ const nextConfig = {
   },
   // Image optimization
   images: {
-    domains: ['localhost'],
+    remotePatterns: [
+      { protocol: 'http', hostname: 'localhost' },
+      { protocol: 'http', hostname: '127.0.0.1' },
+      { protocol: 'http', hostname: '10.0.0.8' },
+      { protocol: 'https', hostname: 'localhost' },
+      { protocol: 'https', hostname: '127.0.0.1' },
+      { protocol: 'https', hostname: '10.0.0.8' },
+    ],
     formats: ['image/webp', 'image/avif'],
+    maximumDiskCacheSize: 256 * 1024 * 1024,
   },
   typescript: {
     // Temporary compatibility for Next.js 16 route-handler signature migration.

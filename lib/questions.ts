@@ -17,6 +17,11 @@ function normalizeQuestion(question: QuestionModel): Question {
     maxAttempts: question.maxAttempts,
     points: question.points,
     evaluationMode: question.evaluationMode,
+    parameterMode: question.parameterMode,
+    parameters: question.parameters,
+    isTemplate: question.isTemplate,
+    templateId: question.templateId,
+    variables: question.variables,
   };
 }
 
@@ -87,6 +92,11 @@ export class QuestionsService {
       maxAttempts: questionData.maxAttempts,
       points: questionData.points,
       evaluationMode: questionData.evaluationMode,
+      parameterMode: questionData.parameterMode,
+      parameters: questionData.parameters,
+      isTemplate: questionData.isTemplate,
+      templateId: questionData.templateId,
+      variables: questionData.variables,
     };
 
     await this.db.collection<QuestionModel>(COLLECTIONS.QUESTIONS).insertOne(question);
@@ -166,6 +176,11 @@ export class QuestionsService {
       maxAttempts: questionData.maxAttempts || 3,
       points: questionData.points || 10,
       evaluationMode: questionData.evaluationMode || "auto",
+      parameterMode: questionData.parameterMode,
+      parameters: questionData.parameters,
+      isTemplate: questionData.isTemplate,
+      templateId: questionData.templateId,
+      variables: questionData.variables,
     };
 
     return this.createQuestion(newQuestionData);

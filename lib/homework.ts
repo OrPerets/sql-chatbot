@@ -25,6 +25,7 @@ function normalizeHomeworkSetRecord(homework: HomeworkSetModel): HomeworkSet {
     availableUntil,
     published: homework.published,
     entryMode: homework.entryMode || DEFAULT_ENTRY_MODE,
+    homeworkType: homework.homeworkType || 'sql',
     datasetPolicy: homework.datasetPolicy,
     questionOrder: homework.questionOrder,
     visibility: homework.visibility,

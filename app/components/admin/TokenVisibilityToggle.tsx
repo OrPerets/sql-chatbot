@@ -19,10 +19,13 @@ const TokenVisibilityToggle: React.FC<TokenVisibilityToggleProps> = ({ isVisible
               const newValue = e.target.checked;
               onToggle(newValue);
               try {
+                const storedUser = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
+                const adminEmail = storedUser ? JSON.parse(storedUser)?.email : null;
                 await fetch(`/api/users/coins`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
+                    ...(adminEmail ? { 'x-user-email': String(adminEmail).toLowerCase() } : {}),
                   },
                   body: JSON.stringify({ newStatus: newValue ? 'ON' : 'OFF' })
                 });

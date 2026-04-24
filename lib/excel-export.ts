@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import type { Question, Submission, SubmissionSummary } from "@/app/homework/types";
 
 interface StudentData {
@@ -12,6 +12,12 @@ interface ExportHomeworkParams {
   submissions: Submission[];
   summaries?: SubmissionSummary[]; // Optional summaries with enriched student data
   fileName: string;
+}
+
+interface GenerateHomeworkGradesBufferParams
+  extends Omit<ExportHomeworkParams, "fileName"> {
+  emailMap?: Map<string, string> | Record<string, string>;
+  fileName?: string;
 }
 
 const formatScoreCell = (score: number | undefined) => {
@@ -69,25 +75,79 @@ export function buildHomeworkGradesWorkbook({
     return row;
   });
 
-  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "sql-chatbot";
+  workbook.title = `${homeworkTitle} - ציונים`;
+  workbook.views = [{ rightToLeft: true }];
+
+  const worksheet = workbook.addWorksheet("ציונים", {
+    views: [{ rightToLeft: true }],
+  });
+  worksheet.addRow(headers);
+  rows.forEach((row) => worksheet.addRow(row));
+
   // Set column widths - wider for name and email columns
   const colWidths = [12, 20, 25]; // ת.ז, שם, אימייל
   questions.forEach(() => {
     colWidths.push(12, 25); // ניקוד, הערה
   });
   colWidths.push(10); // סה"כ
-  worksheet["!cols"] = colWidths.map(wch => ({ wch }));
-
-  const workbook = XLSX.utils.book_new();
-  workbook.Workbook = { Views: [{ RTL: true }] } as any;
-  workbook.Props = { Title: `${homeworkTitle} - ציונים` };
-  XLSX.utils.book_append_sheet(workbook, worksheet, "ציונים");
+  worksheet.columns = colWidths.map((wch) => ({ width: wch }));
 
   return workbook;
 }
 
-export function exportHomeworkGradesToExcel(params: ExportHomeworkParams) {
+export async function exportHomeworkGradesToExcel(params: ExportHomeworkParams) {
   const workbook = buildHomeworkGradesWorkbook(params);
-  XLSX.writeFile(workbook, params.fileName);
+  const fileBuffer = await workbook.xlsx.writeBuffer();
+  if (typeof window === "undefined") {
+    await workbook.xlsx.writeFile(params.fileName);
+    return;
+  }
+
+  const blob = new Blob([fileBuffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = params.fileName;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+const resolveEmailFromMap = (
+  emailMap: Map<string, string> | Record<string, string> | undefined,
+  studentId: string | undefined,
+) => {
+  if (!emailMap || !studentId) return undefined;
+  if (emailMap instanceof Map) {
+    return emailMap.get(studentId);
+  }
+  return emailMap[studentId];
+};
+
+export async function generateHomeworkGradesExcelBuffer({
+  homeworkTitle,
+  questions,
+  submissions,
+  summaries,
+  emailMap,
+}: GenerateHomeworkGradesBufferParams) {
+  const normalizedSubmissions = submissions.map((submission) => {
+    const resolvedEmail = resolveEmailFromMap(emailMap, submission.studentId);
+    return {
+      ...submission,
+      studentId: resolvedEmail ?? submission.studentId,
+    };
+  });
+
+  const workbook = buildHomeworkGradesWorkbook({
+    homeworkTitle,
+    questions,
+    submissions: normalizedSubmissions,
+    summaries,
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
 }

@@ -19,7 +19,7 @@ Michael is a comprehensive web-based learning platform that provides:
 - **Framework**: Next.js 14 (React 18)
 - **Language**: TypeScript
 - **Database**: MongoDB
-- **AI Integration**: OpenAI API (GPT-4)
+- **AI Integration**: OpenAI Responses API (`gpt-5.4-mini` for tutor chat, `gpt-5.4` for admin/evals)
 - **SQL Execution**: sql.js
 - **UI Libraries**: Styled Components, React Three Fiber (3D avatars), Monaco Editor (code editor)
 - **Testing**: Jest, Playwright, React Testing Library
@@ -60,10 +60,14 @@ Configure the following environment variables in `.env.local`:
 # OpenAI API Configuration
 OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_API_MODE=responses
-OPENAI_MODEL=gpt-4.1-mini
+OPENAI_MODEL=gpt-5.4-mini
 OPENAI_VECTOR_STORE_ID=
 OPENAI_ASSISTANT_ID_GPT5=
 USE_GPT5_ASSISTANT=false
+OPENAI_VOICE_MODE=chained
+OPENAI_VOICE_RESPONSE_MODEL=gpt-5.4-mini
+OPENAI_VOICE_TRANSCRIPTION_MODEL=gpt-4o-transcribe
+OPENAI_VOICE_TTS_MODEL=gpt-4o-mini-tts
 
 # Database Configuration
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority&appName=SQLMentor
@@ -156,6 +160,40 @@ For detailed documentation on specific features, see the `docs/` directory:
 - [Conversation Summary System](./docs/conversation-summary-system.md) - AI conversation analysis
 - [Admin Panel Enhancement](./docs/admin-panel-enhancement.md) - Admin dashboard features
 - [Responses API Runbook](./docs/responses-api-runbook.md) - rollout, monitoring, rollback
+- [OpenAI Capability Roadmap](./docs/openai-capability-roadmap.md) - recommended features, tools, and skills roadmap
+
+## Interactive Learning
+
+The Interactive Learning experience lives at `/interactive-learning` and is behind a feature flag.
+
+### Enable the feature
+
+Set the following in your `.env.local`:
+
+```bash
+NEXT_PUBLIC_INTERACTIVE_LEARNING=1
+```
+
+### PDF source and manifest
+
+- PDFs live under `docs/pdfs/` and are served via `/api/learning/pdfs/[filename]`.
+- The manifest that maps PDFs to weeks/concepts is defined in `lib/learning-content.ts`.
+- To add a new PDF, place it in `docs/pdfs/` and add an entry to `BASE_LEARNING_PDFS`.
+
+### Notes export
+
+Students can export their notes from the Interactive Learning page. The export endpoint is
+`GET /api/learning/notes/export?userId=...`, returning a JSON file with all notes for the user.
+
+### PDF summaries with Michael
+
+Students can generate PDF summaries (full or highlights) directly from Interactive Learning:
+
+- `POST /api/learning/summarize` with `{ userId, pdfId, summaryMode }` to generate and persist a summary.
+- `GET /api/learning/summaries?userId=...&pdfId=...&summaryMode=...` to load the latest stored summary.
+
+For performance, the summarization flow limits input to the first 12k characters of extracted PDF
+text and reports when truncation is applied.
 
 ## Troubleshooting
 

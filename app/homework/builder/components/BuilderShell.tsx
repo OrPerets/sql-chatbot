@@ -20,8 +20,10 @@ export function BuilderShell({ children, activePath }: BuilderShellProps) {
   const { t, direction } = useHomeworkLocale();
   const currentPath = activePath ?? pathname;
 
-  // Hide sidebar on grade pages
   const isGradePage = currentPath?.includes("/grade");
+  const isPreviewPage = currentPath?.includes("/preview");
+  const isFullBleed = isGradePage || isPreviewPage;
+  const isAuthoringPage = currentPath?.includes("/create") || currentPath?.includes("/edit");
 
   const isLinkActive = (href: string) => {
     if (!currentPath) return false;
@@ -30,8 +32,8 @@ export function BuilderShell({ children, activePath }: BuilderShellProps) {
   };
 
   return (
-    <div className={styles.container} dir={direction} data-hide-sidebar={isGradePage}>
-      {!isGradePage && (
+    <div className={styles.container} dir={direction} data-hide-sidebar={isFullBleed || undefined} data-full-bleed={isPreviewPage || undefined}>
+      {!isFullBleed && (
         <aside className={styles.sidebar}>
           <div className={styles.brand}>
             <div className={styles.brandBadge}>
@@ -60,18 +62,20 @@ export function BuilderShell({ children, activePath }: BuilderShellProps) {
             })}
           </nav>
 
-          <div className={styles.assistantCard}>
-            <div className={styles.assistantIcon}>
-              <Bot size={18} />
+          {!isAuthoringPage && (
+            <div className={styles.assistantCard}>
+              <div className={styles.assistantIcon}>
+                <Bot size={18} />
+              </div>
+              <div>
+                <strong>{t("builder.shell.assistant.title")}</strong>
+                <p>{t("builder.shell.assistant.body")}</p>
+              </div>
+              <Link href="/homework/builder/create" className={styles.assistantCta}>
+                {t("builder.shell.assistant.cta")}
+              </Link>
             </div>
-            <div>
-              <strong>{t("builder.shell.assistant.title")}</strong>
-              <p>{t("builder.shell.assistant.body")}</p>
-            </div>
-            <Link href="/homework/builder/create" className={styles.assistantCta}>
-              {t("builder.shell.assistant.cta")}
-            </Link>
-          </div>
+          )}
         </aside>
       )}
       <section className={styles.content}>{children}</section>

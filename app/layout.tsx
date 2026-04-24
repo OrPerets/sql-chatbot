@@ -31,7 +31,7 @@ export const viewport = {
   themeColor: "#2a8ad8",
 };
 
-function resolveLocale({ acceptLanguage, headerLocale, cookieLocale }: { acceptLanguage: string; headerLocale?: string | null; cookieLocale?: string | null }) {
+function resolveLocale({ headerLocale, cookieLocale }: { headerLocale?: string | null; cookieLocale?: string | null }) {
   if (cookieLocale && (cookieLocale === "he" || cookieLocale === "en")) {
     return cookieLocale;
   }
@@ -40,17 +40,15 @@ function resolveLocale({ acceptLanguage, headerLocale, cookieLocale }: { acceptL
     return headerLocale;
   }
 
-  const primaryLanguage = acceptLanguage.split(",")[0]?.trim().toLowerCase() ?? "";
-  return primaryLanguage.startsWith("en") ? "en" : "he";
+  return "he";
 }
 
 export default async function RootLayout({ children }) {
   const headerList = await headers();
   const cookieStore = await cookies();
-  const acceptLanguage = headerList.get("accept-language") ?? "";
   const headerLocale = headerList.get("x-michael-locale");
   const cookieLocale = cookieStore.get("michael-locale")?.value ?? null;
-  const locale = resolveLocale({ acceptLanguage, headerLocale, cookieLocale });
+  const locale = resolveLocale({ headerLocale, cookieLocale });
   const dir = locale === "he" ? "rtl" : "ltr";
 
   return (

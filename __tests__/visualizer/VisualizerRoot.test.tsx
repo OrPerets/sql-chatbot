@@ -18,16 +18,20 @@ describe('VisualizerRoot', () => {
     fireEvent.change(textarea, {
       target: {
         value: `
-          SELECT Students.cohort, COUNT(*)
-          FROM Students
-          GROUP BY Students.cohort
+          SELECT customers.segment, COUNT(*)
+          FROM customers
+          GROUP BY customers.segment
           HAVING COUNT(*) > 1
-          ORDER BY Students.cohort
+          ORDER BY customers.segment
           LIMIT 2;
         `
       }
     });
-    fireEvent.click(screen.getByRole('button', { name: /שמור והפעל/i }));
+    const saveButton = screen.getByRole('button', { name: /שמור והפעל/i });
+    await waitFor(() => {
+      expect(saveButton).toBeEnabled();
+    });
+    fireEvent.click(saveButton);
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /GROUP BY/i })).toBeInTheDocument();
@@ -44,10 +48,14 @@ describe('VisualizerRoot', () => {
     const textarea = await openSqlEditor();
     fireEvent.change(textarea, {
       target: {
-        value: 'SELECT DISTINCT name FROM Students;'
+        value: 'SELECT DISTINCT full_name FROM customers;'
       }
     });
-    fireEvent.click(screen.getByRole('button', { name: /שמור והפעל/i }));
+    const saveButton = screen.getByRole('button', { name: /שמור והפעל/i });
+    await waitFor(() => {
+      expect(saveButton).toBeEnabled();
+    });
+    fireEvent.click(saveButton);
 
     const coverageButton = await screen.findByRole('button', { name: /בדיקת כיסוי/i });
     fireEvent.click(coverageButton);
