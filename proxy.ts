@@ -8,7 +8,7 @@ const ADMIN_API_PREFIX = "/api/admin";
 const SUPPORTED_LOCALES = new Set(["he", "en"]);
 const DEFAULT_LOCALE = "he";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (hasBlockedNextResumeHeader(request.headers)) {
@@ -17,12 +17,12 @@ export async function middleware(request: NextRequest) {
       { status: 400 },
     );
   }
-  
+
   // Allow public access to manifest.json and other public assets
-  if (pathname === '/manifest.json' || pathname.startsWith('/_next/') || pathname.startsWith('/icon-')) {
+  if (pathname === "/manifest.json" || pathname.startsWith("/_next/") || pathname.startsWith("/icon-")) {
     return NextResponse.next();
   }
-  
+
   const segments = pathname.split("/");
   const potentialLocale = segments[1]?.toLowerCase();
 
@@ -46,7 +46,7 @@ export async function middleware(request: NextRequest) {
     const status = session ? 403 : 401;
     return NextResponse.json(
       { error: status === 401 ? "Unauthorized" : "Forbidden" },
-      { status }
+      { status },
     );
   }
 

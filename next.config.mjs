@@ -82,7 +82,14 @@ const nextConfig = {
   },
   // Image optimization
   images: {
-    domains: ['localhost'],
+    remotePatterns: [
+      { protocol: 'http', hostname: 'localhost' },
+      { protocol: 'http', hostname: '127.0.0.1' },
+      { protocol: 'http', hostname: '10.0.0.8' },
+      { protocol: 'https', hostname: 'localhost' },
+      { protocol: 'https', hostname: '127.0.0.1' },
+      { protocol: 'https', hostname: '10.0.0.8' },
+    ],
     formats: ['image/webp', 'image/avif'],
     maximumDiskCacheSize: 256 * 1024 * 1024,
   },

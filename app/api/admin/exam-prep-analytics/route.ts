@@ -65,6 +65,47 @@ function buildSetIdQuery(setId: string) {
     : { homeworkSetId: setId };
 }
 
+/** Submissions sometimes use "<mongoUserId>/homework" — resolve user by the leading segment. */
+function normalizeStudentIdForUserLookup(studentId: string): string {
+  const trimmed = studentId.trim();
+  const slash = trimmed.indexOf('/');
+  if (slash === -1) return trimmed;
+  return trimmed.slice(0, slash);
+}
+
+function userPayloadFromDoc(u: UserModel) {
+  return {
+    name: u.name || (u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : undefined),
+    studentIdNumber: u.studentIdNumber,
+  };
+}
+
+/** Index users by every key we might see on a submission (email, id, _id, ת.ז). */
+function buildUserLookupMap(users: UserModel[]) {
+  const map = new Map<string, { name?: string; studentIdNumber?: string }>();
+  for (const u of users) {
+    const payload = userPayloadFromDoc(u);
+    if (u.email) map.set(u.email, payload);
+    if (u.id) map.set(u.id, payload);
+    if (u._id) map.set(String(u._id), payload);
+    if (u.studentIdNumber != null && String(u.studentIdNumber).trim() !== '') {
+      map.set(String(u.studentIdNumber).trim(), payload);
+    }
+  }
+  return map;
+}
+
+function getUserFromLookupMap(
+  map: Map<string, { name?: string; studentIdNumber?: string }>,
+  submissionStudentId: string
+) {
+  const direct = map.get(submissionStudentId);
+  if (direct) return direct;
+  const normalized = normalizeStudentIdForUserLookup(submissionStudentId);
+  if (normalized !== submissionStudentId) return map.get(normalized);
+  return undefined;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -85,23 +126,36 @@ export async function GET(request: NextRequest) {
     ]);
 
     const studentIds = [...new Set(submissions.map((s) => s.studentId))];
-    const users = await usersCol
-      .find({
-        $or: [
-          { email: { $in: studentIds } },
-          { id: { $in: studentIds } },
-        ],
-      })
-      .toArray();
+    const idCandidates = [
+      ...new Set(
+        studentIds.flatMap((sid) => {
+          const n = normalizeStudentIdForUserLookup(sid);
+          return n === sid ? [sid] : [sid, n];
+        })
+      ),
+    ];
+    const objectIds = [
+      ...new Map(
+        idCandidates
+          .filter((id) => /^[a-fA-F0-9]{24}$/.test(id) && ObjectId.isValid(id))
+          .map((id) => {
+            const oid = new ObjectId(id);
+            return [oid.toString(), oid] as const;
+          })
+      ).values(),
+    ];
 
-    const userMap = new Map<string, { name?: string; studentIdNumber?: string }>();
-    users.forEach((u) => {
-      const key = u.email || u.id || '';
-      userMap.set(key, {
-        name: u.name || (u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : undefined),
-        studentIdNumber: u.studentIdNumber,
-      });
-    });
+    const orClauses: Record<string, unknown>[] = [
+      { email: { $in: idCandidates } },
+      { id: { $in: idCandidates } },
+      { studentIdNumber: { $in: idCandidates } },
+    ];
+    if (objectIds.length > 0) {
+      orClauses.push({ _id: { $in: objectIds } });
+    }
+
+    const users = await usersCol.find({ $or: orClauses }).toArray();
+    const userMap = buildUserLookupMap(users);
 
     const analyticsBySubmission = new Map<string, QuestionAnalyticsModel[]>();
     allAnalytics.forEach((a) => {
@@ -170,7 +224,7 @@ export async function GET(request: NextRequest) {
         summary: a.metrics?.generalAnalysis?.summary,
       }));
 
-      const userData = userMap.get(sub.studentId);
+      const userData = getUserFromLookupMap(userMap, sub.studentId);
 
       return {
         studentId: sub.studentId,
