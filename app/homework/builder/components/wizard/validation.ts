@@ -39,8 +39,9 @@ function validateQuestion(question: QuestionDraft, index: number): QuestionValid
   return {
     id: question.id,
     index,
-    hasPrompt: Boolean(question.prompt.trim()),
+    hasPrompt: question.isParametric ? Boolean(question.templateId?.trim()) : Boolean(question.prompt.trim()),
     hasExpectedOutput:
+      Boolean(question.isParametric && question.templateId?.trim()) ||
       Boolean(question.expectedOutputDescription.trim()) ||
       schema.some((entry) => typeof entry?.column === "string" && entry.column.trim().length > 0),
     hasPoints: Number.isFinite(question.points) && question.points > 0,

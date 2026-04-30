@@ -41,6 +41,9 @@ export async function POST(request: Request, { params }: RouteParams) {
       maxAttempts: body.maxAttempts || 3,
       points: body.points || 10,
       evaluationMode: body.evaluationMode,
+      isTemplate: body.isTemplate,
+      templateId: body.templateId,
+      variables: body.variables,
     };
 
     const question = await createQuestion(questionData);

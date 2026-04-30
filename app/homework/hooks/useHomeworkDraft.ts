@@ -74,6 +74,8 @@ function toDraft(set: Awaited<ReturnType<typeof getHomeworkSet>>, questions: Que
       datasetId: question.datasetId,
       rubric: question.gradingRubric,
       evaluationMode: question.evaluationMode ?? "auto",
+      isParametric: Boolean(question.isTemplate || question.templateId),
+      templateId: question.templateId,
     })),
     publishNotes: "",
   };

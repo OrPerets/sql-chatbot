@@ -54,9 +54,9 @@ function parseSchema(input: string): Array<{ column: string; type: string }> {
 }
 
 function buildQuestionsPayload(draft: HomeworkDraftState): Question[] {
-  return draft.questions.map((question) => ({
+  return draft.questions.map((question, index) => ({
     id: question.id,
-    prompt: question.prompt,
+    prompt: question.isParametric ? question.prompt || `שאלה ${index + 1}` : question.prompt,
     expectedOutputDescription: question.expectedOutputDescription,
     instructions: question.instructions,
     starterSql: question.starterSql,
@@ -66,6 +66,8 @@ function buildQuestionsPayload(draft: HomeworkDraftState): Question[] {
     maxAttempts: question.maxAttempts,
     points: question.points,
     evaluationMode: question.evaluationMode,
+    isTemplate: Boolean(question.isParametric),
+    templateId: question.templateId,
   }));
 }
 
@@ -194,6 +196,8 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
             datasetId: q.datasetId,
             rubric: q.gradingRubric,
             evaluationMode: q.evaluationMode ?? "auto",
+            isParametric: Boolean(q.isTemplate || q.templateId),
+            templateId: q.templateId,
           })),
           publishNotes: prev.draft.publishNotes,
         };
