@@ -9,6 +9,7 @@ const DEFAULT_SET_ID = '697b602f8d8cd886902367b1';
 
 export interface ExamPrepStudentRow {
   studentId: string;
+  email?: string;
   studentName?: string;
   studentIdNumber?: string;
   submissionId: string;
@@ -75,6 +76,7 @@ function normalizeStudentIdForUserLookup(studentId: string): string {
 
 function userPayloadFromDoc(u: UserModel) {
   return {
+    email: u.email,
     name: u.name || (u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : undefined),
     studentIdNumber: u.studentIdNumber,
   };
@@ -82,7 +84,7 @@ function userPayloadFromDoc(u: UserModel) {
 
 /** Index users by every key we might see on a submission (email, id, _id, ת.ז). */
 function buildUserLookupMap(users: UserModel[]) {
-  const map = new Map<string, { name?: string; studentIdNumber?: string }>();
+  const map = new Map<string, { email?: string; name?: string; studentIdNumber?: string }>();
   for (const u of users) {
     const payload = userPayloadFromDoc(u);
     if (u.email) map.set(u.email, payload);
@@ -96,7 +98,7 @@ function buildUserLookupMap(users: UserModel[]) {
 }
 
 function getUserFromLookupMap(
-  map: Map<string, { name?: string; studentIdNumber?: string }>,
+  map: Map<string, { email?: string; name?: string; studentIdNumber?: string }>,
   submissionStudentId: string
 ) {
   const direct = map.get(submissionStudentId);
@@ -228,6 +230,7 @@ export async function GET(request: NextRequest) {
 
       return {
         studentId: sub.studentId,
+        email: userData?.email,
         studentName: userData?.name,
         studentIdNumber: userData?.studentIdNumber,
         submissionId,

@@ -234,6 +234,80 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const activeQuestionRef = useRef<string | null>(null);
   const { t, direction, formatDateTime, formatNumber } = useHomeworkLocale();
   const backArrow = direction === "rtl" ? "→" : "←";
+  const isEnglish = direction === "ltr";
+  const runnerText = useMemo(
+    () => ({
+      dataStructureTitle: isEnglish ? "Data Structure" : "מבנה הנתונים",
+      dataStructureEmpty: isEnglish
+        ? "No dedicated data-structure explanation was attached. Use the sample tables below."
+        : "לא צורף הסבר ייעודי למבנה הנתונים. היעזרו בטבלאות הדוגמה שמופיעות מתחת.",
+      sampleTablesTitle: isEnglish ? "Sample Tables" : "טבלאות לדוגמה",
+      sampleTablesSubtitle: isEnglish
+        ? "Review the table structure and sample data before writing the query."
+        : "עיינו במבנה הטבלאות ובנתונים לדוגמה לפני כתיבת השאילתה.",
+      hideSampleData: isEnglish ? "Hide sample data" : "הסתר נתוני דוגמא",
+      showSampleData: isEnglish ? "Show sample data" : "הצג נתוני דוגמא",
+      columns: isEnglish ? "columns" : "עמודות",
+      rows: isEnglish ? "rows" : "שורות",
+      noSampleRows: isEnglish ? "No sample rows were defined for this table." : "לא הוגדרו שורות דוגמה לטבלה זו.",
+      question: isEnglish ? "Question" : "שאלה",
+      openingHint: isEnglish ? "Opening hint..." : "פותח רמז...",
+      showHint: isEnglish ? "Show hint" : "הצג רמז",
+      hintCostPrefix: isEnglish ? "Cost:" : "עלות פתיחה:",
+      coin: isEnglish ? "coin" : "מטבע",
+      relationalAlgebra: isEnglish ? "Relational Algebra" : "אלגברת יחסים",
+      saving: isEnglish ? "Saving..." : "שומר...",
+      saved: isEnglish ? "Saved ✓" : "נשמר ✓",
+      previous: isEnglish ? "Previous" : "הקודמת",
+      next: isEnglish ? "Next" : "הבאה",
+      partial: isEnglish ? "partial" : "חלקי",
+      queryErrorTitle: isEnglish ? "Query error" : "שגיאה בשאילתה",
+      tableMissing: (name: string) =>
+        isEnglish ? `The table "${name}" does not exist in the database.` : `הטבלה "${name}" לא קיימת במסד הנתונים.`,
+      columnMissing: (name: string) =>
+        isEnglish ? `The column "${name}" does not exist.` : `העמודה "${name}" לא קיימת.`,
+      availableSchema: isEnglish ? "Available tables and columns:" : "הטבלאות והעמודות הזמינות:",
+      chatTitle: isEnglish ? "Ask Michael" : "שאל את Michael",
+      chatSubtitle: isEnglish ? "AI assistant for SQL questions" : "עוזר AI לשאלות SQL",
+      submitting: isEnglish ? "Submitting..." : "שולח...",
+      submit: isEnglish ? "Submit homework" : "הגש מטלה",
+      officialSolution: isEnglish ? "Official solution" : "פתרון רשמי",
+      solutionQuery: isEnglish ? "Solution query:" : "שאילתת הפתרון:",
+      noSolution: isEnglish ? "No answer has been defined for this question yet." : "טרם הוגדרה תשובה לשאלה זו.",
+      copied: isEnglish ? "Copied" : "הועתק",
+      copySolution: isEnglish ? "Copy solution" : "העתק פתרון",
+      close: isEnglish ? "Close" : "סגור",
+      hint: isEnglish ? "Hint" : "רמז",
+      hintDirection: isEnglish ? "Solution direction:" : "כיוון לפתרון:",
+      solutionSql: isEnglish ? "Solution SQL" : "SQL פתרון",
+      solutionSqlNote: isEnglish
+        ? "Included here for the paper screenshot only."
+        : "מוצג כאן לצילום מסך בלבד.",
+      mockUserFirst: isEnglish ? "Can you give me the final SQL for Q1?" : "אפשר לקבל את ה-SQL הסופי לשאלה 1?",
+      mockAssistantFirst: isEnglish
+        ? "I cannot give the full answer, but I can guide you. Start from Debates and join Enrollments by DebateID."
+        : "לא אתן את התשובה המלאה, אבל אפשר לכוון: התחילו מ-Debates וחברו את Enrollments לפי DebateID.",
+      mockUserSecond: isEnglish ? "What should I check next?" : "מה לבדוק עכשיו?",
+      mockAssistantSecond: isEnglish
+        ? "Filter only approved registrations, count enrollments per debate, then sort by DebateDate."
+        : "סננו רק הרשמות approved, ספרו הרשמות לכל סבב, ואז מיינו לפי DebateDate.",
+      expectedColumns: (columns: string) =>
+        isEnglish ? `The output should include these columns: ${columns}.` : `הפלט צריך לכלול את העמודות: ${columns}.`,
+      previewMissingOutput: isEnglish
+        ? "No expected-output description was defined yet. In preview mode, add expectedOutputDescription to the question."
+        : "לא הוגדר עדיין תיאור פלט צפוי. במצב תצוגה מקדימה כדאי להוסיף expectedOutputDescription לשאלה.",
+      missingOutput: isEnglish
+        ? "No explicit expected-output description was defined. Use the question wording and the correct query result."
+        : "לא הוגדר תיאור מפורש לפלט הצפוי. הסתמכו על נוסח השאלה ועל תוצאות השאילתה הנכונות.",
+      hintOpened: isEnglish ? "Hint opened successfully" : "הרמז נפתח בהצלחה",
+      hintUnavailable: isEnglish ? "Could not open a hint right now." : "לא ניתן לפתוח רמז כרגע.",
+      insufficientCoins: (balance: number, required: number) =>
+        isEnglish
+          ? `Not enough coins. Balance: ${balance}, required: ${required}.`
+          : `אין מספיק מטבעות. יתרה: ${balance}, נדרש: ${required}.`,
+    }),
+    [isEnglish],
+  );
 
   const toggleTableExpanded = useCallback((tableName: string) => {
     setExpandedTables((prev) => ({ ...prev, [tableName]: !prev[tableName] }));
@@ -322,7 +396,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         return next;
       });
     }
-  }, [submissionQuery.data, activeQuestionId]);
+  }, [submissionQuery.data, activeQuestionId, isRelationalAlgebra]);
 
   // Set first question as active when questions load
   useEffect(() => {
@@ -636,7 +710,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     onSuccess: (payload, variables) => {
       setHintText(payload.hint);
       setHintQuestionPrompt(variables.questionPrompt);
-      setHintSuccessMessage("הרמז נפתח בהצלחה");
+      setHintSuccessMessage(runnerText.hintOpened);
       setHintModalOpen(true);
       void queryClient.invalidateQueries({ queryKey: ["coins-config", "homework-hints"] });
     },
@@ -645,14 +719,14 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       const required = Number(error.payload?.required);
 
       if (error.status === 402 && Number.isFinite(balance) && Number.isFinite(required)) {
-        setHintErrorMessage(`אין מספיק מטבעות. יתרה: ${balance}, נדרש: ${required}.`);
+        setHintErrorMessage(runnerText.insufficientCoins(balance, required));
         return;
       }
 
       setHintErrorMessage(
         typeof error.payload?.error === "string" && error.payload.error.trim().length > 0
           ? error.payload.error
-          : "לא ניתן לפתוח רמז כרגע."
+          : runnerText.hintUnavailable
       );
     },
   });
@@ -789,10 +863,10 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     ? activeQuestion.expectedResultSchema.map((column) => column.column).join(", ")
     : "";
   const resolvedExpectedOutputDescription = expectedOutputDescription
-    || (schemaColumnSummary ? `הפלט צריך לכלול את העמודות: ${schemaColumnSummary}.` : "")
+    || (schemaColumnSummary ? runnerText.expectedColumns(schemaColumnSummary) : "")
     || (isPreviewContext
-      ? "לא הוגדר עדיין תיאור פלט צפוי. במצב תצוגה מקדימה כדאי להוסיף expectedOutputDescription לשאלה."
-      : "לא הוגדר תיאור מפורש לפלט הצפוי. הסתמכו על נוסח השאלה ועל תוצאות השאילתה הנכונות.");
+      ? runnerText.previewMissingOutput
+      : runnerText.missingOutput);
   const isExpectedOutputPlaceholder = !expectedOutputDescription;
   const activeQuestionText = useMemo(
     () => (activeQuestion ? getVisibleQuestionText(activeQuestion) : ""),
@@ -841,9 +915,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       const next = { ...prev };
       let changed = false;
 
-      Object.entries(sidebarTables).forEach(([tableName, tableData]) => {
-        if (prev[tableName] === undefined && tableData.rows.length > 0) {
-          next[tableName] = true;
+      Object.keys(sidebarTables).forEach((tableName) => {
+        if (prev[tableName] === undefined) {
+          next[tableName] = false;
           changed = true;
         }
       });
@@ -960,20 +1034,20 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     <div className={styles.runner} dir={direction}>
 
       {/* Sidebar: Tables + Data */}
-      <aside className={styles.sidebar}>
+      <aside className={`${styles.sidebar} ${isEnglish ? styles.sidebarLtr : ""}`} dir={isEnglish ? "ltr" : direction}>
         <div className={styles.assignmentMeta}>
           <InstructionsSection
-            title="מבנה הנתונים"
+            title={runnerText.dataStructureTitle}
             instructions={dataStructureNotes}
-            emptyMessage="לא צורף הסבר ייעודי למבנה הנתונים. היעזרו בטבלאות הדוגמה שמופיעות מתחת."
+            emptyMessage={runnerText.dataStructureEmpty}
           />
 
           {/* Database Viewer */}
           <div className={styles.databaseViewerSection}>
             <div className={styles.tablesSectionHeader}>
-              <h3 className={styles.tablesSectionTitle}>טבלאות לדוגמה</h3>
+              <h3 className={styles.tablesSectionTitle}>{runnerText.sampleTablesTitle}</h3>
               <p className={styles.tablesSectionSubtitle}>
-                עיינו במבנה הטבלאות ובנתונים לדוגמה לפני כתיבת השאילתה.
+                {runnerText.sampleTablesSubtitle}
               </p>
             </div>
             <button
@@ -982,7 +1056,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               onClick={() => setShowDatabaseViewer(!showDatabaseViewer)}
             >
               <span className={styles.databaseViewerButtonIcon}>{showDatabaseViewer ? "▾" : "▸"}</span>
-              {showDatabaseViewer ? "הסתר נתוני דוגמא" : "הצג נתוני דוגמא"}
+              {showDatabaseViewer ? runnerText.hideSampleData : runnerText.showSampleData}
             </button>
             
             {showDatabaseViewer && (
@@ -999,7 +1073,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                       </span>
                       <span className={styles.tableName}>{tableName}</span>
                       <span className={styles.tableColumnCount}>
-                        {tableData.columns.length} עמודות, {tableData.rows.length} שורות
+                        {tableData.columns.length} {runnerText.columns}, {tableData.rows.length} {runnerText.rows}
                       </span>
                     </button>
                     
@@ -1025,7 +1099,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                             </tbody>
                           </table>
                         ) : (
-                          <p className={styles.instructionsEmpty}>לא הוגדרו שורות דוגמה לטבלה זו.</p>
+                          <p className={styles.instructionsEmpty}>{runnerText.noSampleRows}</p>
                         )}
                       </div>
                     )}
@@ -1057,8 +1131,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                       type="button"
                       className={`${styles.stepperCircle} ${isActive ? styles.stepperCircleActive : ''} ${isCompleted ? styles.stepperCircleCompleted : ''} ${hasAnswer && !isCompleted ? styles.stepperCircleDraft : ''}`}
                       onClick={() => setActiveQuestionId(qId)}
-                      title={`שאלה ${questionNum}`}
-                      aria-label={`שאלה ${questionNum}`}
+                      title={`${runnerText.question} ${questionNum}`}
+                      aria-label={`${runnerText.question} ${questionNum}`}
                     >
                       {isCompleted ? (
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1101,9 +1175,11 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                       }
                       disabled={!activeQuestionId || hintMutation.isPending}
                     >
-                      {hintMutation.isPending ? "פותח רמז..." : "הצג רמז"}
+                      {hintMutation.isPending ? runnerText.openingHint : runnerText.showHint}
                     </button>
-                    <span className={styles.hintMeta}>עלות פתיחה: {homeworkHintCost} מטבע</span>
+                    <span className={styles.hintMeta}>
+                      {runnerText.hintCostPrefix} {homeworkHintCost} {runnerText.coin}
+                    </span>
                   </div>
                 ) : null}
                 {hintErrorMessage ? (
@@ -1126,9 +1202,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         <div className={styles.editorSection}>
           <div className={styles.editorContainer}>
             <div className={styles.editorLabel}>
-              <span>{isRelationalAlgebra ? "אלגברת יחסים" : "SQL"}</span>
+              <span>{isRelationalAlgebra ? runnerText.relationalAlgebra : "SQL"}</span>
               <span className={styles.autosaveIndicator}>
-                {autosaveState === "saving" ? "שומר..." : autosaveState === "saved" ? "נשמר ✓" : ""}
+                {autosaveState === "saving" ? runnerText.saving : autosaveState === "saved" ? runnerText.saved : ""}
               </span>
             </div>
 
@@ -1184,7 +1260,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   }}
                   disabled={questions.findIndex(q => q.id === activeQuestionId) <= 0}
                 >
-                  → הקודמת
+                  {direction === "rtl" ? "→ " : "← "}
+                  {runnerText.previous}
                 </button>
                 <button
                   type="button"
@@ -1197,7 +1274,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   }}
                   disabled={questions.findIndex(q => q.id === activeQuestionId) >= questions.length - 1}
                 >
-                  הבאה ←
+                  {runnerText.next}
+                  {direction === "rtl" ? " ←" : " →"}
                 </button>
                 {/* <button
                   type="button"
@@ -1232,8 +1310,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               <h4 className={styles.feedbackTitle}>{t("runner.results.heading")}</h4>
               {activeAnswer?.resultPreview && (
                 <span className={styles.resultCount}>
-                  {activeAnswer.resultPreview.rows.length} שורות
-                  {activeAnswer.resultPreview.truncated ? " (חלקי)" : ""}
+                  {activeAnswer.resultPreview.rows.length} {runnerText.rows}
+                  {activeAnswer.resultPreview.truncated ? ` (${runnerText.partial})` : ""}
                 </span>
               )}
             </div>
@@ -1252,7 +1330,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   <div className={styles.schemaErrorNotification}>
                     <div className={styles.schemaErrorHeader}>
                       <span className={styles.schemaErrorIcon}>⚠️</span>
-                      <span className={styles.schemaErrorTitle}>שגיאה בשאילתה</span>
+                      <span className={styles.schemaErrorTitle}>{runnerText.queryErrorTitle}</span>
                     </div>
                     <p className={styles.schemaErrorMessage}>
                       {activeAnswer.feedback.autoNotes}
@@ -1260,12 +1338,12 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                     {schemaError.name && (
                       <p className={styles.schemaErrorHint}>
                         {schemaError.type === 'table' 
-                          ? `הטבלה "${schemaError.name}" לא קיימת במסד הנתונים.`
-                          : `העמודה "${schemaError.name}" לא קיימת.`}
+                          ? runnerText.tableMissing(schemaError.name)
+                          : runnerText.columnMissing(schemaError.name)}
                       </p>
                     )}
                     <div className={styles.schemaHelpSection}>
-                      <p className={styles.schemaHelpTitle}>הטבלאות והעמודות הזמינות:</p>
+                      <p className={styles.schemaHelpTitle}>{runnerText.availableSchema}</p>
                       <div className={styles.schemaTablesList}>
                         {Object.entries(sidebarTables).map(([tableName, tableData]) => (
                           <div key={tableName} className={styles.schemaTableItem}>
@@ -1325,38 +1403,48 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         <div className={styles.chatHeader}>
           <div className={styles.chatAvatarSmall}>M</div>
           <div className={styles.chatHeaderText}>
-            <h3 className={styles.chatTitle}>שאל את Michael</h3>
-            <span className={styles.chatSubtitle}>עוזר AI לשאלות SQL</span>
+            <h3 className={styles.chatTitle}>{runnerText.chatTitle}</h3>
+            <span className={styles.chatSubtitle}>{runnerText.chatSubtitle}</span>
           </div>
         </div>
         <div className={styles.chatContent}>
-          <Chat
-            chatId={null}
-            hideSidebar={true}
-            hideAvatar={true}
-            minimalMode={true}
-            embeddedMode={true}
-            homeworkContext={chatHomeworkContext}
-          />
+          {isPreviewContext ? (
+            <div className={styles.mockConversation} dir={isEnglish ? "ltr" : direction}>
+              <div className={styles.mockMessageUser}>{runnerText.mockUserFirst}</div>
+              <div className={styles.mockMessageAssistant}>{runnerText.mockAssistantFirst}</div>
+              <div className={styles.mockMessageUser}>{runnerText.mockUserSecond}</div>
+              <div className={styles.mockMessageAssistant}>{runnerText.mockAssistantSecond}</div>
+            </div>
+          ) : (
+            <Chat
+              chatId={null}
+              hideSidebar={true}
+              hideAvatar={true}
+              minimalMode={true}
+              embeddedMode={true}
+              homeworkContext={chatHomeworkContext}
+            />
+          )}
         </div>
       </aside>
 
-      {/* Submit Button - Fixed Bottom */}
-      <button
-        type="button"
-        className={styles.submitButtonFixed}
-        onClick={handleSubmitClick}
-        disabled={submitMutation.isPending || submission?.status === "submitted" || submission?.status === "graded"}
-      >
-        {submitMutation.isPending ? (
-          <span className={styles.runButtonSpinner} />
-        ) : submission?.status === "submitted" ? (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        )}
-        {submitMutation.isPending ? "שולח..." : "הגש מטלה"}
-      </button>
+      {!isPreviewContext && (
+        <button
+          type="button"
+          className={styles.submitButtonFixed}
+          onClick={handleSubmitClick}
+          disabled={submitMutation.isPending || submission?.status === "submitted" || submission?.status === "graded"}
+        >
+          {submitMutation.isPending ? (
+            <span className={styles.runButtonSpinner} />
+          ) : submission?.status === "submitted" ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          )}
+          {submitMutation.isPending ? runnerText.submitting : runnerText.submit}
+        </button>
+      )}
 
       {solutionModalQuestionId && (
         <div
@@ -1367,9 +1455,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
             }
           }}
         >
-          <div className={styles.solutionModal} dir="rtl">
+          <div className={styles.solutionModal} dir={direction}>
             <div className={styles.solutionModalHeader}>
-              <h4 className={styles.solutionModalTitle}>💡 פתרון רשמי</h4>
+              <h4 className={styles.solutionModalTitle}>💡 {runnerText.officialSolution}</h4>
               <button
                 type="button"
                 className={styles.solutionModalClose}
@@ -1384,13 +1472,13 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
             ) : null}
 
             <div className={styles.solutionModalBody}>
-              <span className={styles.solutionModalLabel}>שאילתת הפתרון:</span>
+              <span className={styles.solutionModalLabel}>{runnerText.solutionQuery}</span>
               {solutionModalSql ? (
                 <pre className={styles.solutionCode}>
                   <code>{solutionModalSql}</code>
                 </pre>
               ) : (
-                <p className={styles.solutionEmpty}>טרם הוגדרה תשובה לשאלה זו.</p>
+                <p className={styles.solutionEmpty}>{runnerText.noSolution}</p>
               )}
             </div>
 
@@ -1401,7 +1489,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   className={styles.copyAnswerButton}
                   onClick={() => solutionModalQuestionId && handleCopyAnswer(solutionModalQuestionId, solutionModalSql)}
                 >
-                  {solutionModalCopyStatus === "copied" ? "✅ הועתק" : "📋 העתק פתרון"}
+                  {solutionModalCopyStatus === "copied" ? `✅ ${runnerText.copied}` : `📋 ${runnerText.copySolution}`}
                 </button>
               )}
               <button
@@ -1409,7 +1497,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 className={styles.showAnswerButton}
                 onClick={() => setSolutionModalQuestionId(null)}
               >
-                סגור
+                {runnerText.close}
               </button>
             </div>
           </div>
@@ -1425,9 +1513,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
             }
           }}
         >
-          <div className={styles.hintModal} dir="rtl">
+          <div className={styles.hintModal} dir={direction}>
             <div className={styles.solutionModalHeader}>
-              <h4 className={styles.solutionModalTitle}>רמז</h4>
+              <h4 className={styles.solutionModalTitle}>{runnerText.hint}</h4>
               <button
                 type="button"
                 className={styles.solutionModalClose}
@@ -1440,7 +1528,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
             {hintQuestionPrompt ? <p className={styles.solutionModalPrompt}>{hintQuestionPrompt}</p> : null}
 
             <div className={styles.solutionModalBody}>
-              <span className={styles.solutionModalLabel}>כיוון לפתרון:</span>
+              <span className={styles.solutionModalLabel}>{runnerText.hintDirection}</span>
               <p className={styles.hintText}>{hintText}</p>
             </div>
 
@@ -1450,7 +1538,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 className={styles.showAnswerButton}
                 onClick={() => setHintModalOpen(false)}
               >
-                סגור
+                {runnerText.close}
               </button>
             </div>
           </div>
