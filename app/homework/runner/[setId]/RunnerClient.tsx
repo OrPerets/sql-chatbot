@@ -1036,14 +1036,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 >
                   הבאה ←
                 </button>
-                <button
-                  type="button"
-                  className={styles.showAnswerButton}
-                  onClick={() => activeQuestionId && handleShowAnswer(activeQuestionId)}
-                  disabled={!activeQuestionId}
-                >
-                  הצג פתרון
-                </button>
               </div>
               
               <button
