@@ -110,7 +110,7 @@ export async function PUT(
       );
     }
 
-    const success = await updateKnowledgeScore(studentId, knowledgeScore, reason, adminEmail);
+    const success = await updateKnowledgeScore(studentId, knowledgeScore, reason, "admin");
 
     if (!success) {
       return NextResponse.json(

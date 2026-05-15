@@ -103,10 +103,10 @@ export default function UsersManagementPage() {
       }
 
       const [usersPayload, coinsPayload] = await Promise.all([usersResponse.json(), coinsResponse.json()]);
-      const coinsMap = new Map(
+      const coinsMap = new Map<string, number>(
         (Array.isArray(coinsPayload) ? coinsPayload : coinsPayload?.users || []).map((entry: any) => [
-          entry.user,
-          entry.coins,
+          String(entry.user),
+          Number(entry.coins) || 0,
         ])
       );
 

@@ -11,9 +11,9 @@
  */
 
 import "dotenv/config";
+import ExcelJS from "exceljs";
 import * as fs from "fs";
 import * as path from "path";
-import * as XLSX from "xlsx";
 import { connectToDatabase } from "../lib/database";
 import { HomeworkExporter } from "./export-homework-1";
 
@@ -158,14 +158,21 @@ async function main(): Promise<void> {
   const data = await exporter.exportHomeworkData(homeworkSet.id);
   const rows = buildRows(data);
 
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws["!cols"] = [{ wch: 22 }, { wch: 36 }, { wch: 120 }];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "hw_unified");
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "sql-chatbot";
+  workbook.created = new Date();
+  const worksheet = workbook.addWorksheet("hw_unified");
+
+  worksheet.columns = [
+    { header: "record_type", key: "record_type", width: 22 },
+    { header: "record_id", key: "record_id", width: 36 },
+    { header: "json", key: "json", width: 120 },
+  ];
+  rows.forEach((row) => worksheet.addRow(row));
 
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filePath = path.join(outDir, `homework-${homeworkSet.id}-unified-${stamp}.xlsx`);
-  XLSX.writeFile(wb, filePath);
+  await workbook.xlsx.writeFile(filePath);
 
   console.log(`Wrote ${filePath} (${rows.length} rows)`);
 }

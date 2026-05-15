@@ -64,7 +64,9 @@ async function parseWorkbookRows(file: File): Promise<Array<Record<string, unkno
   }
 
   const headerRow = worksheet.getRow(1);
-  const headers = headerRow.values
+  const rawHeaderValues = headerRow.values;
+  const headerValues: unknown[] = Array.isArray(rawHeaderValues) ? rawHeaderValues : [];
+  const headers = headerValues
     .slice(1)
     .map((value) => normalizeHeader(value));
 
@@ -72,7 +74,9 @@ async function parseWorkbookRows(file: File): Promise<Array<Record<string, unkno
   worksheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return;
 
-    const values = row.values.slice(1);
+    const rawRowValues = row.values;
+    const rowValues: unknown[] = Array.isArray(rawRowValues) ? rawRowValues : [];
+    const values = rowValues.slice(1);
     const mapped = headers.reduce<Record<string, unknown>>((result, header, index) => {
       result[header] = values[index];
       return result;

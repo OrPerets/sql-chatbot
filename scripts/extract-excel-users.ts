@@ -48,7 +48,9 @@ async function extractUsersFromExcel(excelPath: string): Promise<ExcelUser[]> {
 
     // Convert to JSON-like objects using header row
     const headerRow = firstSheet.getRow(1);
-    const headers = headerRow.values
+    const rawHeaderValues = headerRow.values;
+    const headerValues: unknown[] = Array.isArray(rawHeaderValues) ? rawHeaderValues : [];
+    const headers = headerValues
       .slice(1)
       .map((value) => String(value ?? '').trim());
 

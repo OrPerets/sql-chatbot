@@ -78,7 +78,6 @@ export function buildHomeworkGradesWorkbook({
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "sql-chatbot";
   workbook.title = `${homeworkTitle} - ציונים`;
-  workbook.views = [{ rightToLeft: true }];
 
   const worksheet = workbook.addWorksheet("ציונים", {
     views: [{ rightToLeft: true }],
