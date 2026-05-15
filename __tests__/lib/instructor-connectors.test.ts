@@ -15,9 +15,9 @@ describe("instructor connectors", () => {
     process.env.FEATURE_OPENAI_CONNECTORS = "0";
     process.env.OPENAI_CONNECTOR_GOOGLE_DRIVE_TOKEN = "drive-token";
 
-    const module = await import("@/lib/openai/instructor-connectors");
-    const capabilities = await module.getInstructorConnectorCapabilities();
-    const tools = await module.buildInstructorConnectorTools();
+    const instructorConnectors = await import("@/lib/openai/instructor-connectors");
+    const capabilities = await instructorConnectors.getInstructorConnectorCapabilities();
+    const tools = await instructorConnectors.buildInstructorConnectorTools();
 
     expect(capabilities.every((entry) => entry.status === "feature_flag_disabled")).toBe(true);
     expect(tools).toEqual([]);
@@ -29,9 +29,9 @@ describe("instructor connectors", () => {
     process.env.OPENAI_CONNECTOR_GMAIL_TOKEN = "gmail-token";
     process.env.OPENAI_CONNECTOR_GOOGLE_CALENDAR_TOKEN = "calendar-token";
 
-    const module = await import("@/lib/openai/instructor-connectors");
-    const capabilities = await module.getInstructorConnectorCapabilities();
-    const tools = await module.buildInstructorConnectorTools();
+    const instructorConnectors = await import("@/lib/openai/instructor-connectors");
+    const capabilities = await instructorConnectors.getInstructorConnectorCapabilities();
+    const tools = await instructorConnectors.buildInstructorConnectorTools();
 
     expect(capabilities.find((entry) => entry.id === "google_drive")?.status).toBe("ready");
     expect(capabilities.find((entry) => entry.id === "gmail")?.status).toBe("ready");
