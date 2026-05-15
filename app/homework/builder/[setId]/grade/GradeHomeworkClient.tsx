@@ -100,6 +100,27 @@ type FilterStatus = "all" | "graded" | "ungraded" | "partial";
 type SortField = "name" | "score" | "status" | "date";
 type SortDirection = "asc" | "desc";
 
+function buildQuestionLookup(questions: Question[] | undefined) {
+  const lookup = new Map<string, Question>();
+
+  (questions ?? []).forEach((question) => {
+    lookup.set(question.id, question);
+    if (question.templateId && !lookup.has(question.templateId)) {
+      lookup.set(question.templateId, question);
+    }
+  });
+
+  return lookup;
+}
+
+function resolveQuestionFromLookup(
+  questionId: string,
+  fallback: Question | undefined,
+  lookup: Map<string, Question> | undefined,
+) {
+  return lookup?.get(questionId) ?? (fallback?.templateId ? lookup?.get(fallback.templateId) : undefined) ?? fallback;
+}
+
 // Status Badge Component
 // Comment Bank Dropdown Component
 function CommentBankDropdown({
@@ -423,6 +444,89 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
 
   // Memoize summaries to avoid dependency issues
   const summaries = useMemo(() => summariesQuery.data ?? [], [summariesQuery.data]);
+
+  const activeSubmissionSummary = useMemo(
+    () => summaries.find((summary) => summary.id === activeSubmissionId),
+    [activeSubmissionId, summaries],
+  );
+  const activeStudentId = submissionQuery.data?.studentId ?? activeSubmissionSummary?.studentId ?? null;
+
+  const activeStudentQuestionsQuery = useQuery({
+    queryKey: ["homework", setId, "student-questions", activeStudentId],
+    queryFn: () => getHomeworkQuestions(setId, activeStudentId!),
+    enabled: viewMode === "student" && Boolean(activeStudentId),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const questionViewStudentIds = useMemo(() => {
+    if (viewMode !== "question") return [];
+
+    const uniqueStudentIds = new Set<string>();
+    (allSubmissionsQuery.data ?? []).forEach((submission) => {
+      if (submission.studentId) {
+        uniqueStudentIds.add(submission.studentId);
+      }
+    });
+
+    return Array.from(uniqueStudentIds).sort();
+  }, [allSubmissionsQuery.data, viewMode]);
+
+  const questionViewStudentQuestionsQuery = useQuery({
+    queryKey: ["homework", setId, "student-question-map", questionViewStudentIds],
+    queryFn: async () => {
+      const entries = await Promise.all(
+        questionViewStudentIds.map(async (studentId) => {
+          try {
+            return [studentId, await getHomeworkQuestions(setId, studentId)] as const;
+          } catch (error) {
+            console.warn("Failed to load rendered questions for student", studentId, error);
+            return [studentId, []] as const;
+          }
+        }),
+      );
+
+      return Object.fromEntries(entries) as Record<string, Question[]>;
+    },
+    enabled: viewMode === "question" && questionViewStudentIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const activeStudentQuestionLookup = useMemo(
+    () => buildQuestionLookup(activeStudentQuestionsQuery.data),
+    [activeStudentQuestionsQuery.data],
+  );
+
+  const questionViewStudentQuestionLookups = useMemo(() => {
+    const lookups = new Map<string, Map<string, Question>>();
+
+    Object.entries(questionViewStudentQuestionsQuery.data ?? {}).forEach(([studentId, questions]) => {
+      lookups.set(studentId, buildQuestionLookup(questions));
+    });
+
+    return lookups;
+  }, [questionViewStudentQuestionsQuery.data]);
+
+  const getDisplayQuestion = useCallback((questionId: string, studentId?: string | null) => {
+    const fallback = questionsById.get(questionId);
+
+    if (studentId) {
+      if (viewMode === "student" && studentId === activeStudentId) {
+        return resolveQuestionFromLookup(questionId, fallback, activeStudentQuestionLookup);
+      }
+
+      return resolveQuestionFromLookup(
+        questionId,
+        fallback,
+        questionViewStudentQuestionLookups.get(studentId),
+      );
+    }
+
+    if (viewMode === "student" && activeStudentId) {
+      return resolveQuestionFromLookup(questionId, fallback, activeStudentQuestionLookup);
+    }
+
+    return fallback;
+  }, [activeStudentId, activeStudentQuestionLookup, questionViewStudentQuestionLookups, questionsById, viewMode]);
 
   // Filter and sort summaries
   const filteredSummaries = useMemo(() => {
@@ -1558,6 +1662,8 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                   const isGraded = stats ? stats.gradedCount === stats.answeredCount && stats.answeredCount > 0 : false;
                   const isPartiallyGraded = stats ? stats.gradedCount > 0 && stats.gradedCount < stats.answeredCount : false;
                   const statusClass = isGraded ? styles.questionStatusGraded : isPartiallyGraded ? styles.questionStatusPartial : styles.questionStatusUngraded;
+                  const displayQuestion = getDisplayQuestion(question.id, questionViewStudentIds[0]) ?? question;
+                  const displayPrompt = displayQuestion.prompt || question.prompt;
                   
                   return (
                     <li key={question.id}>
@@ -1567,7 +1673,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                         onClick={() => setActiveQuestionId(question.id)}
                       >
                         <span className={styles.summaryPrimary}>
-                          {question.prompt.length > 50 ? `${question.prompt.substring(0, 50)}...` : question.prompt}
+                          {displayPrompt.length > 50 ? `${displayPrompt.substring(0, 50)}...` : displayPrompt}
                         </span>
                         <span className={styles.summaryMeta}>
                           {stats?.answeredCount ?? 0} {t("builder.grade.answered")} · {t("builder.grade.avgScore")}: {SCORE_FORMATTER.format(stats?.averageScore ?? 0)}/{question.points ?? 0}
@@ -1648,7 +1754,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
 
                   <div className={styles.progressGrid}>
                     {(progress ?? []).map((item) => {
-                      const question = questionsById.get(item.questionId);
+                      const question = getDisplayQuestion(item.questionId, submission.studentId);
                       return (
                         <div key={item.questionId} className={styles.progressCard}>
                           <span className={styles.progressTitle}>{question?.prompt ?? item.questionId}</span>
@@ -1662,7 +1768,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
 
                   <div className={styles.questionsList}>
                     {Object.entries(submission.answers).map(([questionId, answer]) => {
-                      const question = questionsById.get(questionId);
+                      const question = getDisplayQuestion(questionId, submission.studentId);
                       const draft = gradeDraft[questionId];
                       const sqlAnswer = answer as SqlAnswer;
                       return (
@@ -1773,12 +1879,15 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
             ) : (
               <div className={styles.detailInner}>
                 {(() => {
-                  const question = questionsById.get(activeQuestionId);
+                  const baseQuestion = questionsById.get(activeQuestionId);
                   const allSubmissions = allSubmissionsQuery.data ?? [];
                   const questionCompletedSet = completedSubmissions.get(activeQuestionId) ?? new Set();
                   const submissionsForQuestion = allSubmissions.filter(
                     (s) => s.answers[activeQuestionId] as SqlAnswer | undefined && !questionCompletedSet.has(s.id)
                   );
+                  const representativeSubmission = submissionsForQuestion[0]
+                    ?? allSubmissions.find((submission) => submission.answers[activeQuestionId] as SqlAnswer | undefined);
+                  const question = getDisplayQuestion(activeQuestionId, representativeSubmission?.studentId) ?? baseQuestion;
                   const questionDraft = questionGradeDraft[activeQuestionId] ?? {};
                   const stats = questionStats.get(activeQuestionId);
 
@@ -1875,6 +1984,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                           const answer = submission.answers[activeQuestionId] as SqlAnswer;
                           const draft = questionDraft[submission.id];
                           const isSelected = selectedStudentIds.has(submission.id);
+                          const displayQuestion = getDisplayQuestion(activeQuestionId, submission.studentId) ?? question;
                           
                           return (
                             <article key={submission.id} className={`${styles.studentSubmissionCard} ${isSelected ? styles.selected : ""}`}>
@@ -1913,6 +2023,14 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                               </div>
                               
                               <div className={styles.cardContent}>
+                                {displayQuestion?.prompt && (
+                                  <div className={styles.studentQuestionText}>
+                                    <p className={styles.studentQuestionPrompt}>{displayQuestion.prompt}</p>
+                                    {displayQuestion.instructions && (
+                                      <p className={styles.questionInstructions}>{displayQuestion.instructions}</p>
+                                    )}
+                                  </div>
+                                )}
                                 <pre className={styles.sqlBlock}>{answer?.sql || t("builder.grade.noResponse")}</pre>
                                 
                                 {answer?.resultPreview?.rows?.length ? (
@@ -1952,7 +2070,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                     <input
                                       type="number"
                                       min={0}
-                                      max={question?.points ?? 100}
+                                      max={displayQuestion?.points ?? question?.points ?? 100}
                                       step={0.5}
                                       value={draft?.score ?? answer?.feedback?.score ?? 0}
                                       onChange={(event) =>
@@ -1969,7 +2087,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                         }))
                                       }
                                     />
-                                    <span className={styles.pointsLabel}>/ {question?.points ?? 0}</span>
+                                    <span className={styles.pointsLabel}>/ {displayQuestion?.points ?? question?.points ?? 0}</span>
                                   </label>
                                   <div className={styles.notesFieldWithBank}>
                                     <label className={`${styles.notesField} ${draft?.aiSuggested ? styles.aiSuggestedField : ""}`}>
