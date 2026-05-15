@@ -222,8 +222,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showDatabaseViewer, setShowDatabaseViewer] = useState(true);
   const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
-  const [solutionModalQuestionId, setSolutionModalQuestionId] = useState<string | null>(null);
-  const [copyAnswerStatus, setCopyAnswerStatus] = useState<Record<string, "idle" | "copied">>({});
   const [hintModalOpen, setHintModalOpen] = useState(false);
   const [hintText, setHintText] = useState("");
   const [hintQuestionPrompt, setHintQuestionPrompt] = useState("");
@@ -324,6 +322,14 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       window.clearTimeout(pending.timer);
     });
     pendingRef.current = {};
+  }, []);
+
+  const clearPendingSave = useCallback((questionId: string) => {
+    const pending = pendingRef.current[questionId];
+    if (!pending) return;
+
+    window.clearTimeout(pending.timer);
+    delete pendingRef.current[questionId];
   }, []);
 
   const homeworkQuery = useQuery({
@@ -789,6 +795,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     const sql = editorValues[activeQuestionId] ?? "";
     console.log("🟢 Executing SQL:", sql);
 
+    clearPendingSave(activeQuestionId);
+    setAutosaveState("idle");
     recordExecutionStart(activeQuestionId);
 
     executeMutation.mutate({
@@ -799,30 +807,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       studentId,
       attemptNumber: submissionQuery.data.attemptNumber,
     });
-  }, [activeQuestionId, editorValues, executeMutation, recordExecutionStart, setId, studentId, submissionQuery.data]);
-
-  const handleShowAnswer = useCallback(
-    (questionId: string) => {
-      recordShowAnswer(questionId);
-      setSolutionModalQuestionId(questionId);
-    },
-    [recordShowAnswer]
-  );
-
-  const handleCopyAnswer = useCallback(
-    async (questionId: string, sql: string) => {
-      try {
-        await navigator.clipboard.writeText(sql);
-        setCopyAnswerStatus((prev) => ({ ...prev, [questionId]: "copied" }));
-        window.setTimeout(() => {
-          setCopyAnswerStatus((prev) => ({ ...prev, [questionId]: "idle" }));
-        }, 1500);
-      } catch (error) {
-        console.error("Failed to copy solution", error);
-      }
-    },
-    []
-  );
+  }, [activeQuestionId, clearPendingSave, editorValues, executeMutation, recordExecutionStart, setId, studentId, submissionQuery.data]);
 
   const submission = submissionQuery.data;
   const homework = homeworkQuery.data;
@@ -844,11 +829,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const progressPercent = totalQuestions === 0 ? 0 : Math.round((answeredCount / totalQuestions) * 100);
   const activeQuestion = activeQuestionId ? questionsById.get(activeQuestionId) : undefined;
   const activeAnswer = activeQuestionId ? answers[activeQuestionId] : undefined;
-  const solutionModalQuestion = solutionModalQuestionId ? questionsById.get(solutionModalQuestionId) : undefined;
-  const solutionModalSql = solutionModalQuestion?.starterSql?.trim() ?? "";
-  const solutionModalCopyStatus = solutionModalQuestionId
-    ? copyAnswerStatus[solutionModalQuestionId] ?? "idle"
-    : "idle";
   const attemptsRemaining = activeQuestion?.maxAttempts
     ? Math.max(0, activeQuestion.maxAttempts - (activeAnswer?.executionCount ?? 0))
     : undefined;
@@ -927,19 +907,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   }, [sidebarTables]);
 
   useEffect(() => {
-    if (!solutionModalQuestionId) return;
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setSolutionModalQuestionId(null);
-      }
-    };
-
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [solutionModalQuestionId]);
-
-  useEffect(() => {
     if (!hintModalOpen) return;
 
     const handleEscape = (event: KeyboardEvent) => {
@@ -951,7 +918,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [hintModalOpen]);
-
   const chatHomeworkContext = useMemo(() => {
     if (!homework) return null;
 
@@ -1277,14 +1243,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   {runnerText.next}
                   {direction === "rtl" ? " ←" : " →"}
                 </button>
-                {/* <button
-                  type="button"
-                  className={styles.showAnswerButton}
-                  onClick={() => activeQuestionId && handleShowAnswer(activeQuestionId)}
-                  disabled={!activeQuestionId}
-                >
-                  הצג פתרון
-                </button> */}
               </div>
               
               {!isRelationalAlgebra && (
@@ -1444,64 +1402,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
           )}
           {submitMutation.isPending ? runnerText.submitting : runnerText.submit}
         </button>
-      )}
-
-      {solutionModalQuestionId && (
-        <div
-          className={styles.solutionModalOverlay}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setSolutionModalQuestionId(null);
-            }
-          }}
-        >
-          <div className={styles.solutionModal} dir={direction}>
-            <div className={styles.solutionModalHeader}>
-              <h4 className={styles.solutionModalTitle}>💡 {runnerText.officialSolution}</h4>
-              <button
-                type="button"
-                className={styles.solutionModalClose}
-                onClick={() => setSolutionModalQuestionId(null)}
-              >
-                ✕
-              </button>
-            </div>
-
-            {solutionModalQuestion ? (
-              <p className={styles.solutionModalPrompt}>{solutionModalQuestion.prompt}</p>
-            ) : null}
-
-            <div className={styles.solutionModalBody}>
-              <span className={styles.solutionModalLabel}>{runnerText.solutionQuery}</span>
-              {solutionModalSql ? (
-                <pre className={styles.solutionCode}>
-                  <code>{solutionModalSql}</code>
-                </pre>
-              ) : (
-                <p className={styles.solutionEmpty}>{runnerText.noSolution}</p>
-              )}
-            </div>
-
-            <div className={styles.solutionModalActions}>
-              {solutionModalSql && (
-                <button
-                  type="button"
-                  className={styles.copyAnswerButton}
-                  onClick={() => solutionModalQuestionId && handleCopyAnswer(solutionModalQuestionId, solutionModalSql)}
-                >
-                  {solutionModalCopyStatus === "copied" ? `✅ ${runnerText.copied}` : `📋 ${runnerText.copySolution}`}
-                </button>
-              )}
-              <button
-                type="button"
-                className={styles.showAnswerButton}
-                onClick={() => setSolutionModalQuestionId(null)}
-              >
-                {runnerText.close}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {hintModalOpen && (

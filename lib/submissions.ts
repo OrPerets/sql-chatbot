@@ -178,9 +178,20 @@ export class SubmissionsService {
     const existing = await this.getSubmissionForStudent(homeworkSetId, payload.studentId);
     
     if (existing) {
+      const mergedAnswers = { ...(existing.answers || {}) };
+      for (const [questionId, answer] of Object.entries(payload.answers || {})) {
+        const existingAnswer = mergedAnswers[questionId] || { sql: "" };
+        const nextAnswer = answer || { sql: "" };
+        mergedAnswers[questionId] = {
+          ...existingAnswer,
+          ...nextAnswer,
+          sql: nextAnswer.sql ?? existingAnswer.sql ?? "",
+        };
+      }
+
       // Update existing submission
       const updateData: Partial<SubmissionModel> = {
-        answers: { ...existing.answers, ...payload.answers },
+        answers: mergedAnswers,
         status: "in_progress",
         updatedAt: now,
       };
@@ -562,8 +573,8 @@ export class SubmissionsService {
       
       console.log('✅ Homework set found:', homeworkSet.id);
       
-      // Use the question's datasetId if specified, otherwise use the set's datasetId
-      const datasetId = question.datasetId || homeworkSet.datasetId;
+      // Use the question's datasetId if specified, otherwise use the set's selected dataset.
+      const datasetId = question.datasetId || homeworkSet.datasetId || homeworkSet.selectedDatasetId;
       
       if (!datasetId) {
         console.warn('⚠️ No dataset specified, will use fallback sample data');
@@ -1146,6 +1157,54 @@ export class SubmissionsService {
         `);
       };
 
+      const toSqlLiteral = (value: unknown): string => {
+        if (value === null || value === undefined) return 'NULL';
+        if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'NULL';
+        if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
+        return `'${String(value).replace(/'/g, "''")}'`;
+      };
+
+      const inferColumnType = (table: any, column: string): string => {
+        const rows = Array.isArray(table.rows) ? table.rows : [];
+        const sample = rows.find((row: any) => row?.[column] !== null && row?.[column] !== undefined)?.[column];
+        if (typeof sample === 'number') return 'NUMBER';
+        if (typeof sample === 'boolean') return 'BOOLEAN';
+        return 'TEXT';
+      };
+
+      const initializePreviewTableData = (): boolean => {
+        const previewTables = Array.isArray(dataset.previewTables) ? dataset.previewTables : [];
+        const tablesWithRows = previewTables.filter((table: any) => Array.isArray(table.rows) && table.rows.length > 0);
+
+        if (tablesWithRows.length === 0) {
+          return false;
+        }
+
+        for (const table of tablesWithRows) {
+          const columns = Array.isArray(table.columns) && table.columns.length > 0
+            ? table.columns
+            : Object.keys(table.rows[0] ?? {});
+
+          if (!table.name || columns.length === 0) {
+            continue;
+          }
+
+          alasql(`DROP TABLE IF EXISTS ${table.name}`);
+          alasql(`
+            CREATE TABLE ${table.name} (
+              ${columns.map((column: string) => `${column} ${inferColumnType(table, column)}`).join(',\n              ')}
+            );
+          `);
+
+          for (const row of table.rows) {
+            const values = columns.map((column: string) => toSqlLiteral(row?.[column])).join(', ');
+            alasql(`INSERT INTO ${table.name} (${columns.join(', ')}) VALUES (${values})`);
+          }
+        }
+
+        return true;
+      };
+
       // Initialize data based on dataset
       const isExamPrep = dataset.connectionUri.includes('exam-prep') ||
                         dataset.name?.includes('הכנה למבחן') ||
@@ -1153,6 +1212,9 @@ export class SubmissionsService {
       const isExercise3 = dataset.connectionUri.includes('exercise3-college') ||
                           dataset.name?.includes('תרגיל 3') ||
                           dataset.name?.includes('מכללה');
+      const isHw1 = dataset.connectionUri.includes('hw1-company-employees') ||
+                    dataset.name?.includes('HW1') ||
+                    homeworkSet.title?.includes('תרגיל בית 1');
 
       if (isExamPrep) {
         initializeExamPrepData();
@@ -1168,6 +1230,8 @@ export class SubmissionsService {
         const { initializeStudentSpecificData } = await import('./student-data-assignment');
         initializeStudentSpecificData(alasql, studentTableData);
         console.log('✅ Initialized Exercise 3 tables with student-specific data using alasql');
+      } else if (isHw1 && initializePreviewTableData()) {
+        console.log('✅ Initialized HW1 tables from dataset preview rows using alasql');
       } else {
         // Default: Create Employees table
         alasql('DROP TABLE IF EXISTS Employees');
@@ -1291,12 +1355,16 @@ export class SubmissionsService {
           'scores': 'Scores',
           'contestants': 'Contestants',
           'results': 'Results',
+          // Tables - HW1
+          'jobs': 'Jobs',
+          'departments': 'Departments',
+          'locations': 'Locations',
           // Column names - Students
           'studentid': 'StudentID',
           'contestantid': 'ContestantID',
-          'firstname': 'FirstName',
-          'lastname': 'LastName',
-          'birthdate': 'BirthDate',
+          'firstname': isHw1 ? 'First_name' : 'FirstName',
+          'lastname': isHw1 ? 'Last_name' : 'LastName',
+          'birthdate': isHw1 ? 'Birth_date' : 'BirthDate',
           'city': 'City',
           'email': 'Email',
           'major': 'Major',
@@ -1310,7 +1378,7 @@ export class SubmissionsService {
           'department': 'Department',
           // Column names - Lecturers
           'lecturerid': 'LecturerID',
-          'hiredate': 'HireDate',
+          'hiredate': isHw1 ? 'Hire_date' : 'HireDate',
           'seniority': 'Seniority',
           // Column names - Enrollments
           'enrollmentid': 'EnrollmentID',
@@ -1336,11 +1404,33 @@ export class SubmissionsService {
           'judgedat': 'JudgedAt',
           'firstexamdate': 'FirstExamDate',
           'firstdebatedate': 'FirstDebateDate',
+          // Column names - HW1
+          'employee_id': 'Employee_id',
+          'employeeid': 'Employee_id',
+          'first_name': 'First_name',
+          'last_name': 'Last_name',
+          'birth_date': 'Birth_date',
+          'hire_date': isHw1 ? 'Hire_date' : 'hire_date',
+          'job_id': 'Job_id',
+          'jobid': 'Job_id',
+          'job_title': 'Job_title',
+          'jobtitle': 'Job_title',
+          'min_salary': 'Min_salary',
+          'minsalary': 'Min_salary',
+          'max_salary': 'Max_salary',
+          'maxsalary': 'Max_salary',
+          'department_id': 'Department_id',
+          'departmentid': 'Department_id',
+          'department_name': 'Department_name',
+          'departmentname': 'Department_name',
+          'location_id': 'Location_id',
+          'locationid': 'Location_id',
+          'country': isHw1 ? 'Country' : 'country',
+          'street': isHw1 ? 'Street' : 'street',
           // Column names - Employees (fallback table)
           'id': 'id',
           'name': 'name',
-          'salary': 'salary',
-          'hire_date': 'hire_date',
+          'salary': isHw1 ? 'Salary' : 'salary',
         };
         
         // Replace all occurrences (word boundaries to avoid partial matches)

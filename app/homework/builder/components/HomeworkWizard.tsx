@@ -55,23 +55,30 @@ function parseSchema(input: string): Array<{ column: string; type: string }> {
 }
 
 function buildQuestionsPayload(draft: HomeworkDraftState): Question[] {
-  return draft.questions.map((question) => ({
-    id: question.id,
-    prompt: question.prompt,
-    expectedOutputDescription: question.expectedOutputDescription,
-    instructions: question.instructions,
-    starterSql: question.starterSql,
-    expectedResultSchema: parseSchema(question.expectedResultSchema),
-    gradingRubric: question.rubric,
-    datasetId: question.datasetId ?? draft.dataset.selectedDatasetId,
-    maxAttempts: question.maxAttempts,
-    points: question.points,
-    evaluationMode: question.evaluationMode,
-    parameterMode: question.parameterMode,
-    parameters: question.parameters ?? [],
-    templateId: question.templateId,
-    isTemplate: false,
-  }));
+  return draft.questions.map((question, index) => {
+    const parameterMode =
+      question.parameterMode ?? ((question.parameters?.length ?? 0) > 0 ? "parameterized" : "static");
+    const parameters = question.parameters ?? [];
+    const isInlineParameterized = parameterMode === "parameterized" && parameters.length > 0;
+
+    return {
+      id: question.id,
+      prompt: question.isParametric ? question.prompt || `שאלה ${index + 1}` : question.prompt,
+      expectedOutputDescription: question.expectedOutputDescription,
+      instructions: question.instructions,
+      starterSql: question.starterSql,
+      expectedResultSchema: parseSchema(question.expectedResultSchema),
+      gradingRubric: question.rubric,
+      datasetId: question.datasetId ?? draft.dataset.selectedDatasetId,
+      maxAttempts: question.maxAttempts,
+      points: question.points,
+      evaluationMode: question.evaluationMode,
+      parameterMode,
+      parameters,
+      isTemplate: Boolean(question.templateId && !isInlineParameterized),
+      templateId: question.templateId,
+    };
+  });
 }
 
 function buildDraftPayload(draft: HomeworkDraftState): SaveHomeworkDraftPayload {
@@ -196,6 +203,11 @@ export function HomeworkWizard({ initialState, existingSetId, initialStep = "met
             evaluationMode: q.evaluationMode ?? "auto",
             parameterMode: q.parameterMode ?? ((q.parameters?.length ?? 0) > 0 ? "parameterized" : "static"),
             parameters: q.parameters ?? [],
+            isParametric: Boolean(
+              (q.parameterMode ?? ((q.parameters?.length ?? 0) > 0 ? "parameterized" : "static")) === "parameterized" ||
+                q.isTemplate ||
+                q.templateId,
+            ),
             templateId: q.templateId,
           })),
           publishNotes: prev.draft.publishNotes,

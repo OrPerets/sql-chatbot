@@ -77,6 +77,11 @@ function toDraft(set: Awaited<ReturnType<typeof getHomeworkSet>>, questions: Que
       evaluationMode: question.evaluationMode ?? "auto",
       parameterMode: question.parameterMode ?? ((question.parameters?.length ?? 0) > 0 ? "parameterized" : "static"),
       parameters: question.parameters ?? [],
+      isParametric: Boolean(
+        (question.parameterMode ?? ((question.parameters?.length ?? 0) > 0 ? "parameterized" : "static")) === "parameterized" ||
+          question.isTemplate ||
+          question.templateId,
+      ),
       templateId: question.templateId,
     })),
     publishNotes: "",

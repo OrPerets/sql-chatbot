@@ -29,7 +29,7 @@ export async function getHomeworkSet(setId: string, role?: string): Promise<Home
 export async function getHomeworkQuestions(setId: string, studentId?: string): Promise<Question[]> {
   if (studentId) {
     // For students, get parametric questions
-    return http(`${BASE_PATH}/${setId}/questions/student/${studentId}`, { method: "GET" });
+    return http(`${BASE_PATH}/${setId}/questions/student/${encodeURIComponent(studentId)}`, { method: "GET" });
   } else {
     // For admins, get regular questions
     return http(`${BASE_PATH}/${setId}/questions`, { method: "GET" });

@@ -1,0 +1,31 @@
+{
+  "collection": "chatMessages",
+  "createdAt": "2026-05-11T11:11:52.421Z",
+  "mode": "archive-only",
+  "cutoff": "2025-12-11T12:11:33.405Z",
+  "monthsToKeep": 5,
+  "query": {
+    "timestamp": {
+      "$lt": "2025-12-11T12:11:33.405Z"
+    }
+  },
+  "countsBefore": {
+    "olderThanCutoff": 35571,
+    "keptByTimestamp": 209954,
+    "missingTimestamp": 0,
+    "total": 245525
+  },
+  "archive": {
+    "file": "/Users/orperetz/Documents/shenkar/sql-chatbot/exports/chatMessages-archive/chatMessages-before-2025-12-11T12-11-33-405Z.jsonl.gz",
+    "documents": 35571,
+    "gzipBytes": 4768159,
+    "sha256UncompressedJsonl": "4b1ecc55d9eedb2f6ec4f959c62005b3858fdf9315557d4aeb01b4d90eda6126",
+    "firstTimestamp": "2024-10-10T13:14:35.928Z",
+    "lastTimestamp": "2025-12-11T08:01:58.211Z"
+  },
+  "deletion": {
+    "requested": false,
+    "deletedDocuments": 0,
+    "olderThanCutoffRemainingAfterDelete": 35571
+  }
+}
