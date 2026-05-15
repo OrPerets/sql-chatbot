@@ -86,34 +86,6 @@ async function getRenderedQuestionsFromContext(
   const { generator, homeworkSet, regularQuestions } = context;
 
   if (regularQuestions.length > 0) {
-    const templateQuestions = regularQuestions.filter((question) => Boolean(question.templateId));
-
-    if (templateQuestions.length > 0) {
-      const templateService = await getTemplateService();
-      const uniqueTemplateIds = Array.from(new Set(templateQuestions.map((question) => question.templateId!)));
-
-      for (const templateId of uniqueTemplateIds) {
-        const seed = `${setId}-${templateId}-${studentId}`;
-        await templateService.instantiateQuestion(templateId, studentId, setId, seed);
-      }
-
-      const studentQuestions = await generator.getQuestionsForStudent(setId, studentId);
-      const questionsByTemplateId = new Map(
-        studentQuestions
-          .filter((question) => Boolean(question.templateId))
-          .map((question) => [question.templateId!, question]),
-      );
-      const templates = await templateService.getTemplates();
-
-      return regularQuestions.map((question) => {
-        if (!question.templateId) {
-          return renderQuestionVariables(question, { homeworkSetId: setId, studentId, templates });
-        }
-        return questionsByTemplateId.get(question.templateId)
-          ?? renderQuestionVariables(question, { homeworkSetId: setId, studentId, templates });
-      });
-    }
-
     const templates = await getTemplatesIfNeeded(regularQuestions);
     return renderQuestionsForStudent(regularQuestions, {
       homeworkSetId: setId,

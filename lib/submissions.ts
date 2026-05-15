@@ -27,6 +27,23 @@ function buildSubmissionIdQuery(submissionId: string) {
   return { $or: conditions };
 }
 
+function buildSubmissionIdsQuery(submissionIds: string[]) {
+  const objectIds = submissionIds
+    .filter(isObjectIdString)
+    .map((submissionId) => new ObjectId(submissionId));
+  const conditions: any[] = [];
+
+  if (objectIds.length > 0) {
+    conditions.push({ _id: { $in: objectIds } });
+  }
+
+  if (submissionIds.length > 0) {
+    conditions.push({ id: { $in: submissionIds } });
+  }
+
+  return conditions.length > 0 ? { $or: conditions } : { id: { $in: [] } };
+}
+
 function buildHomeworkSetIdQuery(homeworkSetId: string) {
   return { homeworkSetId };
 }
@@ -448,6 +465,52 @@ export class SubmissionsService {
       gradedAt: result.gradedAt,
       aiCommitment: result.aiCommitment,
     };
+  }
+
+  /**
+   * Grade multiple submissions in one database call.
+   */
+  async gradeSubmissions(
+    updates: Array<{ submissionId: string; updates: Partial<Submission> }>,
+  ): Promise<Submission[]> {
+    if (updates.length === 0) return [];
+
+    const now = new Date().toISOString();
+
+    await this.db.collection<SubmissionModel>(COLLECTIONS.SUBMISSIONS).bulkWrite(
+      updates.map((entry) => ({
+        updateOne: {
+          filter: buildSubmissionIdQuery(entry.submissionId),
+          update: {
+            $set: {
+              ...entry.updates,
+              gradedAt: now,
+              updatedAt: now,
+            } satisfies Partial<SubmissionModel>,
+          },
+        },
+      })),
+      { ordered: false },
+    );
+
+    const updatedSubmissions = await this.db
+      .collection<SubmissionModel>(COLLECTIONS.SUBMISSIONS)
+      .find(buildSubmissionIdsQuery(updates.map((entry) => entry.submissionId)))
+      .toArray();
+    const byId = new Map<string, Submission>();
+    updatedSubmissions.forEach((submission) => {
+      const normalized = normalizeSubmission(submission);
+      if (submission._id) {
+        byId.set(submission._id.toString(), normalized);
+      }
+      if (submission.id) {
+        byId.set(submission.id, normalized);
+      }
+    });
+
+    return updates
+      .map((entry) => byId.get(entry.submissionId))
+      .filter((submission): submission is Submission => Boolean(submission));
   }
 
   /**
@@ -1740,6 +1803,13 @@ export async function submitSubmission(
 export async function gradeSubmission(submissionId: string, updates: Partial<Submission>): Promise<Submission | null> {
   const service = await getSubmissionsService();
   return service.gradeSubmission(submissionId, updates);
+}
+
+export async function gradeSubmissions(
+  updates: Array<{ submissionId: string; updates: Partial<Submission> }>,
+): Promise<Submission[]> {
+  const service = await getSubmissionsService();
+  return service.gradeSubmissions(updates);
 }
 
 export async function executeSqlForSubmission(payload: SqlExecutionRequest): Promise<SqlExecutionResponse | null> {

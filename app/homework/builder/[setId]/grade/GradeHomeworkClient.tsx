@@ -13,6 +13,7 @@ import {
   getSubmissionById,
   getSubmissionProgressById,
   gradeSubmission,
+  gradeSubmissions,
   listSubmissions,
   listSubmissionSummaries,
 } from "@/app/homework/services/submissionService";
@@ -607,13 +608,12 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
         const question = questionsById.get(activeQuestionId);
         if (!question) return;
 
-        const results = await Promise.all(
-          submissionsToGrade.map(async (submission) => {
+        const updates = submissionsToGrade.flatMap((submission) => {
             const draft = questionGradeDraft[activeQuestionId]?.[submission.id];
-            if (!draft) return null;
+            if (!draft) return [];
 
             const answer = submission.answers[activeQuestionId] as SqlAnswer | undefined;
-            if (!answer) return null;
+            if (!answer) return [];
 
             const maxPoints = question.points ?? draft.score ?? 0;
             const score = Math.min(maxPoints, Math.max(0, draft.score));
@@ -639,15 +639,18 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
               0
             );
 
-            return gradeSubmission(submission.id, {
-              answers: updatedAnswers,
-              overallScore,
-              status: "graded",
-            });
-          })
-        );
+            return [{
+              submissionId: submission.id,
+              updates: {
+                answers: updatedAnswers,
+                overallScore,
+                status: "graded" as const,
+              },
+            }];
+          });
 
-        return results.filter((r): r is Submission => r !== null);
+        if (updates.length === 0) return [];
+        return gradeSubmissions(updates);
       }
     },
     onSuccess: (updated) => {
