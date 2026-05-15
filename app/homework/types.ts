@@ -1,6 +1,7 @@
 export type HomeworkVisibility = "draft" | "published" | "archived";
 export type HomeworkEntryMode = "direct" | "listed" | "hidden";
 export type HomeworkAvailabilityState = "upcoming" | "open" | "closed";
+export type HomeworkType = "sql" | "relational_algebra";
 
 export interface DatasetTablePreview {
   name: string;
@@ -44,6 +45,8 @@ export interface Question {
   isTemplate?: boolean;
   templateId?: string;
   variables?: any[]; // VariableValue[] for instantiated questions
+  parameterMode?: QuestionParameterMode;
+  parameters?: QuestionParameterDefinition[];
 }
 
 export interface HomeworkSet {
@@ -55,6 +58,7 @@ export interface HomeworkSet {
   availableUntil?: string;
   published: boolean;
   entryMode?: HomeworkEntryMode;
+  homeworkType?: HomeworkType;
   datasetPolicy: "shared" | "custom";
   questionOrder: string[];
   visibility: HomeworkVisibility;
@@ -101,6 +105,7 @@ export interface Feedback {
 
 export interface SqlAnswer {
   sql: string;
+  expression?: string;
   resultPreview?: SqlResult;
   feedback?: Feedback;
   lastExecutedAt?: string;
@@ -176,6 +181,11 @@ export interface AnalyticsEvent {
     | "runner.execute_sql"
     | "runner.save_draft"
     | "runner.submit"
+    | "runner.personalization_shown"
+    | "runner.personalization_accepted"
+    | "runner.personalization_feedback"
+    | "runner.personalized_quiz_started"
+    | "runner.personalized_quiz_completed"
     | "builder.grade_update"
     | "builder.publish_grades"
     | "builder.preview_execute";
@@ -285,6 +295,14 @@ export interface VariableDefinition {
   constraints?: VariableConstraints;
   defaultValue?: any;
   required?: boolean;
+}
+
+export type QuestionParameterMode = "static" | "parameterized";
+
+export type QuestionParameterSourceField = "prompt" | "instructions" | "starterSql";
+
+export interface QuestionParameterDefinition extends VariableDefinition {
+  sourceFields: QuestionParameterSourceField[];
 }
 
 export interface VariableValue {

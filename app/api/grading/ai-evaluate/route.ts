@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getSubmissionSummaries, getSubmissionById, gradeSubmission } from "@/lib/submissions";
 import { getQuestionsByHomeworkSet } from "@/lib/questions";
+import { getHomeworkSetById } from "@/lib/homework";
 import { evaluateSubmission, type AIGradingInput, type BulkGradingResult } from "@/lib/ai-grading";
-import type { Question, Submission, SqlAnswer } from "@/app/homework/types";
+import type { HomeworkType, Question, Submission, SqlAnswer } from "@/app/homework/types";
 
 interface AIEvaluateRequest {
   homeworkSetId: string;
@@ -37,6 +38,11 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    // Get homework set to determine type
+    const homeworkSet = await getHomeworkSetById(homeworkSetId);
+    const hwType: HomeworkType = (homeworkSet?.homeworkType as HomeworkType) || "sql";
+    const isRA = hwType === "relational_algebra";
 
     // Get all questions for this homework set
     const questions = await getQuestionsByHomeworkSet(homeworkSetId);
@@ -116,12 +122,14 @@ export async function POST(request: Request) {
 
           const sqlAnswer = answer as SqlAnswer;
           
-          // Skip if no SQL was submitted
-          if (!sqlAnswer.sql?.trim()) {
+          // Skip if no answer was submitted
+          const hasAnswer = isRA
+            ? !!sqlAnswer.expression?.trim()
+            : !!sqlAnswer.sql?.trim();
+          if (!hasAnswer) {
             continue;
           }
 
-          // Combine question instructions with additional grading instructions if provided
           let combinedInstructions = question.instructions;
           if (additionalGradingInstructions?.trim()) {
             combinedInstructions = `${question.instructions}\n\n## הנחיות נוספות להערכה\n${additionalGradingInstructions.trim()}`;
@@ -147,6 +155,8 @@ export async function POST(request: Request) {
                   rows: sqlAnswer.resultPreview.rows as Array<Record<string, unknown>>,
                 }
               : undefined,
+            homeworkType: hwType,
+            studentExpression: sqlAnswer.expression,
           });
         }
 

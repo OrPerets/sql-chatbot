@@ -8,14 +8,47 @@ import JoinAnimator from './JoinAnimator';
 import PlaceholderCard from './PlaceholderCard';
 import { mockSteps } from './mock-steps';
 import { generateStepsFromSql } from './step-generator';
+import { demoDatabase } from './mock-schema';
 import type { VisualizationNode } from './types';
 
-const defaultQuery = `SELECT Students.name, Enrollments.course
-FROM Students
-INNER JOIN Enrollments ON Students.id = Enrollments.student_id
-WHERE Enrollments.status = 'active'
-ORDER BY Students.name
-LIMIT 3;`;
+const defaultQuery = `SELECT customers.full_name, products.name, orders.quantity, orders.order_date
+FROM customers
+INNER JOIN orders ON customers.id = orders.customer_id
+INNER JOIN products ON orders.product_id = products.id
+WHERE orders.status = 'delivered'
+ORDER BY orders.order_date DESC
+LIMIT 4;`;
+
+const VALIDATION_DEBOUNCE_MS = 350;
+
+type QueryValidation = {
+  isValid: boolean;
+  message: string;
+};
+
+const validateQuery = (query: string): QueryValidation => {
+  const trimmed = query.trim();
+
+  if (!trimmed) {
+    return {
+      isValid: false,
+      message: 'יש להזין שאילתה לפני ההרצה.'
+    };
+  }
+
+  try {
+    generateStepsFromSql(trimmed);
+    return {
+      isValid: true,
+      message: ''
+    };
+  } catch (error) {
+    return {
+      isValid: false,
+      message: error instanceof Error ? error.message : 'השאילתה אינה נתמכת כרגע.'
+    };
+  }
+};
 
 const getStepTypeLabel = (step: { nodes: Array<{ kind: string }> }) => {
   const kinds = step.nodes.map(n => n.kind);
@@ -77,20 +110,18 @@ const formatSqlQuery = (query: string): string => {
 const VisualizerRoot = () => {
   const [sqlQuery, setSqlQuery] = useState(defaultQuery);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDatabaseModalOpen, setIsDatabaseModalOpen] = useState(false);
   const [editedQuery, setEditedQuery] = useState('');
-  const { steps, errorMessage } = useMemo(() => {
-    try {
-      return {
-        steps: generateStepsFromSql(sqlQuery),
-        errorMessage: ''
-      };
-    } catch (error) {
-      return {
-        steps: mockSteps,
-        errorMessage: error instanceof Error ? error.message : 'לא ניתן לנתח את השאילתה.'
-      };
-    }
-  }, [sqlQuery]);
+  const [validationTargetQuery, setValidationTargetQuery] = useState(sqlQuery);
+  const [isValidationPending, setIsValidationPending] = useState(false);
+  const [liveValidation, setLiveValidation] = useState<QueryValidation>(() => validateQuery(sqlQuery));
+  const [appliedValidation, setAppliedValidation] = useState<QueryValidation>(() => validateQuery(sqlQuery));
+
+  const steps = useMemo(
+    () => (appliedValidation.isValid ? generateStepsFromSql(sqlQuery) : mockSteps),
+    [appliedValidation.isValid, sqlQuery]
+  );
+  const errorMessage = appliedValidation.isValid ? '' : appliedValidation.message;
 
   const [activeStepId, setActiveStepId] = useState(steps[0]?.id ?? '');
   const [isPlaying, setIsPlaying] = useState(false);
@@ -100,6 +131,9 @@ const VisualizerRoot = () => {
 
   const openEditModal = useCallback(() => {
     setEditedQuery(sqlQuery);
+    setValidationTargetQuery(sqlQuery);
+    setLiveValidation(validateQuery(sqlQuery));
+    setIsValidationPending(false);
     setIsEditModalOpen(true);
   }, [sqlQuery]);
 
@@ -109,11 +143,36 @@ const VisualizerRoot = () => {
   }, []);
 
   const handleSaveQuery = useCallback(() => {
-    if (editedQuery.trim()) {
-      setSqlQuery(editedQuery);
+    const validation = validateQuery(editedQuery);
+    setLiveValidation(validation);
+    setIsValidationPending(false);
+
+    if (!validation.isValid) {
+      return;
     }
+
+    const trimmed = editedQuery.trim();
+    setSqlQuery(trimmed);
+    setAppliedValidation(validation);
     closeEditModal();
   }, [editedQuery, closeEditModal]);
+
+  useEffect(() => {
+    if (!isEditModalOpen) {
+      return;
+    }
+
+    setIsValidationPending(true);
+    const timer = window.setTimeout(() => {
+      const validation = validateQuery(validationTargetQuery);
+      setLiveValidation(validation);
+      setIsValidationPending(false);
+    }, VALIDATION_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [validationTargetQuery, isEditModalOpen]);
 
   const stepIndexMap = useMemo(
     () => new Map(steps.map((step, index) => [step.id, index])),
@@ -182,7 +241,9 @@ const VisualizerRoot = () => {
       // Handle Ctrl/Cmd + Enter to save in modal
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && isEditModalOpen) {
         event.preventDefault();
-        handleSaveQuery();
+        if (liveValidation.isValid && !isValidationPending) {
+          handleSaveQuery();
+        }
         return;
       }
 
@@ -211,7 +272,7 @@ const VisualizerRoot = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleNext, handlePrevious, isEditModalOpen, closeEditModal, handleSaveQuery]);
+  }, [handleNext, handlePrevious, isEditModalOpen, closeEditModal, handleSaveQuery, liveValidation.isValid, isValidationPending]);
 
   const activeStep = stepMap.get(activeStepId) ?? steps[0];
 
@@ -360,14 +421,23 @@ const VisualizerRoot = () => {
               <div className={styles.stepBannerQuery}>
                 <div className={styles.stepBannerQueryHeader}>
                   <span className={styles.stepBannerQueryLabel}>שאילתת SQL</span>
-                  <button
-                    type="button"
-                    className={styles.queryEditButton}
-                    onClick={openEditModal}
-                    title="ערוך שאילתה"
-                  >
-                    ✏️
-                  </button>
+                  <div className={styles.queryActions}>
+                    <button
+                      type="button"
+                      className={styles.databaseInfoButton}
+                      onClick={() => setIsDatabaseModalOpen(true)}
+                    >
+                      הצג בסיס נתונים
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.queryEditButton}
+                      onClick={openEditModal}
+                      title="ערוך שאילתה"
+                    >
+                      ✏️
+                    </button>
+                  </div>
                 </div>
                 <pre className={styles.stepBannerQueryCode}>
                   <code>{formatSqlQuery(sqlQuery)}</code>
@@ -452,12 +522,24 @@ const VisualizerRoot = () => {
                 id="sql-editor-textarea"
                 className={styles.sqlEditorTextarea}
                 value={editedQuery}
-                onChange={(e) => setEditedQuery(e.target.value)}
+                onChange={(e) => {
+                  const nextQuery = e.target.value;
+                  setEditedQuery(nextQuery);
+                  setValidationTargetQuery(nextQuery);
+                }}
                 placeholder="SELECT * FROM table_name..."
                 autoFocus
                 spellCheck={false}
                 dir="ltr"
               />
+              {isValidationPending ? (
+                <p className={styles.sqlValidationState}>בודק תקינות שאילתה...</p>
+              ) : null}
+              {!isValidationPending && !liveValidation.isValid ? (
+                <p className={styles.sqlValidationError} role="alert" aria-live="polite">
+                  {liveValidation.message}
+                </p>
+              ) : null}
               <div className={styles.sqlEditorHint}>
                 <span className={styles.sqlEditorHintIcon}>💡</span>
                 טיפ: ניתן לכתוב שאילתות מרובות שורות עם JOIN, WHERE, ORDER BY ועוד
@@ -476,13 +558,70 @@ const VisualizerRoot = () => {
                 type="button"
                 className={styles.sqlEditorSaveButton}
                 onClick={handleSaveQuery}
-                disabled={!editedQuery.trim()}
+                disabled={!liveValidation.isValid || isValidationPending}
               >
                 שמור והפעל
               </button>
               <span className={styles.sqlEditorShortcut}>
                 Ctrl+Enter לשמירה מהירה
               </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDatabaseModalOpen && (
+        <div className={styles.sqlEditorOverlay} onClick={() => setIsDatabaseModalOpen(false)}>
+          <div
+            className={styles.databaseModal}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="database-schema-title"
+          >
+            <div className={styles.databaseModalHeader}>
+              <h2 id="database-schema-title" className={styles.databaseModalTitle}>
+                בסיס נתונים לדמו
+              </h2>
+              <button
+                type="button"
+                className={styles.sqlEditorCloseButton}
+                onClick={() => setIsDatabaseModalOpen(false)}
+                aria-label="סגור"
+              >
+                ✕
+              </button>
+            </div>
+            <div className={styles.databaseModalBody}>
+              <p className={styles.databaseName}>שם בסיס הנתונים: {demoDatabase.name}</p>
+              <div className={styles.databaseTableList}>
+                {demoDatabase.tables.map((table) => (
+                  <article key={table.name} className={styles.databaseTableCard}>
+                    <h3 className={styles.databaseTableTitle}>{table.name}</h3>
+                    <p className={styles.databaseTableSubtitle}>עמודות: {table.columns.join(', ')}</p>
+                    <div className={styles.databaseSampleWrapper}>
+                      <table className={styles.databaseSampleTable}>
+                        <thead>
+                          <tr>
+                            {table.columns.map((column) => (
+                              <th key={`${table.name}-${column}`}>{column}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {table.rows.slice(0, 4).map((row, rowIndex) => (
+                            <tr key={`${table.name}-row-${rowIndex}`}>
+                              {table.columns.map((column) => (
+                                <td key={`${table.name}-row-${rowIndex}-${column}`}>{row[column]}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </article>
+                ))}
+              </div>
             </div>
           </div>
         </div>

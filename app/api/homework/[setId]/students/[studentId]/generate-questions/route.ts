@@ -15,6 +15,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { setId, studentId } = await params;
     const body = await request.json();
+
+    if (body.inlineQuestions && Array.isArray(body.inlineQuestions) && body.inlineQuestions.length > 0) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          generated: body.inlineQuestions.length,
+          errors: [],
+        },
+      });
+    }
     
     if (!body.templateIds || !Array.isArray(body.templateIds) || body.templateIds.length === 0) {
       return NextResponse.json(

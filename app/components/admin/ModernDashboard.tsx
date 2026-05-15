@@ -163,7 +163,7 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
 
           <div 
             className={styles.quickAction}
-            onClick={() => window.open('/admin/datasets', '_blank')}
+            onClick={() => window.location.assign('/admin/datasets')}
           >
             <div className={styles.quickActionIcon}>
               <Database size={24} />
@@ -177,7 +177,21 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
 
           <div 
             className={styles.quickAction}
-            onClick={() => window.open('/admin/templates', '_blank')}
+            onClick={() => onNavigate('coins')}
+          >
+            <div className={styles.quickActionIcon}>
+              <Award size={24} />
+            </div>
+            <div className={styles.quickActionContent}>
+              <h4>מטבעות</h4>
+              <p>הפעלת חיובים, תמחור לפי משטח וניהול יתרות משתמשים</p>
+              <span className={styles.actionBadge}>תפעולי</span>
+            </div>
+          </div>
+
+          <div 
+            className={styles.quickAction}
+            onClick={() => window.location.assign('/admin/templates')}
           >
             <div className={styles.quickActionIcon}>
               <BookOpen size={24} />

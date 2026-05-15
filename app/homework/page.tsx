@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { Settings, Play, BookOpen, Users } from "lucide-react";
 import styles from "./welcome.module.css";
 
@@ -26,7 +28,14 @@ const quickLinks = [
   },
 ];
 
-export default function HomeworkLandingPage() {
+export default async function HomeworkLandingPage() {
+  const requestHeaders = await headers();
+  const authenticatedRole = requestHeaders.get("x-michael-authenticated-role");
+
+  if (authenticatedRole !== "admin") {
+    redirect("/homework/start");
+  }
+
   return (
     <div className={styles.container} dir="rtl">
       <section className={styles.hero}>

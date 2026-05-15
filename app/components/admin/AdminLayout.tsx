@@ -1,52 +1,17 @@
 "use client";
 
-import React from 'react';
-import AdminDashboard from './AdminDashboard';
-import styles from './AdminLayout.module.css';
+import React from "react";
+
+import AdminShell from "./AdminShell";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
-  activeTab: string;
-  onTabChange: (tab: string) => void;
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
   currentUser?: string | null;
-  onLogout: () => void;
+  onLogout?: () => void;
 }
 
-const AdminLayout: React.FC<AdminLayoutProps> = ({
-  children,
-  activeTab,
-  onTabChange,
-  currentUser,
-  onLogout
-}) => {
-  // If we're on the main dashboard, show the dashboard layout
-  if (activeTab === 'dashboard' || !activeTab || activeTab === '') {
-    return (
-      <AdminDashboard
-        currentUser={currentUser}
-        onLogout={onLogout}
-        onTabChange={onTabChange}
-      />
-    );
-  }
-
-  // For other tabs, show content in a simple layout
-  return (
-    <div className={styles.simpleLayout}>
-      <div className={styles.simpleHeader}>
-        <button 
-          onClick={() => onTabChange('dashboard')} 
-          className={styles.backButton}
-        >
-          ← חזור לדשבורד
-        </button>
-       
-      </div>
-      <div className={styles.simpleContent}>
-        {children}
-      </div>
-    </div>
-  );
-};
-
-export default AdminLayout;
+export default function AdminLayout({ children }: AdminLayoutProps) {
+  return <AdminShell>{children}</AdminShell>;
+}

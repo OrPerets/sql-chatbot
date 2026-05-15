@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { getVoiceRuntimeConfig, isVoiceFeatureEnabled } from '@/lib/openai/voice-config';
+import type { SpeechIntent } from '@/app/utils/avatar-speech-controller';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -10,22 +12,50 @@ const activeRequests = new Map<string, Promise<NextResponse>>();
 
 const ALLOWED_VOICES = new Set(['onyx','echo','fable','alloy','nova','shimmer']);
 
+type TTSFailureCode =
+  | 'VOICE_DISABLED'
+  | 'INVALID_REQUEST'
+  | 'OPENAI_API_KEY_MISSING'
+  | 'TTS_GENERATION_FAILED';
+
+type TTSFailureResponse = {
+  ok: false;
+  enabled: boolean;
+  code: TTSFailureCode;
+  message: string;
+  retryable: boolean;
+  details?: string;
+};
+
+const createFailureResponse = (
+  status: number,
+  payload: TTSFailureResponse
+) => NextResponse.json(payload, { status });
+
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
   
   try {
-    const featureVoiceEnabled = process.env.FEATURE_VOICE === '1';
+    const voiceConfig = getVoiceRuntimeConfig();
+    const featureVoiceEnabled = isVoiceFeatureEnabled();
     if (!featureVoiceEnabled) {
-      // Return 200 with disabled message - no error, just feature not available
-      // This prevents error logs and client retries
-      return NextResponse.json({ 
+      return createFailureResponse(200, {
+        ok: false,
         enabled: false,
-        message: 'Voice feature is disabled'
-      }, { status: 200 });
+        code: 'VOICE_DISABLED',
+        message: 'Voice feature is disabled',
+        retryable: false,
+      });
     }
 
     if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });
+      return createFailureResponse(500, {
+        ok: false,
+        enabled: true,
+        code: 'OPENAI_API_KEY_MISSING',
+        message: 'OpenAI API key not configured',
+        retryable: false,
+      });
     }
 
     const body = await request.json();
@@ -36,12 +66,21 @@ export async function POST(request: NextRequest) {
       format = 'mp3',
       emotion = 'neutral',
       content_type = 'general',
-      enhance_prosody = true,
-      character_style = 'university_ta'
+      speech_intent,
+      enhance_prosody: _enhance_prosody = true,
+      character_style: _character_style = 'university_ta'
     } = body || {};
 
+    const normalizedIntent = normalizeSpeechIntent(speech_intent);
+
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
-      return NextResponse.json({ error: 'No text provided' }, { status: 400 });
+      return createFailureResponse(400, {
+        ok: false,
+        enabled: true,
+        code: 'INVALID_REQUEST',
+        message: 'No text provided',
+        retryable: false,
+      });
     }
 
     const hasHebrew = /[\u0590-\u05FF]/.test(text);
@@ -58,30 +97,15 @@ export async function POST(request: NextRequest) {
 
     const processingPromise = (async (): Promise<NextResponse> => {
       try {
-        // Enhanced text processing with content-type awareness
-        let processedText = text
-          .replace(/```[\s\S]*?```/g, ' [code block] ')
-          .replace(/\s+/g, ' ')
-          .trim();
-
-        // Apply content-type specific processing
-        if (content_type === 'sql') {
-          processedText = enhanceSQLPronunciation(processedText);
-        } else if (content_type === 'explanation') {
-          processedText = addNaturalPauses(processedText);
-        }
-
-        // Apply emotion-based text enhancement
-        if (emotion !== 'neutral') {
-          processedText = applyEmotionEnhancement(processedText, emotion);
-        }
+        const prosody = mapIntentToProsody(normalizedIntent, content_type);
+        let processedText = preprocessSpeechText(text, normalizedIntent, content_type, emotion);
 
         // Call OpenAI speech API with enhanced parameters
         const resp = await openai.audio.speech.create({
-          model: 'tts-1',
+          model: voiceConfig.chained.ttsModel,
           voice: voice as any,
           input: processedText,
-          speed: Math.max(0.5, Math.min(1.5, Number(speed) || 1.0)),
+          speed: Math.max(0.5, Math.min(1.5, Number(speed) || prosody.speed)),
           response_format: format as any,
         });
 
@@ -108,10 +132,14 @@ export async function POST(request: NextRequest) {
         });
       } catch (err) {
         console.error('TTS API Error:', err);
-        return NextResponse.json({ 
-          error: 'Failed to generate speech',
-          details: err instanceof Error ? err.message : 'Unknown error'
-        }, { status: 500 });
+        return createFailureResponse(500, {
+          ok: false,
+          enabled: true,
+          code: 'TTS_GENERATION_FAILED',
+          message: 'Failed to generate speech',
+          retryable: true,
+          details: err instanceof Error ? err.message : 'Unknown error',
+        });
       } finally {
         activeRequests.delete(requestKey);
       }
@@ -121,46 +149,50 @@ export async function POST(request: NextRequest) {
     return await processingPromise;
   } catch (error) {
     console.error('TTS Route Error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to generate speech',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    return createFailureResponse(500, {
+      ok: false,
+      enabled: true,
+      code: 'TTS_GENERATION_FAILED',
+      message: 'Failed to generate speech',
+      retryable: true,
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 }
 
-// Helper function to enhance SQL pronunciation
 function enhanceSQLPronunciation(text: string): string {
   return text
-    .replace(/\bSELECT\b/gi, 'SELECT')
-    .replace(/\bFROM\b/gi, 'FROM')
-    .replace(/\bWHERE\b/gi, 'WHERE')
-    .replace(/\bJOIN\b/gi, 'JOIN')
-    .replace(/\bORDER BY\b/gi, 'ORDER BY')
-    .replace(/\bGROUP BY\b/gi, 'GROUP BY')
-    .replace(/\bHAVING\b/gi, 'HAVING')
-    .replace(/\bUNION\b/gi, 'UNION')
-    .replace(/\bINNER\b/gi, 'INNER')
-    .replace(/\bLEFT\b/gi, 'LEFT')
-    .replace(/\bRIGHT\b/gi, 'RIGHT')
-    .replace(/\bOUTER\b/gi, 'OUTER');
+    .replace(/\bCOUNT\s*\(\s*\*\s*\)/gi, 'count all rows')
+    .replace(/\bAVG\b/gi, 'average')
+    .replace(/\bSUM\b/gi, 'sum')
+    .replace(/\bMIN\b/gi, 'minimum')
+    .replace(/\bMAX\b/gi, 'maximum')
+    .replace(/\bSELECT\b/gi, 'select')
+    .replace(/\bFROM\b/gi, 'from')
+    .replace(/\bWHERE\b/gi, 'where')
+    .replace(/\bJOIN\b/gi, 'join')
+    .replace(/\bORDER BY\b/gi, 'order by')
+    .replace(/\bGROUP BY\b/gi, 'group by')
+    .replace(/\bHAVING\b/gi, 'having')
+    .replace(/!=/g, ' not equal to ')
+    .replace(/>=/g, ' greater than or equal to ')
+    .replace(/<=/g, ' less than or equal to ')
+    .replace(/<>/g, ' not equal to ');
 }
 
-// Helper function to add natural pauses for explanations
 function addNaturalPauses(text: string): string {
   return text
-    .replace(/\./g, '. ') // Add pause after periods
-    .replace(/:/g, ': ') // Add pause after colons
-    .replace(/;/g, '; ') // Add pause after semicolons
-    .replace(/,/g, ', '); // Add pause after commas
+    .replace(/([:;])\s*/g, '$1 ')
+    .replace(/([.?!])\s*/g, '$1  ')
+    .replace(/,\s*/g, ', ');
 }
 
-// Helper function to apply emotion enhancement
 function applyEmotionEnhancement(text: string, emotion: string): string {
   switch (emotion) {
     case 'excited':
       return text.replace(/!/g, '! ').replace(/\./g, '. ');
     case 'calm':
-      return text.replace(/\./g, '. ').replace(/!/g, '.');
+      return text.replace(/!/g, '. ').replace(/\?/g, '? ');
     case 'happy':
       return text.replace(/\./g, '. ').replace(/!/g, '! ');
     case 'sad':
@@ -170,10 +202,83 @@ function applyEmotionEnhancement(text: string, emotion: string): string {
   }
 }
 
+function normalizeSpeechIntent(intent: unknown): SpeechIntent | null {
+  if (!intent || typeof intent !== 'object') {
+    return null;
+  }
+
+  const candidate = intent as Partial<SpeechIntent>;
+  if (!candidate.intent || typeof candidate.intent !== 'string') {
+    return null;
+  }
+
+  return {
+    intent: candidate.intent,
+    emotion: candidate.emotion,
+    urgency: candidate.urgency,
+    source: candidate.source,
+    confidence: candidate.confidence,
+  };
+}
+
+function mapIntentToProsody(intent: SpeechIntent | null, contentType: string) {
+  if (contentType === 'sql') {
+    return { speed: 0.94 };
+  }
+
+  switch (intent?.intent) {
+    case 'greeting':
+      return { speed: 1.04 };
+    case 'summary':
+      return { speed: 1.02 };
+    case 'error':
+      return { speed: 0.9 };
+    case 'uncertainty':
+      return { speed: 0.92 };
+    case 'explain':
+      return { speed: 0.96 };
+    default:
+      return { speed: 0.98 };
+  }
+}
+
+function preprocessSpeechText(
+  text: string,
+  intent: SpeechIntent | null,
+  contentType: string,
+  emotion: string
+): string {
+  let processedText = text
+    .replace(/```[\s\S]*?```/g, ' code example. ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (contentType === 'sql') {
+    processedText = enhanceSQLPronunciation(processedText);
+  }
+
+  processedText = addNaturalPauses(processedText);
+
+  if ((intent?.intent === 'uncertainty' || (intent?.confidence ?? 1) < 0.55) && !/^\s*(Let me think|תן לי לחשוב)/i.test(processedText)) {
+    processedText = `${/[\u0590-\u05FF]/.test(processedText) ? 'תן לי לחשוב רגע. ' : 'Let me think for a second. '}${processedText}`;
+  }
+
+  if (intent?.intent === 'summary' && !/^\s*(In short|To sum up|בקיצור|לסיכום)/i.test(processedText)) {
+    processedText = `${/[\u0590-\u05FF]/.test(processedText) ? 'לסיכום, ' : 'In short, '}${processedText}`;
+  }
+
+  if (emotion !== 'neutral') {
+    processedText = applyEmotionEnhancement(processedText, emotion);
+  }
+
+  return processedText.replace(/\s+/g, ' ').trim();
+}
+
 export async function GET() {
+  const voiceConfig = getVoiceRuntimeConfig();
   return NextResponse.json({
     voices: ['onyx','echo','fable','alloy','nova','shimmer'],
-    models: ['tts-1'],
+    models: [voiceConfig.chained.ttsModel],
     formats: ['mp3','opus'],
   });
 }

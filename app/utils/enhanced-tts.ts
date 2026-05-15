@@ -5,6 +5,8 @@
 // import { contextAwareVoice, VoiceIntelligenceOptions } from './context-aware-voice';
 // import { voiceAnalytics } from './voice-analytics';
 // import { voiceTextSanitizer, SanitizationConfig, VoiceTextSanitizer } from './voice-text-sanitizer';
+import { isVoiceFeatureEnabled } from '@/lib/openai/voice-config';
+import type { SpeechIntent } from './avatar-speech-controller';
 
 // Temporary interfaces to prevent compilation errors
 interface AudioProcessingOptions {
@@ -69,6 +71,7 @@ export interface TTSOptions {
   progressiveMode?: boolean; // New option for progressive speech
   emotion?: 'happy' | 'sad' | 'excited' | 'calm' | 'neutral'; // Voice emotion parameters
   contentType?: 'sql' | 'explanation' | 'question' | 'feedback' | 'general'; // Content-type awareness
+  speechIntent?: SpeechIntent;
   audioProcessing?: AudioProcessingOptions; // Audio processing options
   contextAwareness?: boolean; // Enable context-aware voice intelligence
   voiceIntelligenceOptions?: VoiceIntelligenceOptions; // Voice intelligence options
@@ -77,6 +80,144 @@ export interface TTSOptions {
   onStart?: () => void;
   onEnd?: () => void;
   onError?: (error: Error) => void;
+}
+
+export type TTSFailureCode =
+  | 'VOICE_DISABLED'
+  | 'INVALID_REQUEST'
+  | 'OPENAI_API_KEY_MISSING'
+  | 'TTS_GENERATION_FAILED';
+
+export interface TTSFailureResponse {
+  ok: false;
+  enabled: boolean;
+  code: TTSFailureCode;
+  message: string;
+  retryable: boolean;
+  details?: string;
+}
+
+export class TTSServiceError extends Error {
+  failure: TTSFailureResponse;
+
+  constructor(failure: TTSFailureResponse) {
+    super(failure.message);
+    this.name = 'TTSServiceError';
+    this.failure = failure;
+  }
+}
+
+const SQL_SPEECH_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bCOUNT\s*\(\s*\*\s*\)/gi, 'count all rows'],
+  [/\bAVG\b/gi, 'average'],
+  [/\bSUM\b/gi, 'sum'],
+  [/\bMIN\b/gi, 'minimum'],
+  [/\bMAX\b/gi, 'maximum'],
+  [/\bSELECT\b/gi, 'select'],
+  [/\bFROM\b/gi, 'from'],
+  [/\bWHERE\b/gi, 'where'],
+  [/\bJOIN\b/gi, 'join'],
+  [/\bLEFT JOIN\b/gi, 'left join'],
+  [/\bRIGHT JOIN\b/gi, 'right join'],
+  [/\bGROUP BY\b/gi, 'group by'],
+  [/\bORDER BY\b/gi, 'order by'],
+  [/\bHAVING\b/gi, 'having'],
+  [/!=/g, ' not equal to '],
+  [/>=/g, ' greater than or equal to '],
+  [/<=/g, ' less than or equal to '],
+  [/<>/g, ' not equal to '],
+  [/\*/g, ' star '],
+];
+
+const QUESTION_MARKERS = ['why', 'how', 'what', 'can you', 'איך', 'למה', 'מה'];
+
+export function isTTSFailureResponse(value: unknown): value is TTSFailureResponse {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<TTSFailureResponse>;
+  return candidate.ok === false && typeof candidate.code === 'string' && typeof candidate.message === 'string';
+}
+
+export function detectSpeechContentType(
+  text: string,
+  intent?: SpeechIntent
+): NonNullable<TTSOptions['contentType']> {
+  if (/\b(select|from|where|join|group by|order by|having|count\s*\()/i.test(text)) {
+    return 'sql';
+  }
+
+  switch (intent?.intent) {
+    case 'question':
+      return 'question';
+    case 'error':
+    case 'confirmation':
+      return 'feedback';
+    case 'summary':
+    case 'explain':
+      return 'explanation';
+    default:
+      return 'general';
+  }
+}
+
+export function mapSpeechIntentToProsody(
+  intent?: SpeechIntent
+): Pick<TTSOptions, 'speed' | 'pitch' | 'emotion' | 'contentType'> {
+  switch (intent?.intent) {
+    case 'error':
+      return { speed: 0.9, pitch: 0.95, emotion: 'calm', contentType: 'feedback' };
+    case 'summary':
+      return { speed: 1.02, pitch: 0.98, emotion: 'calm', contentType: 'explanation' };
+    case 'explain':
+      return { speed: 0.96, pitch: 0.99, emotion: 'calm', contentType: 'explanation' };
+    case 'greeting':
+      return { speed: 1.04, pitch: 1.05, emotion: 'happy', contentType: 'general' };
+    case 'question':
+      return { speed: 0.98, pitch: 1.04, emotion: 'calm', contentType: 'question' };
+    case 'confirmation':
+      return { speed: 1.0, pitch: 1.06, emotion: 'happy', contentType: 'feedback' };
+    case 'uncertainty':
+      return { speed: 0.92, pitch: 0.97, emotion: 'calm', contentType: 'general' };
+    default:
+      return { speed: 0.98, pitch: 1.0, emotion: 'neutral', contentType: 'general' };
+  }
+}
+
+export function normalizeSpeechText(text: string, speechIntent?: SpeechIntent): string {
+  const isHebrew = /[\u0590-\u05FF]/.test(text);
+  const confidence = speechIntent?.confidence ?? 0.9;
+  let normalized = text.trim();
+
+  normalized = normalized
+    .replace(/```[\s\S]*?```/g, ' code example. ')
+    .replace(/\s+/g, ' ');
+
+  if (detectSpeechContentType(normalized, speechIntent) === 'sql') {
+    SQL_SPEECH_REPLACEMENTS.forEach(([pattern, replacement]) => {
+      normalized = normalized.replace(pattern, replacement);
+    });
+  }
+
+  normalized = normalized
+    .replace(/([:;])\s*/g, '$1 ')
+    .replace(/([.?!])\s*/g, '$1  ')
+    .replace(/,\s*/g, ', ');
+
+  if (speechIntent?.intent === 'question' || QUESTION_MARKERS.some((marker) => normalized.toLowerCase().includes(marker))) {
+    normalized = normalized.replace(/\?+/g, '? ');
+  }
+
+  if ((speechIntent?.intent === 'uncertainty' || confidence < 0.55) && !/^\s*(let me think|hmm|תן לי לחשוב|אממ)/i.test(normalized)) {
+    normalized = `${isHebrew ? 'תן לי לחשוב רגע. ' : 'Let me think for a second. '}${normalized}`;
+  }
+
+  if (speechIntent?.intent === 'summary' && !/^\s*(in short|to sum up|בקיצור|לסיכום)/i.test(normalized)) {
+    normalized = `${isHebrew ? 'לסיכום, ' : 'In short, '}${normalized}`;
+  }
+
+  return normalized.replace(/\s+/g, ' ').trim();
 }
 
 // IndexedDB cache interface
@@ -212,9 +353,11 @@ class EnhancedTTSService {
   constructor() {
     if (typeof window !== 'undefined') {
       this.speechSynthesis = window.speechSynthesis;
-      this.initializeIndexedDB();
-      this.startBackgroundCacheWarming();
-      this.startPerformanceMonitoring();
+      if (process.env.NODE_ENV !== 'test') {
+        this.initializeIndexedDB();
+        this.startBackgroundCacheWarming();
+        this.startPerformanceMonitoring();
+      }
     }
   }
 
@@ -522,7 +665,7 @@ class EnhancedTTSService {
     
     // For Hebrew text, always use Nova (best Hebrew pronunciation)
     if (language === 'he') {
-      console.log('🇮🇱 Hebrew text detected - forcing nova voice for optimal pronunciation');
+      this.dlog('Hebrew text detected - forcing nova voice for optimal pronunciation');
       return 'nova';
     }
 
@@ -613,7 +756,7 @@ class EnhancedTTSService {
     const startTime = Date.now();
     
     // Client-side feature flag guard
-    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_VOICE_ENABLED !== '1') {
+    if (typeof window !== 'undefined' && !isVoiceFeatureEnabled()) {
       throw new Error('Voice feature disabled');
     }
     
@@ -687,49 +830,41 @@ class EnhancedTTSService {
                 enhance_prosody: options.enhanceProsody !== false,
                 character_style: options.characterStyle || 'university_ta',
                 emotion: options.emotion || 'neutral',
-                content_type: options.contentType || 'general'
+                content_type: options.contentType || 'general',
+                speech_intent: options.speechIntent || null,
               }),
             });
-            
-            // Handle disabled feature gracefully (200 with enabled: false) - don't retry
-            if (response.status === 200) {
-              const responseData = await response.json().catch(() => ({}));
-              if (responseData.enabled === false) {
-                this.dlog('⚠️ Voice feature is disabled, skipping TTS');
-                throw new Error('Voice feature disabled');
-              }
+
+            const primaryFailure = await this.extractFailureResponse(response);
+            if (primaryFailure) {
+              throw new TTSServiceError(primaryFailure);
             }
             
             // Fallback to local route if server base failed
             if (!response.ok) {
               this.dlog('⚠️ TTS primary failed status:', response.status);
-              try {
-                const localUrl = `/api/audio/tts`;
-                this.dlog('🔁 Trying local TTS →', localUrl);
-                response = await fetch(localUrl, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    text,
-                    voice: selectedVoice,
-                    speed: options.speed || 1.0,
-                    format: 'mp3',
-                    enhance_prosody: options.enhanceProsody !== false,
-                    character_style: options.characterStyle || 'university_ta',
-                    emotion: options.emotion || 'neutral',
-                    content_type: options.contentType || 'general'
-                  }),
-                });
-                
-                // Check if local also returns disabled
-                if (response.status === 200) {
-                  const responseData = await response.json().catch(() => ({}));
-                  if (responseData.enabled === false) {
-                    this.dlog('⚠️ Voice feature is disabled, skipping TTS');
-                    throw new Error('Voice feature disabled');
-                  }
-                }
-              } catch {}
+              const localUrl = `/api/audio/tts`;
+              this.dlog('🔁 Trying local TTS →', localUrl);
+              response = await fetch(localUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  text,
+                  voice: selectedVoice,
+                  speed: options.speed || 1.0,
+                  format: 'mp3',
+                  enhance_prosody: options.enhanceProsody !== false,
+                  character_style: options.characterStyle || 'university_ta',
+                  emotion: options.emotion || 'neutral',
+                  content_type: options.contentType || 'general',
+                  speech_intent: options.speechIntent || null,
+                }),
+              });
+
+              const localFailure = await this.extractFailureResponse(response);
+              if (localFailure) {
+                throw new TTSServiceError(localFailure);
+              }
             }
 
             if (!response.ok) {
@@ -868,10 +1003,9 @@ class EnhancedTTSService {
     const language = this.detectLanguage(text);
     
     // Clean text for browser TTS
-    const cleanText = text
+    const cleanText = normalizeSpeechText(text, options.speechIntent)
       .replace(/\*\*(.*?)\*\*/g, '$1')
       .replace(/\*(.*?)\*/g, '$1')
-      .replace(/```[\s\S]*?```/g, ' code block ')
       .replace(/😊|😀|😃|😄|😁|😆|😅|🤣|😂|🙂|🙃|😉|😇|🥰|😍|🤩|😘|😗|😚|😙|😋|😛|😜|🤪|😝|🤑|🤗|🤭|🤫|🤔|🤐|🤨|😐|😑|😶|😏|😒|🙄|😬|🤥|😌|😔|😪|🤤|😴|😷|🤒|🤕|🤢|🤮|🤧|🥵|🥶|🥴|😵|🤯|🤠|🥳|😎|🤓|🧐|🚀|⚡|💡|🎯|🎓|✨|👍|👎|👏|🔧|🛠️|📝|📊|💻|⭐|🎉|🔥|💪|🏆|📈|🎪/g, '')
       .replace(/\s+/g, ' ')
       .trim();
@@ -940,8 +1074,16 @@ class EnhancedTTSService {
     }
 
     // Apply context-aware voice intelligence if enabled
-    let processedText = text;
-    let enhancedOptions = { ...options };
+    const prosodyPreset = mapSpeechIntentToProsody(options.speechIntent);
+    let processedText = normalizeSpeechText(text, options.speechIntent);
+    let enhancedOptions: TTSOptions = {
+      ...prosodyPreset,
+      ...options,
+      speed: options.speed ?? prosodyPreset.speed,
+      pitch: options.pitch ?? prosodyPreset.pitch,
+      emotion: options.emotion ?? prosodyPreset.emotion,
+      contentType: options.contentType ?? detectSpeechContentType(processedText, options.speechIntent),
+    };
     
     // Temporarily disabled due to import issues
     // if (options.contextAwareness !== false) {
@@ -997,7 +1139,7 @@ class EnhancedTTSService {
       if (sanitizationResult.sanitizedText.trim().length === 0 || 
           sanitizationResult.sanitizedText.trim().length < 10) {
         this.dlog('⚠️ Sanitized text too short, using original text');
-        processedText = text; // Use original text as fallback
+        processedText = normalizeSpeechText(text, options.speechIntent);
       } else {
         processedText = sanitizationResult.sanitizedText;
       }
@@ -1213,7 +1355,7 @@ class EnhancedTTSService {
     
     // Set timeout to automatically release lock (safety mechanism)
     this.globalTimeout = setTimeout(() => {
-      console.log('⏰ Enhanced TTS: Auto-releasing speech lock after timeout');
+      this.dlog('Enhanced TTS: Auto-releasing speech lock after timeout');
       this.globalSpeechLock = false;
     }, 30000); // 30 second timeout
 
@@ -1226,6 +1368,9 @@ class EnhancedTTSService {
           const audioUrl = await this.generateOpenAITTS(text, options);
           await this.playAudioUrl(audioUrl, options);
         } catch (e) {
+          if (e instanceof TTSServiceError && !e.failure.retryable) {
+            throw e;
+          }
           if (this.isDebug()) console.warn('⚠️ OpenAI TTS failed, falling back to browser TTS', e);
           await this.generateBrowserTTS(text, options);
         }
@@ -1322,8 +1467,22 @@ class EnhancedTTSService {
     });
   }
 
+  private async extractFailureResponse(response: Response): Promise<TTSFailureResponse | null> {
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      return null;
+    }
+
+    const payload = await response
+      .clone()
+      .json()
+      .catch(() => null);
+
+    return isTTSFailureResponse(payload) ? payload : null;
+  }
+
   // Stop current speech
-  stop(): void {
+  stop(fadeOutMs = 0): void {
     this.dlog('🛑 Enhanced TTS: Stop requested');
     
     // Reset progressive state
@@ -1331,8 +1490,28 @@ class EnhancedTTSService {
     
     // Stop current audio
     if (this.currentAudio) {
-      this.currentAudio.pause();
-      this.currentAudio.currentTime = 0;
+      const audio = this.currentAudio;
+      if (fadeOutMs > 0) {
+        const startVolume = audio.volume;
+        const fadeSteps = Math.max(4, Math.floor(fadeOutMs / 30));
+        const fadeInterval = Math.max(16, Math.floor(fadeOutMs / fadeSteps));
+        let step = 0;
+
+        const timer = window.setInterval(() => {
+          step += 1;
+          const nextVolume = startVolume * Math.max(0, 1 - step / fadeSteps);
+          audio.volume = nextVolume;
+          if (step >= fadeSteps) {
+            window.clearInterval(timer);
+            audio.pause();
+            audio.currentTime = 0;
+            audio.volume = startVolume;
+          }
+        }, fadeInterval);
+      } else {
+        audio.pause();
+        audio.currentTime = 0;
+      }
       this.currentAudio = null;
     }
 
@@ -1560,7 +1739,7 @@ class EnhancedTTSService {
   async addBackgroundAmbiance(type: 'classroom' | 'library' | 'office' = 'classroom'): Promise<void> {
     // This could be enhanced to add subtle background sounds
     // For now, we'll just adjust the voice parameters slightly
-    console.log(`Adding ${type} ambiance effect`);
+    this.dlog(`Adding ${type} ambiance effect`);
   }
 }
 

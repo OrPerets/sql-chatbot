@@ -3,11 +3,11 @@ import { generateStepsFromSql } from '../../app/visualizer/step-generator';
 describe('generateStepsFromSql', () => {
   it('builds steps for core SELECT keywords', () => {
     const steps = generateStepsFromSql(`
-      SELECT Students.name, Enrollments.course
-      FROM Students
-      INNER JOIN Enrollments ON Students.id = Enrollments.student_id
-      WHERE Enrollments.status = 'active'
-      ORDER BY Students.name
+      SELECT customers.full_name, orders.status
+      FROM customers
+      INNER JOIN orders ON customers.id = orders.customer_id
+      WHERE orders.status = 'delivered'
+      ORDER BY customers.full_name
       LIMIT 3;
     `);
 
@@ -21,7 +21,7 @@ describe('generateStepsFromSql', () => {
   });
 
   it('adds a placeholder step when keyword coverage gaps are detected', () => {
-    const steps = generateStepsFromSql('SELECT DISTINCT name FROM Students;');
+    const steps = generateStepsFromSql('SELECT DISTINCT full_name FROM customers;');
     const coverageStep = steps.find((step) => step.id === 'step-coverage');
 
     expect(coverageStep).toBeDefined();

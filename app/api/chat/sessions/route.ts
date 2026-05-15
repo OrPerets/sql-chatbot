@@ -21,10 +21,35 @@ export async function POST(request: Request) {
     const body = await request.json()
     const userId = body.user || body.userId
     const title = body.title || 'New chat'
+    const openaiSessionId =
+      typeof body.openaiSessionId === 'string' && body.openaiSessionId.trim()
+        ? body.openaiSessionId.trim()
+        : null
+    const promptCacheKey =
+      typeof body.promptCacheKey === 'string' && body.promptCacheKey.trim()
+        ? body.promptCacheKey.trim()
+        : null
+    const safetyIdentifier =
+      typeof body.safetyIdentifier === 'string' && body.safetyIdentifier.trim()
+        ? body.safetyIdentifier.trim()
+        : null
     if (!userId) {
       return NextResponse.json({ error: 'user is required' }, { status: 400 })
     }
-    const session = await createChatSession(userId, title)
+    const session = await createChatSession(userId, title, {
+      openaiState: openaiSessionId
+        ? {
+            sessionId: openaiSessionId,
+            lastResponseId: null,
+            canonicalStateStrategy: 'previous_response_id',
+            store: true,
+            truncation: 'auto',
+            promptCacheKey,
+            safetyIdentifier,
+            updatedAt: new Date(),
+          }
+        : undefined,
+    })
     return NextResponse.json(session)
   } catch (error) {
     console.error('Error creating chat session:', error)

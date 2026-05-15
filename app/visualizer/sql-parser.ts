@@ -1,4 +1,4 @@
-import alasql from 'alasql';
+import alasql from '../../node_modules/alasql/dist/alasql.min.js';
 
 type ParsedQueryResult = {
   statements?: Array<Record<string, unknown>>;

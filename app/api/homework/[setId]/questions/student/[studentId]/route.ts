@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getQuestionGenerator } from '@/lib/question-generator';
 import { getHomeworkService } from '@/lib/homework';
 import { getQuestionsService } from '@/lib/questions';
+import { instantiateInlineQuestion } from '@/app/homework/utils/inline-question-parameters';
 import { getTemplateService } from '@/lib/template-service';
 import { extractQuestionVariableNames, renderQuestionVariables } from '@/lib/question-variable-rendering';
 import type { Question, QuestionTemplate } from '@/app/homework/types';
@@ -31,7 +32,32 @@ function renderQuestionsForStudent(
     templates: QuestionTemplate[];
   },
 ): Question[] {
-  return questions.map((question) => renderQuestionVariables(question, options));
+  return questions.map((question) => renderQuestionForStudent(question, options));
+}
+
+function isInlineParameterizedQuestion(question: Question): boolean {
+  return (
+    (question.parameterMode ?? (question.parameters?.length ? 'parameterized' : 'static')) === 'parameterized' &&
+    (question.parameters?.length ?? 0) > 0
+  );
+}
+
+function renderQuestionForStudent(
+  question: Question,
+  options: {
+    homeworkSetId: string;
+    studentId: string;
+    templates: QuestionTemplate[];
+  },
+): Question {
+  if (isInlineParameterizedQuestion(question)) {
+    return instantiateInlineQuestion(question, {
+      homeworkSetId: options.homeworkSetId,
+      studentId: options.studentId,
+    }).question;
+  }
+
+  return renderQuestionVariables(question, options);
 }
 
 /**
@@ -65,10 +91,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const questionsService = await getQuestionsService();
     const regularQuestions = await questionsService.getQuestionsByHomeworkSet(setId);
     
-    // If we have regular questions, this is not a parametric homework set
+    // If we have regular questions, return them directly or instantiate per-student variables deterministically
     if (regularQuestions.length > 0) {
       console.log(`📋 Homework set ${setId} has ${regularQuestions.length} regular questions, returning them for student ${studentId}`);
-      const templateQuestions = regularQuestions.filter((question) => Boolean(question.templateId));
+      const templateQuestions = regularQuestions.filter(
+        (question) => Boolean(question.templateId) && !isInlineParameterizedQuestion(question),
+      );
 
       if (templateQuestions.length > 0) {
         const templateService = await getTemplateService();
@@ -87,11 +115,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         );
         const templates = await templateService.getTemplates();
         const orderedQuestions = regularQuestions.map((question) => {
+          if (isInlineParameterizedQuestion(question)) {
+            return renderQuestionForStudent(question, { homeworkSetId: setId, studentId, templates });
+          }
+
           if (!question.templateId) {
-            return renderQuestionVariables(question, { homeworkSetId: setId, studentId, templates });
+            return renderQuestionForStudent(question, { homeworkSetId: setId, studentId, templates });
           }
           return questionsByTemplateId.get(question.templateId)
-            ?? renderQuestionVariables(question, { homeworkSetId: setId, studentId, templates });
+            ?? renderQuestionForStudent(question, { homeworkSetId: setId, studentId, templates });
         });
 
         return NextResponse.json(orderedQuestions);

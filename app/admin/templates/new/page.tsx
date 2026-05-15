@@ -1,5 +1,6 @@
 "use client";
 
+import AdminShell from "@/app/components/admin/AdminShell";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Save, Eye, AlertCircle, X, Plus, Trash2, Code, Settings } from "lucide-react";
@@ -222,7 +223,8 @@ export default function NewTemplatePage() {
   };
 
   return (
-    <div className={styles.container} dir="rtl">
+    <AdminShell>
+      <div className={styles.container} dir="rtl">
       <div className={styles.header}>
         <div className={styles.titleSection}>
           <h1>צור תבנית שאלה</h1>
@@ -514,6 +516,7 @@ export default function NewTemplatePage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AdminShell>
   );
 }
