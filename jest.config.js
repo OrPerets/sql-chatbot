@@ -42,6 +42,7 @@ const customJestConfig = {
     '!app/**/_*.{js,jsx,ts,tsx}',
   ],
   coverageReporters: ['text', 'lcov', 'html'],
+  coverageProvider: 'v8',
   testTimeout: 10000,
 }
 
