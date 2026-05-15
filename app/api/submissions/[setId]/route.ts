@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   getSubmissionForStudent,
+  getSubmissionsByHomeworkSet,
   getSubmissionSummaries,
   saveSubmissionDraft,
   submitSubmission,
@@ -16,8 +17,14 @@ export async function GET(request: Request, { params }: RouteParams) {
     const { setId } = await params;
     const { searchParams } = new URL(request.url);
     const role = searchParams.get("role");
+    const include = searchParams.get("include");
 
     if (role === "builder") {
+      if (include === "details") {
+        const submissions = await getSubmissionsByHomeworkSet(setId);
+        return NextResponse.json(submissions);
+      }
+
       const summaries = await getSubmissionSummaries(setId);
       return NextResponse.json(summaries);
     }

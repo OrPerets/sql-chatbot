@@ -56,6 +56,13 @@ export async function listSubmissionSummaries(setId: string) {
   });
 }
 
+export async function listSubmissions(setId: string) {
+  return http<Submission[]>(`${BASE_PATH}/${setId}`, {
+    method: "GET",
+    params: { role: "builder", include: "details" },
+  });
+}
+
 export async function getSubmissionById(submissionId: string) {
   return http<Submission>(`${BASE_PATH}/by-id/${submissionId}`, { method: "GET" });
 }

@@ -3,11 +3,17 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getHomeworkQuestions, getHomeworkSet, publishHomeworkGrades } from "@/app/homework/services/homeworkService";
+import {
+  getHomeworkQuestions,
+  getHomeworkQuestionsForStudents,
+  getHomeworkSet,
+  publishHomeworkGrades,
+} from "@/app/homework/services/homeworkService";
 import {
   getSubmissionById,
   getSubmissionProgressById,
   gradeSubmission,
+  listSubmissions,
   listSubmissionSummaries,
 } from "@/app/homework/services/submissionService";
 import { getQuestionAnalyticsStats, listAnalyticsEvents } from "@/app/homework/services/analyticsService";
@@ -334,13 +340,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
   // Fetch all submissions for per-question view
   const allSubmissionsQuery = useQuery({
     queryKey: ["submissions", setId, "all"],
-    queryFn: async () => {
-      const summaries = summariesQuery.data ?? [];
-      const submissions = await Promise.all(
-        summaries.map((summary) => getSubmissionById(summary.id).catch(() => null))
-      );
-      return submissions.filter((s): s is Submission => s !== null);
-    },
+    queryFn: () => listSubmissions(setId),
     enabled: viewMode === "question" && summariesQuery.isSuccess,
   });
 
@@ -473,20 +473,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
 
   const questionViewStudentQuestionsQuery = useQuery({
     queryKey: ["homework", setId, "student-question-map", questionViewStudentIds],
-    queryFn: async () => {
-      const entries = await Promise.all(
-        questionViewStudentIds.map(async (studentId) => {
-          try {
-            return [studentId, await getHomeworkQuestions(setId, studentId)] as const;
-          } catch (error) {
-            console.warn("Failed to load rendered questions for student", studentId, error);
-            return [studentId, []] as const;
-          }
-        }),
-      );
-
-      return Object.fromEntries(entries) as Record<string, Question[]>;
-    },
+    queryFn: () => getHomeworkQuestionsForStudents(setId, questionViewStudentIds),
     enabled: viewMode === "question" && questionViewStudentIds.length > 0,
     staleTime: 5 * 60 * 1000,
   });
@@ -1113,11 +1100,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
         return;
       }
 
-      const submissions = await Promise.all(
-        summaries.map((summary) => getSubmissionById(summary.id).catch(() => null))
-      );
-
-      const validSubmissions = submissions.filter((submission): submission is Submission => submission !== null);
+      const validSubmissions = allSubmissionsQuery.data ?? await listSubmissions(setId);
       const datePart = new Date().toISOString().split("T")[0];
 
       exportHomeworkGradesToExcel({
@@ -1135,7 +1118,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
     } finally {
       setIsExporting(false);
     }
-  }, [homeworkQuery.data?.title, isExporting, questionsQuery.data, setId, summariesQuery.data]);
+  }, [allSubmissionsQuery.data, homeworkQuery.data?.title, isExporting, questionsQuery.data, setId, summariesQuery.data]);
 
   // Bulk grading helpers
   const handleBulkScoreChange = useCallback((newScore: number) => {
