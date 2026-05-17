@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import {
   getHomeworkQuestions,
   getHomeworkQuestionsForStudents,
@@ -19,7 +19,7 @@ import {
 } from "@/app/homework/services/submissionService";
 import { getQuestionAnalyticsStats, listAnalyticsEvents } from "@/app/homework/services/analyticsService";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
-import type { Question, QuestionProgress, Submission, SqlAnswer } from "@/app/homework/types";
+import type { Question, QuestionProgress, Submission, SubmissionSummary, SqlAnswer } from "@/app/homework/types";
 import styles from "./grade.module.css";
 import { exportHomeworkGradesToExcel } from "@/lib/excel-export";
 
@@ -245,6 +245,40 @@ function StatusBadge({ status, t }: { status: string; t: (key: string) => string
 }
 
 const SCORE_FORMATTER = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1, minimumFractionDigits: 0 });
+
+function syncGradedSubmissionsCache(
+  queryClient: QueryClient,
+  setId: string,
+  updatedSubmissions: Submission[],
+) {
+  if (updatedSubmissions.length === 0) return;
+
+  const byId = new Map(updatedSubmissions.map((submission) => [submission.id, submission]));
+
+  updatedSubmissions.forEach((submission) => {
+    queryClient.setQueryData<Submission>(["submission", submission.id], submission);
+  });
+
+  queryClient.setQueryData<Submission[]>(["submissions", setId, "all"], (current) => {
+    if (!current) return current;
+    return current.map((submission) => byId.get(submission.id) ?? submission);
+  });
+
+  queryClient.setQueryData<SubmissionSummary[]>(["submissions", setId, "summaries"], (current) => {
+    if (!current) return current;
+    return current.map((summary) => {
+      const updated = byId.get(summary.id);
+      if (!updated) return summary;
+
+      return {
+        ...summary,
+        status: updated.status,
+        overallScore: updated.overallScore,
+        gradedAt: updated.gradedAt,
+      };
+    });
+  });
+}
 
 export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
   // Test console.log on component mount
@@ -653,14 +687,15 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
         return gradeSubmissions(updates);
       }
     },
-    onSuccess: (updated) => {
+    onSuccess: async (updated) => {
       if (!updated) return;
-      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "summaries"] });
-      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "all"] });
-      if (viewMode === "student" && !Array.isArray(updated)) {
-      queryClient.setQueryData<Submission | undefined>(["submission", updated.id], updated);
-      }
-      queryClient.invalidateQueries({ queryKey: ["analytics", setId] });
+      const updatedSubmissions = Array.isArray(updated) ? updated : [updated];
+      syncGradedSubmissionsCache(queryClient, setId, updatedSubmissions);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["submissions", setId, "summaries"] }),
+        queryClient.invalidateQueries({ queryKey: ["submissions", setId, "all"] }),
+        queryClient.invalidateQueries({ queryKey: ["analytics", setId] }),
+      ]);
       setStatusMessage(Array.isArray(updated) 
         ? t("builder.grade.saveSuccessMultiple", { count: updated.length })
         : t("builder.grade.saveSuccess"));
@@ -1243,11 +1278,12 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
         0
       );
 
-      await gradeSubmission(submissionId, {
+      const updatedSubmission = await gradeSubmission(submissionId, {
         answers: updatedAnswers,
         overallScore,
         status: "graded",
       });
+      syncGradedSubmissionsCache(queryClient, setId, [updatedSubmission]);
 
       // Mark as completed and remove from view
       setCompletedSubmissions((prev) => {
@@ -1270,8 +1306,10 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
       });
 
       // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "summaries"] });
-      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "all"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["submissions", setId, "summaries"] }),
+        queryClient.invalidateQueries({ queryKey: ["submissions", setId, "all"] }),
+      ]);
       
       setStatusMessage("הציון נשמר והתשובה הוסרה מהרשימה");
     } catch (error) {
