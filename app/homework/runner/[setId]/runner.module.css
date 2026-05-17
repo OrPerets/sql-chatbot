@@ -693,7 +693,7 @@
 .submitButtonFixed {
   position: fixed;
   bottom: 20px;
-  left: 20px;
+  right: 20px;
   z-index: 100;
   display: inline-flex;
   align-items: center;
@@ -1272,11 +1272,13 @@
   background: #fafbfc;
   border-top: 1px solid #e5e7eb;
   border-radius: 0;
-  padding: 12px 20px 16px;
+  padding: 12px 20px 24px;
   flex: 2;
   min-height: 200px;
   max-height: none;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
 .feedbackHeader {
@@ -1784,6 +1786,7 @@
   cursor: pointer;
   transition: all 0.15s ease;
   text-align: right;
+  user-select: text;
 }
 
 .tableHeader:hover {
@@ -1809,6 +1812,7 @@
   color: #1e293b;
   flex: 1;
   font-family: ui-monospace, 'SF Mono', 'Monaco', 'Menlo', monospace;
+  user-select: text;
 }
 
 .tableColumnCount {
@@ -1845,6 +1849,8 @@
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.02em;
+  cursor: copy;
+  user-select: text;
 }
 
 .sampleDataTable td {
@@ -1854,6 +1860,15 @@
   white-space: nowrap;
   font-family: ui-monospace, 'SF Mono', 'Monaco', 'Menlo', monospace;
   font-size: 10px;
+  cursor: copy;
+  user-select: text;
+}
+
+.sampleDataTable th:focus-visible,
+.sampleDataTable td:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+  background: #eff6ff;
 }
 
 .sampleDataTable tbody tr:hover {
@@ -3411,6 +3426,7 @@
     height: auto;
     min-height: 100vh;
     overflow-y: auto;
+    overflow-x: hidden;
   }
   
   .sidebar,
@@ -3422,15 +3438,14 @@
     top: auto;
   }
   
-  /* Instructions sidebar first on tablet */
+  /* Workspace first on split-screen/tablet widths */
   .sidebar {
-    order: 1;
+    order: 2;
     padding: 0;
   }
   
-  /* Workspace second */
   .workspace {
-    order: 2;
+    order: 1;
     min-height: 500px;
     padding: 0;
   }
@@ -3489,7 +3504,7 @@
   
   .feedbackPanel {
     margin: 0 20px 20px;
-    padding: 20px;
+    padding: 20px 20px 88px;
   }
 }
 
@@ -3502,6 +3517,7 @@
     height: auto;
     min-height: 100vh;
     overflow-y: auto;
+    overflow-x: hidden;
   }
   
   .sidebar,
@@ -3515,14 +3531,13 @@
     top: auto;
   }
   
-  /* Instructions sidebar first on mobile */
+  /* Workspace first on mobile/split-screen widths */
   .sidebar {
-    order: 1;
+    order: 2;
   }
   
-  /* Workspace second on mobile */
   .workspace {
-    order: 2;
+    order: 1;
     max-height: none;
     min-height: 450px;
   }
@@ -3716,7 +3731,7 @@
   
   .submitButtonFixed {
     bottom: 16px;
-    left: 16px;
+    right: 16px;
     padding: 12px 20px;
     font-size: 14px;
   }
@@ -3733,7 +3748,7 @@
   
   .feedbackPanel {
     margin: 0 16px 16px;
-    padding: 16px;
+    padding: 16px 16px 88px;
     gap: 16px;
   }
   
@@ -3862,12 +3877,12 @@
   }
   
   .sidebar {
-    order: 1;
+    order: 2;
     padding: 0;
   }
   
   .workspace {
-    order: 2;
+    order: 1;
     min-height: 400px;
     padding: 0;
   }
@@ -4163,7 +4178,7 @@
   
   .submitButtonFixed {
     bottom: 12px;
-    left: 12px;
+    right: 12px;
     padding: 10px 16px;
     font-size: 13px;
   }
@@ -4184,7 +4199,7 @@
   
   .feedbackPanel {
     margin: 0 12px 12px;
-    padding: 12px;
+    padding: 12px 12px 82px;
     gap: 12px;
   }
   

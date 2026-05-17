@@ -91,7 +91,6 @@ const nextConfig = {
       { protocol: 'https', hostname: '10.0.0.8' },
     ],
     formats: ['image/webp', 'image/avif'],
-    maximumDiskCacheSize: 256 * 1024 * 1024,
   },
   typescript: {
     // Temporary compatibility for Next.js 16 route-handler signature migration.

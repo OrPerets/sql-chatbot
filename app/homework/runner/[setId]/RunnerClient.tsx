@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getHomeworkQuestions, getHomeworkSet } from "@/app/homework/services/homeworkService";
@@ -52,6 +52,11 @@ interface PendingSave {
   timer: number;
 }
 
+type SqlEditorHandle = {
+  focus: () => void;
+  trigger: (source: string, handlerId: string, payload: { text: string }) => void;
+};
+
 interface QuestionAnalyticsState {
   startedAt: number;
   lastActivity: number;
@@ -71,6 +76,13 @@ interface QuestionAnalyticsState {
 }
 
 const AUTOSAVE_DELAY = 800;
+
+const formatSqlLiteral = (value: string | number | boolean | null | undefined) => {
+  if (value === null || value === undefined) return "NULL";
+  if (typeof value === "number") return String(value);
+  if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
+  return `'${String(value).replace(/'/g, "''")}'`;
+};
 
 // Helper function to check if SQL error is about non-existing table/column
 const parseSchemaError = (errorMessage: string | undefined): { type: 'table' | 'column' | null; name: string | null } => {
@@ -227,6 +239,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const [hintQuestionPrompt, setHintQuestionPrompt] = useState("");
   const [hintErrorMessage, setHintErrorMessage] = useState<string | null>(null);
   const [hintSuccessMessage, setHintSuccessMessage] = useState<string | null>(null);
+  const editorRef = useRef<SqlEditorHandle | null>(null);
   const pendingRef = useRef<Record<string, PendingSave>>({});
   const analyticsRef = useRef<Record<string, QuestionAnalyticsState>>({});
   const activeQuestionRef = useRef<string | null>(null);
@@ -333,8 +346,11 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   }, []);
 
   const homeworkQuery = useQuery({
-    queryKey: ["homework", setId],
-    queryFn: () => getHomeworkSet(setId, isPreviewContext ? "admin" : undefined),
+    queryKey: ["homework", setId, studentId],
+    queryFn: () => getHomeworkSet(setId, {
+      role: isPreviewContext ? "admin" : undefined,
+      studentId,
+    }),
   });
   const datasetQuery = useQuery({
     queryKey: ["dataset", homeworkQuery.data?.selectedDatasetId ?? null],
@@ -777,6 +793,41 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     [recordTyping, scheduleAutosave],
   );
 
+  const copySqlSnippet = useCallback((snippet: string) => {
+    if (typeof navigator === "undefined" || !navigator.clipboard) return;
+    void navigator.clipboard.writeText(snippet).catch(() => undefined);
+  }, []);
+
+  const insertSqlSnippet = useCallback(
+    (snippet: string) => {
+      if (!activeQuestionId || !snippet) return;
+
+      copySqlSnippet(snippet);
+
+      const editor = editorRef.current;
+      if (editor && !isRelationalAlgebra) {
+        editor.focus();
+        editor.trigger("database-viewer", "type", { text: snippet });
+        return;
+      }
+
+      const currentValue = editorValues[activeQuestionId] ?? "";
+      const separator = currentValue && !/\s$/.test(currentValue) ? " " : "";
+      handleSqlChange(activeQuestionId, `${currentValue}${separator}${snippet}`);
+    },
+    [activeQuestionId, copySqlSnippet, editorValues, handleSqlChange, isRelationalAlgebra],
+  );
+
+  const handleSnippetKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLElement>, snippet: string) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      event.stopPropagation();
+      insertSqlSnippet(snippet);
+    },
+    [insertSqlSnippet],
+  );
+
   const handleExecute = useCallback(() => {
     console.log("🔴 handleExecute called", {
       activeQuestionId,
@@ -1033,6 +1084,11 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                       type="button"
                       className={`${styles.tableHeader} ${expandedTables[tableName] ? styles.tableHeaderExpanded : ''}`}
                       onClick={() => toggleTableExpanded(tableName)}
+                      onDoubleClick={(event) => {
+                        event.stopPropagation();
+                        insertSqlSnippet(tableName);
+                      }}
+                      title={isEnglish ? "Double-click to add and copy the table name" : "לחיצה כפולה מוסיפה את שם הטבלה לעורך ומעתיקה אותו"}
                     >
                       <span className={styles.tableToggle}>
                         {expandedTables[tableName] ? "▾" : "▸"}
@@ -1050,7 +1106,16 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                             <thead>
                               <tr>
                                 {tableData.columns.map((col) => (
-                                  <th key={col}>{col}</th>
+                                  <th
+                                    key={col}
+                                    role="button"
+                                    tabIndex={0}
+                                    onDoubleClick={() => insertSqlSnippet(col)}
+                                    onKeyDown={(event) => handleSnippetKeyDown(event, col)}
+                                    title={isEnglish ? "Double-click to add and copy the column name" : "לחיצה כפולה מוסיפה את שם העמודה לעורך ומעתיקה אותו"}
+                                  >
+                                    {col}
+                                  </th>
                                 ))}
                               </tr>
                             </thead>
@@ -1058,7 +1123,16 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                               {tableData.rows.map((row, idx) => (
                                 <tr key={idx}>
                                   {tableData.columns.map((col) => (
-                                    <td key={col}>{String(row[col] ?? "")}</td>
+                                    <td
+                                      key={col}
+                                      role="button"
+                                      tabIndex={0}
+                                      onDoubleClick={() => insertSqlSnippet(formatSqlLiteral(row[col]))}
+                                      onKeyDown={(event) => handleSnippetKeyDown(event, formatSqlLiteral(row[col]))}
+                                      title={isEnglish ? "Double-click to add and copy this value" : "לחיצה כפולה מוסיפה את הערך לעורך ומעתיקה אותו"}
+                                    >
+                                      {String(row[col] ?? "")}
+                                    </td>
                                   ))}
                                 </tr>
                               ))}
@@ -1206,6 +1280,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                       }
                     }}
                     onMount={(editor) => {
+                      editorRef.current = editor;
                       editor.focus();
                     }}
                   />

@@ -19,10 +19,20 @@ export async function listHomeworkSets(
   });
 }
 
-export async function getHomeworkSet(setId: string, role?: string): Promise<HomeworkSet> {
+export async function getHomeworkSet(
+  setId: string,
+  options?: string | {
+    role?: string;
+    studentId?: string;
+    email?: string;
+    allowUnavailablePreview?: boolean;
+  },
+): Promise<HomeworkSet> {
+  const params = typeof options === "string" ? { role: options } : options;
+
   return http(`${BASE_PATH}/${setId}`, { 
     method: "GET",
-    params: role ? { role } : undefined,
+    params,
   });
 }
 

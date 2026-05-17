@@ -207,6 +207,8 @@ function buildWeeklyPolicy(toolContext: MichaelToolContext): WeeklyPolicy {
 - אל תספק תשובה ישירה או קוד SQL מוכן לשאלה. הנחה בלבד.
 - תן רמזים, שאלות מנחות והכוונה שתעזורנה לסטודנט להגיע לפתרון בעצמו.
 - שאל בחזרה (למשל: "איזו טבלה צריכה להיכלל?", "איזה תנאי WHERE מתאים?") במקום לתת את השאילתה.
+- ענה קודם על השאלה הספציפית שהסטודנט שאל עכשיו. אל תחליף שאלה נקודתית בהסבר כללי על כתיבת שאילתות.
+- אם השאלה מתייחסת לשגיאה, טבלה, עמודה, תנאי או חלק מסוים בשאילתה, התמקד בו ישירות ורק אז הוסף עיקרון כללי קצר.
 - הסבר עקרונות וכללים רלוונטיים; אל תכתוב את השאילתה המלאה אלא אם הסטודנט כבר ניסה ונכשל וברור שצריך דוגמה אחת אחרונה.
 - ענה בעברית. כאשר רלוונטי, הדגש מונחי SQL והסכמה.
 
@@ -651,12 +653,14 @@ export async function POST(request: Request) {
       tutorSubjectMode === "relational_algebra" ||
       composerForcesTutorIntent ||
       hasTutorIntent(textInput, body.tutorMode, body.metadata);
+    const useTutorResponseFormat =
+      tutorIntent && resolvedContext.toolContext !== "homework_runner";
     const personalizationIntent =
       resolvedContext.toolContext === "main_chat" &&
       getOpenAIFeatureFlag("FEATURE_PERSONALIZATION_TOOLS") &&
       (composerDirectives.includes("personalize") || hasPersonalizationIntent(textInput));
     const retrievalNeeded = shouldUseRetrieval(textInput);
-    const responseFormat = tutorIntent
+    const responseFormat = useTutorResponseFormat
       ? tutorSubjectMode === "relational_algebra"
         ? getRelationalAlgebraTutorResponseFormat()
         : getSqlTutorResponseFormat()
@@ -713,7 +717,7 @@ Use student-personalization tools deliberately, not on every turn.
             .catch(() => "")
         : "";
     const composerDirectiveInstructions = buildComposerDirectiveInstructions(composerDirectives);
-    const extraInstructions = tutorIntent
+    const extraInstructions = useTutorResponseFormat
       ? `${weeklyPolicy.extraInstructions}${retrievalInstructions}${personalizationInstructions}${personalizationContext}${composerDirectiveInstructions}${sqlDebuggerPolicy}\n\n${
           tutorSubjectMode === "relational_algebra"
             ? relationalAlgebraTutorInstructions
@@ -814,7 +818,7 @@ Use student-personalization tools deliberately, not on every turn.
         let finalCitations: ResponseCitation[] = [];
         let finalMetadata: ResponseTurnMetadata | null = null;
 
-        if (tutorIntent) {
+        if (useTutorResponseFormat) {
           await writer.write(
             encoder.encode(
               `${JSON.stringify({
@@ -998,7 +1002,7 @@ Use student-personalization tools deliberately, not on every turn.
                 responseCitations
               );
               finalCitations = responseCitations;
-              if (tutorIntent) {
+              if (useTutorResponseFormat) {
                 iterationTutorResponse =
                   tutorSubjectMode === "relational_algebra"
                     ? extractRelationalAlgebraTutorResponse(event.response)
@@ -1255,7 +1259,7 @@ Use student-personalization tools deliberately, not on every turn.
           responseId: response?.id || "",
           outputText,
           tutorResponse:
-            tutorIntent
+            useTutorResponseFormat
               ? tutorSubjectMode === "relational_algebra"
                 ? extractRelationalAlgebraTutorResponse(response)
                 : extractSqlTutorResponse(response)
@@ -1366,7 +1370,7 @@ Use student-personalization tools deliberately, not on every turn.
       responseId: response?.id || "",
       outputText,
       tutorResponse:
-        tutorIntent
+        useTutorResponseFormat
           ? tutorSubjectMode === "relational_algebra"
             ? extractRelationalAlgebraTutorResponse(response)
             : extractSqlTutorResponse(response)
