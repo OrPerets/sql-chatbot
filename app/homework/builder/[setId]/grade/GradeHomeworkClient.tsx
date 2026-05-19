@@ -166,7 +166,7 @@ function CommentBankDropdown({
           type="button"
           className={styles.saveCommentButton}
           onClick={onSave}
-          title="שמור הערה לבנק"
+          title="שמור הערה וציון"
         >
           💾
         </button>
@@ -421,7 +421,11 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comment-bank", setId] });
       setSavingComment(null);
-      setStatusMessage("ההערה נשמרה בבנק ההערות");
+      setStatusMessage("ההערה נשמרה בציון ובבנק ההערות");
+    },
+    onError: () => {
+      setSavingComment(null);
+      setStatusMessage("ההערה נשמרה בציון, אך לא נשמרה בבנק ההערות");
     },
   });
 
@@ -1237,6 +1241,114 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
     });
   }, [activeQuestionId, allSubmissionsQuery.data]);
 
+  const saveCurrentGradeForQuestion = useCallback(async (questionId: string, submissionId?: string) => {
+    if (viewMode === "student") {
+      if (!activeSubmissionId || !submissionQuery.data) return false;
+
+      const currentSubmission = submissionQuery.data;
+      const answersPayload: Submission["answers"] = Object.fromEntries(
+        Object.entries(currentSubmission.answers).map(([answerQuestionId, answer]) => {
+          const draft = gradeDraft[answerQuestionId];
+          const question = questionsById.get(answerQuestionId);
+          const sqlAnswer = answer as SqlAnswer;
+          const maxPoints = question?.points ?? draft?.score ?? 0;
+          const score = draft ? Math.min(maxPoints, Math.max(0, draft.score)) : sqlAnswer.feedback?.score ?? 0;
+
+          return [
+            answerQuestionId,
+            {
+              ...sqlAnswer,
+              feedback: {
+                questionId: answerQuestionId,
+                score,
+                autoNotes: sqlAnswer.feedback?.autoNotes ?? "",
+                instructorNotes: draft?.instructorNotes ?? sqlAnswer.feedback?.instructorNotes,
+                rubricBreakdown: sqlAnswer.feedback?.rubricBreakdown ?? [],
+              },
+            },
+          ];
+        }),
+      );
+
+      const overallScore = Object.values(answersPayload).reduce(
+        (sum, current) => sum + (current.feedback?.score ?? 0),
+        0,
+      );
+
+      const updatedSubmission = await gradeSubmission(activeSubmissionId, {
+        answers: answersPayload,
+        overallScore,
+        status: "graded",
+      });
+
+      syncGradedSubmissionsCache(queryClient, setId, [updatedSubmission]);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["submissions", setId, "summaries"] }),
+        queryClient.invalidateQueries({ queryKey: ["submissions", setId, "all"] }),
+      ]);
+      return true;
+    }
+
+    if (!submissionId) return false;
+
+    const targetSubmission = allSubmissionsQuery.data?.find((item) => item.id === submissionId);
+    if (!targetSubmission) return false;
+
+    const answer = targetSubmission.answers[questionId] as SqlAnswer | undefined;
+    if (!answer) return false;
+
+    const draft = questionGradeDraft[questionId]?.[submissionId];
+    const displayQuestion = getDisplayQuestion(questionId, targetSubmission.studentId);
+    const baseQuestion = questionsById.get(questionId);
+    const maxPoints = displayQuestion?.points ?? baseQuestion?.points ?? draft?.score ?? answer.feedback?.score ?? 0;
+    const score = draft ? Math.min(maxPoints, Math.max(0, draft.score)) : answer.feedback?.score ?? 0;
+
+    const updatedAnswer: SqlAnswer = {
+      ...answer,
+      feedback: {
+        questionId,
+        score,
+        autoNotes: answer.feedback?.autoNotes ?? "",
+        instructorNotes: draft?.instructorNotes ?? answer.feedback?.instructorNotes,
+        rubricBreakdown: answer.feedback?.rubricBreakdown ?? [],
+      },
+    };
+
+    const updatedAnswers: Submission["answers"] = {
+      ...targetSubmission.answers,
+      [questionId]: updatedAnswer,
+    };
+
+    const overallScore = Object.values(updatedAnswers).reduce(
+      (sum, current) => sum + (current.feedback?.score ?? 0),
+      0,
+    );
+
+    const updatedSubmission = await gradeSubmission(submissionId, {
+      answers: updatedAnswers,
+      overallScore,
+      status: "graded",
+    });
+
+    syncGradedSubmissionsCache(queryClient, setId, [updatedSubmission]);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "summaries"] }),
+      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "all"] }),
+    ]);
+    return true;
+  }, [
+    activeSubmissionId,
+    allSubmissionsQuery.data,
+    getDisplayQuestion,
+    gradeDraft,
+    queryClient,
+    questionGradeDraft,
+    questionsById,
+    setId,
+    submissionQuery.data,
+    viewMode,
+  ]);
+
   // Save single submission and mark as done
   const handleMarkAsDone = useCallback(async (submissionId: string) => {
     if (!activeQuestionId || savingSubmissionId === submissionId) return;
@@ -1349,7 +1461,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
   }, [viewMode, useCommentMutation]);
 
   // Save current comment to the comment bank
-  const saveCurrentCommentToBank = useCallback((questionId: string, submissionId?: string) => {
+  const saveCurrentCommentToBank = useCallback(async (questionId: string, submissionId?: string) => {
     const question = questionsById.get(questionId);
     const maxScore = question?.points ?? 10;
     
@@ -1373,8 +1485,21 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
       return;
     }
     
-    saveCommentMutation.mutate({ questionId, comment, score, maxScore });
-  }, [viewMode, gradeDraft, questionGradeDraft, questionsById, saveCommentMutation]);
+    try {
+      setSavingComment(submissionId ? `${questionId}-${submissionId}` : questionId);
+      const didSaveGrade = await saveCurrentGradeForQuestion(questionId, submissionId);
+      if (!didSaveGrade) {
+        setStatusMessage("לא נמצאה הגשה פעילה לשמירת ההערה");
+        setSavingComment(null);
+        return;
+      }
+      saveCommentMutation.mutate({ questionId, comment, score, maxScore });
+    } catch (error) {
+      console.error("Failed to save instructor note", error);
+      setSavingComment(null);
+      setStatusMessage("שגיאה בשמירת הערת המדריך");
+    }
+  }, [viewMode, gradeDraft, questionGradeDraft, questionsById, saveCommentMutation, saveCurrentGradeForQuestion]);
 
   const submission = submissionQuery.data;
   const progress = progressQuery.data as QuestionProgress[] | undefined;
@@ -1872,7 +1997,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                 questionId={questionId}
                                 comments={commentBankQuery.data ?? []}
                                 onApply={(comment) => applyCommentFromBank(questionId, comment)}
-                                onSave={() => saveCurrentCommentToBank(questionId)}
+                                onSave={() => void saveCurrentCommentToBank(questionId)}
                                 onDelete={(commentId) => deleteCommentMutation.mutate(commentId)}
                                 isOpen={showCommentBank === questionId}
                                 onToggle={() => setShowCommentBank(showCommentBank === questionId ? null : questionId)}
@@ -2139,7 +2264,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                       questionId={activeQuestionId}
                                       comments={commentBankQuery.data ?? []}
                                       onApply={(comment) => applyCommentFromBank(activeQuestionId, comment, submission.id)}
-                                      onSave={() => saveCurrentCommentToBank(activeQuestionId, submission.id)}
+                                      onSave={() => void saveCurrentCommentToBank(activeQuestionId, submission.id)}
                                       onDelete={(commentId) => deleteCommentMutation.mutate(commentId)}
                                       isOpen={showCommentBank === `${activeQuestionId}-${submission.id}`}
                                       onToggle={() => setShowCommentBank(
