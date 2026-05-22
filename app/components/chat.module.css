@@ -769,6 +769,36 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
+.userMessageText {
+  display: block;
+}
+
+.userMessageActions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 6px;
+  opacity: 0;
+  transform: translateY(2px);
+  transition: all 0.3s ease;
+}
+
+.userMessage:hover .userMessageActions,
+.userMessage:focus-within .userMessageActions {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.userCopyButton {
+  color: #1e40af;
+}
+
+@media (hover: none) {
+  .userMessageActions {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .assistantMessage {
   background: linear-gradient(145deg, #ffffff 0%, #fafbfc 30%, #f8fafc 100%);
   box-shadow: 

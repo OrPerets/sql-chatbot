@@ -270,9 +270,55 @@ const UserMessage = ({
   text: string;
   conversationVariant?: "default" | "professional";
 }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [copyTooltipText, setCopyTooltipText] = useState("העתק הודעה");
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const copyMessageToClipboard = () => {
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        setCopyTooltipText("הועתק בהצלחה");
+        if (copyTimeoutRef.current) {
+          clearTimeout(copyTimeoutRef.current);
+        }
+        copyTimeoutRef.current = setTimeout(() => {
+          setCopyTooltipText("העתק הודעה");
+        }, 3000);
+      })
+      .catch((error) => {
+        console.error("Failed to copy user message:", error);
+      });
+  };
+
   return (
     <div className={`${styles.messageRow} ${styles.userMessageRow} ${conversationVariant === "professional" ? styles.messageRowProfessional : ""}`}>
-      <div className={`${styles.userMessage} ${conversationVariant === "professional" ? styles.userMessageProfessional : ""}`}>{text}</div>
+      <div className={`${styles.userMessage} ${conversationVariant === "professional" ? styles.userMessageProfessional : ""}`}>
+        <span className={styles.userMessageText}>{text}</span>
+        <div className={styles.userMessageActions}>
+          <button
+            type="button"
+            onClick={copyMessageToClipboard}
+            className={`${styles.feedbackButton} ${styles.copyButton} ${styles.userCopyButton}`}
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+            aria-label="העתק הודעת משתמש"
+            title="העתק הודעה"
+          >
+            <ClipboardCopy size={16} />
+            {showTooltip && (
+              <div className={styles.tooltip}>{copyTooltipText}</div>
+            )}
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
