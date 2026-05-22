@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import dynamic from "next/dynamic";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getHomeworkQuestions, getHomeworkSet } from "@/app/homework/services/homeworkService";
@@ -13,12 +12,13 @@ import {
   SubmitHomeworkPayload,
 } from "@/app/homework/services/submissionService";
 import { executeSql } from "@/app/homework/services/sqlService";
-import type { Dataset, Question, SqlExecutionRequest, Submission } from "@/app/homework/types";
+import type { Dataset, HomeworkType, Question, SqlExecutionRequest, Submission } from "@/app/homework/types";
 import styles from "./runner.module.css";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
 import { SubmittedPage } from "./SubmittedPage";
 import Chat from "@/app/components/chat";
 import { InstructionsSection } from "./InstructionsSection";
+import { RelationalAlgebraEditor } from "./RelationalAlgebraEditor";
 
 import Editor from "@monaco-editor/react";
 
@@ -33,10 +33,29 @@ interface RunnerClientProps {
   studentId: string;
 }
 
+interface HomeworkHintResponse {
+  hint: string;
+  currentBalance?: number;
+}
+
+interface CoinsConfigResponse {
+  modules?: {
+    homeworkHints?: boolean;
+  };
+  costs?: {
+    homeworkHintOpen?: number;
+  };
+}
+
 interface PendingSave {
   questionId: string;
   timer: number;
 }
+
+type SqlEditorHandle = {
+  focus: () => void;
+  trigger: (source: string, handlerId: string, payload: { text: string }) => void;
+};
 
 interface QuestionAnalyticsState {
   startedAt: number;
@@ -57,6 +76,13 @@ interface QuestionAnalyticsState {
 }
 
 const AUTOSAVE_DELAY = 800;
+
+const formatSqlLiteral = (value: string | number | boolean | null | undefined) => {
+  if (value === null || value === undefined) return "NULL";
+  if (typeof value === "number") return String(value);
+  if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
+  return `'${String(value).replace(/'/g, "''")}'`;
+};
 
 // Helper function to check if SQL error is about non-existing table/column
 const parseSchemaError = (errorMessage: string | undefined): { type: 'table' | 'column' | null; name: string | null } => {
@@ -201,17 +227,98 @@ const FALLBACK_SAMPLE_DATA: Record<string, SidebarTable> = {
 
 export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const queryClient = useQueryClient();
+  const isPreviewContext = studentId === "student-demo";
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const [editorValues, setEditorValues] = useState<Record<string, string>>({});
   const [autosaveState, setAutosaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [showDatabaseViewer, setShowDatabaseViewer] = useState(true);
+  const [showDatabaseViewer, setShowDatabaseViewer] = useState(false);
   const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
+  const [hintModalOpen, setHintModalOpen] = useState(false);
+  const [hintText, setHintText] = useState("");
+  const [hintQuestionPrompt, setHintQuestionPrompt] = useState("");
+  const [hintErrorMessage, setHintErrorMessage] = useState<string | null>(null);
+  const [hintSuccessMessage, setHintSuccessMessage] = useState<string | null>(null);
+  const editorRef = useRef<SqlEditorHandle | null>(null);
   const pendingRef = useRef<Record<string, PendingSave>>({});
   const analyticsRef = useRef<Record<string, QuestionAnalyticsState>>({});
   const activeQuestionRef = useRef<string | null>(null);
   const { t, direction, formatDateTime, formatNumber } = useHomeworkLocale();
   const backArrow = direction === "rtl" ? "→" : "←";
+  const isEnglish = direction === "ltr";
+  const runnerText = useMemo(
+    () => ({
+      dataStructureTitle: isEnglish ? "Data Structure" : "מבנה הנתונים",
+      dataStructureEmpty: isEnglish
+        ? "No dedicated data-structure explanation was attached. Use the sample tables below."
+        : "לא צורף הסבר ייעודי למבנה הנתונים. היעזרו בטבלאות הדוגמה שמופיעות מתחת.",
+      sampleTablesTitle: isEnglish ? "Sample Tables" : "טבלאות לדוגמה",
+      sampleTablesSubtitle: isEnglish
+        ? "Review the table structure and sample data before writing the query."
+        : "עיינו במבנה הטבלאות ובנתונים לדוגמה לפני כתיבת השאילתה.",
+      hideSampleData: isEnglish ? "Hide sample data" : "הסתר נתוני דוגמא",
+      showSampleData: isEnglish ? "Show sample data" : "הצג נתוני דוגמא",
+      columns: isEnglish ? "columns" : "עמודות",
+      rows: isEnglish ? "rows" : "שורות",
+      noSampleRows: isEnglish ? "No sample rows were defined for this table." : "לא הוגדרו שורות דוגמה לטבלה זו.",
+      question: isEnglish ? "Question" : "שאלה",
+      openingHint: isEnglish ? "Opening hint..." : "פותח רמז...",
+      showHint: isEnglish ? "Show hint" : "הצג רמז",
+      hintCostPrefix: isEnglish ? "Cost:" : "עלות פתיחה:",
+      coin: isEnglish ? "coin" : "מטבע",
+      relationalAlgebra: isEnglish ? "Relational Algebra" : "אלגברת יחסים",
+      saving: isEnglish ? "Saving..." : "שומר...",
+      saved: isEnglish ? "Saved ✓" : "נשמר ✓",
+      previous: isEnglish ? "Previous" : "הקודמת",
+      next: isEnglish ? "Next" : "הבאה",
+      partial: isEnglish ? "partial" : "חלקי",
+      queryErrorTitle: isEnglish ? "Query error" : "שגיאה בשאילתה",
+      tableMissing: (name: string) =>
+        isEnglish ? `The table "${name}" does not exist in the database.` : `הטבלה "${name}" לא קיימת במסד הנתונים.`,
+      columnMissing: (name: string) =>
+        isEnglish ? `The column "${name}" does not exist.` : `העמודה "${name}" לא קיימת.`,
+      availableSchema: isEnglish ? "Available tables and columns:" : "הטבלאות והעמודות הזמינות:",
+      chatTitle: isEnglish ? "Ask Michael" : "שאל את Michael",
+      chatSubtitle: isEnglish ? "AI assistant for SQL questions" : "עוזר AI לשאלות SQL",
+      submitting: isEnglish ? "Submitting..." : "שולח...",
+      submit: isEnglish ? "Submit homework" : "הגש מטלה",
+      officialSolution: isEnglish ? "Official solution" : "פתרון רשמי",
+      solutionQuery: isEnglish ? "Solution query:" : "שאילתת הפתרון:",
+      noSolution: isEnglish ? "No answer has been defined for this question yet." : "טרם הוגדרה תשובה לשאלה זו.",
+      copied: isEnglish ? "Copied" : "הועתק",
+      copySolution: isEnglish ? "Copy solution" : "העתק פתרון",
+      close: isEnglish ? "Close" : "סגור",
+      hint: isEnglish ? "Hint" : "רמז",
+      hintDirection: isEnglish ? "Solution direction:" : "כיוון לפתרון:",
+      solutionSql: isEnglish ? "Solution SQL" : "SQL פתרון",
+      solutionSqlNote: isEnglish
+        ? "Included here for the paper screenshot only."
+        : "מוצג כאן לצילום מסך בלבד.",
+      mockUserFirst: isEnglish ? "Can you give me the final SQL for Q1?" : "אפשר לקבל את ה-SQL הסופי לשאלה 1?",
+      mockAssistantFirst: isEnglish
+        ? "I cannot give the full answer, but I can guide you. Start from Debates and join Enrollments by DebateID."
+        : "לא אתן את התשובה המלאה, אבל אפשר לכוון: התחילו מ-Debates וחברו את Enrollments לפי DebateID.",
+      mockUserSecond: isEnglish ? "What should I check next?" : "מה לבדוק עכשיו?",
+      mockAssistantSecond: isEnglish
+        ? "Filter only approved registrations, count enrollments per debate, then sort by DebateDate."
+        : "סננו רק הרשמות approved, ספרו הרשמות לכל סבב, ואז מיינו לפי DebateDate.",
+      expectedColumns: (columns: string) =>
+        isEnglish ? `The output should include these columns: ${columns}.` : `הפלט צריך לכלול את העמודות: ${columns}.`,
+      previewMissingOutput: isEnglish
+        ? "No expected-output description was defined yet. In preview mode, add expectedOutputDescription to the question."
+        : "לא הוגדר עדיין תיאור פלט צפוי. במצב תצוגה מקדימה כדאי להוסיף expectedOutputDescription לשאלה.",
+      missingOutput: isEnglish
+        ? "No explicit expected-output description was defined. Use the question wording and the correct query result."
+        : "לא הוגדר תיאור מפורש לפלט הצפוי. הסתמכו על נוסח השאלה ועל תוצאות השאילתה הנכונות.",
+      hintOpened: isEnglish ? "Hint opened successfully" : "הרמז נפתח בהצלחה",
+      hintUnavailable: isEnglish ? "Could not open a hint right now." : "לא ניתן לפתוח רמז כרגע.",
+      insufficientCoins: (balance: number, required: number) =>
+        isEnglish
+          ? `Not enough coins. Balance: ${balance}, required: ${required}.`
+          : `אין מספיק מטבעות. יתרה: ${balance}, נדרש: ${required}.`,
+    }),
+    [isEnglish],
+  );
 
   const toggleTableExpanded = useCallback((tableName: string) => {
     setExpandedTables((prev) => ({ ...prev, [tableName]: !prev[tableName] }));
@@ -239,14 +346,20 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   }, []);
 
   const homeworkQuery = useQuery({
-    queryKey: ["homework", setId],
-    queryFn: () => getHomeworkSet(setId),
+    queryKey: ["homework", setId, studentId],
+    queryFn: () => getHomeworkSet(setId, {
+      role: isPreviewContext ? "admin" : undefined,
+      studentId,
+    }),
   });
   const datasetQuery = useQuery({
     queryKey: ["dataset", homeworkQuery.data?.selectedDatasetId ?? null],
     queryFn: () => getDataset(homeworkQuery.data!.selectedDatasetId!),
     enabled: Boolean(homeworkQuery.data?.selectedDatasetId),
   });
+
+  const homeworkType: HomeworkType = (homeworkQuery.data?.homeworkType as HomeworkType) || "sql";
+  const isRelationalAlgebra = homeworkType === "relational_algebra";
 
   const questionsQuery = useQuery({
     queryKey: ["homework", setId, "questions", studentId],
@@ -257,6 +370,18 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     queryKey: ["submission", setId, studentId],
     queryFn: () => getSubmission(setId, studentId),
     enabled: Boolean(setId && studentId),
+  });
+  const coinsConfigQuery = useQuery<CoinsConfigResponse>({
+    queryKey: ["coins-config", "homework-hints"],
+    queryFn: async () => {
+      const response = await fetch("/api/users/coins?status=1", { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error("Failed to load coins config");
+      }
+      return (await response.json()) as CoinsConfigResponse;
+    },
+    enabled: !isPreviewContext,
+    staleTime: 30_000,
   });
 
   const questionsById = useMemo(() => {
@@ -284,12 +409,16 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       setEditorValues((prev) => {
         const next: Record<string, string> = { ...prev };
         Object.entries(submissionQuery.data!.answers ?? {}).forEach(([questionId, answer]) => {
-          next[questionId] = typeof answer?.sql === "string" ? answer.sql : "";
+          if (isRelationalAlgebra) {
+            next[questionId] = typeof answer?.expression === "string" ? answer.expression : "";
+          } else {
+            next[questionId] = typeof answer?.sql === "string" ? answer.sql : "";
+          }
         });
         return next;
       });
     }
-  }, [submissionQuery.data, activeQuestionId]);
+  }, [submissionQuery.data, activeQuestionId, isRelationalAlgebra]);
 
   // Set first question as active when questions load
   useEffect(() => {
@@ -458,9 +587,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       saveSubmissionDraft(setId, {
         studentId,
         answers: {
-          [payload.questionId]: {
-            sql: payload.sql,
-          },
+          [payload.questionId]: isRelationalAlgebra
+            ? { sql: "", expression: payload.sql }
+            : { sql: payload.sql },
         },
       }),
     onMutate: () => {
@@ -559,6 +688,71 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     submitMutation.mutate({ studentId });
   }, [studentId, submitMutation]);
 
+  const hintMutation = useMutation<
+    HomeworkHintResponse,
+    Error & { status?: number; payload?: any },
+    { questionId: string; questionPrompt: string }
+  >({
+    mutationFn: async ({ questionId }) => {
+      const response = await fetch("/api/homework/hints", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          setId,
+          studentId,
+          questionId,
+        }),
+      });
+
+      if (!response.ok) {
+        let payload: any = null;
+        try {
+          payload = await response.json();
+        } catch {
+          payload = null;
+        }
+
+        const error = new Error(payload?.error || "Failed to open homework hint") as Error & {
+          status?: number;
+          payload?: any;
+        };
+        error.status = response.status;
+        error.payload = payload;
+        throw error;
+      }
+
+      return (await response.json()) as HomeworkHintResponse;
+    },
+    onMutate: () => {
+      setHintErrorMessage(null);
+      setHintSuccessMessage(null);
+    },
+    onSuccess: (payload, variables) => {
+      setHintText(payload.hint);
+      setHintQuestionPrompt(variables.questionPrompt);
+      setHintSuccessMessage(runnerText.hintOpened);
+      setHintModalOpen(true);
+      void queryClient.invalidateQueries({ queryKey: ["coins-config", "homework-hints"] });
+    },
+    onError: (error) => {
+      const balance = Number(error.payload?.balance);
+      const required = Number(error.payload?.required);
+
+      if (error.status === 402 && Number.isFinite(balance) && Number.isFinite(required)) {
+        setHintErrorMessage(runnerText.insufficientCoins(balance, required));
+        return;
+      }
+
+      setHintErrorMessage(
+        typeof error.payload?.error === "string" && error.payload.error.trim().length > 0
+          ? error.payload.error
+          : runnerText.hintUnavailable
+      );
+    },
+  });
+
   const scheduleAutosave = useCallback(
     (questionId: string, value: string) => {
       const pending = pendingRef.current[questionId];
@@ -597,6 +791,41 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       scheduleAutosave(questionId, nextValue);
     },
     [recordTyping, scheduleAutosave],
+  );
+
+  const copySqlSnippet = useCallback((snippet: string) => {
+    if (typeof navigator === "undefined" || !navigator.clipboard) return;
+    void navigator.clipboard.writeText(snippet).catch(() => undefined);
+  }, []);
+
+  const insertSqlSnippet = useCallback(
+    (snippet: string) => {
+      if (!activeQuestionId || !snippet) return;
+
+      copySqlSnippet(snippet);
+
+      const editor = editorRef.current;
+      if (editor && !isRelationalAlgebra) {
+        editor.focus();
+        editor.trigger("database-viewer", "type", { text: snippet });
+        return;
+      }
+
+      const currentValue = editorValues[activeQuestionId] ?? "";
+      const separator = currentValue && !/\s$/.test(currentValue) ? " " : "";
+      handleSqlChange(activeQuestionId, `${currentValue}${separator}${snippet}`);
+    },
+    [activeQuestionId, copySqlSnippet, editorValues, handleSqlChange, isRelationalAlgebra],
+  );
+
+  const handleSnippetKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLElement>, snippet: string) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      event.stopPropagation();
+      insertSqlSnippet(snippet);
+    },
+    [insertSqlSnippet],
   );
 
   const handleExecute = useCallback(() => {
@@ -661,20 +890,21 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const dataStructureNotes = homework?.dataStructureNotes?.trim() || homework?.backgroundStory?.trim() || "";
   const questionInstructions = activeQuestion?.instructions?.trim() ?? "";
   const expectedOutputDescription = activeQuestion?.expectedOutputDescription?.trim() ?? "";
-  const isPreviewContext = studentId === "student-demo";
   const schemaColumnSummary = activeQuestion?.expectedResultSchema?.length
     ? activeQuestion.expectedResultSchema.map((column) => column.column).join(", ")
     : "";
   const resolvedExpectedOutputDescription = expectedOutputDescription
-    || (schemaColumnSummary ? `הפלט צריך לכלול את העמודות: ${schemaColumnSummary}.` : "")
+    || (schemaColumnSummary ? runnerText.expectedColumns(schemaColumnSummary) : "")
     || (isPreviewContext
-      ? "לא הוגדר עדיין תיאור פלט צפוי. במצב תצוגה מקדימה כדאי להוסיף expectedOutputDescription לשאלה."
-      : "לא הוגדר תיאור מפורש לפלט הצפוי. הסתמכו על נוסח השאלה ועל תוצאות השאילתה הנכונות.");
+      ? runnerText.previewMissingOutput
+      : runnerText.missingOutput);
   const isExpectedOutputPlaceholder = !expectedOutputDescription;
   const activeQuestionText = useMemo(
     () => (activeQuestion ? getVisibleQuestionText(activeQuestion) : ""),
     [activeQuestion, getVisibleQuestionText],
   );
+  const homeworkHintsEnabled = Boolean(coinsConfigQuery.data?.modules?.homeworkHints) && !isPreviewContext;
+  const homeworkHintCost = Number(coinsConfigQuery.data?.costs?.homeworkHintOpen ?? 1);
   const sidebarTables = useMemo<Record<string, SidebarTable>>(() => {
     if (submission?.studentTableData && Object.keys(submission.studentTableData).length > 0) {
       return Object.fromEntries(
@@ -716,9 +946,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       const next = { ...prev };
       let changed = false;
 
-      Object.entries(sidebarTables).forEach(([tableName, tableData]) => {
-        if (prev[tableName] === undefined && tableData.rows.length > 0) {
-          next[tableName] = true;
+      Object.keys(sidebarTables).forEach((tableName) => {
+        if (prev[tableName] === undefined) {
+          next[tableName] = false;
           changed = true;
         }
       });
@@ -727,6 +957,18 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     });
   }, [sidebarTables]);
 
+  useEffect(() => {
+    if (!hintModalOpen) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setHintModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [hintModalOpen]);
   const chatHomeworkContext = useMemo(() => {
     if (!homework) return null;
 
@@ -735,6 +977,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       : -1;
 
     return {
+      homeworkSetId: setId,
+      studentId,
       homeworkTitle: homework.title,
       backgroundStory: homework.backgroundStory,
       tables: Object.entries(sidebarTables).map(([name, data]) => ({
@@ -759,7 +1003,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         : null,
       studentTableData: submission?.studentTableData,
     };
-  }, [activeQuestion, activeQuestionText, getVisibleQuestionText, homework, questions, sidebarTables, submission?.studentTableData]);
+  }, [activeQuestion, activeQuestionText, getVisibleQuestionText, homework, questions, setId, sidebarTables, studentId, submission?.studentTableData]);
 
   // Debug: Log activeAnswer whenever it changes
   useEffect(() => {
@@ -807,20 +1051,20 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
     <div className={styles.runner} dir={direction}>
 
       {/* Sidebar: Tables + Data */}
-      <aside className={styles.sidebar}>
+      <aside className={`${styles.sidebar} ${isEnglish ? styles.sidebarLtr : ""}`} dir={isEnglish ? "ltr" : direction}>
         <div className={styles.assignmentMeta}>
           <InstructionsSection
-            title="מבנה הנתונים"
+            title={runnerText.dataStructureTitle}
             instructions={dataStructureNotes}
-            emptyMessage="לא צורף הסבר ייעודי למבנה הנתונים. היעזרו בטבלאות הדוגמה שמופיעות מתחת."
+            emptyMessage={runnerText.dataStructureEmpty}
           />
 
           {/* Database Viewer */}
           <div className={styles.databaseViewerSection}>
             <div className={styles.tablesSectionHeader}>
-              <h3 className={styles.tablesSectionTitle}>טבלאות לדוגמה</h3>
+              <h3 className={styles.tablesSectionTitle}>{runnerText.sampleTablesTitle}</h3>
               <p className={styles.tablesSectionSubtitle}>
-                עיינו במבנה הטבלאות ובנתונים לדוגמה לפני כתיבת השאילתה.
+                {runnerText.sampleTablesSubtitle}
               </p>
             </div>
             <button
@@ -829,7 +1073,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               onClick={() => setShowDatabaseViewer(!showDatabaseViewer)}
             >
               <span className={styles.databaseViewerButtonIcon}>{showDatabaseViewer ? "▾" : "▸"}</span>
-              {showDatabaseViewer ? "הסתר נתוני דוגמא" : "הצג נתוני דוגמא"}
+              {showDatabaseViewer ? runnerText.hideSampleData : runnerText.showSampleData}
             </button>
             
             {showDatabaseViewer && (
@@ -840,13 +1084,18 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                       type="button"
                       className={`${styles.tableHeader} ${expandedTables[tableName] ? styles.tableHeaderExpanded : ''}`}
                       onClick={() => toggleTableExpanded(tableName)}
+                      onDoubleClick={(event) => {
+                        event.stopPropagation();
+                        insertSqlSnippet(tableName);
+                      }}
+                      title={isEnglish ? "Double-click to add and copy the table name" : "לחיצה כפולה מוסיפה את שם הטבלה לעורך ומעתיקה אותו"}
                     >
                       <span className={styles.tableToggle}>
                         {expandedTables[tableName] ? "▾" : "▸"}
                       </span>
                       <span className={styles.tableName}>{tableName}</span>
                       <span className={styles.tableColumnCount}>
-                        {tableData.columns.length} עמודות, {tableData.rows.length} שורות
+                        {tableData.columns.length} {runnerText.columns}, {tableData.rows.length} {runnerText.rows}
                       </span>
                     </button>
                     
@@ -857,7 +1106,16 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                             <thead>
                               <tr>
                                 {tableData.columns.map((col) => (
-                                  <th key={col}>{col}</th>
+                                  <th
+                                    key={col}
+                                    role="button"
+                                    tabIndex={0}
+                                    onDoubleClick={() => insertSqlSnippet(col)}
+                                    onKeyDown={(event) => handleSnippetKeyDown(event, col)}
+                                    title={isEnglish ? "Double-click to add and copy the column name" : "לחיצה כפולה מוסיפה את שם העמודה לעורך ומעתיקה אותו"}
+                                  >
+                                    {col}
+                                  </th>
                                 ))}
                               </tr>
                             </thead>
@@ -865,14 +1123,23 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                               {tableData.rows.map((row, idx) => (
                                 <tr key={idx}>
                                   {tableData.columns.map((col) => (
-                                    <td key={col}>{String(row[col] ?? "")}</td>
+                                    <td
+                                      key={col}
+                                      role="button"
+                                      tabIndex={0}
+                                      onDoubleClick={() => insertSqlSnippet(formatSqlLiteral(row[col]))}
+                                      onKeyDown={(event) => handleSnippetKeyDown(event, formatSqlLiteral(row[col]))}
+                                      title={isEnglish ? "Double-click to add and copy this value" : "לחיצה כפולה מוסיפה את הערך לעורך ומעתיקה אותו"}
+                                    >
+                                      {String(row[col] ?? "")}
+                                    </td>
                                   ))}
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         ) : (
-                          <p className={styles.instructionsEmpty}>לא הוגדרו שורות דוגמה לטבלה זו.</p>
+                          <p className={styles.instructionsEmpty}>{runnerText.noSampleRows}</p>
                         )}
                       </div>
                     )}
@@ -904,8 +1171,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                       type="button"
                       className={`${styles.stepperCircle} ${isActive ? styles.stepperCircleActive : ''} ${isCompleted ? styles.stepperCircleCompleted : ''} ${hasAnswer && !isCompleted ? styles.stepperCircleDraft : ''}`}
                       onClick={() => setActiveQuestionId(qId)}
-                      title={`שאלה ${questionNum}`}
-                      aria-label={`שאלה ${questionNum}`}
+                      title={`${runnerText.question} ${questionNum}`}
+                      aria-label={`${runnerText.question} ${questionNum}`}
                     >
                       {isCompleted ? (
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -934,6 +1201,37 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                     {resolvedExpectedOutputDescription}
                   </p>
                 )}
+                {homeworkHintsEnabled ? (
+                  <div className={styles.questionSummaryActions}>
+                    <button
+                      type="button"
+                      className={styles.hintButton}
+                      onClick={() =>
+                        activeQuestionId &&
+                        hintMutation.mutate({
+                          questionId: activeQuestionId,
+                          questionPrompt: activeQuestionText,
+                        })
+                      }
+                      disabled={!activeQuestionId || hintMutation.isPending}
+                    >
+                      {hintMutation.isPending ? runnerText.openingHint : runnerText.showHint}
+                    </button>
+                    <span className={styles.hintMeta}>
+                      {runnerText.hintCostPrefix} {homeworkHintCost} {runnerText.coin}
+                    </span>
+                  </div>
+                ) : null}
+                {hintErrorMessage ? (
+                  <p className={styles.hintErrorText} role="alert">
+                    {hintErrorMessage}
+                  </p>
+                ) : null}
+                {hintSuccessMessage ? (
+                  <p className={styles.hintSuccessText} role="status">
+                    {hintSuccessMessage}
+                  </p>
+                ) : null}
               </div>
             ) : (
               <h3>{t("runner.question.placeholder")}</h3>
@@ -944,37 +1242,52 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         <div className={styles.editorSection}>
           <div className={styles.editorContainer}>
             <div className={styles.editorLabel}>
-              <span>SQL</span>
+              <span>{isRelationalAlgebra ? runnerText.relationalAlgebra : "SQL"}</span>
               <span className={styles.autosaveIndicator}>
-                {autosaveState === "saving" ? "שומר..." : autosaveState === "saved" ? "נשמר ✓" : ""}
+                {autosaveState === "saving" ? runnerText.saving : autosaveState === "saved" ? runnerText.saved : ""}
               </span>
             </div>
-            <div style={{ width: '100%', height: '260px' }}>
-              <div dir="ltr" style={{ width: '100%', height: '100%' }}>
-                <Editor
-                  height="260px"
-                  value={activeQuestionId ? (editorValues[activeQuestionId] || "") : ""}
-                  defaultLanguage="sql"
-                  options={{
-                    fontSize: 15,
-                    fontFamily: "ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace",
-                    minimap: { enabled: false },
-                    lineNumbers: "on",
-                    scrollBeyondLastLine: false,
-                    padding: { top: 12 },
-                    renderLineHighlight: "gutter",
-                  }}
-                  onChange={(value) => {
-                    if (activeQuestionId) {
-                      handleSqlChange(activeQuestionId, value || "");
-                    }
-                  }}
-                  onMount={(editor) => {
-                    editor.focus();
-                  }}
-                />
+
+            {isRelationalAlgebra ? (
+              <RelationalAlgebraEditor
+                value={activeQuestionId ? (editorValues[activeQuestionId] || "") : ""}
+                onChange={(value) => {
+                  if (activeQuestionId) {
+                    handleSqlChange(activeQuestionId, value);
+                  }
+                }}
+                disabled={!activeQuestionId}
+              />
+            ) : (
+              <div style={{ width: '100%', height: '260px' }}>
+                <div dir="ltr" style={{ width: '100%', height: '100%' }}>
+                  <Editor
+                    height="260px"
+                    value={activeQuestionId ? (editorValues[activeQuestionId] || "") : ""}
+                    defaultLanguage="sql"
+                    options={{
+                      fontSize: 15,
+                      fontFamily: "ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace",
+                      minimap: { enabled: false },
+                      lineNumbers: "on",
+                      scrollBeyondLastLine: false,
+                      padding: { top: 12 },
+                      renderLineHighlight: "gutter",
+                    }}
+                    onChange={(value) => {
+                      if (activeQuestionId) {
+                        handleSqlChange(activeQuestionId, value || "");
+                      }
+                    }}
+                    onMount={(editor) => {
+                      editorRef.current = editor;
+                      editor.focus();
+                    }}
+                  />
+                </div>
               </div>
-            </div>
+            )}
+
             <div className={styles.editorActions}>
               <div className={styles.navigationButtons}>
                 <button
@@ -988,7 +1301,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   }}
                   disabled={questions.findIndex(q => q.id === activeQuestionId) <= 0}
                 >
-                  → הקודמת
+                  {direction === "rtl" ? "→ " : "← "}
+                  {runnerText.previous}
                 </button>
                 <button
                   type="button"
@@ -1001,33 +1315,37 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   }}
                   disabled={questions.findIndex(q => q.id === activeQuestionId) >= questions.length - 1}
                 >
-                  הבאה ←
+                  {runnerText.next}
+                  {direction === "rtl" ? " ←" : " →"}
                 </button>
               </div>
               
-              <button
-                type="button"
-                className={styles.runButton}
-                onClick={handleExecute}
-                disabled={executeMutation.isPending || !activeQuestionId}
-              >
-                {executeMutation.isPending ? (
-                  <span className={styles.runButtonSpinner} />
-                ) : (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                )}
-                {executeMutation.isPending ? t("runner.actions.running") : t("runner.actions.run")}
-              </button>
+              {!isRelationalAlgebra && (
+                <button
+                  type="button"
+                  className={styles.runButton}
+                  onClick={handleExecute}
+                  disabled={executeMutation.isPending || !activeQuestionId}
+                >
+                  {executeMutation.isPending ? (
+                    <span className={styles.runButtonSpinner} />
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  )}
+                  {executeMutation.isPending ? t("runner.actions.running") : t("runner.actions.run")}
+                </button>
+              )}
             </div>
           </div>
 
-          <div className={styles.feedbackPanel}>
+          {!isRelationalAlgebra && (
+            <div className={styles.feedbackPanel}>
             <div className={styles.feedbackHeader}>
               <h4 className={styles.feedbackTitle}>{t("runner.results.heading")}</h4>
               {activeAnswer?.resultPreview && (
                 <span className={styles.resultCount}>
-                  {activeAnswer.resultPreview.rows.length} שורות
-                  {activeAnswer.resultPreview.truncated ? " (חלקי)" : ""}
+                  {activeAnswer.resultPreview.rows.length} {runnerText.rows}
+                  {activeAnswer.resultPreview.truncated ? ` (${runnerText.partial})` : ""}
                 </span>
               )}
             </div>
@@ -1046,7 +1364,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   <div className={styles.schemaErrorNotification}>
                     <div className={styles.schemaErrorHeader}>
                       <span className={styles.schemaErrorIcon}>⚠️</span>
-                      <span className={styles.schemaErrorTitle}>שגיאה בשאילתה</span>
+                      <span className={styles.schemaErrorTitle}>{runnerText.queryErrorTitle}</span>
                     </div>
                     <p className={styles.schemaErrorMessage}>
                       {activeAnswer.feedback.autoNotes}
@@ -1054,12 +1372,12 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                     {schemaError.name && (
                       <p className={styles.schemaErrorHint}>
                         {schemaError.type === 'table' 
-                          ? `הטבלה "${schemaError.name}" לא קיימת במסד הנתונים.`
-                          : `העמודה "${schemaError.name}" לא קיימת.`}
+                          ? runnerText.tableMissing(schemaError.name)
+                          : runnerText.columnMissing(schemaError.name)}
                       </p>
                     )}
                     <div className={styles.schemaHelpSection}>
-                      <p className={styles.schemaHelpTitle}>הטבלאות והעמודות הזמינות:</p>
+                      <p className={styles.schemaHelpTitle}>{runnerText.availableSchema}</p>
                       <div className={styles.schemaTablesList}>
                         {Object.entries(sidebarTables).map(([tableName, tableData]) => (
                           <div key={tableName} className={styles.schemaTableItem}>
@@ -1110,7 +1428,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               <p className={styles.placeholder}>{t("runner.results.placeholder")}</p>
             )}
 
-          </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -1119,39 +1438,89 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         <div className={styles.chatHeader}>
           <div className={styles.chatAvatarSmall}>M</div>
           <div className={styles.chatHeaderText}>
-            <h3 className={styles.chatTitle}>שאל את Michael</h3>
-            <span className={styles.chatSubtitle}>עוזר AI לשאלות SQL</span>
+            <h3 className={styles.chatTitle}>{runnerText.chatTitle}</h3>
+            <span className={styles.chatSubtitle}>{runnerText.chatSubtitle}</span>
           </div>
         </div>
         <div className={styles.chatContent}>
-          <Chat
-            chatId={null}
-            hideSidebar={true}
-            hideAvatar={true}
-            minimalMode={true}
-            embeddedMode={true}
-            homeworkContext={chatHomeworkContext}
-          />
+          {isPreviewContext ? (
+            <div className={styles.mockConversation} dir={isEnglish ? "ltr" : direction}>
+              <div className={styles.mockMessageUser}>{runnerText.mockUserFirst}</div>
+              <div className={styles.mockMessageAssistant}>{runnerText.mockAssistantFirst}</div>
+              <div className={styles.mockMessageUser}>{runnerText.mockUserSecond}</div>
+              <div className={styles.mockMessageAssistant}>{runnerText.mockAssistantSecond}</div>
+            </div>
+          ) : (
+            <Chat
+              chatId={null}
+              hideSidebar={true}
+              hideAvatar={true}
+              minimalMode={true}
+              embeddedMode={true}
+              homeworkContext={chatHomeworkContext}
+            />
+          )}
         </div>
       </aside>
 
-      {/* Submit Button - Fixed Bottom */}
-      <button
-        type="button"
-        className={styles.submitButtonFixed}
-        onClick={handleSubmitClick}
-        disabled={submitMutation.isPending || submission?.status === "submitted" || submission?.status === "graded"}
-      >
-        {submitMutation.isPending ? (
-          <span className={styles.runButtonSpinner} />
-        ) : submission?.status === "submitted" ? (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        )}
-        {submitMutation.isPending ? "שולח..." : "הגש מטלה"}
-      </button>
+      {!isPreviewContext && (
+        <button
+          type="button"
+          className={styles.submitButtonFixed}
+          onClick={handleSubmitClick}
+          disabled={submitMutation.isPending || submission?.status === "submitted" || submission?.status === "graded"}
+        >
+          {submitMutation.isPending ? (
+            <span className={styles.runButtonSpinner} />
+          ) : submission?.status === "submitted" ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          )}
+          {submitMutation.isPending ? runnerText.submitting : runnerText.submit}
+        </button>
+      )}
 
+      {hintModalOpen && (
+        <div
+          className={styles.solutionModalOverlay}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setHintModalOpen(false);
+            }
+          }}
+        >
+          <div className={styles.hintModal} dir={direction}>
+            <div className={styles.solutionModalHeader}>
+              <h4 className={styles.solutionModalTitle}>{runnerText.hint}</h4>
+              <button
+                type="button"
+                className={styles.solutionModalClose}
+                onClick={() => setHintModalOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {hintQuestionPrompt ? <p className={styles.solutionModalPrompt}>{hintQuestionPrompt}</p> : null}
+
+            <div className={styles.solutionModalBody}>
+              <span className={styles.solutionModalLabel}>{runnerText.hintDirection}</span>
+              <p className={styles.hintText}>{hintText}</p>
+            </div>
+
+            <div className={styles.solutionModalActions}>
+              <button
+                type="button"
+                className={styles.showAnswerButton}
+                onClick={() => setHintModalOpen(false)}
+              >
+                {runnerText.close}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

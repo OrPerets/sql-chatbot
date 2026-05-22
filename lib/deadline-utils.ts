@@ -102,6 +102,7 @@ function getPersonalAccessWindow(
 
 function formatDate(date: Date): string {
   return date.toLocaleString('he-IL', {
+    timeZone: 'Asia/Jerusalem',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

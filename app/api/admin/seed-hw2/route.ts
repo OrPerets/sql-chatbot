@@ -21,12 +21,10 @@ import type { Dataset, Question } from "@/app/homework/types";
 async function runSeed(params?: { courseId?: string; dueAt?: string }) {
   try {
     const courseId: string = params?.courseId ?? "sql-course";
-    const dueAt: string =
-      params?.dueAt ??
-      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const dueAt: string = params?.dueAt ?? "2026-06-02T23:59:00.000+03:00";
 
-    const availableFrom = "2025-12-16T00:00:00.000Z";
-    const availableUntil = "2025-12-23T21:59:00.000Z";
+    const availableFrom = "2026-05-26T20:00:00.000+03:00";
+    const availableUntil = "2026-06-02T23:59:00.000+03:00";
 
     // 1) Ensure HW2 dataset exists or create it
     const datasetPayload: Omit<Dataset, "id" | "updatedAt"> = {
@@ -96,6 +94,7 @@ async function runSeed(params?: { courseId?: string; dueAt?: string }) {
           availableFrom,
           availableUntil,
           published: false,
+          homeworkType: "relational_algebra",
           datasetPolicy: "shared",
           questionOrder: [],
           visibility: "draft",
@@ -117,6 +116,7 @@ async function runSeed(params?: { courseId?: string; dueAt?: string }) {
       dueAt,
       availableFrom,
       availableUntil,
+      homeworkType: "relational_algebra",
       overview,
       backgroundStory,
       dataStructureNotes,
@@ -351,6 +351,7 @@ async function runSeed(params?: { courseId?: string; dueAt?: string }) {
       dueAt,
       availableFrom,
       availableUntil,
+      homeworkType: "relational_algebra",
     });
 
     return NextResponse.json({

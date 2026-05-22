@@ -50,6 +50,7 @@ function formatDateTime(dateInput?: string): string {
   }
 
   return new Intl.DateTimeFormat("he-IL", {
+    timeZone: "Asia/Jerusalem",
     dateStyle: "medium",
     timeStyle: "short",
   }).format(parsed);

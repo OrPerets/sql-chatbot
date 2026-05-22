@@ -1,6 +1,7 @@
 export type HomeworkVisibility = "draft" | "published" | "archived";
 export type HomeworkEntryMode = "direct" | "listed" | "hidden";
 export type HomeworkAvailabilityState = "upcoming" | "open" | "closed";
+export type HomeworkType = "sql" | "relational_algebra";
 
 export interface DatasetTablePreview {
   name: string;
@@ -55,6 +56,7 @@ export interface HomeworkSet {
   availableUntil?: string;
   published: boolean;
   entryMode?: HomeworkEntryMode;
+  homeworkType?: HomeworkType;
   datasetPolicy: "shared" | "custom";
   questionOrder: string[];
   visibility: HomeworkVisibility;
@@ -101,6 +103,7 @@ export interface Feedback {
 
 export interface SqlAnswer {
   sql: string;
+  expression?: string;
   resultPreview?: SqlResult;
   feedback?: Feedback;
   lastExecutedAt?: string;
