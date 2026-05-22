@@ -91,6 +91,41 @@ function sourceFieldLabel(field: QuestionParameterSourceField) {
   }
 }
 
+function getParameterListInputKey(questionId: string, parameter: QuestionParameterDefinition) {
+  return `${questionId}:${parameter.id}:${parameter.type}`;
+}
+
+function getParameterListText(parameter: QuestionParameterDefinition) {
+  const constraints = parameter.constraints ?? {};
+  switch (parameter.type) {
+    case "list":
+      return (constraints.options ?? []).join(", ");
+    case "table_name":
+      return (constraints.tableNames ?? []).join(", ");
+    case "column_name":
+      return (constraints.columnNames ?? []).join(", ");
+    case "sql_value":
+      return (constraints.dataTypes ?? []).join(", ");
+    default:
+      return "";
+  }
+}
+
+function getParameterListConstraintPatch(parameter: QuestionParameterDefinition, values: string[]) {
+  switch (parameter.type) {
+    case "list":
+      return { options: values };
+    case "table_name":
+      return { tableNames: values };
+    case "column_name":
+      return { columnNames: values };
+    case "sql_value":
+      return { dataTypes: values };
+    default:
+      return {};
+  }
+}
+
 export function QuestionsStep({
   questions,
   onChange,
@@ -107,6 +142,7 @@ export function QuestionsStep({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewsByQuestion, setPreviewsByQuestion] = useState<Record<string, PreviewEntry[]>>({});
+  const [parameterListInputs, setParameterListInputs] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!questions.some((question) => question.id === activeQuestionId)) {
@@ -712,27 +748,31 @@ export function QuestionsStep({
                                 {parameter.type === "sql_value" && "סוגי ערכים"}
                               </label>
                               <textarea
-                                value={
-                                  parameter.type === "list"
-                                    ? (parameter.constraints?.options ?? []).join(", ")
-                                    : parameter.type === "table_name"
-                                      ? (parameter.constraints?.tableNames ?? []).join(", ")
-                                      : parameter.type === "column_name"
-                                        ? (parameter.constraints?.columnNames ?? []).join(", ")
-                                        : (parameter.constraints?.dataTypes ?? []).join(", ")
-                                }
+                                value={parameterListInputs[getParameterListInputKey(activeQuestion.id, parameter)] ?? getParameterListText(parameter)}
                                 onChange={(event) => {
-                                  const values = event.target.value.split(",").map((entry) => entry.trim()).filter(Boolean);
+                                  const rawValue = event.target.value;
+                                  const inputKey = getParameterListInputKey(activeQuestion.id, parameter);
+                                  const values = rawValue.split(",").map((entry) => entry.trim()).filter(Boolean);
+                                  setParameterListInputs((current) => ({
+                                    ...current,
+                                    [inputKey]: rawValue,
+                                  }));
                                   handleParameterChange(activeQuestion.id, parameter.id, (current) => ({
                                     ...current,
                                     constraints: {
                                       ...current.constraints,
-                                      ...(parameter.type === "list" ? { options: values } : {}),
-                                      ...(parameter.type === "table_name" ? { tableNames: values } : {}),
-                                      ...(parameter.type === "column_name" ? { columnNames: values } : {}),
-                                      ...(parameter.type === "sql_value" ? { dataTypes: values } : {}),
+                                      ...getParameterListConstraintPatch(parameter, values),
                                     },
                                   }));
+                                }}
+                                onBlur={() => {
+                                  const inputKey = getParameterListInputKey(activeQuestion.id, parameter);
+                                  setParameterListInputs((current) => {
+                                    if (!(inputKey in current)) return current;
+                                    const next = { ...current };
+                                    delete next[inputKey];
+                                    return next;
+                                  });
                                 }}
                                 rows={3}
                                 placeholder="הפרידו בפסיקים"
