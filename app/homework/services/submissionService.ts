@@ -49,10 +49,26 @@ export async function gradeSubmission(submissionId: string, payload: Partial<Sub
   });
 }
 
+export async function gradeSubmissions(
+  updates: Array<{ submissionId: string; updates: Partial<Submission> }>,
+) {
+  return http<Submission[]>(`${BASE_PATH}/grade-batch`, {
+    method: "POST",
+    body: JSON.stringify({ updates }),
+  });
+}
+
 export async function listSubmissionSummaries(setId: string) {
   return http<SubmissionSummary[]>(`${BASE_PATH}/${setId}`, {
     method: "GET",
     params: { role: "builder" },
+  });
+}
+
+export async function listSubmissions(setId: string) {
+  return http<Submission[]>(`${BASE_PATH}/${setId}`, {
+    method: "GET",
+    params: { role: "builder", include: "details" },
   });
 }
 

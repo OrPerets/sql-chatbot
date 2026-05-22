@@ -1,0 +1,16 @@
+"status","applied","commentId","questionId","questionLabel","score","maxScore","usageCount","createdAt","comment","exactExistingStudents","partialExistingStudents","emptyScoreMatchStudents"
+"no_safe_match","no","6a0561d13e318d69ade4486f","69ac4201bfa9bba42e644d96","שאלה 8","7","10","0","2026-05-14T05:46:57.207Z","חסרה עמודת שמות המשפחה","","",""
+"ambiguous","no","6a05649dc0e3b75c8c8e53cc","69ac4201bfa9bba42e644d96","שאלה 8","8","10","0","2026-05-14T05:58:53.452Z","נדרש להשוות את לעיר טוקיו ולא ליפן","","","69bf94e41b1bb568c7ae75c5; 69bf94ea1b1bb568c7ae75f6; 69bf94e51b1bb568c7ae75cd; 69bf94ea1b1bb568c7ae75f4"
+"no_safe_match","no","6a0564f4c0e3b75c8c8e53ce","69ac4201bfa9bba42e644d96","שאלה 8","6","10","1","2026-05-14T06:00:20.207Z","נדרש גם לצרף את המחלקות, ונדרש להוסיף עוד השווה בין הטבלאות בwhere","","",""
+"ambiguous","no","6a056524c0e3b75c8c8e53d0","69ac4201bfa9bba42e644d96","שאלה 8","8","10","0","2026-05-14T06:01:08.205Z","לא נדרש להציג את המשכורת, אלה אם השם הפרטי","","","69bf94e41b1bb568c7ae75c5; 69bf94ea1b1bb568c7ae75f6; 69bf94e51b1bb568c7ae75cd; 69bf94ea1b1bb568c7ae75f4"
+"already_exact","no","6a06aacbb5ed95ed4172f825","69ac4201bfa9bba42e644d9a","שאלה 9","7","10","0","2026-05-15T05:10:35.194Z","נדרש לסנן על פי שם המחלקה עם 3 e ולא שם העבודה","69e0babf05c41d4d8c8ad75e","",""
+"already_exact","no","6a06ac6e1aefbe42e52287e7","69ac4201bfa9bba42e644d9a","שאלה 9","5","10","0","2026-05-15T05:17:34.713Z","נדרש לסנן על פי שם עבודה לא שווה למהנדס, לא שם מחלקה","69bf94e81b1bb568c7ae75e6","",""
+"ambiguous","no","6a07302d706dd5a1d6e05269","69ac4200bfa9bba42e644d84","שאלה 2","8","10","3","2026-05-15T14:39:41.927Z","נדרש להציג שם משפחה לפני שם פרטי
+
+נדרש להשתמש בפונקציית year על התאריך של המערכת כדי ליצור תנאי דינאמי","","69bf94e81b1bb568c7ae75e4; 69bf94e81b1bb568c7ae75e5; 69bf94e81b1bb568c7ae75e7; 69bf94e71b1bb568c7ae75dc; 69bf94e61b1bb568c7ae75d7; 6a033fb047fece76469b0b35; 6a0185c232afbf8302cff7c5","69bf94e71b1bb568c7ae75df; 69bf94e71b1bb568c7ae75e2; 69bf94e91b1bb568c7ae75f0; 69bf94e71b1bb568c7ae75e0; 69bf94e91b1bb568c7ae75ed; 69bf94e51b1bb568c7ae75cd; 69bf94ea1b1bb568c7ae75f4; 69bf94e91b1bb568c7ae75ec; 69bf94e61b1bb568c7ae75d6; 69bf94e91b1bb568c7ae75ea; 69bf94e41b1bb568c7ae75c9; 69bf94e51b1bb568c7ae75cc; 69bf94e31b1bb568c7ae75c1; 69bf94e71b1bb568c7ae75dd; 69bf94e91b1bb568c7ae75ee; 69bf94e71b1bb568c7ae75db; 69bf94ea1b1bb568c7ae75f5"
+"partial_existing","no","6a0730ba706dd5a1d6e0526b","69ac4200bfa9bba42e644d84","שאלה 2","6.5","10","4","2026-05-15T14:42:02.133Z","נדרש להציג שם משפחה לפני שם פרטי
+
+נדרש להשתמש בפונקציית year על התאריך של המערכת ולהכפיל בשער ההמרה כדי ליצור תנאי דינאמי","","69bf94e81b1bb568c7ae75e4; 69bf94e81b1bb568c7ae75e5; 69bf94e81b1bb568c7ae75e7; 69bf94e71b1bb568c7ae75dc; 69bf94e61b1bb568c7ae75d7; 6a033fb047fece76469b0b35; 6a0185c232afbf8302cff7c5",""
+"partial_existing","no","6a07321a9c11c62f67c7d693","69ac4200bfa9bba42e644d84","שאלה 2","7.5","10","1","2026-05-15T14:47:54.133Z","נדרש להציג שם משפחה לפני שם פרטי
+
+נדרש להשתמש בפונקציית year על התאריך של המערכת כדי ליצור תנאי דינאמי","","69bf94e81b1bb568c7ae75e4; 69bf94e81b1bb568c7ae75e5; 69bf94e81b1bb568c7ae75e7; 69bf94e71b1bb568c7ae75dc; 69bf94e61b1bb568c7ae75d7; 6a033fb047fece76469b0b35; 6a0185c232afbf8302cff7c5",""

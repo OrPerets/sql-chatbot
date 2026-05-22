@@ -2,17 +2,24 @@
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getHomeworkQuestions, getHomeworkSet, publishHomeworkGrades } from "@/app/homework/services/homeworkService";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import {
+  getHomeworkQuestions,
+  getHomeworkQuestionsForStudents,
+  getHomeworkSet,
+  publishHomeworkGrades,
+} from "@/app/homework/services/homeworkService";
 import {
   getSubmissionById,
   getSubmissionProgressById,
   gradeSubmission,
+  gradeSubmissions,
+  listSubmissions,
   listSubmissionSummaries,
 } from "@/app/homework/services/submissionService";
 import { getQuestionAnalyticsStats, listAnalyticsEvents } from "@/app/homework/services/analyticsService";
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
-import type { Question, QuestionProgress, Submission, SqlAnswer } from "@/app/homework/types";
+import type { Question, QuestionProgress, Submission, SubmissionSummary, SqlAnswer } from "@/app/homework/types";
 import styles from "./grade.module.css";
 import { exportHomeworkGradesToExcel } from "@/lib/excel-export";
 
@@ -159,7 +166,7 @@ function CommentBankDropdown({
           type="button"
           className={styles.saveCommentButton}
           onClick={onSave}
-          title="שמור הערה לבנק"
+          title="שמור הערה וציון"
         >
           💾
         </button>
@@ -238,6 +245,40 @@ function StatusBadge({ status, t }: { status: string; t: (key: string) => string
 }
 
 const SCORE_FORMATTER = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1, minimumFractionDigits: 0 });
+
+function syncGradedSubmissionsCache(
+  queryClient: QueryClient,
+  setId: string,
+  updatedSubmissions: Submission[],
+) {
+  if (updatedSubmissions.length === 0) return;
+
+  const byId = new Map(updatedSubmissions.map((submission) => [submission.id, submission]));
+
+  updatedSubmissions.forEach((submission) => {
+    queryClient.setQueryData<Submission>(["submission", submission.id], submission);
+  });
+
+  queryClient.setQueryData<Submission[]>(["submissions", setId, "all"], (current) => {
+    if (!current) return current;
+    return current.map((submission) => byId.get(submission.id) ?? submission);
+  });
+
+  queryClient.setQueryData<SubmissionSummary[]>(["submissions", setId, "summaries"], (current) => {
+    if (!current) return current;
+    return current.map((summary) => {
+      const updated = byId.get(summary.id);
+      if (!updated) return summary;
+
+      return {
+        ...summary,
+        status: updated.status,
+        overallScore: updated.overallScore,
+        gradedAt: updated.gradedAt,
+      };
+    });
+  });
+}
 
 export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
   // Test console.log on component mount
@@ -334,13 +375,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
   // Fetch all submissions for per-question view
   const allSubmissionsQuery = useQuery({
     queryKey: ["submissions", setId, "all"],
-    queryFn: async () => {
-      const summaries = summariesQuery.data ?? [];
-      const submissions = await Promise.all(
-        summaries.map((summary) => getSubmissionById(summary.id).catch(() => null))
-      );
-      return submissions.filter((s): s is Submission => s !== null);
-    },
+    queryFn: () => listSubmissions(setId),
     enabled: viewMode === "question" && summariesQuery.isSuccess,
   });
 
@@ -386,7 +421,11 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comment-bank", setId] });
       setSavingComment(null);
-      setStatusMessage("ההערה נשמרה בבנק ההערות");
+      setStatusMessage("ההערה נשמרה בציון ובבנק ההערות");
+    },
+    onError: () => {
+      setSavingComment(null);
+      setStatusMessage("ההערה נשמרה בציון, אך לא נשמרה בבנק ההערות");
     },
   });
 
@@ -473,20 +512,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
 
   const questionViewStudentQuestionsQuery = useQuery({
     queryKey: ["homework", setId, "student-question-map", questionViewStudentIds],
-    queryFn: async () => {
-      const entries = await Promise.all(
-        questionViewStudentIds.map(async (studentId) => {
-          try {
-            return [studentId, await getHomeworkQuestions(setId, studentId)] as const;
-          } catch (error) {
-            console.warn("Failed to load rendered questions for student", studentId, error);
-            return [studentId, []] as const;
-          }
-        }),
-      );
-
-      return Object.fromEntries(entries) as Record<string, Question[]>;
-    },
+    queryFn: () => getHomeworkQuestionsForStudents(setId, questionViewStudentIds),
     enabled: viewMode === "question" && questionViewStudentIds.length > 0,
     staleTime: 5 * 60 * 1000,
   });
@@ -620,13 +646,12 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
         const question = questionsById.get(activeQuestionId);
         if (!question) return;
 
-        const results = await Promise.all(
-          submissionsToGrade.map(async (submission) => {
+        const updates = submissionsToGrade.flatMap((submission) => {
             const draft = questionGradeDraft[activeQuestionId]?.[submission.id];
-            if (!draft) return null;
+            if (!draft) return [];
 
             const answer = submission.answers[activeQuestionId] as SqlAnswer | undefined;
-            if (!answer) return null;
+            if (!answer) return [];
 
             const maxPoints = question.points ?? draft.score ?? 0;
             const score = Math.min(maxPoints, Math.max(0, draft.score));
@@ -652,25 +677,29 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
               0
             );
 
-            return gradeSubmission(submission.id, {
-              answers: updatedAnswers,
-              overallScore,
-              status: "graded",
-            });
-          })
-        );
+            return [{
+              submissionId: submission.id,
+              updates: {
+                answers: updatedAnswers,
+                overallScore,
+                status: "graded" as const,
+              },
+            }];
+          });
 
-        return results.filter((r): r is Submission => r !== null);
+        if (updates.length === 0) return [];
+        return gradeSubmissions(updates);
       }
     },
-    onSuccess: (updated) => {
+    onSuccess: async (updated) => {
       if (!updated) return;
-      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "summaries"] });
-      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "all"] });
-      if (viewMode === "student" && !Array.isArray(updated)) {
-      queryClient.setQueryData<Submission | undefined>(["submission", updated.id], updated);
-      }
-      queryClient.invalidateQueries({ queryKey: ["analytics", setId] });
+      const updatedSubmissions = Array.isArray(updated) ? updated : [updated];
+      syncGradedSubmissionsCache(queryClient, setId, updatedSubmissions);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["submissions", setId, "summaries"] }),
+        queryClient.invalidateQueries({ queryKey: ["submissions", setId, "all"] }),
+        queryClient.invalidateQueries({ queryKey: ["analytics", setId] }),
+      ]);
       setStatusMessage(Array.isArray(updated) 
         ? t("builder.grade.saveSuccessMultiple", { count: updated.length })
         : t("builder.grade.saveSuccess"));
@@ -1113,11 +1142,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
         return;
       }
 
-      const submissions = await Promise.all(
-        summaries.map((summary) => getSubmissionById(summary.id).catch(() => null))
-      );
-
-      const validSubmissions = submissions.filter((submission): submission is Submission => submission !== null);
+      const validSubmissions = allSubmissionsQuery.data ?? await listSubmissions(setId);
       const datePart = new Date().toISOString().split("T")[0];
 
       await exportHomeworkGradesToExcel({
@@ -1135,7 +1160,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
     } finally {
       setIsExporting(false);
     }
-  }, [homeworkQuery.data?.title, isExporting, questionsQuery.data, setId, summariesQuery.data]);
+  }, [allSubmissionsQuery.data, homeworkQuery.data?.title, isExporting, questionsQuery.data, setId, summariesQuery.data]);
 
   // Bulk grading helpers
   const handleBulkScoreChange = useCallback((newScore: number) => {
@@ -1216,6 +1241,114 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
     });
   }, [activeQuestionId, allSubmissionsQuery.data]);
 
+  const saveCurrentGradeForQuestion = useCallback(async (questionId: string, submissionId?: string) => {
+    if (viewMode === "student") {
+      if (!activeSubmissionId || !submissionQuery.data) return false;
+
+      const currentSubmission = submissionQuery.data;
+      const answersPayload: Submission["answers"] = Object.fromEntries(
+        Object.entries(currentSubmission.answers).map(([answerQuestionId, answer]) => {
+          const draft = gradeDraft[answerQuestionId];
+          const question = questionsById.get(answerQuestionId);
+          const sqlAnswer = answer as SqlAnswer;
+          const maxPoints = question?.points ?? draft?.score ?? 0;
+          const score = draft ? Math.min(maxPoints, Math.max(0, draft.score)) : sqlAnswer.feedback?.score ?? 0;
+
+          return [
+            answerQuestionId,
+            {
+              ...sqlAnswer,
+              feedback: {
+                questionId: answerQuestionId,
+                score,
+                autoNotes: sqlAnswer.feedback?.autoNotes ?? "",
+                instructorNotes: draft?.instructorNotes ?? sqlAnswer.feedback?.instructorNotes,
+                rubricBreakdown: sqlAnswer.feedback?.rubricBreakdown ?? [],
+              },
+            },
+          ];
+        }),
+      );
+
+      const overallScore = Object.values(answersPayload).reduce(
+        (sum, current) => sum + (current.feedback?.score ?? 0),
+        0,
+      );
+
+      const updatedSubmission = await gradeSubmission(activeSubmissionId, {
+        answers: answersPayload,
+        overallScore,
+        status: "graded",
+      });
+
+      syncGradedSubmissionsCache(queryClient, setId, [updatedSubmission]);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["submissions", setId, "summaries"] }),
+        queryClient.invalidateQueries({ queryKey: ["submissions", setId, "all"] }),
+      ]);
+      return true;
+    }
+
+    if (!submissionId) return false;
+
+    const targetSubmission = allSubmissionsQuery.data?.find((item) => item.id === submissionId);
+    if (!targetSubmission) return false;
+
+    const answer = targetSubmission.answers[questionId] as SqlAnswer | undefined;
+    if (!answer) return false;
+
+    const draft = questionGradeDraft[questionId]?.[submissionId];
+    const displayQuestion = getDisplayQuestion(questionId, targetSubmission.studentId);
+    const baseQuestion = questionsById.get(questionId);
+    const maxPoints = displayQuestion?.points ?? baseQuestion?.points ?? draft?.score ?? answer.feedback?.score ?? 0;
+    const score = draft ? Math.min(maxPoints, Math.max(0, draft.score)) : answer.feedback?.score ?? 0;
+
+    const updatedAnswer: SqlAnswer = {
+      ...answer,
+      feedback: {
+        questionId,
+        score,
+        autoNotes: answer.feedback?.autoNotes ?? "",
+        instructorNotes: draft?.instructorNotes ?? answer.feedback?.instructorNotes,
+        rubricBreakdown: answer.feedback?.rubricBreakdown ?? [],
+      },
+    };
+
+    const updatedAnswers: Submission["answers"] = {
+      ...targetSubmission.answers,
+      [questionId]: updatedAnswer,
+    };
+
+    const overallScore = Object.values(updatedAnswers).reduce(
+      (sum, current) => sum + (current.feedback?.score ?? 0),
+      0,
+    );
+
+    const updatedSubmission = await gradeSubmission(submissionId, {
+      answers: updatedAnswers,
+      overallScore,
+      status: "graded",
+    });
+
+    syncGradedSubmissionsCache(queryClient, setId, [updatedSubmission]);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "summaries"] }),
+      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "all"] }),
+    ]);
+    return true;
+  }, [
+    activeSubmissionId,
+    allSubmissionsQuery.data,
+    getDisplayQuestion,
+    gradeDraft,
+    queryClient,
+    questionGradeDraft,
+    questionsById,
+    setId,
+    submissionQuery.data,
+    viewMode,
+  ]);
+
   // Save single submission and mark as done
   const handleMarkAsDone = useCallback(async (submissionId: string) => {
     if (!activeQuestionId || savingSubmissionId === submissionId) return;
@@ -1257,11 +1390,12 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
         0
       );
 
-      await gradeSubmission(submissionId, {
+      const updatedSubmission = await gradeSubmission(submissionId, {
         answers: updatedAnswers,
         overallScore,
         status: "graded",
       });
+      syncGradedSubmissionsCache(queryClient, setId, [updatedSubmission]);
 
       // Mark as completed and remove from view
       setCompletedSubmissions((prev) => {
@@ -1284,8 +1418,10 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
       });
 
       // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "summaries"] });
-      queryClient.invalidateQueries({ queryKey: ["submissions", setId, "all"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["submissions", setId, "summaries"] }),
+        queryClient.invalidateQueries({ queryKey: ["submissions", setId, "all"] }),
+      ]);
       
       setStatusMessage("הציון נשמר והתשובה הוסרה מהרשימה");
     } catch (error) {
@@ -1325,7 +1461,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
   }, [viewMode, useCommentMutation]);
 
   // Save current comment to the comment bank
-  const saveCurrentCommentToBank = useCallback((questionId: string, submissionId?: string) => {
+  const saveCurrentCommentToBank = useCallback(async (questionId: string, submissionId?: string) => {
     const question = questionsById.get(questionId);
     const maxScore = question?.points ?? 10;
     
@@ -1349,8 +1485,21 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
       return;
     }
     
-    saveCommentMutation.mutate({ questionId, comment, score, maxScore });
-  }, [viewMode, gradeDraft, questionGradeDraft, questionsById, saveCommentMutation]);
+    try {
+      setSavingComment(submissionId ? `${questionId}-${submissionId}` : questionId);
+      const didSaveGrade = await saveCurrentGradeForQuestion(questionId, submissionId);
+      if (!didSaveGrade) {
+        setStatusMessage("לא נמצאה הגשה פעילה לשמירת ההערה");
+        setSavingComment(null);
+        return;
+      }
+      saveCommentMutation.mutate({ questionId, comment, score, maxScore });
+    } catch (error) {
+      console.error("Failed to save instructor note", error);
+      setSavingComment(null);
+      setStatusMessage("שגיאה בשמירת הערת המדריך");
+    }
+  }, [viewMode, gradeDraft, questionGradeDraft, questionsById, saveCommentMutation, saveCurrentGradeForQuestion]);
 
   const submission = submissionQuery.data;
   const progress = progressQuery.data as QuestionProgress[] | undefined;
@@ -1848,7 +1997,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                 questionId={questionId}
                                 comments={commentBankQuery.data ?? []}
                                 onApply={(comment) => applyCommentFromBank(questionId, comment)}
-                                onSave={() => saveCurrentCommentToBank(questionId)}
+                                onSave={() => void saveCurrentCommentToBank(questionId)}
                                 onDelete={(commentId) => deleteCommentMutation.mutate(commentId)}
                                 isOpen={showCommentBank === questionId}
                                 onToggle={() => setShowCommentBank(showCommentBank === questionId ? null : questionId)}
@@ -2115,7 +2264,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                       questionId={activeQuestionId}
                                       comments={commentBankQuery.data ?? []}
                                       onApply={(comment) => applyCommentFromBank(activeQuestionId, comment, submission.id)}
-                                      onSave={() => saveCurrentCommentToBank(activeQuestionId, submission.id)}
+                                      onSave={() => void saveCurrentCommentToBank(activeQuestionId, submission.id)}
                                       onDelete={(commentId) => deleteCommentMutation.mutate(commentId)}
                                       isOpen={showCommentBank === `${activeQuestionId}-${submission.id}`}
                                       onToggle={() => setShowCommentBank(

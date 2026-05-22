@@ -11,6 +11,8 @@ import type {
 type DateInput = string | Date | null | undefined;
 
 export interface HomeworkAvailabilityInput {
+  id?: string;
+  title?: string;
   availableFrom?: DateInput;
   availableUntil?: DateInput;
   dueAt?: DateInput;
@@ -25,6 +27,16 @@ const EXTENDED_DEADLINE_USERS = [
 
 // Extension duration in milliseconds (2 days)
 const EXTENSION_DURATION_MS = 2 * 24 * 60 * 60 * 1000;
+
+const PERSONAL_ACCESS_OVERRIDES = [
+  {
+    email: 'bateldesta17@gmail.com',
+    homeworkIds: ['69aabdaaafa3dcd3648446cb'],
+    titleMatchers: [/^תרגיל בית 1$/, /^HW1\b/i],
+    availableFrom: '2026-05-16T00:00:00.000+03:00',
+    availableUntil: '2026-05-23T23:59:59.999+03:00',
+  },
+] as const;
 
 function toDate(value: DateInput, fallback?: Date): Date {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
@@ -50,6 +62,42 @@ function resolveAvailabilityStart(homework: HomeworkAvailabilityInput): Date {
 
 function resolveAvailabilityEnd(homework: HomeworkAvailabilityInput): Date {
   return toDate(homework.availableUntil ?? homework.dueAt, new Date());
+}
+
+function findPersonalAccessOverride(
+  homework: HomeworkAvailabilityInput,
+  userEmail: string | null | undefined
+) {
+  if (!userEmail) return null;
+
+  const normalizedEmail = userEmail.toLowerCase().trim();
+  const homeworkId = homework.id?.trim();
+  const homeworkTitle = homework.title?.trim() ?? '';
+
+  return PERSONAL_ACCESS_OVERRIDES.find((override) => {
+    if (override.email !== normalizedEmail) {
+      return false;
+    }
+
+    if (homeworkId && (override.homeworkIds as readonly string[]).includes(homeworkId)) {
+      return true;
+    }
+
+    return override.titleMatchers.some((matcher) => matcher.test(homeworkTitle));
+  }) ?? null;
+}
+
+function getPersonalAccessWindow(
+  homework: HomeworkAvailabilityInput,
+  userEmail: string | null | undefined
+) {
+  const override = findPersonalAccessOverride(homework, userEmail);
+  if (!override) return null;
+
+  return {
+    availableFrom: toDate(override.availableFrom),
+    availableUntil: toDate(override.availableUntil),
+  };
 }
 
 function formatDate(date: Date): string {
@@ -94,6 +142,16 @@ export function getAvailabilityState(
 ): HomeworkAvailabilityState {
   const now = nowInput ?? new Date();
   const availableFrom = resolveAvailabilityStart(homework);
+  const personalAccessWindow = getPersonalAccessWindow(homework, userEmail);
+
+  if (
+    personalAccessWindow &&
+    now >= personalAccessWindow.availableFrom &&
+    now <= personalAccessWindow.availableUntil
+  ) {
+    return 'open';
+  }
+
   const effectiveAvailableUntil = getEffectiveDeadline(resolveAvailabilityEnd(homework), userEmail);
 
   if (now < availableFrom) {
@@ -121,9 +179,15 @@ export function getAvailabilityMessage(
   nowInput?: Date
 ): string {
   const availableFrom = resolveAvailabilityStart(homework);
+  const personalAccessWindow = getPersonalAccessWindow(homework, userEmail);
   const effectiveAvailableUntil = getEffectiveDeadline(resolveAvailabilityEnd(homework), userEmail);
   const state = getAvailabilityState(homework, userEmail, nowInput);
   const isExtended = hasExtendedDeadline(userEmail);
+  const hasActivePersonalAccess =
+    personalAccessWindow &&
+    state === 'open' &&
+    (nowInput ?? new Date()) >= personalAccessWindow.availableFrom &&
+    (nowInput ?? new Date()) <= personalAccessWindow.availableUntil;
 
   if (state === 'upcoming') {
     return `שיעור הבית ייפתח ב-${formatDate(availableFrom)}`;
@@ -133,6 +197,10 @@ export function getAvailabilityMessage(
     return isExtended
       ? `חלון ההגשה המורחב נסגר ב-${formatDate(effectiveAvailableUntil)}`
       : `חלון ההגשה נסגר ב-${formatDate(effectiveAvailableUntil)}`;
+  }
+
+  if (hasActivePersonalAccess) {
+    return `זמין להגשה עד ${formatDate(personalAccessWindow.availableUntil)} (כולל פתיחה אישית)`;
   }
 
   return isExtended
@@ -145,7 +213,12 @@ export function getHomeworkAvailabilityInfo(
   userEmail: string | null | undefined,
   nowInput?: Date
 ): HomeworkAvailabilityInfo {
-  const effectiveAvailableUntil = getEffectiveDeadline(resolveAvailabilityEnd(homework), userEmail);
+  const personalAccessWindow = getPersonalAccessWindow(homework, userEmail);
+  const standardEffectiveDeadline = getEffectiveDeadline(resolveAvailabilityEnd(homework), userEmail);
+  const effectiveAvailableUntil = personalAccessWindow &&
+    personalAccessWindow.availableUntil > standardEffectiveDeadline
+    ? personalAccessWindow.availableUntil
+    : standardEffectiveDeadline;
   const availabilityState = getAvailabilityState(homework, userEmail, nowInput);
 
   return {

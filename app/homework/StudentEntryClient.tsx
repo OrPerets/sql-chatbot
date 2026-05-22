@@ -175,7 +175,7 @@ export function StudentEntryClient({ forcedSetId }: StudentEntryClientProps) {
     setHomeworkStatus(null);
     setError("");
 
-    fetch(`/api/homework/${forcedSetId}`)
+    fetch(`/api/homework/${forcedSetId}?allowUnavailablePreview=true`)
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
 

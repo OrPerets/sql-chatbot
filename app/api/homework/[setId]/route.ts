@@ -56,6 +56,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const role = url.searchParams.get('role');
     const studentId = url.searchParams.get('studentId');
     const emailParam = url.searchParams.get('email');
+    const allowUnavailablePreview = url.searchParams.get('allowUnavailablePreview') === 'true';
     let userEmail: string | null = emailParam?.trim().toLowerCase() || null;
 
     if (!userEmail && studentId) {
@@ -97,7 +98,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         );
       }
 
-      if (!availability.accessible) {
+      if (!availability.accessible && !allowUnavailablePreview) {
         logStudentAccessDenied(setId, "availability-window", {
           role,
           studentId,

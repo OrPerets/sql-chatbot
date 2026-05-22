@@ -105,9 +105,10 @@ export function renderQuestionVariables(
 
   const existingValues = Array.isArray(question.variables) ? question.variables as VariableValue[] : [];
   const definitions = resolveDefinitions(question, options.templates ?? []);
+  const seedQuestionId = question.templateId ?? question.id;
   const generatedValues = existingValues.length > 0
     ? existingValues
-    : TemplateSystem.generateVariableValues(definitions, `${options.homeworkSetId}-${question.id}-${options.studentId}`);
+    : TemplateSystem.generateVariableValues(definitions, `${options.homeworkSetId}-${seedQuestionId}-${options.studentId}`);
   const definitionsById = new Map(definitions.map((definition) => [definition.id, definition]));
   const valuesByName = new Map<string, unknown>();
 

@@ -55,6 +55,36 @@ describe('deadline-utils availability windows', () => {
     expect(getAvailabilityState(homework, 'student@example.com', now)).toBe('closed');
   });
 
+  it('opens HW1 for the approved student during the personal access window', () => {
+    const homework = {
+      id: '69aabdaaafa3dcd3648446cb',
+      title: 'תרגיל בית 1',
+      availableFrom: '2026-01-01T00:00:00.000Z',
+      availableUntil: '2026-01-08T00:00:00.000Z',
+    };
+    const duringOverride = new Date('2026-05-16T10:00:00.000Z');
+
+    const info = getHomeworkAvailabilityInfo(homework, 'bateldesta17@gmail.com', duringOverride);
+
+    expect(info.availabilityState).toBe('open');
+    expect(info.accessible).toBe(true);
+    expect(info.effectiveAvailableUntil).toBe('2026-05-23T20:59:59.999Z');
+    expect(info.availabilityMessage).toContain('פתיחה אישית');
+    expect(getAvailabilityState(homework, 'student@example.com', duringOverride)).toBe('closed');
+  });
+
+  it('closes the personal HW1 access window after one week', () => {
+    const homework = {
+      id: '69aabdaaafa3dcd3648446cb',
+      title: 'תרגיל בית 1',
+      availableFrom: '2026-01-01T00:00:00.000Z',
+      availableUntil: '2026-01-08T00:00:00.000Z',
+    };
+    const afterOverride = new Date('2026-05-24T00:00:00.000Z');
+
+    expect(getAvailabilityState(homework, 'bateldesta17@gmail.com', afterOverride)).toBe('closed');
+  });
+
   it('uses createdAt as the fallback opening date for legacy homework', () => {
     const homework = {
       dueAt: '2026-03-07T00:00:00.000Z',

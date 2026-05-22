@@ -46,6 +46,16 @@ export async function getHomeworkQuestions(setId: string, studentId?: string): P
   }
 }
 
+export async function getHomeworkQuestionsForStudents(
+  setId: string,
+  studentIds: string[],
+): Promise<Record<string, Question[]>> {
+  return http(`${BASE_PATH}/${setId}/questions/student`, {
+    method: "POST",
+    body: JSON.stringify({ studentIds }),
+  });
+}
+
 export interface UpsertQuestionPayload extends Partial<Question> {
   id?: string;
 }
