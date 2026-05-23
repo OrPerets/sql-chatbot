@@ -24,6 +24,7 @@ const dictionaries: Record<SupportedLocale, Record<string, string>> = {
 };
 
 const DEFAULT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
+  timeZone: "Asia/Jerusalem",
   weekday: "short",
   month: "short",
   day: "numeric",
@@ -71,7 +72,10 @@ export function HomeworkLocaleProvider({ children, initialLocale }: HomeworkLoca
     };
 
     const formatDateTime = (value: string | number | Date, options?: Intl.DateTimeFormatOptions) => {
-      const formatter = new Intl.DateTimeFormat(locale === "he" ? "he-IL" : "en-US", options ?? DEFAULT_DATE_OPTIONS);
+      const formatter = new Intl.DateTimeFormat(locale === "he" ? "he-IL" : "en-US", {
+        timeZone: "Asia/Jerusalem",
+        ...(options ?? DEFAULT_DATE_OPTIONS),
+      });
       const input = value instanceof Date ? value : new Date(value);
       return formatter.format(input);
     };

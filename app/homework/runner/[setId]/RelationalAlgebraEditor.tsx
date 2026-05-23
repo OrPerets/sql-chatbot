@@ -31,6 +31,8 @@ const OPERATOR_GROUPS: OperatorGroup[] = [
       { symbol: "⟖", title: "צירוף ימני (Right Join)" },
       { symbol: "⋉", title: "חצי-צירוף שמאלי (Left Semi-Join)" },
       { symbol: "⋊", title: "חצי-צירוף ימני (Right Semi-Join)" },
+      { symbol: "⟗", title: "צירוף מלא (Full Outer Join)" },
+      { symbol: "⋈θ", title: "צירוף תטא (Theta Join)", insert: "⋈_{}" },
       { symbol: "×", title: "מכפלה קרטזית (Cartesian Product)" },
     ],
   },
@@ -89,7 +91,7 @@ export function RelationalAlgebraEditor({
 
       requestAnimationFrame(() => {
         const cursorPos =
-          text === "()" || text === "_{}"
+          text === "()" || text === "_{}" || text === "⋈_{}"
             ? start + text.length - 1
             : start + text.length;
         textarea.focus();
@@ -115,7 +117,14 @@ export function RelationalAlgebraEditor({
                   disabled={disabled}
                   onClick={() => insertAtCursor(op.insert ?? op.symbol)}
                 >
-                  {op.symbol}
+                  {op.symbol === "⋈θ" ? (
+                    <span className={styles.thetaJoinSymbol} aria-hidden="true">
+                      <span className={styles.thetaJoinBowtie}>⋈</span>
+                      <sub className={styles.thetaJoinSubscript}>θ</sub>
+                    </span>
+                  ) : (
+                    op.symbol
+                  )}
                 </button>
               ))}
             </div>

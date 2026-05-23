@@ -10,6 +10,13 @@ import type {
 
 const BASE_PATH = "/api/homework";
 
+type HomeworkSetRequestParams = {
+  role?: string;
+  studentId?: string;
+  email?: string;
+  allowUnavailablePreview?: boolean;
+};
+
 export async function listHomeworkSets(
   params?: HomeworkQueryParams & { page?: number; pageSize?: number; role?: string },
 ): Promise<PaginatedResponse<HomeworkSummary>> {
@@ -21,18 +28,13 @@ export async function listHomeworkSets(
 
 export async function getHomeworkSet(
   setId: string,
-  options?: string | {
-    role?: string;
-    studentId?: string;
-    email?: string;
-    allowUnavailablePreview?: boolean;
-  },
+  params?: string | HomeworkSetRequestParams,
 ): Promise<HomeworkSet> {
-  const params = typeof options === "string" ? { role: options } : options;
+  const requestParams = typeof params === "string" ? { role: params } : params;
 
   return http(`${BASE_PATH}/${setId}`, { 
     method: "GET",
-    params,
+    params: requestParams,
   });
 }
 

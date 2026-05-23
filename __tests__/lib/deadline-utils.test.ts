@@ -2,6 +2,7 @@ import {
   getAvailabilityMessage,
   getAvailabilityState,
   getHomeworkAvailabilityInfo,
+  isHomeworkAccessAdmin,
   isHomeworkAccessible,
 } from '@/lib/deadline-utils';
 
@@ -17,6 +18,18 @@ describe('deadline-utils availability windows', () => {
     expect(getAvailabilityState(homework, null, now)).toBe('upcoming');
     expect(isHomeworkAccessible(homework, null, now)).toBe(false);
     expect(getAvailabilityMessage(homework, null, now)).toContain('ייפתח');
+  });
+
+  it('lets homework admins open assignments outside the student availability window', () => {
+    const homework = {
+      availableFrom: '2026-03-07T00:00:00.000Z',
+      availableUntil: '2026-03-10T00:00:00.000Z',
+    };
+
+    expect(isHomeworkAccessAdmin('orperets11@gmail.com')).toBe(true);
+    expect(isHomeworkAccessAdmin('roeizer@shenkar.ac.il')).toBe(true);
+    expect(getAvailabilityState(homework, 'orperets11@gmail.com', now)).toBe('open');
+    expect(isHomeworkAccessible(homework, 'roeizer@shenkar.ac.il', now)).toBe(true);
   });
 
   it('treats legacy dueAt-only homework as open before the deadline', () => {

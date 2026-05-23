@@ -25,6 +25,11 @@ const EXTENDED_DEADLINE_USERS = [
   'sagimor202@gmail.com',
 ] as const;
 
+const HOMEWORK_ACCESS_ADMIN_EMAILS = [
+  'orperets11@gmail.com',
+  'roeizer@shenkar.ac.il',
+] as const;
+
 // Extension duration in milliseconds (2 days)
 const EXTENSION_DURATION_MS = 2 * 24 * 60 * 60 * 1000;
 
@@ -102,6 +107,7 @@ function getPersonalAccessWindow(
 
 function formatDate(date: Date): string {
   return date.toLocaleString('he-IL', {
+    timeZone: 'Asia/Jerusalem',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -117,6 +123,12 @@ export function hasExtendedDeadline(userEmail: string | null | undefined): boole
   if (!userEmail) return false;
   const normalizedEmail = userEmail.toLowerCase().trim();
   return (EXTENDED_DEADLINE_USERS as readonly string[]).includes(normalizedEmail);
+}
+
+export function isHomeworkAccessAdmin(userEmail: string | null | undefined): boolean {
+  if (!userEmail) return false;
+  const normalizedEmail = userEmail.toLowerCase().trim();
+  return (HOMEWORK_ACCESS_ADMIN_EMAILS as readonly string[]).includes(normalizedEmail);
 }
 
 /**
@@ -140,6 +152,10 @@ export function getAvailabilityState(
   userEmail: string | null | undefined,
   nowInput?: Date
 ): HomeworkAvailabilityState {
+  if (isHomeworkAccessAdmin(userEmail)) {
+    return 'open';
+  }
+
   const now = nowInput ?? new Date();
   const availableFrom = resolveAvailabilityStart(homework);
   const personalAccessWindow = getPersonalAccessWindow(homework, userEmail);

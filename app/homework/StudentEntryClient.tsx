@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, BookOpen, CalendarClock, ChevronLeft, Lock, Play } from "lucide-react";
 import styles from "./student-entry.module.css";
-import { isHomeworkAccessible } from "@/lib/deadline-utils";
+import { isHomeworkAccessAdmin, isHomeworkAccessible } from "@/lib/deadline-utils";
 import { EXAM_PREP_ANNOUNCEMENT, isExamPrepTitle } from "@/lib/exam-prep-content";
 import { TutoringPreferencesCard } from "@/app/components/student/TutoringPreferencesCard";
 import type {
@@ -51,6 +51,7 @@ function formatDateTime(dateInput?: string): string {
   }
 
   return new Intl.DateTimeFormat("he-IL", {
+    timeZone: "Asia/Jerusalem",
     dateStyle: "medium",
     timeStyle: "short",
   }).format(parsed);
@@ -109,6 +110,24 @@ function sortByAvailability(items: StudentVisibleHomework[]): StudentVisibleHome
   });
 }
 
+function getCurrentUserEmailFromStorage(): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  try {
+    const rawUser = window.localStorage.getItem("currentUser");
+    if (!rawUser) {
+      return "";
+    }
+
+    const parsed = JSON.parse(rawUser) as { email?: unknown };
+    return typeof parsed.email === "string" ? parsed.email.trim().toLowerCase() : "";
+  } catch {
+    return "";
+  }
+}
+
 export function StudentEntryClient({ forcedSetId }: StudentEntryClientProps) {
   const router = useRouter();
   const isDirectEntry = Boolean(forcedSetId);
@@ -127,6 +146,11 @@ export function StudentEntryClient({ forcedSetId }: StudentEntryClientProps) {
   const [error, setError] = useState("");
   const [isStarting, setIsStarting] = useState(false);
   const [showConsentModal, setShowConsentModal] = useState(false);
+  const [viewerEmail, setViewerEmail] = useState("");
+
+  useEffect(() => {
+    setViewerEmail(getCurrentUserEmailFromStorage());
+  }, []);
 
   useEffect(() => {
     if (isDirectEntry || forcedSetId) {
@@ -136,7 +160,9 @@ export function StudentEntryClient({ forcedSetId }: StudentEntryClientProps) {
     let cancelled = false;
     setPublishedSetsLoading(true);
 
-    fetch("/api/homework")
+    const query = viewerEmail ? `?email=${encodeURIComponent(viewerEmail)}` : "";
+
+    fetch(`/api/homework${query}`)
       .then(async (res) => {
         if (!res.ok) {
           throw new Error("Failed to load homework list");
@@ -163,7 +189,7 @@ export function StudentEntryClient({ forcedSetId }: StudentEntryClientProps) {
     return () => {
       cancelled = true;
     };
-  }, [forcedSetId, isDirectEntry]);
+  }, [forcedSetId, isDirectEntry, viewerEmail]);
 
   useEffect(() => {
     if (!forcedSetId) {
@@ -317,21 +343,24 @@ export function StudentEntryClient({ forcedSetId }: StudentEntryClientProps) {
       }
 
       const userData = await loginResponse.json();
+      const normalizedLoginEmail = (userData.email ?? studentEmail).trim().toLowerCase();
       setStudentId(userData.id);
       setStudentName(userData.name || userData.email);
+      setViewerEmail(normalizedLoginEmail);
 
       if (typeof window !== "undefined") {
         localStorage.setItem(
           "currentUser",
           JSON.stringify({
             id: userData.id,
-            email: userData.email ?? studentEmail.trim(),
+            email: normalizedLoginEmail,
             name: userData.name || userData.email || studentEmail.trim(),
+            isHomeworkAdmin: isHomeworkAccessAdmin(normalizedLoginEmail),
           })
         );
       }
 
-      const emailParam = studentEmail.trim() ? `&email=${encodeURIComponent(studentEmail.trim())}` : "";
+      const emailParam = normalizedLoginEmail ? `&email=${encodeURIComponent(normalizedLoginEmail)}` : "";
       const response = await fetch(`/api/homework/${forcedSetId}?studentId=${userData.id}${emailParam}`);
 
       if (!response.ok) {
@@ -343,7 +372,7 @@ export function StudentEntryClient({ forcedSetId }: StudentEntryClientProps) {
 
       const data = await response.json();
 
-      if (!isHomeworkAccessible(data, studentEmail)) {
+      if (!isHomeworkAccessible(data, normalizedLoginEmail)) {
         setError(data.availabilityMessage || "שיעור הבית אינו זמין כרגע.");
         setStep("login");
         return;
@@ -367,7 +396,7 @@ export function StudentEntryClient({ forcedSetId }: StudentEntryClientProps) {
       return;
     }
 
-    if (!isHomeworkAccessible(selectedHomework, studentEmail)) {
+    if (!isHomeworkAccessible(selectedHomework, studentEmail || viewerEmail)) {
       setError("חלון ההגשה אינו פתוח כרגע.");
       setStep("login");
       return;

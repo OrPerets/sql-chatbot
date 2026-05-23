@@ -232,7 +232,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const [editorValues, setEditorValues] = useState<Record<string, string>>({});
   const [autosaveState, setAutosaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [showDatabaseViewer, setShowDatabaseViewer] = useState(true);
+  const [showDatabaseViewer, setShowDatabaseViewer] = useState(false);
   const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
   const [hintModalOpen, setHintModalOpen] = useState(false);
   const [hintText, setHintText] = useState("");
@@ -1338,7 +1338,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
             </div>
           </div>
 
-          <div className={styles.feedbackPanel}>
+          {!isRelationalAlgebra && (
+            <div className={styles.feedbackPanel}>
             <div className={styles.feedbackHeader}>
               <h4 className={styles.feedbackTitle}>{t("runner.results.heading")}</h4>
               {activeAnswer?.resultPreview && (
@@ -1427,7 +1428,8 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
               <p className={styles.placeholder}>{t("runner.results.placeholder")}</p>
             )}
 
-          </div>
+            </div>
+          )}
         </div>
       </section>
 

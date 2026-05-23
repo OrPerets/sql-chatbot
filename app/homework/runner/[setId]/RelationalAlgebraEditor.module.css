@@ -77,6 +77,24 @@
   cursor: not-allowed;
 }
 
+.thetaJoinSymbol {
+  display: inline-flex;
+  align-items: baseline;
+  direction: ltr;
+  line-height: 1;
+}
+
+.thetaJoinBowtie {
+  font-size: 1.12em;
+}
+
+.thetaJoinSubscript {
+  font-size: 0.72em;
+  line-height: 1;
+  margin-inline-start: 1px;
+  transform: translateY(0.28em);
+}
+
 /* ─── Expression Textarea ─── */
 .editor {
   width: 100%;
