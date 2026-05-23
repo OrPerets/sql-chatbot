@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getChatMessages, saveChatMessage } from '@/lib/chat'
+import { getChatMessages, saveChatMessage, updateChatSessionOpenAIState } from '@/lib/chat'
+import type { ResponseCitation, ResponseTurnMetadata } from '@/lib/openai/contracts'
 
 export async function GET(
   _request: Request,
@@ -27,12 +28,40 @@ export async function POST(
     const role = body.role
     const text = body.message || body.text
     const userId = body.userId
+    const citations = Array.isArray(body.citations)
+      ? (body.citations as ResponseCitation[])
+      : []
+    const metadata =
+      body.metadata && typeof body.metadata === 'object'
+        ? (body.metadata as ResponseTurnMetadata)
+        : null
+    const structuredContent =
+      body.structuredContent && typeof body.structuredContent === 'object'
+        ? body.structuredContent
+        : null
     
     if (!role || !text) {
       return NextResponse.json({ error: 'role and message are required' }, { status: 400 })
     }
     
-    const message = await saveChatMessage(sessionId, role, text)
+    const message = await saveChatMessage(sessionId, role, text, {
+      citations,
+      metadata,
+      structuredContent,
+    })
+
+    if (role === 'assistant' && metadata?.sessionId) {
+      await updateChatSessionOpenAIState(sessionId, {
+        sessionId: metadata.sessionId,
+        lastResponseId: metadata.responseId || null,
+        canonicalStateStrategy: 'previous_response_id',
+        store: metadata.store,
+        truncation: metadata.truncation || null,
+        promptCacheKey: metadata.promptCacheKey || null,
+        safetyIdentifier: metadata.safetyIdentifier || null,
+        updatedAt: new Date(),
+      })
+    }
     
     // Track student activity for AI analysis (Sprint 3)
     if (userId && role === 'user') {

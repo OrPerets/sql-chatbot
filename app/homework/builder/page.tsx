@@ -44,6 +44,10 @@ const cardActions = [
   { key: "grade", icon: GraduationCap, isPrimary: false },
 ];
 
+function getHomeworkTypeLabel(type: BuilderHomeworkSummary["homeworkType"]) {
+  return type === "relational_algebra" ? "אלגברה יחסית" : "SQL";
+}
+
 function groupByStatus(items: BuilderHomeworkSummary[]) {
   return items.reduce<Record<BuilderDashboardStatus, BuilderHomeworkSummary[]>>(
     (acc, item) => {
@@ -205,7 +209,9 @@ export default function BuilderDashboardPage() {
               <div className={styles.cardTop}>
                 <div className={styles.cardTitleGroup}>
                   <h3 className={styles.cardTitle}>{set.title}</h3>
-                  <span className={styles.cardCourse}>{set.courseId}</span>
+                  <span className={styles.cardCourse}>
+                    {set.courseId} · {getHomeworkTypeLabel(set.homeworkType)}
+                  </span>
                 </div>
                 <span className={styles.statusBadge} data-status={status}>
                   <StatusIcon size={12} />

@@ -45,6 +45,8 @@ export interface Question {
   isTemplate?: boolean;
   templateId?: string;
   variables?: any[]; // VariableValue[] for instantiated questions
+  parameterMode?: QuestionParameterMode;
+  parameters?: QuestionParameterDefinition[];
 }
 
 export interface HomeworkSet {
@@ -179,6 +181,11 @@ export interface AnalyticsEvent {
     | "runner.execute_sql"
     | "runner.save_draft"
     | "runner.submit"
+    | "runner.personalization_shown"
+    | "runner.personalization_accepted"
+    | "runner.personalization_feedback"
+    | "runner.personalized_quiz_started"
+    | "runner.personalized_quiz_completed"
     | "builder.grade_update"
     | "builder.publish_grades"
     | "builder.preview_execute";
@@ -288,6 +295,14 @@ export interface VariableDefinition {
   constraints?: VariableConstraints;
   defaultValue?: any;
   required?: boolean;
+}
+
+export type QuestionParameterMode = "static" | "parameterized";
+
+export type QuestionParameterSourceField = "prompt" | "instructions" | "starterSql";
+
+export interface QuestionParameterDefinition extends VariableDefinition {
+  sourceFields: QuestionParameterSourceField[];
 }
 
 export interface VariableValue {

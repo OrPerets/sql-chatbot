@@ -2,6 +2,7 @@ import { getQuestionGenerator } from '@/lib/question-generator';
 import { getHomeworkService } from '@/lib/homework';
 import { getQuestionsService } from '@/lib/questions';
 import { getTemplateService } from '@/lib/template-service';
+import { instantiateInlineQuestion } from '@/app/homework/utils/inline-question-parameters';
 import { extractQuestionVariableNames, renderQuestionVariables } from '@/lib/question-variable-rendering';
 import type { HomeworkSet, Question, QuestionTemplate } from '@/app/homework/types';
 
@@ -54,7 +55,32 @@ function renderQuestionsForStudent(
     templates: QuestionTemplate[];
   },
 ): Question[] {
-  return questions.map((question) => renderQuestionVariables(question, options));
+  return questions.map((question) => renderQuestionForStudent(question, options));
+}
+
+function isInlineParameterizedQuestion(question: Question): boolean {
+  return (
+    (question.parameterMode ?? (question.parameters?.length ? 'parameterized' : 'static')) === 'parameterized' &&
+    (question.parameters?.length ?? 0) > 0
+  );
+}
+
+function renderQuestionForStudent(
+  question: Question,
+  options: {
+    homeworkSetId: string;
+    studentId: string;
+    templates: QuestionTemplate[];
+  },
+): Question {
+  if (isInlineParameterizedQuestion(question)) {
+    return instantiateInlineQuestion(question, {
+      homeworkSetId: options.homeworkSetId,
+      studentId: options.studentId,
+    }).question;
+  }
+
+  return renderQuestionVariables(question, options);
 }
 
 async function getStudentQuestionsContext(setId: string): Promise<StudentQuestionsContext> {
@@ -86,6 +112,41 @@ async function getRenderedQuestionsFromContext(
   const { generator, homeworkSet, regularQuestions } = context;
 
   if (regularQuestions.length > 0) {
+    const templateQuestions = regularQuestions.filter(
+      (question) => Boolean(question.templateId) && !isInlineParameterizedQuestion(question),
+    );
+
+    if (templateQuestions.length > 0) {
+      const templateService = await getTemplateService();
+      const uniqueTemplateIds = Array.from(new Set(templateQuestions.map((question) => question.templateId!)));
+
+      for (const templateId of uniqueTemplateIds) {
+        const seed = `${setId}-${templateId}-${studentId}`;
+        await templateService.instantiateQuestion(templateId, studentId, setId, seed);
+      }
+
+      const studentQuestions = await generator.getQuestionsForStudent(setId, studentId);
+      const questionsByTemplateId = new Map(
+        studentQuestions
+          .filter((question) => Boolean(question.templateId))
+          .map((question) => [question.templateId!, question]),
+      );
+      const templates = await templateService.getTemplates();
+
+      return regularQuestions.map((question) => {
+        if (isInlineParameterizedQuestion(question)) {
+          return renderQuestionForStudent(question, { homeworkSetId: setId, studentId, templates });
+        }
+
+        if (!question.templateId) {
+          return renderQuestionForStudent(question, { homeworkSetId: setId, studentId, templates });
+        }
+
+        return questionsByTemplateId.get(question.templateId)
+          ?? renderQuestionForStudent(question, { homeworkSetId: setId, studentId, templates });
+      });
+    }
+
     const templates = await getTemplatesIfNeeded(regularQuestions);
     return renderQuestionsForStudent(regularQuestions, {
       homeworkSetId: setId,

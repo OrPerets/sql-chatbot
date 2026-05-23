@@ -1,6 +1,10 @@
 import { Db, ObjectId } from 'mongodb';
 import { connectToDatabase, COLLECTIONS, executeWithRetry } from './database';
 import { generateId, CommentBankEntryModel } from './models';
+import {
+  getSqlMisconceptionDefinition,
+  normalizeSqlMisconceptionCategory,
+} from '@/lib/sql-misconceptions';
 
 export interface CommentBankEntry {
   id: string;
@@ -33,6 +37,15 @@ export interface UpdateCommentBankEntryPayload {
 }
 
 const COMMENT_BANK_COLLECTION = 'comment_bank';
+
+function normalizeCommentCategory(category?: string): string | undefined {
+  const normalized = normalizeSqlMisconceptionCategory(category);
+  if (!normalized) {
+    return category?.trim() || undefined;
+  }
+
+  return getSqlMisconceptionDefinition(normalized).label;
+}
 
 /**
  * Comment Bank service for managing reusable grading comments
@@ -84,7 +97,7 @@ export class CommentBankService {
       comment: payload.comment,
       score: payload.score,
       maxScore: payload.maxScore,
-      category: payload.category,
+      category: normalizeCommentCategory(payload.category),
       usageCount: 0,
       createdBy: payload.createdBy,
       createdAt: now,
@@ -109,6 +122,10 @@ export class CommentBankService {
         { 
           $set: { 
             ...updates,
+            category:
+              updates.category === undefined
+                ? undefined
+                : normalizeCommentCategory(updates.category),
             updatedAt: now 
           } 
         },

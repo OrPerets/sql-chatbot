@@ -23,7 +23,9 @@ const LandingPage = () => {
     try {
       const user = JSON.parse(storedUser);
       const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il", "r_admin@gmail.com"];
-      const userIsAdmin = adminEmails.includes(user.email);
+      const normalizedEmail = typeof user?.email === "string" ? user.email.toLowerCase() : "";
+      const normalizedRole = typeof user?.role === "string" ? user.role.toLowerCase() : "";
+      const userIsAdmin = normalizedRole === "admin" || adminEmails.includes(normalizedEmail);
       setIsAdmin(userIsAdmin);
       setUserName(user.name || user.firstName || null);
     } catch (error) {
@@ -82,34 +84,46 @@ const LandingPage = () => {
 
           {/* המחשה ויזואלית של SQL */}
           <div
-            className={`${styles.optionCard} ${styles.optionCardDisabled}`}
-            onClick={() => {}}
-            // onClick={() => handleNavigation('/visualizer')}
+            className={`${styles.optionCard}`}
+            aria-disabled="true"
+            style={{ pointerEvents: 'none', opacity: 0.5, cursor: 'not-allowed' }}
+          >
+            <div className={styles.cardIcon}>
+              <Database size={48} />
+            </div>
+            <h2 className={styles.cardTitle}>שאילתה ויזואלית</h2>
+            <p className={styles.cardDescription}>
+            </p>
+          </div>
+
+          {/* למידה אינטראקטיבית */}
+          {/* <div
+            className={styles.optionCard}
+            onClick={() => handleNavigation('/interactive-learning')}
+          >
+            <div className={styles.cardIcon}>
+              <BookOpen size={48} />
+            </div>
+            <h2 className={styles.cardTitle}>למידה אינטראקטיבית</h2>
+            <p className={styles.cardDescription}>
+              הרצאות, תרגולים וסיכומי למידה במקום אחד
+            </p>
+          </div> */}
+
+
+             {/* המחשה ויזואלית של SQL */}
+             <div
+            className={`${styles.optionCard}`}
+            // onClick={() => {}}
+            onClick={() => handleNavigation('/homework')}
           >
             <div className={styles.cardIcon}>
               <Database size={48} />
             </div>
             <h2 className={styles.cardTitle}>מודול תרגילי בית</h2>
             <p className={styles.cardDescription}>
-            יגיע בהמשך
             </p>
           </div>
-
-          {/* סביבת למידה אינטרנטיקית */}
-          {/* <div
-            className={`${styles.optionCard} ${styles.optionCardDisabled}`}
-            onClick={() => {
-              // Placeholder - does nothing for now
-            }}
-          >
-            <div className={styles.cardIcon}>
-              <BookOpen size={48} />
-            </div>
-            <h2 className={styles.cardTitle}>סביבת למידה אינטרנטיקית</h2>
-            <p className={styles.cardDescription}>
-              יגיע בהמשך
-            </p>
-          </div> */}
 
           {/* ממשק ניהול - Admin Interface */}
           {isAdmin && (

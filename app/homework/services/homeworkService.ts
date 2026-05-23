@@ -14,6 +14,7 @@ type HomeworkSetRequestParams = {
   role?: string;
   studentId?: string;
   email?: string;
+  allowUnavailablePreview?: boolean;
 };
 
 export async function listHomeworkSets(

@@ -92,12 +92,12 @@ async function testSprint3AIAnalysis() {
 
     // Test 6: Test conversation data collection
     console.log('\n💬 Test 6: Testing conversation data collection...')
-    const conversationData = await aiAnalysisEngine['getConversationData'](testUserId)
+    const conversationData = await aiAnalysisEngine['getConversationData']([testUserId])
     console.log('✅ Conversation data retrieved:', conversationData.length, 'messages')
 
     // Test 7: Test performance data collection
     console.log('\n📊 Test 7: Testing performance data collection...')
-    const performanceData = await aiAnalysisEngine['getPerformanceData'](testUserId)
+    const performanceData = await aiAnalysisEngine['getPerformanceData']([testUserId])
     console.log('✅ Performance data retrieved:', performanceData.length, 'submissions')
 
     // Test 8: Test activity statistics

@@ -7,6 +7,7 @@ import { ArrowRight, BookOpen, CalendarClock, ChevronLeft, Lock, Play } from "lu
 import styles from "./student-entry.module.css";
 import { isHomeworkAccessAdmin, isHomeworkAccessible } from "@/lib/deadline-utils";
 import { EXAM_PREP_ANNOUNCEMENT, isExamPrepTitle } from "@/lib/exam-prep-content";
+import { TutoringPreferencesCard } from "@/app/components/student/TutoringPreferencesCard";
 import type {
   HomeworkAvailabilityInfo,
   HomeworkAvailabilityState,
@@ -630,6 +631,8 @@ export function StudentEntryClient({ forcedSetId }: StudentEntryClientProps) {
                 </div>
               </div>
             )}
+
+            {/* {studentId ? <TutoringPreferencesCard studentId={studentId} /> : null} */}
 
             {/* Action buttons */}
             <div className={styles.buttonGroup}>

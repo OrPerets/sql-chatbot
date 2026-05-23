@@ -1,0 +1,39 @@
+{
+  "mode": "apply",
+  "matchedCount": 58,
+  "modifiedCount": 58,
+  "submissions": 58,
+  "targetQuestions": [
+    "Q3",
+    "Q4",
+    "Q5",
+    "Q6"
+  ],
+  "backupPath": "/Users/orperetz/Documents/shenkar/sql-chatbot/output/grading-review/hw1-q3-q6-grading-review-69aabdaaafa3dcd3648446cc-2026-05-20T04-18-48-555Z.pre-apply-backup.json",
+  "verification": [
+    {
+      "question": "Q3",
+      "gradeDistribution": "0: 5, 5: 8, 8: 13, 8.5: 9, 10: 23",
+      "commentsCount": 35,
+      "fullPointsWithComment": 0
+    },
+    {
+      "question": "Q4",
+      "gradeDistribution": "0: 5, 5: 47, 7: 4, 10: 2",
+      "commentsCount": 56,
+      "fullPointsWithComment": 0
+    },
+    {
+      "question": "Q5",
+      "gradeDistribution": "0: 6, 5: 9, 8: 6, 9: 3, 10: 4, 11: 4, 12: 26",
+      "commentsCount": 32,
+      "fullPointsWithComment": 0
+    },
+    {
+      "question": "Q6",
+      "gradeDistribution": "0: 6, 5: 12, 7: 7, 8.5: 1, 10: 32",
+      "commentsCount": 26,
+      "fullPointsWithComment": 0
+    }
+  ]
+}

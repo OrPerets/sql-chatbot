@@ -1,14 +1,15 @@
 #!/usr/bin/env ts-node
 
+import "dotenv/config";
 import { ObjectId } from 'mongodb';
 import fs from 'fs';
 import path from 'path';
-import { connectToDatabase, COLLECTIONS } from '../lib/database.js';
-import { HomeworkService } from '../lib/homework.js';
-import { QuestionsService } from '../lib/questions.js';
-import { SubmissionsService } from '../lib/submissions.js';
-import { DatasetService } from '../lib/datasets.js';
-import type { HomeworkSet, Question, PaginatedResponse, HomeworkSummary } from '../app/homework/types.js';
+import { connectToDatabase, COLLECTIONS } from '../lib/database';
+import { HomeworkService } from '../lib/homework';
+import { QuestionsService } from '../lib/questions';
+import { SubmissionsService } from '../lib/submissions';
+import { DatasetService } from '../lib/datasets';
+import type { HomeworkSet, Question, PaginatedResponse, HomeworkSummary } from '../app/homework/types';
 
 /**
  * Export Homework 1 data to local JSON files
@@ -254,14 +255,17 @@ async function main() {
     
     // List all homework sets first
     await exporter.listAllHomeworkSets();
-    
-    // Try to find homework 1
-    const homeworkIdentifier = '1'; // Try ID first, then title
+
+    const homeworkIdentifier = process.argv[2] ?? "1";
     const homeworkSet = await exporter.findHomeworkSet(homeworkIdentifier);
-    
+
     if (!homeworkSet) {
-      console.log('\n❌ Homework 1 not found. Please check the list above and try with a different identifier.');
-      console.log('Usage: node export-homework-1.ts [homework-id-or-title]');
+      console.log(
+        `\n❌ Homework not found for identifier: ${homeworkIdentifier}. Check the list above.`,
+      );
+      console.log(
+        "Usage: npx ts-node --project tsconfig.scripts.json scripts/export-homework-1.ts <homework-id-or-title>",
+      );
       return;
     }
     
@@ -327,7 +331,12 @@ async function main() {
   }
 }
 
-// Run the script
-main().catch(console.error);
+const isMainModule =
+  typeof require !== "undefined" &&
+  typeof module !== "undefined" &&
+  require.main === module;
+if (isMainModule) {
+  main().catch(console.error);
+}
 
 export { HomeworkExporter };

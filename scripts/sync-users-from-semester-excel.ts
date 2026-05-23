@@ -10,7 +10,7 @@
  */
 
 import * as path from 'path'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import dotenv from 'dotenv'
 import { connectToDatabase, COLLECTIONS } from '../lib/database'
 
@@ -118,6 +118,45 @@ function rowToUser(row: Record<string, unknown>): {
   }
 }
 
+async function readExcelRows(excelPath: string): Promise<{ sheetName: string; rows: Record<string, unknown>[] }> {
+  const workbook = new ExcelJS.Workbook()
+  await workbook.xlsx.readFile(excelPath)
+
+  const worksheet = workbook.worksheets[0]
+  if (!worksheet) {
+    throw new Error(`No worksheet found in ${excelPath}`)
+  }
+
+  const rawHeaderValues = worksheet.getRow(1).values
+  const headerValues: unknown[] = Array.isArray(rawHeaderValues) ? rawHeaderValues : []
+  const headers = headerValues.slice(1).map((value) => String(value ?? '').trim())
+  const rows: Record<string, unknown>[] = []
+
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return
+
+    const rawRowValues = row.values
+    const rowValues: unknown[] = Array.isArray(rawRowValues) ? rawRowValues : []
+    const record: Record<string, unknown> = {}
+    let hasData = false
+
+    headers.forEach((header, index) => {
+      if (!header) return
+      const value = rowValues[index + 1]
+      record[header] = value
+      if (value !== null && value !== undefined && value !== '') {
+        hasData = true
+      }
+    })
+
+    if (hasData) {
+      rows.push(record)
+    }
+  })
+
+  return { sheetName: worksheet.name, rows }
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2).filter((a) => a !== '--dry-run')
   const dryRun = process.argv.includes('--dry-run')
@@ -126,10 +165,7 @@ async function main(): Promise<void> {
   console.log(`Excel: ${excelPath}`)
   console.log(dryRun ? 'DRY RUN (no DB writes)' : 'LIVE RUN')
 
-  const workbook = XLSX.readFile(excelPath)
-  const sheetName = workbook.SheetNames[0]
-  const sheet = workbook.Sheets[sheetName]
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet)
+  const { sheetName, rows } = await readExcelRows(excelPath)
   console.log(`Sheet "${sheetName}": ${rows.length} rows`)
 
   const fromExcel: ReturnType<typeof rowToUser>[] = []

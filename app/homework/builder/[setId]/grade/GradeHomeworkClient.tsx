@@ -1145,7 +1145,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
       const validSubmissions = allSubmissionsQuery.data ?? await listSubmissions(setId);
       const datePart = new Date().toISOString().split("T")[0];
 
-      exportHomeworkGradesToExcel({
+      await exportHomeworkGradesToExcel({
         homeworkTitle: homeworkQuery.data?.title ?? setId,
         questions,
         submissions: validSubmissions,

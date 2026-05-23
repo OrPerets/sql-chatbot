@@ -1,5 +1,6 @@
 "use client";
 
+import AdminShell from "@/app/components/admin/AdminShell";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Plus, Search, Filter, BookOpen, Edit3, Trash2, Copy, AlertCircle, X, Eye, Play } from "lucide-react";
@@ -118,17 +119,20 @@ export default function TemplatesPage() {
 
   if (loading) {
     return (
-      <div className={styles.container}>
-        <div className={styles.loading}>
-          <div className={styles.spinner}></div>
-          <p>Loading templates...</p>
+      <AdminShell>
+        <div className={styles.container}>
+          <div className={styles.loading}>
+            <div className={styles.spinner}></div>
+            <p>Loading templates...</p>
+          </div>
         </div>
-      </div>
+      </AdminShell>
     );
   }
 
   return (
-    <div className={styles.container} dir="rtl">
+    <AdminShell>
+      <div className={styles.container} dir="rtl">
       <div className={styles.header}>
         <div className={styles.titleSection}>
           <h1>תבניות שאלות</h1>
@@ -308,6 +312,7 @@ export default function TemplatesPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AdminShell>
   );
 }

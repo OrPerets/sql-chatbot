@@ -9,13 +9,22 @@ const options = {
 
 interface BulkActionsProps {
   selectedUsers: string[];
+  adminEmail?: string | null;
   onSuccess: () => void;
   onError: (message: string) => void;
 }
 
-const BulkActions: React.FC<BulkActionsProps> = ({ selectedUsers, onSuccess, onError }) => {
+const BulkActions: React.FC<BulkActionsProps> = ({ selectedUsers, adminEmail, onSuccess, onError }) => {
   const [actionType, setActionType] = React.useState('');
   const [balanceAmount, setBalanceAmount] = React.useState('');
+
+  const getAdminHeaders = (baseHeaders: Record<string, string> = {}) => {
+    if (!adminEmail) return baseHeaders;
+    return {
+      ...baseHeaders,
+      'x-user-email': adminEmail,
+    };
+  };
 
   const handleAction = async () => {
     try {
@@ -42,9 +51,9 @@ const BulkActions: React.FC<BulkActionsProps> = ({ selectedUsers, onSuccess, onE
         if (actionType === 'reduce_balance') amount = -amount;
         const response = await fetch(`/api/users/coins`, {
           method: 'POST',
-          headers: {
+          headers: getAdminHeaders({
             'Content-Type': 'application/json',
-          },
+          }),
           body: JSON.stringify({ users: selectedUsers, amount })
         });
 
