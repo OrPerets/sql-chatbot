@@ -20,6 +20,22 @@ const formatScoreCell = (score: number | undefined) => {
   return "";
 };
 
+const formatReportScore = (score: number | undefined, maxScore: number) => {
+  if (typeof score !== "number") return "לא נבדק";
+  return `${score}/${maxScore}`;
+};
+
+const buildStudentReportLine = (questionIndex: number, question: Question, submission: Submission) => {
+  const answer = submission.answers?.[question.id];
+  const score = answer?.feedback?.score;
+  const maxScore = question.points;
+  const instructorNotes = answer?.feedback?.instructorNotes?.trim() ?? "";
+  const fullCredit = typeof score === "number" && score >= maxScore;
+  const feedbackSuffix = instructorNotes && !fullCredit ? ` - ${instructorNotes}` : "";
+
+  return `שאלה ${questionIndex + 1} (${formatReportScore(score, maxScore)})${feedbackSuffix}`;
+};
+
 export function buildHomeworkGradesWorkbook({
   homeworkTitle,
   questions,
@@ -34,6 +50,7 @@ export function buildHomeworkGradesWorkbook({
   });
 
   headers.push('סה"כ');
+  headers.push("דוח לתלמיד");
 
   // Create a map of studentId to enriched data from summaries
   const studentDataMap = new Map<string, StudentData>();
@@ -66,10 +83,20 @@ export function buildHomeworkGradesWorkbook({
         : questions.reduce((sum, question) => sum + (submission.answers?.[question.id]?.feedback?.score ?? 0), 0);
 
     row.push(totalScore);
+    row.push(questions.map((question, index) => buildStudentReportLine(index, question, submission)).join("\n///\n"));
     return row;
   });
 
   const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  const reportColumnIndex = headers.length - 1;
+  submissions.forEach((_, rowIndex) => {
+    const cellAddress = XLSX.utils.encode_cell({ r: rowIndex + 1, c: reportColumnIndex });
+    if (worksheet[cellAddress]) {
+      worksheet[cellAddress].s = {
+        alignment: { wrapText: true, vertical: "top" },
+      };
+    }
+  });
   
   // Set column widths - wider for name and email columns
   const colWidths = [12, 20, 25]; // ת.ז, שם, אימייל
@@ -77,6 +104,7 @@ export function buildHomeworkGradesWorkbook({
     colWidths.push(12, 25); // ניקוד, הערה
   });
   colWidths.push(10); // סה"כ
+  colWidths.push(60); // דוח לתלמיד
   worksheet["!cols"] = colWidths.map(wch => ({ wch }));
 
   const workbook = XLSX.utils.book_new();

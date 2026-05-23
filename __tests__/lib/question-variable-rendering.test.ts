@@ -44,4 +44,26 @@ describe("question variable rendering", () => {
 
     expect(rendered.instructions).toBe("שכר מעל 7500.");
   });
+
+  it("renders legacy HW2 country placeholders as country names in the prompt and state codes in RA", () => {
+    const question = createQuestion({
+      prompt: "הציגו את שמות האוניברסיטאות שנמצאות ב-{{country_1}}, {{country_2}} ו-{{country_3}}.",
+      starterSql:
+        "π universityName (σ state = '{{country_1}}' (Universities))\n" +
+        "∪ π universityName (σ state = '{{country_2}}' (Universities))\n" +
+        "∪ π universityName (σ state = '{{country_3}}' (Universities))",
+    });
+
+    const rendered = renderQuestionVariables(question, {
+      homeworkSetId: "69aabdacafa3dcd3648446e2",
+      studentId: "orperets11@gmail.com",
+    });
+
+    expect(rendered.prompt).toContain("איטליה, פורטוגל וספרד");
+    expect(rendered.prompt).not.toContain("{{");
+    expect(rendered.starterSql).toContain("state = 'IT'");
+    expect(rendered.starterSql).toContain("state = 'PO'");
+    expect(rendered.starterSql).toContain("state = 'SP'");
+    expect(rendered.starterSql).not.toContain("{{");
+  });
 });

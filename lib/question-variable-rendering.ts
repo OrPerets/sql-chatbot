@@ -21,6 +21,12 @@ const FALLBACK_VARIABLES: Record<string, VariableDefinition> = {
   street_letter: variable("street_letter", "list", { options: ["a", "e", "i", "o", "r", "n", "l"] }),
 };
 
+const LEGACY_HW2_COUNTRY_VALUES = {
+  country_1: { display: "איטליה", sql: "IT" },
+  country_2: { display: "פורטוגל", sql: "PO" },
+  country_3: { display: "ספרד", sql: "SP" },
+} as const;
+
 function variable(name: string, type: VariableDefinition["type"], constraints?: VariableDefinition["constraints"]): VariableDefinition {
   return {
     id: name,
@@ -56,6 +62,30 @@ function renderText(text: string | undefined, valuesByName: Map<string, unknown>
     if (!valuesByName.has(name)) return match;
     return String(valuesByName.get(name));
   });
+}
+
+function normalizeLegacyHw2CountryPrefixes(text: string | undefined): string | undefined {
+  if (typeof text !== "string") return text;
+  return text
+    .replace(/ב-(איטליה|פורטוגל|ספרד)/g, "ב$1")
+    .replace(/ו-(איטליה|פורטוגל|ספרד)/g, "ו$1");
+}
+
+function hasLegacyHw2CountryVariable(name: string): name is keyof typeof LEGACY_HW2_COUNTRY_VALUES {
+  return name in LEGACY_HW2_COUNTRY_VALUES;
+}
+
+function withLegacyHw2CountryValues(
+  valuesByName: Map<string, unknown>,
+  mode: "display" | "sql",
+): Map<string, unknown> {
+  const mergedValues = new Map(valuesByName);
+
+  for (const [name, values] of Object.entries(LEGACY_HW2_COUNTRY_VALUES)) {
+    mergedValues.set(name, values[mode]);
+  }
+
+  return mergedValues;
 }
 
 function findTemplateDefinitions(question: Question, templates: QuestionTemplate[]): VariableDefinition[] {
@@ -104,10 +134,14 @@ export function renderQuestionVariables(
   if (variableNames.length === 0) return question;
 
   const existingValues = Array.isArray(question.variables) ? question.variables as VariableValue[] : [];
-  const definitions = resolveDefinitions(question, options.templates ?? []);
+  const hasLegacyHw2Countries = variableNames.some(hasLegacyHw2CountryVariable);
+  const definitions = resolveDefinitions(question, options.templates ?? [])
+    .filter((definition) => !hasLegacyHw2CountryVariable(definition.name));
+  const definitionIds = new Set(definitions.map((definition) => definition.id));
+  const scopedExistingValues = existingValues.filter((value) => definitionIds.has(value.variableId));
   const seedQuestionId = question.templateId ?? question.id;
-  const generatedValues = existingValues.length > 0
-    ? existingValues
+  const generatedValues = scopedExistingValues.length > 0
+    ? scopedExistingValues
     : TemplateSystem.generateVariableValues(definitions, `${options.homeworkSetId}-${seedQuestionId}-${options.studentId}`);
   const definitionsById = new Map(definitions.map((definition) => [definition.id, definition]));
   const valuesByName = new Map<string, unknown>();
@@ -117,12 +151,19 @@ export function renderQuestionVariables(
     valuesByName.set(name, value.value);
   }
 
+  const displayValuesByName = hasLegacyHw2Countries
+    ? withLegacyHw2CountryValues(valuesByName, "display")
+    : valuesByName;
+  const sqlValuesByName = hasLegacyHw2Countries
+    ? withLegacyHw2CountryValues(valuesByName, "sql")
+    : valuesByName;
+
   return {
     ...question,
-    prompt: renderText(question.prompt, valuesByName) ?? question.prompt,
-    instructions: renderText(question.instructions, valuesByName) ?? question.instructions,
-    expectedOutputDescription: renderText(question.expectedOutputDescription, valuesByName),
-    starterSql: renderText(question.starterSql, valuesByName),
+    prompt: normalizeLegacyHw2CountryPrefixes(renderText(question.prompt, displayValuesByName)) ?? question.prompt,
+    instructions: normalizeLegacyHw2CountryPrefixes(renderText(question.instructions, displayValuesByName)) ?? question.instructions,
+    expectedOutputDescription: normalizeLegacyHw2CountryPrefixes(renderText(question.expectedOutputDescription, displayValuesByName)),
+    starterSql: renderText(question.starterSql, sqlValuesByName),
     variables: generatedValues,
   };
 }
