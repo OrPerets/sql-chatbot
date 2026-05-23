@@ -13,7 +13,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { ObjectId } from 'mongodb';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import dotenv from 'dotenv';
 import { connectToDatabase, COLLECTIONS } from '../lib/database';
 
@@ -355,10 +355,14 @@ function formatDistribution(values: Array<number | null>): string {
     .join(', ');
 }
 
-function fitColumns<T extends object>(worksheet: XLSX.WorkSheet, rows: T[]) {
+function addJsonSheet<T extends object>(workbook: ExcelJS.Workbook, sheetName: string, rows: T[]) {
+  const worksheet = workbook.addWorksheet(sheetName);
   const headers = Object.keys(rows[0] ?? {}) as Array<keyof T>;
-  worksheet['!cols'] = headers.map((header) => ({
-    wch: Math.min(
+
+  worksheet.columns = headers.map((header) => ({
+    header: String(header),
+    key: String(header),
+    width: Math.min(
       80,
       Math.max(
         String(header).length + 2,
@@ -366,6 +370,14 @@ function fitColumns<T extends object>(worksheet: XLSX.WorkSheet, rows: T[]) {
       ),
     ),
   }));
+
+  for (const row of rows) {
+    worksheet.addRow(
+      Object.fromEntries(headers.map((header) => [String(header), row[header]])),
+    );
+  }
+
+  worksheet.getRow(1).font = { bold: true };
 }
 
 async function main() {
@@ -527,7 +539,7 @@ async function main() {
       };
     });
 
-  const workbook = XLSX.utils.book_new();
+  const workbook = new ExcelJS.Workbook();
   const sheets = [
     ['Style Review', styleRows],
     ['Style Examples', styleExamples],
@@ -537,10 +549,7 @@ async function main() {
   ] as const;
 
   for (const [sheetName, rows] of sheets) {
-    const typedRows = rows as object[];
-    const worksheet = XLSX.utils.json_to_sheet(typedRows);
-    fitColumns(worksheet, typedRows);
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    addJsonSheet(workbook, sheetName, rows as object[]);
   }
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -550,7 +559,7 @@ async function main() {
   const applyReportPath = path.join(options.outDir, `${baseName}.apply-report.json`);
   const backupPath = path.join(options.outDir, `${baseName}.pre-apply-backup.json`);
 
-  XLSX.writeFile(workbook, xlsxPath);
+  await workbook.xlsx.writeFile(xlsxPath);
   fs.writeFileSync(jsonPath, JSON.stringify({
     homeworkSetId: canonicalHomeworkSetId,
     homeworkTitle: homeworkSet.title ?? '',
