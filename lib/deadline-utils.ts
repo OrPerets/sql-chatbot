@@ -28,6 +28,7 @@ const EXTENDED_DEADLINE_USERS = [
 const HOMEWORK_ACCESS_ADMIN_EMAILS = [
   'orperets11@gmail.com',
   'roeizer@shenkar.ac.il',
+  'talushka7@gmail.com',
 ] as const;
 
 // Extension duration in milliseconds (2 days)
