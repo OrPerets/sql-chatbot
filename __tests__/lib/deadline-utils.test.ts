@@ -28,8 +28,10 @@ describe('deadline-utils availability windows', () => {
 
     expect(isHomeworkAccessAdmin('orperets11@gmail.com')).toBe(true);
     expect(isHomeworkAccessAdmin('roeizer@shenkar.ac.il')).toBe(true);
+    expect(isHomeworkAccessAdmin('talushka7@gmail.com')).toBe(true);
     expect(getAvailabilityState(homework, 'orperets11@gmail.com', now)).toBe('open');
     expect(isHomeworkAccessible(homework, 'roeizer@shenkar.ac.il', now)).toBe(true);
+    expect(getAvailabilityState(homework, 'talushka7@gmail.com', now)).toBe('open');
   });
 
   it('treats legacy dueAt-only homework as open before the deadline', () => {
