@@ -57,6 +57,20 @@ function renderQuestionsForStudent(
   return questions.map((question) => renderQuestionVariables(question, options));
 }
 
+export function orderQuestionsByHomeworkSet(questions: Question[], homeworkSet: Pick<HomeworkSet, 'questionOrder'>): Question[] {
+  const questionOrder = homeworkSet.questionOrder ?? [];
+  if (questionOrder.length === 0) return questions;
+
+  const questionsById = new Map(questions.map((question) => [question.id, question]));
+  const orderedQuestions = questionOrder
+    .map((questionId) => questionsById.get(questionId))
+    .filter((question): question is Question => Boolean(question));
+  const orderedIds = new Set(orderedQuestions.map((question) => question.id));
+  const remainingQuestions = questions.filter((question) => !orderedIds.has(question.id));
+
+  return [...orderedQuestions, ...remainingQuestions];
+}
+
 async function getStudentQuestionsContext(setId: string): Promise<StudentQuestionsContext> {
   const [generator, homeworkService] = await Promise.all([
     getQuestionGenerator(),
@@ -87,7 +101,7 @@ async function getRenderedQuestionsFromContext(
 
   if (regularQuestions.length > 0) {
     const templates = await getTemplatesIfNeeded(regularQuestions);
-    return renderQuestionsForStudent(regularQuestions, {
+    return renderQuestionsForStudent(orderQuestionsByHomeworkSet(regularQuestions, homeworkSet), {
       homeworkSetId: setId,
       studentId,
       templates,

@@ -19,6 +19,19 @@ const FALLBACK_VARIABLES: Record<string, VariableDefinition> = {
   last_name_letter: variable("last_name_letter", "list", { options: ["a", "e", "i", "o", "r", "n", "l"] }),
   excluded_department_letter: variable("excluded_department_letter", "list", { options: ["a", "e", "i", "o", "r", "n", "l"] }),
   street_letter: variable("street_letter", "list", { options: ["a", "e", "i", "o", "r", "n", "l"] }),
+  papers: variable("papers", "number", { min: 8, max: 16 }),
+  min_publications: variable("min_publications", "number", { min: 12, max: 18 }),
+  year: variable("year", "number", { min: 2023, max: 2026 }),
+  researcher_name: variable("researcher_name", "list", {
+    options: ["Prof. Nadya Segev", "Prof. Michael Chen", "Prof. Dana Levi", "Prof. Amir Cohen"],
+  }),
+  include_field: variable("include_field", "list", { options: ["AI", "DB", "SQL", "ML"] }),
+  exclude_field: variable("exclude_field", "list", { options: ["DB", "AI", "SQL", "ML"] }),
+  excluded_field: variable("excluded_field", "list", { options: ["SQL", "DB", "AI", "ML"] }),
+  country: variable("country", "list", { options: ["Israel", "Italy", "Portugal", "Spain"] }),
+  target_country: variable("target_country", "list", { options: ["China", "Italy", "Spain"] }),
+  benchmark_country: variable("benchmark_country", "list", { options: ["US", "UK", "Germany"] }),
+  benchmark_university: variable("benchmark_university", "list", { options: ["Yale", "Stanford", "Oxford"] }),
 };
 
 const LEGACY_HW2_COUNTRY_VALUES = {
@@ -26,6 +39,36 @@ const LEGACY_HW2_COUNTRY_VALUES = {
   country_2: { display: "פורטוגל", sql: "PO" },
   country_3: { display: "ספרד", sql: "SP" },
 } as const;
+
+const DISPLAY_SQL_VALUES: Record<string, Record<string, { display: string; sql: string }>> = {
+  country: {
+    Israel: { display: "ישראל", sql: "Israel" },
+    Italy: { display: "איטליה", sql: "Italy" },
+    Portugal: { display: "פורטוגל", sql: "Portugal" },
+    Spain: { display: "ספרד", sql: "Spain" },
+  },
+  target_country: {
+    China: { display: "סין", sql: "China" },
+    Italy: { display: "איטליה", sql: "Italy" },
+    Spain: { display: "ספרד", sql: "Spain" },
+  },
+  benchmark_country: {
+    US: { display: 'ארה"ב', sql: "US" },
+    UK: { display: "בריטניה", sql: "UK" },
+    Germany: { display: "גרמניה", sql: "Germany" },
+  },
+};
+
+const HEBREW_PREFIX_VALUES = [
+  "איטליה",
+  "פורטוגל",
+  "ספרד",
+  "ישראל",
+  "סין",
+  'ארה"ב',
+  "בריטניה",
+  "גרמניה",
+];
 
 function variable(name: string, type: VariableDefinition["type"], constraints?: VariableDefinition["constraints"]): VariableDefinition {
   return {
@@ -64,11 +107,17 @@ function renderText(text: string | undefined, valuesByName: Map<string, unknown>
   });
 }
 
-function normalizeLegacyHw2CountryPrefixes(text: string | undefined): string | undefined {
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeHebrewPrefixes(text: string | undefined): string | undefined {
   if (typeof text !== "string") return text;
+  const valuesPattern = HEBREW_PREFIX_VALUES.map(escapeRegExp).join("|");
   return text
-    .replace(/ב-(איטליה|פורטוגל|ספרד)/g, "ב$1")
-    .replace(/ו-(איטליה|פורטוגל|ספרד)/g, "ו$1");
+    .replace(new RegExp(`([בוכלמש])-(?:${valuesPattern})`, "g"), (match, prefix) => {
+      return `${prefix}${match.slice(2)}`;
+    });
 }
 
 function hasLegacyHw2CountryVariable(name: string): name is keyof typeof LEGACY_HW2_COUNTRY_VALUES {
@@ -86,6 +135,51 @@ function withLegacyHw2CountryValues(
   }
 
   return mergedValues;
+}
+
+function coerceValueForDefinition(value: VariableValue, definition: VariableDefinition): VariableValue {
+  const options = definition.constraints?.options;
+
+  if (definition.type === "list" && Array.isArray(options) && options.length > 0 && !options.includes(String(value.value))) {
+    return { ...value, value: options[0] };
+  }
+
+  if (definition.type === "number" && typeof value.value !== "number") {
+    return { ...value, value: definition.constraints?.min ?? 1 };
+  }
+
+  return value;
+}
+
+function coerceGeneratedValues(values: VariableValue[], definitionsById: Map<string, VariableDefinition>): VariableValue[] {
+  return values.map((value) => {
+    const definition = definitionsById.get(value.variableId);
+    return definition ? coerceValueForDefinition(value, definition) : value;
+  });
+}
+
+function makeRenderedValues(valuesByName: Map<string, unknown>, mode: "display" | "sql"): Map<string, unknown> {
+  const renderedValues = new Map(valuesByName);
+
+  for (const [name, value] of valuesByName.entries()) {
+    const valueText = String(value);
+    const override = DISPLAY_SQL_VALUES[name]?.[valueText];
+    if (override) {
+      renderedValues.set(name, override[mode]);
+    }
+  }
+
+  return renderedValues;
+}
+
+function makeFieldsDistinct(valuesByName: Map<string, unknown>): void {
+  const includeField = valuesByName.get("include_field");
+  const excludeField = valuesByName.get("exclude_field");
+  if (!includeField || !excludeField || includeField !== excludeField) return;
+
+  const fieldOptions = FALLBACK_VARIABLES.exclude_field.constraints?.options ?? ["DB"];
+  const replacement = fieldOptions.find((option) => option !== includeField) ?? "DB";
+  valuesByName.set("exclude_field", replacement);
 }
 
 function findTemplateDefinitions(question: Question, templates: QuestionTemplate[]): VariableDefinition[] {
@@ -144,26 +238,36 @@ export function renderQuestionVariables(
     ? scopedExistingValues
     : TemplateSystem.generateVariableValues(definitions, `${options.homeworkSetId}-${seedQuestionId}-${options.studentId}`);
   const definitionsById = new Map(definitions.map((definition) => [definition.id, definition]));
+  const normalizedGeneratedValues = coerceGeneratedValues(generatedValues, definitionsById);
   const valuesByName = new Map<string, unknown>();
 
-  for (const value of generatedValues) {
+  for (const value of normalizedGeneratedValues) {
     const name = definitionsById.get(value.variableId)?.name ?? value.variableId;
     valuesByName.set(name, value.value);
   }
 
+  makeFieldsDistinct(valuesByName);
+
   const displayValuesByName = hasLegacyHw2Countries
-    ? withLegacyHw2CountryValues(valuesByName, "display")
-    : valuesByName;
+    ? withLegacyHw2CountryValues(makeRenderedValues(valuesByName, "display"), "display")
+    : makeRenderedValues(valuesByName, "display");
   const sqlValuesByName = hasLegacyHw2Countries
-    ? withLegacyHw2CountryValues(valuesByName, "sql")
-    : valuesByName;
+    ? withLegacyHw2CountryValues(makeRenderedValues(valuesByName, "sql"), "sql")
+    : makeRenderedValues(valuesByName, "sql");
+  const returnedVariables = normalizedGeneratedValues.map((value) => {
+    const name = definitionsById.get(value.variableId)?.name ?? value.variableId;
+    return {
+      ...value,
+      value: valuesByName.get(name) ?? value.value,
+    };
+  });
 
   return {
     ...question,
-    prompt: normalizeLegacyHw2CountryPrefixes(renderText(question.prompt, displayValuesByName)) ?? question.prompt,
-    instructions: normalizeLegacyHw2CountryPrefixes(renderText(question.instructions, displayValuesByName)) ?? question.instructions,
-    expectedOutputDescription: normalizeLegacyHw2CountryPrefixes(renderText(question.expectedOutputDescription, displayValuesByName)),
+    prompt: normalizeHebrewPrefixes(renderText(question.prompt, displayValuesByName)) ?? question.prompt,
+    instructions: normalizeHebrewPrefixes(renderText(question.instructions, displayValuesByName)) ?? question.instructions,
+    expectedOutputDescription: normalizeHebrewPrefixes(renderText(question.expectedOutputDescription, displayValuesByName)),
     starterSql: renderText(question.starterSql, sqlValuesByName),
-    variables: generatedValues,
+    variables: returnedVariables,
   };
 }
