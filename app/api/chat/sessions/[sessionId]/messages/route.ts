@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server'
 import { getChatMessages, saveChatMessage } from '@/lib/chat'
+import { ObjectId } from 'mongodb'
+
+function isValidSessionId(sessionId: string) {
+  return ObjectId.isValid(sessionId)
+}
 
 export async function GET(
   _request: Request,
@@ -8,6 +13,10 @@ export async function GET(
   try {
     const params = await context.params
     const { sessionId } = params
+    if (!isValidSessionId(sessionId)) {
+      return NextResponse.json({ error: 'Invalid sessionId' }, { status: 400 })
+    }
+
     const messages = await getChatMessages(sessionId)
     return NextResponse.json(messages)
   } catch (error) {
@@ -23,6 +32,10 @@ export async function POST(
   try {
     const params = await context.params
     const { sessionId } = params
+    if (!isValidSessionId(sessionId)) {
+      return NextResponse.json({ error: 'Invalid sessionId' }, { status: 400 })
+    }
+
     const body = await request.json()
     const role = body.role
     const text = body.message || body.text

@@ -441,6 +441,7 @@ const Chat = ({
   const [authResolved, setAuthResolved] = useState(false);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const currentChatIdRef = useRef<string | null>(null);
   const [isDone, setIsDone] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -578,10 +579,17 @@ const Chat = ({
     }
   }, []);
 
+  useEffect(() => {
+    currentChatIdRef.current = currentChatId;
+  }, [currentChatId]);
+
   // Add state for progressive speech
   const [streamingText, setStreamingText] = useState<string>("");
   const [hasStartedSpeaking, setHasStartedSpeaking] = useState(false);
   const streamingTextRef = useRef<string>("");
+  const assistantPersistTextRef = useRef<string>("");
+  const assistantPersistSessionIdRef = useRef<string | null>(null);
+  const assistantPersistSavedRef = useRef(false);
   const progressiveSpeechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [reasoningLogs, setReasoningLogs] = useState<string[]>([]);
   const [reasoningDraft, setReasoningDraft] = useState("");
@@ -1179,6 +1187,69 @@ useEffect(() => {
     })    
   };
 
+  const saveMessageToChat = async (
+    chatId: string,
+    role: "user" | "assistant",
+    message: string,
+    userEmail?: string
+  ) => {
+    if (!chatId || !message.trim()) return;
+
+    const response = await fetch(`/api/chat/sessions/${chatId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chatId,
+        userId: userEmail,
+        message,
+        role,
+      }),
+    });
+
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(data?.error || `Failed to save ${role} message`);
+    }
+
+    return data;
+  };
+
+  const ensurePersistedChatSession = async (userEmail: string, firstMessageText: string) => {
+    if (currentChatIdRef.current) {
+      return currentChatIdRef.current;
+    }
+
+    const previousSessionId = localStorage.getItem('previousSessionId');
+    if (previousSessionId) {
+      triggerConversationAnalysis(previousSessionId);
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const response = await fetch(`/api/chat/sessions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: `${firstMessageText.substring(0, 30)} (${today})`,
+        user: userEmail,
+      }),
+    });
+
+    const newChat = await response.json().catch(() => null);
+    if (!response.ok || !newChat?._id) {
+      throw new Error(newChat?.error || 'Failed to create chat session');
+    }
+
+    currentChatIdRef.current = newChat._id;
+    setCurrentChatId(newChat._id);
+    localStorage.setItem('previousSessionId', newChat._id);
+    refreshChatSessions();
+    return newChat._id as string;
+  };
+
   // Handle window resize for responsive sidebar behavior
   useEffect(() => {
     const handleResize = () => {
@@ -1585,60 +1656,21 @@ const updateUserBalance = async (value) => {
     //     setBalanceError(false);
     //   }, 3000);
     // } else {
-      updateUserBalance(currentBalance - estimatedCost)
-      setCurrentBalance(currentBalance - estimatedCost)
-      const storedUser = getStoredUser();
-      const userEmail = storedUser?.email;
-      let today = new Date().toISOString().slice(0, 10);
-    if (!currentChatId) {
-      // Trigger conversation analysis for the previous session if it exists
-      const previousSessionId = localStorage.getItem('previousSessionId');
-      if (previousSessionId) {
-        triggerConversationAnalysis(previousSessionId);
-      }
-      
-      if (userEmail) {
-        fetch(`/api/chat/sessions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ "title": text.substring(0, 30) + " (" + today + ")", "user": userEmail }),
-        }).then(response => response.json()).then(newChat => {
-          setCurrentChatId(newChat._id);
-          localStorage.setItem('previousSessionId', newChat._id);
-          refreshChatSessions(); // Refresh the chat sessions list from server
-          // Save the message to the server (save original text without tags)
-          fetch(`/api/chat/sessions/${newChat._id}/messages`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              chatId: newChat._id,
-              userId: userEmail,
-              message: text, // Save original text without tags
-              role: 'user'
-            }),
-          });
-        })
-      }
-    }
+    updateUserBalance(currentBalance - estimatedCost)
+    setCurrentBalance(currentBalance - estimatedCost)
+    const storedUser = getStoredUser();
+    const userEmail = storedUser?.email;
+    assistantPersistTextRef.current = "";
+    assistantPersistSessionIdRef.current = null;
+    assistantPersistSavedRef.current = false;
 
-    else {
-      if (userEmail) {
-        fetch(`/api/chat/sessions/${currentChatId}/messages`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            chatId: currentChatId,
-            userId: userEmail,
-            message: text, // Save original text without tags
-            role: 'user'
-          }),
-        });
+    if (userEmail) {
+      try {
+        const chatId = await ensurePersistedChatSession(userEmail, text);
+        assistantPersistSessionIdRef.current = chatId;
+        await saveMessageToChat(chatId, 'user', text, userEmail);
+      } catch (persistenceError) {
+        console.error('Error saving user chat message:', persistenceError);
       }
     }
     
@@ -1761,6 +1793,7 @@ const loadChatMessages = (chatId: string) => {
   }).then(response => response.json()).then(chatMessages => {
     const uniqueItems = keepOneInstance(chatMessages, "text");   
     setMessages(uniqueItems);
+    currentChatIdRef.current = chatId;
     setCurrentChatId(chatId);
     setLoadingMessages(false);
   })  
@@ -1792,6 +1825,7 @@ const loadChatMessages = (chatId: string) => {
     setIsThinking(false); // Stop thinking when assistant starts responding
     setHasStartedSpeaking(false); // Reset for new message
     streamingTextRef.current = "";
+    assistantPersistTextRef.current = "";
     tutorRawResponseRef.current = "";
     setStreamingText("");
     // Create a stable message id for this assistant message
@@ -1817,6 +1851,7 @@ const loadChatMessages = (chatId: string) => {
       
       // Update streaming text for progressive speech
       streamingTextRef.current += text;
+      assistantPersistTextRef.current += text;
       setStreamingText(streamingTextRef.current);
       
       appendToLastMessage(text);
@@ -1832,6 +1867,7 @@ const loadChatMessages = (chatId: string) => {
       const step = text.length > 900 ? 8 : text.length > 450 ? 5 : 3;
       for (let i = 0; i < text.length; i += step) {
         const chunk = text.slice(i, i + step);
+        assistantPersistTextRef.current += chunk;
         setMessages((prevMessages) => {
           const lastMessage = prevMessages[prevMessages.length - 1];
           if (!lastMessage) return prevMessages;
@@ -1850,39 +1886,27 @@ const loadChatMessages = (chatId: string) => {
     []
   );
 
-   // New function to handle message changes
-  const handleMessagesChange = useCallback(() => {
-    if (!currentChatId) {
+  const persistFinalAssistantMessage = () => {
+    if (assistantPersistSavedRef.current) {
       return;
     }
 
-    let msgs = messages.filter(msg => msg.role === "assistant")
-    if (msgs.length > 0) {
-        const storedUser = getStoredUser();
-        if (!storedUser?.email) return;
-        // Save the message to the server
-        fetch(`/api/chat/sessions/${currentChatId}/messages`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            chatId: currentChatId,
-            userId: storedUser.email,
-            message: msgs[msgs.length - 1].text,
-            role: 'assistant'
-          }),
-        }); 
+    const chatId = assistantPersistSessionIdRef.current;
+    const message = assistantPersistTextRef.current.trim();
+    const storedUser = getStoredUser();
+    if (!chatId || !message || !storedUser?.email) {
+      return;
     }
-  }, [currentChatId, getStoredUser, messages]);
 
-   // Use effect to watch for changes in messages
-   useEffect(() => {
-    handleMessagesChange();
-  }, [isDone, handleMessagesChange]);
+    assistantPersistSavedRef.current = true;
+    saveMessageToChat(chatId, 'assistant', message, storedUser.email).catch((error) => {
+      console.error('Error saving final assistant chat message:', error);
+    });
+  };
 
 
   const endStreamResponse = () => {
+    persistFinalAssistantMessage();
     setInputDisabled(false);
     setIsThinking(false);
     setIsDone(true);
@@ -1997,6 +2021,7 @@ const loadChatMessages = (chatId: string) => {
   };
 
   const setLastAssistantMessageText = (text: string) => {
+    assistantPersistTextRef.current = text;
     setMessages((prevMessages) => {
       const lastMessage = prevMessages[prevMessages.length - 1];
       if (!lastMessage) return prevMessages;
@@ -2035,6 +2060,7 @@ const loadChatMessages = (chatId: string) => {
     const formattedText = buildTutorResponseText(tutorResponse);
 
     if (progressive) {
+      assistantPersistTextRef.current = "";
       setMessages((prevMessages) => {
         const lastMessage = prevMessages[prevMessages.length - 1];
         if (!lastMessage) {
@@ -2073,6 +2099,7 @@ const loadChatMessages = (chatId: string) => {
       };
 
       if (lastMessage.role === "assistant") {
+        assistantPersistTextRef.current = formattedText;
         setLastAssistantMessage(formattedText);
         if (onAssistantResponse) {
           onAssistantResponse(formattedText);
@@ -2088,6 +2115,7 @@ const loadChatMessages = (chatId: string) => {
     
     // Track last assistant message for speech synthesis
     if (role === 'assistant') {
+      assistantPersistTextRef.current = text;
       setLastAssistantMessage(text);
       
       // Notify parent component about assistant response for avatar interaction
@@ -2170,6 +2198,7 @@ const loadChatMessages = (chatId: string) => {
   }
 
   const openNewChat = () => {
+    currentChatIdRef.current = null;
     setCurrentChatId(null);
     setMessages([]);
     setStreamError(null);
