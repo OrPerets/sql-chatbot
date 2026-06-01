@@ -66,6 +66,33 @@ function normalizeSubmission(submission: SubmissionModel): Submission {
   };
 }
 
+interface SubmissionStudentInfo {
+  email?: string;
+  name?: string;
+  studentIdNumber?: string;
+}
+
+function getUserDisplayName(user: any): string | undefined {
+  return user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : undefined);
+}
+
+function addUserLookupEntries(
+  userMap: Map<string, SubmissionStudentInfo>,
+  user: any,
+  info: SubmissionStudentInfo,
+) {
+  const keys = [user.email, user.id, user._id?.toString()].filter(
+    (key): key is string => typeof key === "string" && key.length > 0,
+  );
+
+  keys.forEach((key) => {
+    userMap.set(key, info);
+    if (key.includes("@")) {
+      userMap.set(key.toLowerCase(), info);
+    }
+  });
+}
+
 /**
  * Submissions service for database operations
  */
@@ -138,26 +165,36 @@ export class SubmissionsService {
       .collection(COLLECTIONS.QUESTIONS)
       .countDocuments(questionQuery);
 
-    // Fetch user data for all students to get their names and ID numbers
-    const studentIds = submissions.map(s => s.studentId);
+    // Fetch user data for all students to get names, emails, and ID numbers.
+    // Older submissions may store the users._id string as studentId, so include _id in the lookup.
+    const studentIds = Array.from(new Set(submissions.map(s => s.studentId).filter(Boolean)));
+    const studentEmailKeys = Array.from(new Set(studentIds.flatMap((studentId) => [studentId, studentId.toLowerCase()])));
+    const studentObjectIds = studentIds
+      .filter(isObjectIdString)
+      .map((studentId) => new ObjectId(studentId));
+    const userLookupConditions: any[] = [
+      { email: { $in: studentEmailKeys } },
+      { id: { $in: studentIds } },
+    ];
+
+    if (studentObjectIds.length > 0) {
+      userLookupConditions.push({ _id: { $in: studentObjectIds } });
+    }
+
     const users = await this.db
       .collection(COLLECTIONS.USERS)
-      .find({ 
-        $or: [
-          { email: { $in: studentIds } },
-          { id: { $in: studentIds } }
-        ]
-      })
+      .find({ $or: userLookupConditions })
       .toArray();
 
     // Create a map of studentId -> user data
-    const userMap = new Map<string, { name?: string; studentIdNumber?: string }>();
+    const userMap = new Map<string, SubmissionStudentInfo>();
     users.forEach((user: any) => {
-      const key = user.email || user.id;
-      userMap.set(key, {
-        name: user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : undefined),
+      const info = {
+        email: user.email,
+        name: getUserDisplayName(user),
         studentIdNumber: user.studentIdNumber,
-      });
+      };
+      addUserLookupEntries(userMap, user, info);
     });
 
     return submissions.map(submission => {
@@ -170,6 +207,7 @@ export class SubmissionsService {
       return {
         id: normalizeSubmission(submission).id,
         studentId: submission.studentId,
+        studentEmail: userData?.email ?? (submission.studentId.includes("@") ? submission.studentId : undefined),
         studentIdNumber: userData?.studentIdNumber,
         studentName: userData?.name,
         status: submission.status,

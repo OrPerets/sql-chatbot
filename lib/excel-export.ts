@@ -4,6 +4,7 @@ import type { Question, Submission, SubmissionSummary } from "@/app/homework/typ
 interface StudentData {
   studentIdNumber?: string; // ת.ז
   studentName?: string;
+  studentEmail?: string;
 }
 
 interface ExportHomeworkParams {
@@ -59,6 +60,7 @@ export function buildHomeworkGradesWorkbook({
       studentDataMap.set(summary.id, {
         studentIdNumber: summary.studentIdNumber,
         studentName: summary.studentName,
+        studentEmail: summary.studentEmail,
       });
     });
   }
@@ -67,7 +69,7 @@ export function buildHomeworkGradesWorkbook({
     const studentData = studentDataMap.get(submission.id);
     const studentIdNumber = studentData?.studentIdNumber ?? "";
     const studentName = studentData?.studentName ?? (submission as any).studentName ?? "";
-    const email = submission.studentId ?? "";
+    const email = studentData?.studentEmail ?? (submission.studentId?.includes("@") ? submission.studentId : "");
 
     const row: (string | number)[] = [studentIdNumber, studentName, email];
 

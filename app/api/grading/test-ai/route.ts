@@ -14,6 +14,7 @@ interface TestAIResult {
   studentId: string;
   studentName?: string;
   studentIdNumber?: string;
+  studentEmail?: string;
   sql: string;
   result: {
     score: number;
@@ -115,6 +116,7 @@ export async function POST(request: Request) {
           studentId: submission.studentId,
           studentName: summary.studentName,
           studentIdNumber: summary.studentIdNumber,
+          studentEmail: summary.studentEmail,
           sql: answer.sql,
           result: {
             score: aiResult.score,
