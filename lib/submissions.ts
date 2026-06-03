@@ -1,6 +1,7 @@
 import { Db, ObjectId } from 'mongodb';
 import { connectToDatabase, COLLECTIONS } from './database';
 import { generateId } from './models';
+import { buildHomeworkSetIdQuery, isObjectIdString } from './homework-set-ids';
 import type { 
   Submission, 
   SubmissionSummary,
@@ -10,12 +11,7 @@ import type {
   SaveSubmissionDraftPayload
 } from '@/app/homework/types';
 import type { SubmissionModel } from './models';
-
-const OBJECT_ID_PATTERN = /^[0-9a-fA-F]{24}$/;
-
-function isObjectIdString(value: string): boolean {
-  return OBJECT_ID_PATTERN.test(value);
-}
+import { getAnswerText, hasAnswerText } from '@/app/homework/utils/answers';
 
 function buildSubmissionIdQuery(submissionId: string) {
   const conditions: any[] = [{ id: submissionId }];
@@ -44,10 +40,6 @@ function buildSubmissionIdsQuery(submissionIds: string[]) {
   return conditions.length > 0 ? { $or: conditions } : { id: { $in: [] } };
 }
 
-function buildHomeworkSetIdQuery(homeworkSetId: string) {
-  return { homeworkSetId };
-}
-
 function normalizeSubmission(submission: SubmissionModel): Submission {
   return {
     id: submission._id?.toString() || submission.id,
@@ -64,6 +56,21 @@ function normalizeSubmission(submission: SubmissionModel): Submission {
     studentTableData: submission.studentTableData,
     aiCommitment: submission.aiCommitment,
   };
+}
+
+function normalizeAnswerForStorage(answer: any): any {
+  if (!answer) return { sql: "" };
+  const answerText = getAnswerText(answer);
+  return {
+    ...answer,
+    sql: answerText || answer.sql || "",
+  };
+}
+
+function normalizeAnswersForStorage(answers: Record<string, any> | undefined): Record<string, any> {
+  return Object.fromEntries(
+    Object.entries(answers || {}).map(([questionId, answer]) => [questionId, normalizeAnswerForStorage(answer)]),
+  );
 }
 
 interface SubmissionStudentInfo {
@@ -107,8 +114,9 @@ export class SubmissionsService {
    * Get submission for a specific student and homework set
    */
   async getSubmissionForStudent(homeworkSetId: string, studentId: string): Promise<Submission | null> {
+    const homeworkSetQuery = await buildHomeworkSetIdQuery(this.db, homeworkSetId);
     const query: any = {
-      ...buildHomeworkSetIdQuery(homeworkSetId),
+      ...homeworkSetQuery,
       studentId,
     };
 
@@ -138,9 +146,10 @@ export class SubmissionsService {
    * Get all submissions for a homework set in one database read.
    */
   async getSubmissionsByHomeworkSet(homeworkSetId: string): Promise<Submission[]> {
+    const query = await buildHomeworkSetIdQuery(this.db, homeworkSetId);
     const submissions = await this.db
       .collection<SubmissionModel>(COLLECTIONS.SUBMISSIONS)
-      .find(buildHomeworkSetIdQuery(homeworkSetId))
+      .find(query)
       .sort({ createdAt: 1 })
       .toArray();
 
@@ -151,7 +160,7 @@ export class SubmissionsService {
    * Get submission summaries for a homework set
    */
   async getSubmissionSummaries(homeworkSetId: string): Promise<SubmissionSummary[]> {
-    const query = buildHomeworkSetIdQuery(homeworkSetId);
+    const query = await buildHomeworkSetIdQuery(this.db, homeworkSetId);
 
     const submissions = await this.db
       .collection<SubmissionModel>(COLLECTIONS.SUBMISSIONS)
@@ -159,7 +168,7 @@ export class SubmissionsService {
       .toArray();
 
     // Get question count for progress calculation
-    const questionQuery = buildHomeworkSetIdQuery(homeworkSetId);
+    const questionQuery = query;
     
     const questionCount = await this.db
       .collection(COLLECTIONS.QUESTIONS)
@@ -199,7 +208,7 @@ export class SubmissionsService {
 
     return submissions.map(submission => {
       const answered = Object.values(submission.answers).filter(
-        answer => Boolean(answer?.sql?.trim()) || Boolean(answer?.feedback?.score)
+        answer => hasAnswerText(answer) || Boolean(answer?.feedback?.score)
       ).length;
 
       const userData = userMap.get(submission.studentId);
@@ -237,7 +246,7 @@ export class SubmissionsService {
         mergedAnswers[questionId] = {
           ...existingAnswer,
           ...nextAnswer,
-          sql: nextAnswer.sql ?? existingAnswer.sql ?? "",
+          sql: getAnswerText({ ...existingAnswer, ...nextAnswer }) || nextAnswer.sql || existingAnswer.sql || "",
         };
       }
 
@@ -278,7 +287,7 @@ export class SubmissionsService {
         homeworkSetId,
         studentId: payload.studentId,
         attemptNumber: 1,
-        answers: payload.answers || {},
+        answers: normalizeAnswersForStorage(payload.answers),
         overallScore: 0,
         status: "in_progress",
         createdAt: now,
@@ -292,7 +301,7 @@ export class SubmissionsService {
         homeworkSetId,
         studentId: payload.studentId,
         attemptNumber: 1,
-        answers: payload.answers || {},
+        answers: normalizeAnswersForStorage(payload.answers),
         overallScore: 0,
         status: "in_progress",
         aiCommitment: undefined,
@@ -308,10 +317,11 @@ export class SubmissionsService {
     studentId: string,
     tableData: Record<string, any[]>
   ): Promise<void> {
+    const homeworkSetQuery = await buildHomeworkSetIdQuery(this.db, homeworkSetId);
     await this.db
       .collection<SubmissionModel>(COLLECTIONS.SUBMISSIONS)
       .updateOne(
-        { homeworkSetId, studentId },
+        { ...homeworkSetQuery, studentId },
         { $set: { studentTableData: tableData } }
       );
   }
@@ -362,9 +372,10 @@ export class SubmissionsService {
     aiCommitment?: Submission["aiCommitment"],
   ): Promise<Submission | null> {
     const now = new Date().toISOString();
+    const homeworkSetQuery = await buildHomeworkSetIdQuery(this.db, homeworkSetId);
     
     const query: any = {
-      ...buildHomeworkSetIdQuery(homeworkSetId),
+      ...homeworkSetQuery,
       studentId,
     };
     
@@ -575,7 +586,7 @@ export class SubmissionsService {
   private calculateTimeSpent(answer: any): number {
     // Simple time estimation based on execution count and complexity
     const executionCount = answer.executionCount || 1
-    const sqlLength = answer.sql?.length || 0
+    const sqlLength = getAnswerText(answer).length
     
     // Estimate: 2 minutes base + 1 minute per execution + 0.1 minutes per 10 characters
     return Math.round(2 + executionCount + (sqlLength / 10) * 0.1)

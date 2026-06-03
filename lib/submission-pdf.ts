@@ -1,4 +1,5 @@
 import type { HomeworkSet, Question, Submission } from "@/app/homework/types";
+import { getAnswerText } from "@/app/homework/utils/answers";
 
 // Use puppeteer-core for serverless environments, puppeteer for local development
 let puppeteer: any;
@@ -65,7 +66,7 @@ function generateHtml(options: PdfOptions): string {
 
   const tableRows = questions.map((question) => {
     const answer = submission.answers?.[question.id];
-    const answerText = answer?.sql?.trim() || "";
+    const answerText = getAnswerText(answer).trim();
     
     return `
       <tr>
@@ -262,7 +263,7 @@ function generateHtmlWithFeedback(options: PdfOptions): string {
   const tableRows = questions
     .map((question) => {
       const answer = submission.answers?.[question.id];
-      const answerText = answer?.sql?.trim() || "";
+      const answerText = getAnswerText(answer).trim();
       const feedback = answer?.feedback;
       const score = typeof feedback?.score === "number" ? feedback.score : null;
       const maxPoints = typeof question.points === "number" ? question.points : null;

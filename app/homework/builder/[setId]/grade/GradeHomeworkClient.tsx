@@ -22,6 +22,7 @@ import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider
 import type { Question, QuestionProgress, Submission, SubmissionSummary, SqlAnswer } from "@/app/homework/types";
 import styles from "./grade.module.css";
 import { exportHomeworkGradesToExcel } from "@/lib/excel-export";
+import { getAnswerText, hasAnswerText } from "@/app/homework/utils/answers";
 
 // Comment Bank types
 interface CommentBankEntry {
@@ -814,7 +815,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
 
       allSubmissions.forEach((submission) => {
         const answer = submission.answers[question.id] as SqlAnswer | undefined;
-        if (answer?.sql) {
+        if (hasAnswerText(answer)) {
           answeredCount++;
           const score = answer.feedback?.score ?? 0;
           totalScore += score;
@@ -1943,7 +1944,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                             <span className={styles.questionPoints}>{draft?.score ?? 0}/{question?.points ?? 0} נקודות</span>
                           </header>
                           <p className={styles.questionInstructions}>{question?.instructions}</p>
-                          <pre className={styles.sqlBlock}>{sqlAnswer.sql || t("builder.grade.noResponse")}</pre>
+                          <pre className={styles.sqlBlock}>{getAnswerText(sqlAnswer) || t("builder.grade.noResponse")}</pre>
                           {sqlAnswer.resultPreview?.rows?.length ? (
                             <div className={styles.resultPreview}>
                               <strong>{t("builder.grade.resultPreview")}</strong>
@@ -2192,7 +2193,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                     )}
                                   </div>
                                 )}
-                                <pre className={styles.sqlBlock}>{answer?.sql || t("builder.grade.noResponse")}</pre>
+                                <pre className={styles.sqlBlock}>{getAnswerText(answer) || t("builder.grade.noResponse")}</pre>
                                 
                                 {answer?.resultPreview?.rows?.length ? (
                                   <div className={styles.resultPreview}>

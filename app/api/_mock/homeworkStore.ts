@@ -1,4 +1,5 @@
 import { generateTempId } from "@/app/homework/utils/id";
+import { getAnswerText, hasAnswerText } from "@/app/homework/utils/answers";
 import type {
   AnalyticsEvent,
   Dataset,
@@ -683,7 +684,7 @@ export function listSubmissionSummaries(setId: string): SubmissionSummary[] {
       const questions = record.set.questionOrder.length || 1;
       const answered = record.set.questionOrder.filter((questionId) => {
         const answer = submission.answers[questionId];
-        return Boolean(answer?.sql?.trim()) || Boolean(answer?.feedback?.score);
+        return hasAnswerText(answer) || Boolean(answer?.feedback?.score);
       }).length;
 
       return {
@@ -709,10 +710,10 @@ export function saveSubmissionDraftRecord(setId: string, payload: SaveSubmission
     Object.entries(payload.answers).forEach(([questionId, incoming]) => {
       if (!record.set.questionOrder.includes(questionId)) return;
       const existing = submission.answers[questionId] ?? { sql: "", executionCount: 0 };
+      const merged = { ...existing, ...incoming };
       submission.answers[questionId] = {
-        ...existing,
-        ...incoming,
-        sql: incoming?.sql ?? existing.sql ?? "",
+        ...merged,
+        sql: getAnswerText(merged),
       } satisfies SqlAnswer;
     });
   }
@@ -763,10 +764,10 @@ export function gradeSubmissionRecord(submissionId: string, payload: Partial<Sub
     Object.entries(payload.answers).forEach(([questionId, incoming]) => {
       if (!record.set.questionOrder.includes(questionId)) return;
       const existing = submission.answers[questionId] ?? { sql: "", executionCount: 0 };
+      const merged = { ...existing, ...incoming };
       submission.answers[questionId] = {
-        ...existing,
-        ...incoming,
-        sql: incoming?.sql ?? existing.sql ?? "",
+        ...merged,
+        sql: getAnswerText(merged),
       } satisfies SqlAnswer;
     });
   }

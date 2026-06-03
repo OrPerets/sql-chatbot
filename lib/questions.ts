@@ -1,6 +1,7 @@
 import { Db, ObjectId } from 'mongodb';
 import { connectToDatabase, COLLECTIONS } from './database';
 import { generateId } from './models';
+import { buildHomeworkSetIdQuery } from './homework-set-ids';
 import type { Question } from '@/app/homework/types';
 import type { QuestionModel } from './models';
 
@@ -38,10 +39,11 @@ export class QuestionsService {
    */
   async getQuestionsByHomeworkSet(homeworkSetId: string): Promise<Question[]> {
     console.log('Loading questions for homework set:', homeworkSetId);
+    const query = await buildHomeworkSetIdQuery(this.db, homeworkSetId);
     
     const questions = await this.db
       .collection<QuestionModel>(COLLECTIONS.QUESTIONS)
-      .find({ homeworkSetId })
+      .find(query)
       .sort({ createdAt: 1 }) // Sort by creation order
       .toArray();
 
@@ -184,9 +186,10 @@ export class QuestionsService {
    * Delete all questions for a homework set
    */
   async deleteQuestionsByHomeworkSet(homeworkSetId: string): Promise<number> {
+    const query = await buildHomeworkSetIdQuery(this.db, homeworkSetId);
     const result = await this.db
       .collection<QuestionModel>(COLLECTIONS.QUESTIONS)
-      .deleteMany({ homeworkSetId });
+      .deleteMany(query);
 
     return result.deletedCount;
   }
@@ -195,9 +198,10 @@ export class QuestionsService {
    * Get question count for a homework set
    */
   async getQuestionCount(homeworkSetId: string): Promise<number> {
+    const query = await buildHomeworkSetIdQuery(this.db, homeworkSetId);
     return this.db
       .collection<QuestionModel>(COLLECTIONS.QUESTIONS)
-      .countDocuments({ homeworkSetId });
+      .countDocuments(query);
   }
 }
 

@@ -3,6 +3,7 @@ import { getSubmissionSummaries, getSubmissionById } from "@/lib/submissions";
 import { getQuestionsByHomeworkSet } from "@/lib/questions";
 import { evaluateAnswer, type AIGradingInput } from "@/lib/ai-grading";
 import type { Question, Submission, SqlAnswer } from "@/app/homework/types";
+import { getAnswerText, hasAnswerText } from "@/app/homework/utils/answers";
 
 interface TestAIRequest {
   homeworkSetId: string;
@@ -80,10 +81,11 @@ export async function POST(request: Request) {
 
         const answer = submission.answers[questionId] as SqlAnswer | undefined;
         
-        // Skip if no SQL was submitted
-        if (!answer?.sql?.trim()) {
+        // Skip if no answer was submitted.
+        if (!hasAnswerText(answer)) {
           continue;
         }
+        const studentSql = getAnswerText(answer);
 
         // Prepare grading input
         const gradingInput: AIGradingInput = {
@@ -99,7 +101,7 @@ export async function POST(request: Request) {
             description: r.description,
             weight: r.weight,
           })),
-          studentSql: answer.sql,
+          studentSql,
           studentResults: answer.resultPreview
             ? {
                 columns: answer.resultPreview.columns,
@@ -117,7 +119,7 @@ export async function POST(request: Request) {
           studentName: summary.studentName,
           studentIdNumber: summary.studentIdNumber,
           studentEmail: summary.studentEmail,
-          sql: answer.sql,
+          sql: studentSql,
           result: {
             score: aiResult.score,
             comment: aiResult.comment,

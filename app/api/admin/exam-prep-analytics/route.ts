@@ -4,6 +4,7 @@ import { connectToDatabase, COLLECTIONS } from '@/lib/database';
 import type { QuestionAnalyticsModel } from '@/lib/models';
 import type { SubmissionModel } from '@/lib/models';
 import type { UserModel } from '@/lib/users';
+import { hasAnswerText } from '@/app/homework/utils/answers';
 
 const DEFAULT_SET_ID = '697b602f8d8cd886902367b1';
 
@@ -115,7 +116,7 @@ export async function GET(request: NextRequest) {
       const qaList = analyticsBySubmission.get(submissionId) || [];
       const answers = sub.answers || {};
       const answeredCount = Object.values(answers).filter(
-        (a) => Boolean(a?.sql?.trim()) || Boolean((a as { feedback?: { score?: number } })?.feedback?.score)
+        (a) => hasAnswerText(a) || Boolean((a as { feedback?: { score?: number } })?.feedback?.score)
       ).length;
       const totalQuestions = Math.max(questionCount, 1);
       const progressPercent = Math.round((answeredCount / totalQuestions) * 100);
