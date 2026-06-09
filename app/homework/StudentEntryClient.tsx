@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, BookOpen, CalendarClock, ChevronLeft, Lock, Play } from "lucide-react";
 import styles from "./student-entry.module.css";
 import { isHomeworkAccessAdmin, isHomeworkAccessible } from "@/lib/deadline-utils";
-import { EXAM_PREP_ANNOUNCEMENT, isExamPrepTitle } from "@/lib/exam-prep-content";
+import { getExamPrepAnnouncement, isExamPrepTitle } from "@/lib/exam-prep-content";
 import type {
   HomeworkAvailabilityInfo,
   HomeworkAvailabilityState,
@@ -58,7 +58,7 @@ function formatDateTime(dateInput?: string): string {
 
 function formatAvailabilityWindow(homework: StudentVisibleHomework | HomeworkStatusState): string {
   if ("title" in homework && isExamPrepTitle(homework.title)) {
-    return EXAM_PREP_ANNOUNCEMENT;
+    return getExamPrepAnnouncement(homework.title);
   }
 
   const from = homework.availableFrom ? formatDateTime(homework.availableFrom) : "פתיחה לא הוגדרה";

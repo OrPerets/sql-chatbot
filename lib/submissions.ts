@@ -1305,6 +1305,8 @@ export class SubmissionsService {
       const isExamPrep = dataset.connectionUri.includes('exam-prep') ||
                         dataset.name?.includes('הכנה למבחן') ||
                         dataset.name?.includes('מבחנים');
+      const isExamPrepMoedB = dataset.connectionUri.includes('exam-prep-moed-b') ||
+                              dataset.name?.includes('מועד ב');
       const isExercise3 = dataset.connectionUri.includes('exercise3-college') ||
                           dataset.name?.includes('תרגיל 3') ||
                           dataset.name?.includes('מכללה');
@@ -1312,7 +1314,9 @@ export class SubmissionsService {
                     dataset.name?.includes('HW1') ||
                     homeworkSet.title?.includes('תרגיל בית 1');
 
-      if (isExamPrep) {
+      if (isExamPrepMoedB && initializePreviewTableData()) {
+        console.log('✅ Initialized Exam Prep Moed B tables from dataset preview rows using alasql');
+      } else if (isExamPrep) {
         initializeExamPrepData();
         console.log('✅ Initialized Exam Prep (הכנה למבחן) tables with sample data using alasql');
       } else if (isExercise3) {
@@ -1528,6 +1532,22 @@ export class SubmissionsService {
           'name': 'name',
           'salary': isHw1 ? 'Salary' : 'salary',
         };
+
+        if (Array.isArray(dataset.previewTables)) {
+          for (const table of dataset.previewTables) {
+            if (typeof table?.name === 'string' && table.name.trim()) {
+              caseMap[table.name.toLowerCase()] = table.name;
+            }
+
+            if (Array.isArray(table?.columns)) {
+              for (const column of table.columns) {
+                if (typeof column === 'string' && column.trim()) {
+                  caseMap[column.toLowerCase()] = column;
+                }
+              }
+            }
+          }
+        }
         
         // Replace all occurrences (word boundaries to avoid partial matches)
         for (const [lower, correct] of Object.entries(caseMap)) {

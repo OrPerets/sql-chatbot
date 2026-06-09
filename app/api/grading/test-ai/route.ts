@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSubmissionSummaries, getSubmissionById } from "@/lib/submissions";
 import { getQuestionsByHomeworkSet } from "@/lib/questions";
+import { getHomeworkSetById } from "@/lib/homework";
 import { evaluateAnswer, type AIGradingInput } from "@/lib/ai-grading";
 import type { Question, Submission, SqlAnswer } from "@/app/homework/types";
 import { getAnswerText, hasAnswerText } from "@/app/homework/utils/answers";
@@ -51,6 +52,8 @@ export async function POST(request: Request) {
     // Get the specific question
     const questions = await getQuestionsByHomeworkSet(homeworkSetId);
     const question = questions.find((q) => q.id === questionId);
+    const homeworkSet = await getHomeworkSetById(homeworkSetId);
+    const answerType = homeworkSet?.homeworkType === "relational_algebra" ? "relational_algebra" : "sql";
     
     if (!question) {
       return NextResponse.json(
@@ -93,6 +96,7 @@ export async function POST(request: Request) {
           questionPrompt: question.prompt,
           questionInstructions: question.instructions,
           referenceSql: question.starterSql,
+          answerType,
           expectedSchema: question.expectedResultSchema || [],
           maxPoints: question.points || 10,
           rubricCriteria: (question.gradingRubric || []).map((r) => ({
