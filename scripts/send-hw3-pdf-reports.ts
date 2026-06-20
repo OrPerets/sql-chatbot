@@ -38,7 +38,7 @@ import { connectToDatabase, COLLECTIONS } from '../lib/database'
 import { getUsersService } from '../lib/users'
 import { getSubmissionsService } from '../lib/submissions'
 import { getHomeworkService } from '../lib/homework'
-import { getQuestionsByHomeworkSet } from '../lib/questions'
+import { getRenderedQuestionsForStudent } from '../lib/student-questions'
 import { generateSubmissionPdfWithFeedback } from '../lib/submission-pdf'
 import { sendEmail } from '../app/utils/email-service'
 
@@ -140,15 +140,6 @@ async function sendHw3PdfReports() {
       process.exit(0)
     }
     
-    // Get questions once (same for all submissions)
-    const questions = await getQuestionsByHomeworkSet(exercise3Set.id)
-    console.log(`📝 Found ${questions.length} questions\n`)
-    
-    if (questions.length === 0) {
-      console.error('❌ No questions found for this homework set')
-      process.exit(1)
-    }
-    
     // Get excluded user ID if provided
     let excludedUserId: string | null = null
     if (excludeStudentEmail) {
@@ -236,6 +227,14 @@ async function sendHw3PdfReports() {
         }
         
         console.log(`   📬 Sending to: ${user.email}`)
+        const questions = await getRenderedQuestionsForStudent(exercise3Set.id, studentId)
+        console.log(`   📝 Found ${questions.length} rendered questions`)
+
+        if (questions.length === 0) {
+          console.error(`   ❌ No questions found for this homework set`)
+          failureCount++
+          continue
+        }
         
         // Convert submission document to Submission type
         const submission = {

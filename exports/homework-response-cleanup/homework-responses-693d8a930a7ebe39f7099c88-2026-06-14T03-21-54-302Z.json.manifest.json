@@ -1,0 +1,39 @@
+{
+  "collectionGroup": "homework-responses",
+  "createdAt": "2026-06-14T03:21:54.302Z",
+  "mode": "archive-and-delete",
+  "archiveFile": "/Users/orperetz/Documents/shenkar/sql-chatbot/exports/homework-response-cleanup/homework-responses-693d8a930a7ebe39f7099c88-2026-06-14T03-21-54-302Z.json",
+  "archiveSha256": "74e45559bf2c97ed5fcf179cf9f12c85be1dfa607cb47d1a2bc1557bb36205c4",
+  "dbName": "experiment",
+  "homeworkSetId": "693d8a930a7ebe39f7099c88",
+  "homeworkSetAppId": "693d8a930a7ebe39f7099c87",
+  "homeworkSetTitle": "תרגיל בית 3",
+  "aliases": [
+    "693d8a930a7ebe39f7099c88",
+    "693d8a930a7ebe39f7099c87"
+  ],
+  "countsBefore": {
+    "submissions": 62,
+    "question_analytics": 921,
+    "analysis_results": 0,
+    "analytics_events": 0,
+    "submitted": 57
+  },
+  "deletion": {
+    "requested": true,
+    "deleted": {
+      "submissions": 62,
+      "question_analytics": 921,
+      "analysis_results": 0,
+      "analytics_events": 0,
+      "submitted": 57
+    },
+    "remainingAfterDelete": {
+      "submissions": 0,
+      "question_analytics": 0,
+      "analysis_results": 0,
+      "analytics_events": 0,
+      "submitted": 0
+    }
+  }
+}

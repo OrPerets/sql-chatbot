@@ -3,7 +3,7 @@ import { submitSubmission, getSubmissionForStudent } from "@/lib/submissions";
 import { getHomeworkSetById } from "@/lib/homework";
 import { findUserByIdOrEmail } from "@/lib/users";
 import { sendEmail } from "@/app/utils/email-service";
-import { getQuestionsByHomeworkSet } from "@/lib/questions";
+import { getRenderedQuestionsForStudent } from "@/lib/student-questions";
 import { generateSubmissionPdf } from "@/lib/submission-pdf";
 import { getHomeworkAvailabilityInfo, isHomeworkAccessible } from "@/lib/deadline-utils";
 
@@ -133,7 +133,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         // Send email if we have a valid email
           if (studentEmail && studentEmail.includes("@")) {
             const homeworkTitle = homeworkSet.title || "שיעורי בית";
-            const questions = await getQuestionsByHomeworkSet(setId);
+            const questions = await getRenderedQuestionsForStudent(setId, submission.studentId);
             
             const attachments: Array<{ filename: string; content: Buffer; contentType?: string }> = [];
             

@@ -1,0 +1,76 @@
+{
+  "metadata": {
+    "createdAt": "2026-06-15T15:32:29.878Z",
+    "mode": "archive-and-delete",
+    "dbName": "experiment",
+    "homeworkSetId": "693d8a930a7ebe39f7099c88",
+    "homeworkSetAppId": "693d8a930a7ebe39f7099c87",
+    "homeworkSetTitle": "תרגיל בית 3",
+    "keptQuestion": {
+      "displayedNumber": 1,
+      "id": "69ac3bd7b158593127a61c88",
+      "_id": "69ac3bd7b158593127a61c89"
+    },
+    "removedQuestion": {
+      "displayedNumber": 6,
+      "id": "69ac3bd88c3f48ce26e80c61",
+      "_id": "69ac3bd88c3f48ce26e80c62",
+      "prompt": "הציגו את רשימת הקורסים שכל מרצה מעביר. אם מרצה מסוים לא מעביר אף קורס, יהיה עליכם להציג את שם המרצה בלבד ופרטי הקורסים יישארו ריקים. מיינו את הרשימה לפי שם המרצה בסדר אלפביתי."
+    },
+    "questionOrderBefore": [
+      "69ac3bd7b158593127a61c88",
+      "69ac3bd88c3f48ce26e80c69",
+      "69ac3bd88c3f48ce26e80c67",
+      "69ac3bd88c3f48ce26e80c65",
+      "69ac3bd88c3f48ce26e80c63",
+      "69ac3bd88c3f48ce26e80c61",
+      "69ac3bd78c3f48ce26e80c5d",
+      "69ac3bd78c3f48ce26e80c5b",
+      "69ac3bd78c3f48ce26e80c59",
+      "69ac3bd78c3f48ce26e80c55",
+      "69ac3bd6b158593127a61c7e",
+      "69ac3bd68c3f48ce26e80c51"
+    ],
+    "questionOrderAfter": [
+      "69ac3bd7b158593127a61c88",
+      "69ac3bd88c3f48ce26e80c69",
+      "69ac3bd88c3f48ce26e80c67",
+      "69ac3bd88c3f48ce26e80c65",
+      "69ac3bd88c3f48ce26e80c63",
+      "69ac3bd78c3f48ce26e80c5d",
+      "69ac3bd78c3f48ce26e80c5b",
+      "69ac3bd78c3f48ce26e80c59",
+      "69ac3bd78c3f48ce26e80c55",
+      "69ac3bd6b158593127a61c7e",
+      "69ac3bd68c3f48ce26e80c51"
+    ]
+  },
+  "question": {
+    "_id": {
+      "$oid": "69ac3bd88c3f48ce26e80c62"
+    },
+    "id": "69ac3bd88c3f48ce26e80c61",
+    "homeworkSetId": "693d8a930a7ebe39f7099c88",
+    "prompt": "הציגו את רשימת הקורסים שכל מרצה מעביר. אם מרצה מסוים לא מעביר אף קורס, יהיה עליכם להציג את שם המרצה בלבד ופרטי הקורסים יישארו ריקים. מיינו את הרשימה לפי שם המרצה בסדר אלפביתי.",
+    "instructions": "סכמה: שם המרצה, שם הקורס",
+    "expectedOutputDescription": "הפלט הצפוי צריך לכלול את העמודות: שם המרצה, שם הקורס.",
+    "starterSql": "SELECT L.FirstName + ' ' + L.LastName AS LecturerName, C.CourseName AS CourseName FROM Lecturers L LEFT JOIN Courses C ON L.CourseID = C.CourseID ORDER BY L.FirstName, L.LastName",
+    "expectedResultSchema": [
+      {
+        "column": "שם המרצה",
+        "type": "string"
+      },
+      {
+        "column": "שם הקורס",
+        "type": "string"
+      }
+    ],
+    "gradingRubric": [],
+    "datasetId": "69417d6f635615724d81a82e",
+    "maxAttempts": 3,
+    "points": 8,
+    "evaluationMode": "auto",
+    "updatedAt": "2026-06-11T13:19:02.084Z",
+    "isTemplate": false
+  }
+}

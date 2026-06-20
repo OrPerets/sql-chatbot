@@ -87,8 +87,6 @@ function generateHtml(options: PdfOptions): string {
 <head>
   <meta charset="UTF-8">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap');
-    
     * {
       margin: 0;
       padding: 0;
@@ -96,7 +94,7 @@ function generateHtml(options: PdfOptions): string {
     }
     
     body {
-      font-family: 'Heebo', Arial, sans-serif;
+      font-family: Arial, sans-serif;
       font-size: 12px;
       line-height: 1.5;
       color: #1f2937;
@@ -298,8 +296,6 @@ function generateHtmlWithFeedback(options: PdfOptions): string {
 <head>
   <meta charset="UTF-8">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap');
-    
     * {
       margin: 0;
       padding: 0;
@@ -307,7 +303,7 @@ function generateHtmlWithFeedback(options: PdfOptions): string {
     }
     
     body {
-      font-family: 'Heebo', Arial, sans-serif;
+      font-family: Arial, sans-serif;
       font-size: 10px;
       line-height: 1.4;
       color: #1f2937;
@@ -547,7 +543,7 @@ export async function generateSubmissionPdf({
         const browser = await puppeteerFull.launch(launchOptions);
         try {
           const page = await browser.newPage();
-          await page.setContent(html, { waitUntil: "networkidle0" });
+          await page.setContent(html, { waitUntil: "domcontentloaded" });
           const pdfBuffer = await page.pdf({
             format: "A4",
             printBackground: true,
@@ -572,7 +568,7 @@ export async function generateSubmissionPdf({
   
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "domcontentloaded" });
     
     const pdfBuffer = await page.pdf({
       format: "A4",
@@ -656,7 +652,7 @@ export async function generateSubmissionPdfWithFeedback({
         const browser = await puppeteerFull.launch(launchOptions);
         try {
           const page = await browser.newPage();
-          await page.setContent(html, { waitUntil: "networkidle0" });
+          await page.setContent(html, { waitUntil: "domcontentloaded" });
           const pdfBuffer = await page.pdf({
             format: "A4",
             printBackground: true,
@@ -683,7 +679,7 @@ export async function generateSubmissionPdfWithFeedback({
 
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "domcontentloaded" });
 
     const pdfBuffer = await page.pdf({
       format: "A4",

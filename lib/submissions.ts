@@ -73,6 +73,165 @@ function normalizeAnswersForStorage(answers: Record<string, any> | undefined): R
   );
 }
 
+type ScalarSqlExecutor = (sql: string) => unknown;
+
+function toSqlScalarLiteral(value: unknown): string {
+  if (value === null || value === undefined) return 'NULL';
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'NULL';
+  if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function findMatchingParen(sql: string, openIndex: number): number {
+  let depth = 0;
+  let quote: string | null = null;
+
+  for (let i = openIndex; i < sql.length; i += 1) {
+    const char = sql[i];
+    const nextChar = sql[i + 1];
+
+    if (quote) {
+      if (char === quote) {
+        if (quote === "'" && nextChar === "'") {
+          i += 1;
+        } else {
+          quote = null;
+        }
+      }
+      continue;
+    }
+
+    if (char === "'" || char === '"' || char === '`') {
+      quote = char;
+      continue;
+    }
+
+    if (char === '(') {
+      depth += 1;
+    } else if (char === ')') {
+      depth -= 1;
+      if (depth === 0) {
+        return i;
+      }
+    }
+  }
+
+  return -1;
+}
+
+function splitTopLevelArgs(argsText: string): string[] {
+  const args: string[] = [];
+  let start = 0;
+  let depth = 0;
+  let quote: string | null = null;
+
+  for (let i = 0; i < argsText.length; i += 1) {
+    const char = argsText[i];
+    const nextChar = argsText[i + 1];
+
+    if (quote) {
+      if (char === quote) {
+        if (quote === "'" && nextChar === "'") {
+          i += 1;
+        } else {
+          quote = null;
+        }
+      }
+      continue;
+    }
+
+    if (char === "'" || char === '"' || char === '`') {
+      quote = char;
+      continue;
+    }
+
+    if (char === '(') {
+      depth += 1;
+    } else if (char === ')') {
+      depth -= 1;
+    } else if (char === ',' && depth === 0) {
+      args.push(argsText.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+
+  args.push(argsText.slice(start).trim());
+  return args;
+}
+
+function unwrapScalarSubquery(arg: string): string | null {
+  const trimmed = arg.trim().replace(/;\s*$/, '');
+  if (!trimmed.startsWith('(')) return null;
+
+  const closeIndex = findMatchingParen(trimmed, 0);
+  if (closeIndex !== trimmed.length - 1) return null;
+
+  const inner = trimmed.slice(1, -1).trim().replace(/;\s*$/, '');
+  return /^select\b/i.test(inner) ? inner : null;
+}
+
+function firstScalarValue(result: unknown): unknown {
+  if (!Array.isArray(result)) {
+    return result;
+  }
+
+  if (result.length === 0) {
+    return null;
+  }
+
+  const firstRow = result[0];
+  if (firstRow && typeof firstRow === 'object' && !Array.isArray(firstRow)) {
+    const [firstKey] = Object.keys(firstRow);
+    return firstKey ? (firstRow as Record<string, unknown>)[firstKey] : null;
+  }
+
+  return firstRow;
+}
+
+export function rewriteStrcmpScalarSubqueries(sql: string, executeScalarSql: ScalarSqlExecutor): string {
+  const strcmpCallRegex = /\bSTRCMP\s*\(/gi;
+  let rewrittenSql = '';
+  let cursor = 0;
+  let madeReplacement = false;
+  let match: RegExpExecArray | null;
+
+  while ((match = strcmpCallRegex.exec(sql)) !== null) {
+    const openIndex = match.index + match[0].lastIndexOf('(');
+    const closeIndex = findMatchingParen(sql, openIndex);
+    if (closeIndex === -1) {
+      break;
+    }
+
+    const args = splitTopLevelArgs(sql.slice(openIndex + 1, closeIndex));
+    if (args.length !== 2) {
+      strcmpCallRegex.lastIndex = closeIndex + 1;
+      continue;
+    }
+
+    let changed = false;
+    const rewrittenArgs = args.map((arg) => {
+      const scalarSubquery = unwrapScalarSubquery(arg);
+      if (!scalarSubquery) {
+        return arg;
+      }
+
+      changed = true;
+      return toSqlScalarLiteral(firstScalarValue(executeScalarSql(scalarSubquery)));
+    });
+
+    if (changed) {
+      rewrittenSql += sql.slice(cursor, match.index);
+      rewrittenSql += `STRCMP(${rewrittenArgs.join(', ')})`;
+      cursor = closeIndex + 1;
+      madeReplacement = true;
+    }
+
+    strcmpCallRegex.lastIndex = closeIndex + 1;
+  }
+
+  return madeReplacement ? rewrittenSql + sql.slice(cursor) : sql;
+}
+
 interface SubmissionStudentInfo {
   email?: string;
   name?: string;
@@ -1566,8 +1725,14 @@ export class SubmissionsService {
       // Execute the SQL query using alasql
       let result: any[] | undefined;
       let columns: string[] = [];
+      let sqlToExecute = normalizedSql;
       try {
-        result = alasql(normalizedSql);
+        sqlToExecute = rewriteStrcmpScalarSubqueries(normalizedSql, (scalarSql) => alasql(scalarSql));
+        if (sqlToExecute !== normalizedSql) {
+          console.log('🔵 STRCMP scalar subqueries rewritten:', sqlToExecute);
+        }
+
+        result = alasql(sqlToExecute);
         console.log('✅ SQL executed successfully, result type:', typeof result, 'length:', Array.isArray(result) ? result.length : 'N/A');
         
         // Check if result is valid

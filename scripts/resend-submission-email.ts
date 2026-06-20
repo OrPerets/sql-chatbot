@@ -4,7 +4,7 @@ import { connectToDatabase, COLLECTIONS } from '../lib/database'
 import { getUsersService } from '../lib/users'
 import { getSubmissionsService } from '../lib/submissions'
 import { getHomeworkSetById } from '../lib/homework'
-import { getQuestionsByHomeworkSet } from '../lib/questions'
+import { getRenderedQuestionsForStudent } from '../lib/student-questions'
 import { generateSubmissionPdf } from '../lib/submission-pdf'
 import { sendEmail } from '../app/utils/email-service'
 import { ObjectId } from 'mongodb'
@@ -127,8 +127,8 @@ async function resendSubmissionEmail() {
       process.exit(1)
     }
     
-    const questions = await getQuestionsByHomeworkSet(submission.homeworkSetId)
-    console.log(`📚 Found ${questions.length} questions`)
+    const questions = await getRenderedQuestionsForStudent(submission.homeworkSetId, submission.studentId)
+    console.log(`📚 Found ${questions.length} rendered questions`)
     
     // Generate PDF
     console.log(`\n📄 Generating PDF...`)
@@ -289,8 +289,8 @@ async function findAndSendMissingSubmissions() {
           continue
         }
         
-        const questions = await getQuestionsByHomeworkSet(homeworkSetId)
-        console.log(`   📚 Found ${questions.length} questions`)
+        const questions = await getRenderedQuestionsForStudent(homeworkSetId, studentId)
+        console.log(`   📚 Found ${questions.length} rendered questions`)
         
         if (questions.length === 0) {
           console.error(`   ❌ No questions found for this homework set`)
