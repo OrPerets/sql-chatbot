@@ -42,6 +42,20 @@ const PERSONAL_ACCESS_OVERRIDES = [
     availableFrom: '2026-05-16T00:00:00.000+03:00',
     availableUntil: '2026-05-23T23:59:59.999+03:00',
   },
+  {
+    email: 'taltol2311@gmail.com',
+    homeworkIds: ['693d8a930a7ebe39f7099c88', '693d8a930a7ebe39f7099c87'],
+    titleMatchers: [/^תרגיל בית 3$/, /^תרגיל 3$/, /^HW3\b/i],
+    availableFrom: '2026-06-24T00:00:00.000+03:00',
+    availableUntil: '2026-06-25T00:05:00.000+03:00',
+  },
+  {
+    email: 'elay83832@gmail.com',
+    homeworkIds: ['693d8a930a7ebe39f7099c88', '693d8a930a7ebe39f7099c87'],
+    titleMatchers: [/^תרגיל בית 3$/, /^תרגיל 3$/, /^HW3\b/i],
+    availableFrom: '2026-06-24T00:00:00.000+03:00',
+    availableUntil: '2026-06-25T00:05:00.000+03:00',
+  },
 ] as const;
 
 function toDate(value: DateInput, fallback?: Date): Date {

@@ -25,6 +25,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 exports/chatMessages-archive/chatMessages-streaming-bug-partials-*.jsonl.gz*
+exports/homework-reopen-submission/
 
 # local env files
 .env*.local
