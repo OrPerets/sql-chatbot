@@ -117,12 +117,11 @@ describe('deadline-utils availability windows', () => {
     expect(info.effectiveAvailableUntil).toBe('2026-06-26T20:59:59.999Z');
     expect(info.availabilityMessage).toContain('פתיחה אישית');
     expect(getAvailabilityState(homework, 'taltol2311@gmail.com', afterOverride)).toBe('closed');
-    expect(getAvailabilityState(homework, 'elay83832@gmail.com', duringOverride)).toBe('closed');
 
     expect(getAvailabilityState(homework, 'student@example.com', duringOverride)).toBe('closed');
   });
 
-  it('opens HW3 for Zaguri until the end of June 28 Asia/Jerusalem', () => {
+  it('opens HW3 for approved students until the end of June 28 Asia/Jerusalem', () => {
     const homework = {
       id: '693d8a930a7ebe39f7099c88',
       title: 'תרגיל בית 3',
@@ -132,13 +131,16 @@ describe('deadline-utils availability windows', () => {
     const duringOverride = new Date('2026-06-28T20:00:00.000+03:00');
     const afterOverride = new Date('2026-06-29T00:01:00.000+03:00');
 
-    const info = getHomeworkAvailabilityInfo(homework, 'zaguri000@gmail.com', duringOverride);
+    for (const email of ['zaguri000@gmail.com', 'elay83832@gmail.com']) {
+      const info = getHomeworkAvailabilityInfo(homework, email, duringOverride);
 
-    expect(info.availabilityState).toBe('open');
-    expect(info.accessible).toBe(true);
-    expect(info.effectiveAvailableUntil).toBe('2026-06-28T20:59:59.999Z');
-    expect(info.availabilityMessage).toContain('פתיחה אישית');
-    expect(getAvailabilityState(homework, 'zaguri000@gmail.com', afterOverride)).toBe('closed');
+      expect(info.availabilityState).toBe('open');
+      expect(info.accessible).toBe(true);
+      expect(info.effectiveAvailableUntil).toBe('2026-06-28T20:59:59.999Z');
+      expect(info.availabilityMessage).toContain('פתיחה אישית');
+      expect(getAvailabilityState(homework, email, afterOverride)).toBe('closed');
+    }
+
     expect(getAvailabilityState(homework, 'student@example.com', duringOverride)).toBe('closed');
   });
 
