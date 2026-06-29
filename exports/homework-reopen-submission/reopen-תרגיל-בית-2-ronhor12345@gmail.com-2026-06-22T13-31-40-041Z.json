@@ -1,0 +1,56 @@
+{
+  "createdAt": "2026-06-22T13:31:40.041Z",
+  "purpose": "manual-reopen-homework-submission",
+  "dbName": "experiment",
+  "studentEmail": "ronhor12345@gmail.com",
+  "homeworkTitle": "תרגיל בית 2",
+  "homeworkAliases": [
+    "69aabdacafa3dcd3648446e2",
+    "69aabdacafa3dcd3648446e1"
+  ],
+  "studentAliases": [
+    "ronhor12345@gmail.com",
+    "69bf94e71b1bb568c7ae75e2",
+    "322590704"
+  ],
+  "before": {
+    "_id": {
+      "$oid": "6a1ec5069fa32d9999a61207"
+    },
+    "id": "6a1ec5069fa32d9999a61206",
+    "homeworkSetId": "69aabdacafa3dcd3648446e2",
+    "studentId": "69bf94e71b1bb568c7ae75e2",
+    "attemptNumber": 2,
+    "answers": {
+      "69ac4200bfa9bba42e644d8c": {
+        "sql": "",
+        "expression": "π_universityName(σstate='it' Universities)∪(σstate='po' Universities)∪(σstate='sp' Universities)",
+        "feedback": {
+          "questionId": "69ac4200bfa9bba42e644d8c",
+          "score": 8.5,
+          "autoNotes": "",
+          "instructorNotes": "כל ביטוי שליפה של σ נדרש להיות סגור לגמרי בסוגריים (להסתיים) לפני שמאחדים אותו עם השליפה הבאה",
+          "rubricBreakdown": []
+        }
+      },
+      "69ac4201bfa9bba42e644da8": {
+        "sql": "",
+        "expression": "",
+        "feedback": {
+          "questionId": "69ac4201bfa9bba42e644da8",
+          "score": 0,
+          "autoNotes": "",
+          "instructorNotes": "",
+          "rubricBreakdown": []
+        }
+      }
+    },
+    "overallScore": 8.5,
+    "status": "graded",
+    "createdAt": "2026-06-02T11:56:54.223Z",
+    "updatedAt": "2026-06-05T15:07:27.796Z",
+    "aiCommitment": null,
+    "submittedAt": "2026-06-02T12:10:38.841Z",
+    "gradedAt": "2026-06-05T15:07:27.796Z"
+  }
+}

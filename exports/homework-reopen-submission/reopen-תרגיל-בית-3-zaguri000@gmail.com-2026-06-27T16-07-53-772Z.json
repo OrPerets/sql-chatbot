@@ -1,0 +1,724 @@
+{
+  "createdAt": "2026-06-27T16:07:53.772Z",
+  "purpose": "manual-reopen-homework-submission",
+  "dbName": "experiment",
+  "studentEmail": "zaguri000@gmail.com",
+  "homeworkTitle": "תרגיל בית 3",
+  "homeworkAliases": [
+    "693d8a930a7ebe39f7099c88",
+    "693d8a930a7ebe39f7099c87"
+  ],
+  "studentAliases": [
+    "zaguri000@gmail.com",
+    "69bf94e81b1bb568c7ae75e7",
+    "322656034"
+  ],
+  "before": {
+    "_id": {
+      "$oid": "6a37eb8f7b89a5c2e10df5df"
+    },
+    "id": "6a37eb8f7b89a5c2e10df5de",
+    "homeworkSetId": "693d8a930a7ebe39f7099c88",
+    "studentId": "69bf94e81b1bb568c7ae75e7",
+    "attemptNumber": 2,
+    "answers": {
+      "69ac3bd7b158593127a61c88": {
+        "sql": "select concat(FirstName, \" \",LastName )as name , CourseName\nfrom Lecturers left outer join Courses using(CourseID)\norder by FirstName asc",
+        "resultPreview": {
+          "columns": [
+            "name",
+            "CourseName"
+          ],
+          "rows": [
+            {
+              "name": "Alice Johnson"
+            },
+            {
+              "name": "Bob Lee",
+              "CourseName": "Database"
+            },
+            {
+              "name": "Carol Miller",
+              "CourseName": "Modern Physics"
+            },
+            {
+              "name": "David Anderson",
+              "CourseName": "Calculus I"
+            },
+            {
+              "name": "Eve Clark"
+            },
+            {
+              "name": "Frank Harris",
+              "CourseName": "Organic Chemistry"
+            },
+            {
+              "name": "George Moore",
+              "CourseName": "Data Structures"
+            },
+            {
+              "name": "Helen Taylor",
+              "CourseName": "Algorithms"
+            },
+            {
+              "name": "Ian Wilson"
+            },
+            {
+              "name": "Julia Brown",
+              "CourseName": "Linear Algebra"
+            },
+            {
+              "name": "Kevin Davis",
+              "CourseName": "Calculus II"
+            },
+            {
+              "name": "Mark Garcia",
+              "CourseName": "Inorganic Chemistry"
+            },
+            {
+              "name": "Nancy Rodriguez"
+            },
+            {
+              "name": "Oliver Martinez",
+              "CourseName": "Cell Biology"
+            },
+            {
+              "name": "Patricia Lopez",
+              "CourseName": "Genetics"
+            },
+            {
+              "name": "Quinn Gonzalez"
+            },
+            {
+              "name": "Rachel Hernandez",
+              "CourseName": "Probability Theory"
+            },
+            {
+              "name": "Samuel Smith",
+              "CourseName": "Machine Learning"
+            },
+            {
+              "name": "Tina Johnson"
+            },
+            {
+              "name": "Victor Williams",
+              "CourseName": "Operating Systems"
+            }
+          ],
+          "executionMs": 904,
+          "truncated": false
+        },
+        "feedback": {
+          "questionId": "69ac3bd7b158593127a61c88",
+          "score": 8,
+          "autoNotes": "Query executed successfully. Returned 20 row(s).",
+          "rubricBreakdown": []
+        },
+        "lastExecutedAt": "2026-06-21T14:01:12.570Z",
+        "executionCount": 1
+      },
+      "69ac3bd88c3f48ce26e80c69": {
+        "sql": "SELECT CourseID, CourseName, AVG(Grade) AS AvgGrade, COUNT(*) AS NumStudents\nFROM Enrollments JOIN Courses USING (CourseID)\nGROUP BY Courses.CourseID, Courses.CourseName\nORDER BY AvgGrade DESC\nLIMIT 3 ",
+        "resultPreview": {
+          "columns": [
+            "CourseID",
+            "CourseName",
+            "AvgGrade",
+            "NumStudents"
+          ],
+          "rows": [
+            {
+              "CourseID": 112,
+              "CourseName": "Calculus II",
+              "AvgGrade": 92,
+              "NumStudents": 1
+            },
+            {
+              "CourseID": 113,
+              "CourseName": "Discrete Mathematics",
+              "AvgGrade": 89,
+              "NumStudents": 1
+            },
+            {
+              "CourseID": 108,
+              "CourseName": "Data Structures",
+              "AvgGrade": 88,
+              "NumStudents": 4
+            }
+          ],
+          "executionMs": 715,
+          "truncated": false
+        },
+        "feedback": {
+          "questionId": "69ac3bd88c3f48ce26e80c69",
+          "score": 8,
+          "autoNotes": "Query executed successfully. Returned 3 row(s).",
+          "rubricBreakdown": []
+        },
+        "lastExecutedAt": "2026-06-21T14:17:06.139Z",
+        "executionCount": 5
+      },
+      "69ac3bd88c3f48ce26e80c67": {
+        "sql": "select Students.StudentID , concat(Students.FirstName ,\" \", Students.LastName) as full_name, avg(Enrollments.Grade) as avg_grade\nfrom Enrollments  join Students join Courses\non (Enrollments.StudentID = Students.StudentID) \nand on Enrollments.CourseID = Courses.CourseID)\nwhere Courses.Department = 'Computer Science'\ngroup by Students.StudentID, concat(Students.FirstName ,\" \", Students.LastName)\nhaving avg(Enrollments.Grade) > (select avg(E2.Grade)\nfrom Enrollments as E2 join Courses as c2 on (E2.CourseID = c2.CourseID) \nwhere c2.Department = 'Computer Science')",
+        "resultPreview": {
+          "columns": [],
+          "rows": [],
+          "executionMs": 438,
+          "truncated": false
+        },
+        "feedback": {
+          "questionId": "69ac3bd88c3f48ce26e80c67",
+          "score": 0,
+          "autoNotes": "SQL Error: Parse error on line 4:\n...nts.StudentID) and on Enrollments.Cours\n----------------------^\nExpecting 'LITERAL', 'BRALITERAL', 'KEY', 'OPEN', 'CLOSE', 'SEPARATOR', 'LPAR', 'NUMBER', 'STRING', 'SHARP', 'DOLLAR', 'AT', 'VALUE', 'COLON', 'NOT', 'IF', 'PLUS', 'STAR', 'QUESTION', 'INSERTED', 'FIRST', 'LAST', 'DELETED', 'CURRENT_TIMESTAMP', 'CURRENT_DATE', 'JAVASCRIPT', 'NEW', 'CAST', 'CONVERT', 'GROUP_CONCAT', 'SUM', 'TOTAL', 'COUNT', 'MIN', 'MAX', 'AVG', 'AGGR', 'ARRAY', 'REPLACE', 'DATEADD', 'DATEDIFF', 'TIMESTAMPDIFF', 'INTERVAL', 'TRUE', 'FALSE', 'NSTRING', 'NULL', 'EXISTS', 'ARRAYLBRA', 'BRAQUESTION', 'CASE', 'TILDA', 'MINUS', 'ATLBRA', 'LCUR', got 'ON'. DATEDIFF function transformation failed.",
+          "rubricBreakdown": []
+        },
+        "lastExecutedAt": "2026-06-22T15:44:27.757Z",
+        "executionCount": 6
+      }
+    },
+    "overallScore": 0,
+    "status": "submitted",
+    "createdAt": "2026-06-21T13:47:59.164Z",
+    "updatedAt": "2026-06-22T15:47:10.480Z",
+    "studentTableData": {
+      "Students": [
+        {
+          "StudentID": "87369214",
+          "FirstName": "John",
+          "LastName": "Doe",
+          "BirthDate": "1999-05-15",
+          "City": "Tel Aviv",
+          "Email": "john.doe@gmail.com"
+        },
+        {
+          "StudentID": "52839174",
+          "FirstName": "Alexander",
+          "LastName": "Young",
+          "BirthDate": "1998-03-16",
+          "City": "Jerusalem",
+          "Email": "alexander.young@gmail.com"
+        },
+        {
+          "StudentID": "61938472",
+          "FirstName": "Avery",
+          "LastName": "Roberts",
+          "BirthDate": "2000-12-04",
+          "City": "Netanya",
+          "Email": "avery.roberts@gmail.com"
+        },
+        {
+          "StudentID": "56381947",
+          "FirstName": "Scarlett",
+          "LastName": "Parker",
+          "BirthDate": "2000-08-23",
+          "City": "Beer Sheva",
+          "Email": "scarlett.parker@gmail.com"
+        },
+        {
+          "StudentID": "69482735",
+          "FirstName": "Amelia",
+          "LastName": "King",
+          "BirthDate": "2000-06-28",
+          "City": "Beer Sheva",
+          "Email": "amelia.king@gmail.com"
+        },
+        {
+          "StudentID": "83572914",
+          "FirstName": "Isabella",
+          "LastName": "Rodriguez",
+          "BirthDate": "2001-12-03",
+          "City": "Petah Tikva",
+          "Email": "isabella.rodriguez@gmail.com"
+        },
+        {
+          "StudentID": "82739164",
+          "FirstName": "Jackson",
+          "LastName": "Turner",
+          "BirthDate": "1999-06-17",
+          "City": "Tel Aviv",
+          "Email": "jackson.turner@gmail.com"
+        },
+        {
+          "StudentID": "75193486",
+          "FirstName": "Laura",
+          "LastName": "Martinez",
+          "BirthDate": "2000-04-12",
+          "City": "Netanya",
+          "Email": "laura.martinez@gmail.com"
+        },
+        {
+          "StudentID": "71829463",
+          "FirstName": "Evelyn",
+          "LastName": "Scott",
+          "BirthDate": "2000-04-25",
+          "City": "Netanya",
+          "Email": "evelyn.scott@gmail.com"
+        },
+        {
+          "StudentID": "56372819",
+          "FirstName": "Aiden",
+          "LastName": "Green",
+          "BirthDate": "1998-11-07",
+          "City": "Tel Aviv",
+          "Email": "aiden.green@gmail.com"
+        },
+        {
+          "StudentID": "46281937",
+          "FirstName": "Lucas",
+          "LastName": "Lewis",
+          "BirthDate": "2000-05-27",
+          "City": "Ramat Gan",
+          "Email": "lucas.lewis@gmail.com"
+        },
+        {
+          "StudentID": "95718234",
+          "FirstName": "Emily",
+          "LastName": "Davis",
+          "BirthDate": "2001-03-14",
+          "City": "Beer Sheva",
+          "Email": "emily.davis@gmail.com"
+        },
+        {
+          "StudentID": "28471639",
+          "FirstName": "James",
+          "LastName": "Taylor",
+          "BirthDate": "2001-09-25",
+          "City": "Tel Aviv",
+          "Email": "james.taylor@gmail.com"
+        },
+        {
+          "StudentID": "85629374",
+          "FirstName": "Harper",
+          "LastName": "Lopez",
+          "BirthDate": "2002-02-20",
+          "City": "Petah Tikva",
+          "Email": "harper.lopez@gmail.com"
+        },
+        {
+          "StudentID": "84729163",
+          "FirstName": "Abigail",
+          "LastName": "Adams",
+          "BirthDate": "2001-07-19",
+          "City": "Haifa",
+          "Email": "abigail.adams@gmail.com"
+        },
+        {
+          "StudentID": "59183746",
+          "FirstName": "Grace",
+          "LastName": "Morris",
+          "BirthDate": "2001-10-07",
+          "City": "Haifa",
+          "Email": "grace.morris@gmail.com"
+        },
+        {
+          "StudentID": "194DEF23",
+          "FirstName": "Jane",
+          "LastName": "Smith",
+          "BirthDate": "2000-07-22",
+          "City": "Haifa",
+          "Email": "jane.smith@gmail.com"
+        },
+        {
+          "StudentID": "38472961",
+          "FirstName": "Owen",
+          "LastName": "Sanchez",
+          "BirthDate": "2002-07-25",
+          "City": "Tel Aviv",
+          "Email": "owen.sanchez@gmail.com"
+        }
+      ],
+      "Courses": [
+        {
+          "CourseID": 120,
+          "CourseName": "Machine Learning",
+          "Credits": 5,
+          "Department": "Computer Science"
+        },
+        {
+          "CourseID": 107,
+          "CourseName": "Statistics",
+          "Credits": 3,
+          "Department": "Mathematics"
+        },
+        {
+          "CourseID": 106,
+          "CourseName": "Database",
+          "Credits": 4,
+          "Department": "Computer Science"
+        },
+        {
+          "CourseID": 111,
+          "CourseName": "Linear Algebra",
+          "Credits": 3,
+          "Department": "Mathematics"
+        },
+        {
+          "CourseID": 119,
+          "CourseName": "Probability Theory",
+          "Credits": 3,
+          "Department": "Mathematics"
+        },
+        {
+          "CourseID": 104,
+          "CourseName": "Calculus I",
+          "Credits": 3,
+          "Department": "Mathematics"
+        },
+        {
+          "CourseID": 102,
+          "CourseName": "Organic Chemistry",
+          "Credits": 3,
+          "Department": "Chemistry"
+        },
+        {
+          "CourseID": 108,
+          "CourseName": "Data Structures",
+          "Credits": 4,
+          "Department": "Computer Science"
+        },
+        {
+          "CourseID": 113,
+          "CourseName": "Discrete Mathematics",
+          "Credits": 4,
+          "Department": "Mathematics"
+        },
+        {
+          "CourseID": 114,
+          "CourseName": "Inorganic Chemistry",
+          "Credits": 3,
+          "Department": "Chemistry"
+        },
+        {
+          "CourseID": 117,
+          "CourseName": "Genetics",
+          "Credits": 5,
+          "Department": "Biology"
+        },
+        {
+          "CourseID": 122,
+          "CourseName": "Operating Systems",
+          "Credits": 4,
+          "Department": "Computer Science"
+        },
+        {
+          "CourseID": 109,
+          "CourseName": "Algorithms",
+          "Credits": 4,
+          "Department": "Computer Science"
+        },
+        {
+          "CourseID": 116,
+          "CourseName": "Cell Biology",
+          "Credits": 4,
+          "Department": "Biology"
+        },
+        {
+          "CourseID": 112,
+          "CourseName": "Calculus II",
+          "Credits": 3,
+          "Department": "Mathematics"
+        },
+        {
+          "CourseID": 103,
+          "CourseName": "Modern Physics",
+          "Credits": 4,
+          "Department": "Chemistry"
+        }
+      ],
+      "Lecturers": [
+        {
+          "LecturerID": "48273916",
+          "FirstName": "George",
+          "LastName": "Moore",
+          "City": "Tel Aviv",
+          "HireDate": "2013-04-20",
+          "CourseID": 108,
+          "Seniority": "11"
+        },
+        {
+          "LecturerID": "91738254",
+          "FirstName": "Carol",
+          "LastName": "Miller",
+          "City": "Jerusalem",
+          "HireDate": "2012-09-22",
+          "CourseID": 103,
+          "Seniority": "12"
+        },
+        {
+          "LecturerID": "56782941",
+          "FirstName": "Kevin",
+          "LastName": "Davis",
+          "City": "Netanya",
+          "HireDate": "2012-11-18",
+          "CourseID": 112,
+          "Seniority": "12"
+        },
+        {
+          "LecturerID": "92738461",
+          "FirstName": "Quinn",
+          "LastName": "Gonzalez",
+          "City": "Netanya",
+          "HireDate": "2016-08-17",
+          "CourseID": 118,
+          "Seniority": "8"
+        },
+        {
+          "LecturerID": "ABC95716",
+          "FirstName": "Alice",
+          "LastName": "Johnson",
+          "City": "Tel Aviv",
+          "HireDate": "2010-08-15",
+          "CourseID": 101,
+          "Seniority": "14"
+        },
+        {
+          "LecturerID": "74819253",
+          "FirstName": "Bob",
+          "LastName": "Lee",
+          "City": "Haifa",
+          "HireDate": "2015-01-30",
+          "CourseID": 106,
+          "Seniority": "D"
+        },
+        {
+          "LecturerID": "28194675",
+          "FirstName": "David",
+          "LastName": "Anderson",
+          "City": "Ramat Gan",
+          "HireDate": "2008-03-10",
+          "CourseID": 104,
+          "Seniority": "16"
+        },
+        {
+          "LecturerID": "46281937",
+          "FirstName": "Patricia",
+          "LastName": "Lopez",
+          "City": "Ramat Gan",
+          "HireDate": "2013-06-25",
+          "CourseID": 117,
+          "Seniority": "11"
+        },
+        {
+          "LecturerID": "75193486",
+          "FirstName": "Ian",
+          "LastName": "Wilson",
+          "City": "Jerusalem",
+          "HireDate": "2016-02-28",
+          "CourseID": 110,
+          "Seniority": "8"
+        },
+        {
+          "LecturerID": "18374629",
+          "FirstName": "Rachel",
+          "LastName": "Hernandez",
+          "City": "Beer Sheva",
+          "HireDate": "2011-12-03",
+          "CourseID": 119,
+          "Seniority": "13"
+        },
+        {
+          "LecturerID": "63918472",
+          "FirstName": "Helen",
+          "LastName": "Taylor",
+          "City": "Haifa",
+          "HireDate": "2014-07-12",
+          "CourseID": 109,
+          "Seniority": "10"
+        },
+        {
+          "LecturerID": "83572914",
+          "FirstName": "Oliver",
+          "LastName": "Martinez",
+          "City": "Jerusalem",
+          "HireDate": "2014-01-08",
+          "CourseID": 116,
+          "Seniority": "10"
+        },
+        {
+          "LecturerID": "71938462",
+          "FirstName": "Nancy",
+          "LastName": "Rodriguez",
+          "City": "Haifa",
+          "HireDate": "2010-10-30",
+          "CourseID": 115,
+          "Seniority": "14"
+        },
+        {
+          "LecturerID": "28471639",
+          "FirstName": "Julia",
+          "LastName": "Brown",
+          "City": "Ramat Gan",
+          "HireDate": "2011-09-05",
+          "CourseID": 111,
+          "Seniority": "13"
+        },
+        {
+          "LecturerID": "34982715",
+          "FirstName": "Frank",
+          "LastName": "Harris",
+          "City": "Beer Sheva",
+          "HireDate": "2009-06-18",
+          "CourseID": 102,
+          "Seniority": "15"
+        },
+        {
+          "LecturerID": "69482735",
+          "FirstName": "Victor",
+          "LastName": "Williams",
+          "City": "Jerusalem",
+          "HireDate": "2014-11-26",
+          "CourseID": 122,
+          "Seniority": "10"
+        },
+        {
+          "LecturerID": "64829173",
+          "FirstName": "Mark",
+          "LastName": "Garcia",
+          "City": "Tel Aviv",
+          "HireDate": "2009-03-14",
+          "CourseID": 114,
+          "Seniority": "15"
+        },
+        {
+          "LecturerID": "52839174",
+          "FirstName": "Tina",
+          "LastName": "Johnson",
+          "City": "Haifa",
+          "HireDate": "2015-09-11",
+          "CourseID": 121,
+          "Seniority": "9"
+        },
+        {
+          "LecturerID": "74938216",
+          "FirstName": "Samuel",
+          "LastName": "Smith",
+          "City": "Tel Aviv",
+          "HireDate": "2012-04-19",
+          "CourseID": 120,
+          "Seniority": "12"
+        },
+        {
+          "LecturerID": "62719384",
+          "FirstName": "Eve",
+          "LastName": "Clark",
+          "City": "Netanya",
+          "HireDate": "2011-11-05",
+          "CourseID": 105,
+          "Seniority": "13"
+        }
+      ],
+      "Enrollments": [
+        {
+          "StudentID": "83572914",
+          "CourseID": 112,
+          "EnrollmentDate": "2024-01-18",
+          "Grade": 92
+        },
+        {
+          "StudentID": "71829463",
+          "CourseID": 114,
+          "EnrollmentDate": "2023-10-05",
+          "Grade": 74
+        },
+        {
+          "StudentID": "38472961",
+          "CourseID": 106,
+          "EnrollmentDate": "2024-06-28",
+          "Grade": 93
+        },
+        {
+          "StudentID": "56372819",
+          "CourseID": 109,
+          "EnrollmentDate": "2024-01-22",
+          "Grade": 86
+        },
+        {
+          "StudentID": "87369214",
+          "CourseID": 104,
+          "EnrollmentDate": "2023-09-01",
+          "Grade": 76
+        },
+        {
+          "StudentID": "52839174",
+          "CourseID": 103,
+          "EnrollmentDate": "2024-06-25",
+          "Grade": 84
+        },
+        {
+          "StudentID": "75193486",
+          "CourseID": 106,
+          "EnrollmentDate": "2024-06-12",
+          "Grade": 94
+        },
+        {
+          "StudentID": "84729163",
+          "CourseID": 103,
+          "EnrollmentDate": "2024-06-28",
+          "Grade": 86
+        },
+        {
+          "StudentID": "87369214",
+          "CourseID": 106,
+          "EnrollmentDate": "2024-06-10",
+          "Grade": 61
+        },
+        {
+          "StudentID": "95718234",
+          "CourseID": 109,
+          "EnrollmentDate": "2024-01-08",
+          "Grade": 84
+        },
+        {
+          "StudentID": "71829463",
+          "CourseID": 102,
+          "EnrollmentDate": "2023-09-07",
+          "Grade": 77
+        },
+        {
+          "StudentID": "194DEF23",
+          "CourseID": 114,
+          "EnrollmentDate": "2023-09-20",
+          "Grade": 75
+        },
+        {
+          "StudentID": "59183746",
+          "CourseID": 108,
+          "EnrollmentDate": "2023-10-15",
+          "Grade": 83
+        },
+        {
+          "StudentID": "75193486",
+          "CourseID": 108,
+          "EnrollmentDate": "2023-09-18",
+          "Grade": 96
+        },
+        {
+          "StudentID": "56381947",
+          "CourseID": 108,
+          "EnrollmentDate": "2023-10-12",
+          "Grade": 85
+        },
+        {
+          "StudentID": "83572914",
+          "CourseID": 113,
+          "EnrollmentDate": "2024-02-22",
+          "Grade": 89
+        },
+        {
+          "StudentID": "61938472",
+          "CourseID": 103,
+          "EnrollmentDate": "2024-07-01",
+          "Grade": 83
+        },
+        {
+          "StudentID": "87369214",
+          "CourseID": 108,
+          "EnrollmentDate": "2023-09-15",
+          "Grade": 88
+        }
+      ]
+    },
+    "aiCommitment": null,
+    "submittedAt": "2026-06-22T15:47:10.480Z"
+  }
+}
