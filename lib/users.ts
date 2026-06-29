@@ -165,17 +165,27 @@ export class UsersService {
   }
 
   async getCoinsBalance(email: string): Promise<any[]> {
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : ''
+    if (!normalizedEmail) return []
     return executeWithRetry(async (db) => {
-      const docs = await db.collection(COLLECTIONS.COINS).find({ user: email }).toArray()
+      const docs = await db.collection(COLLECTIONS.COINS).find({ user: normalizedEmail }).toArray()
       return docs
     })
   }
 
   async setCoinsBalance(email: string, currentBalance: number): Promise<{ upsertedId?: any; modifiedCount?: number }>{
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : ''
+    const coins = typeof currentBalance === 'number' && Number.isFinite(currentBalance)
+      ? Math.max(0, Math.trunc(currentBalance))
+      : 0
+    if (!normalizedEmail) {
+      throw new Error('email is required')
+    }
+
     return executeWithRetry(async (db) => {
       const result = await db
         .collection(COLLECTIONS.COINS)
-        .updateOne({ user: email }, { $set: { coins: currentBalance } }, { upsert: true })
+        .updateOne({ user: normalizedEmail }, { $set: { user: normalizedEmail, coins } }, { upsert: true })
       return { upsertedId: (result as any).upsertedId, modifiedCount: (result as any).modifiedCount }
     })
   }
@@ -349,4 +359,3 @@ export async function resolveCanonicalUserId(identifier: string) {
   const service = await getUsersService()
   return service.resolveCanonicalUserId(identifier)
 }
-

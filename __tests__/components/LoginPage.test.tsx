@@ -24,10 +24,6 @@ describe('LoginPage', () => {
     mockFetch
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ([]) // Mock users response
-      })
-      .mockResolvedValueOnce({
-        ok: true,
         json: async () => ({ status: 'ON' }) // Mock status response
       })
   })
@@ -38,7 +34,7 @@ describe('LoginPage', () => {
     })
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledTimes(2)
+      expect(mockFetch).toHaveBeenCalledTimes(1)
     }, { timeout: 5000 })
 
     expect(document.body).toBeInTheDocument()
@@ -51,10 +47,9 @@ describe('LoginPage', () => {
     })
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledTimes(2)
+      expect(mockFetch).toHaveBeenCalledTimes(1)
     }, { timeout: 5000 })
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/users', expect.any(Object))
     expect(mockFetch).toHaveBeenCalledWith('/api/admin/status', expect.any(Object))
   })
 

@@ -3,7 +3,6 @@ import { User, Lock, Loader, Shield, UserCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import styles from './login.module.css';
 
-const SERVER = `/api/users`;
 const UPDATE_PASSWORD = `/api/users`;
 const GET_COINS_BALANCE = `/api/users/balance`;
 const REQUEST_TIMEOUT_MS = 8000;
@@ -127,29 +126,8 @@ const LoginPage = () => {
     setIsFetchingUsers(true);
     let fetchedUsers = [];
 
-    try {
-      const response = await fetchWithTimeout(SERVER, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      const data = await response.json();
-      fetchedUsers = Array.isArray(data) ? data : [];
-      if (isMountedRef.current) {
-        setUsers(fetchedUsers);
-      }
-    } catch (error) {
-      if (isTransientRequestFailure(error)) {
-        return fetchedUsers;
-      }
-      console.error('Error fetching users:', error);
-      const message = error?.name === 'AbortError'
-        ? 'Fetching users timed out. Please try again.'
-        : 'Failed to fetch users. Please try again.';
-      if (isMountedRef.current) {
-        setError(message);
-      }
+    if (isMountedRef.current) {
+      setUsers([]);
     }
     
     try {
@@ -201,15 +179,8 @@ const LoginPage = () => {
     setIsLoading(true);
     setError('');
 
-    let availableUsers = users;
-    if (availableUsers.length === 0) {
-      availableUsers = await fetchUsers();
-    }
-
-    const user = availableUsers.find(item => item.email === email);
-
     if (loginMode === 'admin') {
-      const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il"];
+      const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il", "r_admin@gmail.com"];
       if (!adminEmails.includes(email)) {
         setError('אין לך הרשאת מנהל');
         setTimeout(() => setError(''), 3000);
@@ -287,14 +258,6 @@ const LoginPage = () => {
       return;
     }
 
-    const user = users.find(item => item.email === email);
-    if (!user) {
-      setError('User not found');
-      setIsLoading(false);
-      setTimeout(() => setError(''), 3000);
-      return;
-    }
-
     try {
       const response = await fetch(UPDATE_PASSWORD, {
         method: 'POST',
@@ -303,12 +266,25 @@ const LoginPage = () => {
         },
         body: JSON.stringify({
           "email": email,
+          "currentPassword": password,
           "password": newPassword
         })
       });
 
       if (response.ok) {
-        storeUserInfo(user);
+        const loginResponse = await fetch('/api/users/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password: newPassword })
+        });
+        if (loginResponse.ok) {
+          const loggedInUser = await loginResponse.json();
+          storeUserInfo(loggedInUser);
+        } else {
+          storeUserInfo({ email, firstName: email });
+        }
         // Redirect based on login mode
         if (loginMode === 'admin') {
           router.push('/landing');

@@ -99,6 +99,10 @@ function normalizeNumber(value: unknown, fallback: number, { minimum = 0 } = {})
   return fallback
 }
 
+function normalizeCoinUser(value: unknown): string {
+  return typeof value === 'string' ? value.trim().toLowerCase() : ''
+}
+
 function normalizeModules(value: unknown): CoinsModulesConfig {
   const modules = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
   return {
@@ -217,11 +221,46 @@ export class CoinsService {
   }
 
   async updateCoinsBalance(users: string[], amount: number) {
+    const normalizedAmount = typeof amount === 'number' && Number.isFinite(amount) ? Math.trunc(amount) : 0
+    const uniqueUsers = [...new Set(users.map(normalizeCoinUser).filter(Boolean))]
+    if (uniqueUsers.length === 0 || normalizedAmount === 0) {
+      return { matchedCount: 0, modifiedCount: 0, upsertedCount: 0 }
+    }
+
     return executeWithRetry(async (db) => {
-      const result = await db
-        .collection<CoinDoc>(COLLECTIONS.COINS)
-        .updateMany({ user: { $in: users } }, { $inc: { coins: amount } })
-      return { matchedCount: result.matchedCount, modifiedCount: result.modifiedCount }
+      const collection = db.collection<CoinDoc>(COLLECTIONS.COINS)
+      const results = await Promise.all(
+        uniqueUsers.map((user) =>
+          collection.updateOne(
+            { user },
+            [
+              {
+                $set: {
+                  user,
+                  coins: {
+                    $max: [
+                      0,
+                      {
+                        $add: [
+                          { $ifNull: ['$coins', 0] },
+                          normalizedAmount,
+                        ],
+                      },
+                    ],
+                  },
+                },
+              },
+            ] as any,
+            { upsert: true }
+          )
+        )
+      )
+
+      return {
+        matchedCount: results.reduce((sum, result) => sum + result.matchedCount, 0),
+        modifiedCount: results.reduce((sum, result) => sum + result.modifiedCount, 0),
+        upsertedCount: results.reduce((sum, result) => sum + result.upsertedCount, 0),
+      }
     })
   }
 

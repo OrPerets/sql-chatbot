@@ -1,6 +1,26 @@
 import { NextResponse } from 'next/server'
 import { getCoinsBalance, setCoinsBalance } from '@/lib/users'
 import { AdminAuthError, requireAdmin } from '@/lib/admin-auth'
+import { resolveAuthenticatedSession } from '@/lib/session-auth'
+
+function normalizeEmail(value: unknown): string {
+  return typeof value === 'string' ? value.trim().toLowerCase() : ''
+}
+
+async function canReadBalance(request: Request, email: string): Promise<boolean> {
+  try {
+    await requireAdmin(request)
+    return true
+  } catch (error) {
+    if (!(error instanceof AdminAuthError)) {
+      throw error
+    }
+  }
+
+  const session = await resolveAuthenticatedSession(request, 'users.balance.GET')
+  const sessionEmail = normalizeEmail(session?.user.email ?? session?.session.email)
+  return Boolean(sessionEmail && sessionEmail === normalizeEmail(email))
+}
 
 export async function GET(request: Request) {
   try {
@@ -9,7 +29,9 @@ export async function GET(request: Request) {
     if (!email) {
       return NextResponse.json({ error: 'email is required' }, { status: 400 })
     }
-    // MVP: keep GET public for client balance refreshes by email query param.
+    if (!(await canReadBalance(request, email))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
     const result = await getCoinsBalance(email)
     return NextResponse.json(result)
   } catch (error) {

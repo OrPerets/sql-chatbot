@@ -7,6 +7,8 @@ const options = {
   'reset_password': 'איפוס סיסמה'
 };
 
+const balanceActions = ['add_balance', 'reduce_balance'];
+
 interface BulkActionsProps {
   selectedUsers: string[];
   adminEmail?: string | null;
@@ -32,7 +34,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({ selectedUsers, adminEmail, on
         onError('Please select an action');
         return;
       }
-      if (['add_balance', 'reduce_balance', 'set_balance'].includes(actionType) && !balanceAmount) {
+      if (balanceActions.includes(actionType) && !balanceAmount) {
         onError('Please enter an amount');
         return;
       }
@@ -48,6 +50,10 @@ const BulkActions: React.FC<BulkActionsProps> = ({ selectedUsers, adminEmail, on
         });
       } else {
         let amount = parseInt(balanceAmount, 10);
+        if (!Number.isFinite(amount) || amount <= 0) {
+          onError('Please enter a positive amount');
+          return;
+        }
         if (actionType === 'reduce_balance') amount = -amount;
         const response = await fetch(`/api/users/coins`, {
           method: 'POST',
@@ -87,7 +93,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({ selectedUsers, adminEmail, on
         ))}
       </select>
       
-      {Object.keys(options).includes(actionType) && (
+      {balanceActions.includes(actionType) && (
         <input
           type="number"
           value={balanceAmount}
