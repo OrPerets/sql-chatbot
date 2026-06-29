@@ -158,4 +158,37 @@ describe("RunnerClient homework chat sidebar", () => {
       expect(screen.queryByText("What Michael recommends next")).not.toBeInTheDocument();
     });
   });
+
+  it("places the paid hint action beside the query run action when homework hints are enabled", async () => {
+    (global.fetch as jest.Mock).mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/users/coins")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            modules: { homeworkHints: true },
+            costs: { homeworkHintOpen: 2 },
+          }),
+        } as Response;
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({}),
+      } as Response;
+    });
+
+    renderRunner();
+
+    const hintButton = await screen.findByRole("button", { name: /רמז.*2 מטבע/u });
+    const runButton = screen.getByText("runner.actions.run").closest("button");
+    const questionSummary = screen.getByText("Write the correct JOIN query").parentElement;
+
+    expect(runButton).not.toBeNull();
+    expect(questionSummary).not.toBeNull();
+    expect(hintButton.parentElement).toContainElement(runButton);
+    expect(questionSummary).not.toContainElement(hintButton);
+  });
 });

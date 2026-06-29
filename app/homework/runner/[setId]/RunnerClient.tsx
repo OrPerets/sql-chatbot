@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import Link from "next/link";
+import { Lightbulb } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getHomeworkQuestions, getHomeworkSet } from "@/app/homework/services/homeworkService";
 import { getDataset } from "@/app/homework/services/datasetService";
@@ -263,6 +264,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       noSampleRows: isEnglish ? "No sample rows were defined for this table." : "לא הוגדרו שורות דוגמה לטבלה זו.",
       question: isEnglish ? "Question" : "שאלה",
       openingHint: isEnglish ? "Opening hint..." : "פותח רמז...",
+      hintActionLabel: isEnglish ? "Hint" : "רמז",
       showHint: isEnglish ? "Show hint" : "הצג רמז",
       hintCostPrefix: isEnglish ? "Cost:" : "עלות פתיחה:",
       coin: isEnglish ? "coin" : "מטבע",
@@ -1201,37 +1203,6 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                     {resolvedExpectedOutputDescription}
                   </p>
                 )}
-                {homeworkHintsEnabled ? (
-                  <div className={styles.questionSummaryActions}>
-                    <button
-                      type="button"
-                      className={styles.hintButton}
-                      onClick={() =>
-                        activeQuestionId &&
-                        hintMutation.mutate({
-                          questionId: activeQuestionId,
-                          questionPrompt: activeQuestionText,
-                        })
-                      }
-                      disabled={!activeQuestionId || hintMutation.isPending}
-                    >
-                      {hintMutation.isPending ? runnerText.openingHint : runnerText.showHint}
-                    </button>
-                    <span className={styles.hintMeta}>
-                      {runnerText.hintCostPrefix} {homeworkHintCost} {runnerText.coin}
-                    </span>
-                  </div>
-                ) : null}
-                {hintErrorMessage ? (
-                  <p className={styles.hintErrorText} role="alert">
-                    {hintErrorMessage}
-                  </p>
-                ) : null}
-                {hintSuccessMessage ? (
-                  <p className={styles.hintSuccessText} role="status">
-                    {hintSuccessMessage}
-                  </p>
-                ) : null}
               </div>
             ) : (
               <h3>{t("runner.question.placeholder")}</h3>
@@ -1319,23 +1290,65 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                   {direction === "rtl" ? " ←" : " →"}
                 </button>
               </div>
-              
-              {!isRelationalAlgebra && (
-                <button
-                  type="button"
-                  className={styles.runButton}
-                  onClick={handleExecute}
-                  disabled={executeMutation.isPending || !activeQuestionId}
-                >
-                  {executeMutation.isPending ? (
-                    <span className={styles.runButtonSpinner} />
-                  ) : (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  )}
-                  {executeMutation.isPending ? t("runner.actions.running") : t("runner.actions.run")}
-                </button>
-              )}
+
+              <div className={styles.primaryActionCluster}>
+                {homeworkHintsEnabled ? (
+                  <button
+                    type="button"
+                    className={styles.hintButton}
+                    onClick={() =>
+                      activeQuestionId &&
+                      hintMutation.mutate({
+                        questionId: activeQuestionId,
+                        questionPrompt: activeQuestionText,
+                      })
+                    }
+                    disabled={!activeQuestionId || hintMutation.isPending}
+                  >
+                    {hintMutation.isPending ? (
+                      <span className={styles.runButtonSpinner} />
+                    ) : (
+                      <Lightbulb size={15} aria-hidden="true" />
+                    )}
+                    <span>{hintMutation.isPending ? runnerText.openingHint : runnerText.hintActionLabel}</span>
+                    <span className={styles.hintButtonCost}>
+                      {homeworkHintCost} {runnerText.coin}
+                    </span>
+                  </button>
+                ) : null}
+
+                {!isRelationalAlgebra && (
+                  <button
+                    type="button"
+                    className={styles.runButton}
+                    onClick={handleExecute}
+                    disabled={executeMutation.isPending || !activeQuestionId}
+                  >
+                    {executeMutation.isPending ? (
+                      <span className={styles.runButtonSpinner} />
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    )}
+                    {executeMutation.isPending ? t("runner.actions.running") : t("runner.actions.run")}
+                  </button>
+                )}
+              </div>
             </div>
+
+            {homeworkHintsEnabled && (hintErrorMessage || hintSuccessMessage) ? (
+              <div className={styles.hintActionFeedback}>
+                {hintErrorMessage ? (
+                  <p className={styles.hintErrorText} role="alert">
+                    {hintErrorMessage}
+                  </p>
+                ) : null}
+                {hintSuccessMessage ? (
+                  <p className={styles.hintSuccessText} role="status">
+                    {hintSuccessMessage}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           {!isRelationalAlgebra && (

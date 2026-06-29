@@ -121,6 +121,24 @@ describe('CoinsService', () => {
     )
   })
 
+  it('getOrCreateUserBalance normalizes email keys before reading or seeding', async () => {
+    mockStatusCollection.findOne.mockResolvedValue(null)
+    mockCoinsCollection.findOneAndUpdate.mockResolvedValue({
+      user: email,
+      coins: DEFAULT_STARTER_BALANCE,
+    })
+    const service = new CoinsService({} as any)
+
+    const balance = await service.getOrCreateUserBalance(' Student@Example.com ')
+
+    expect(balance).toEqual({ user: email, coins: DEFAULT_STARTER_BALANCE })
+    expect(mockCoinsCollection.findOneAndUpdate).toHaveBeenCalledWith(
+      { user: email },
+      { $setOnInsert: { user: email, coins: DEFAULT_STARTER_BALANCE } },
+      { upsert: true, returnDocument: 'after' }
+    )
+  })
+
   it('chargeMichaelMessage decrements balance when sufficient', async () => {
     mockStatusCollection.findOne.mockResolvedValue({
       sid: 'admin',
@@ -325,6 +343,39 @@ describe('CoinsService', () => {
         user: email,
         delta: -2,
         reason: 'admin_adjustment_reduce',
+        createdBy: 'admin@example.com',
+      })
+    )
+  })
+
+  it('adjustBalanceAdmin applies additions from current zero balance without seeding starter balance first', async () => {
+    mockCoinsCollection.updateOne.mockResolvedValue({ matchedCount: 0, modifiedCount: 0, upsertedCount: 1 })
+    mockLedgerCollection.insertOne.mockResolvedValue({ acknowledged: true, insertedId: 'txn-add' })
+    const service = new CoinsService({} as any)
+
+    const result = await service.adjustBalanceAdmin([' Student@Example.com '], 5, 'Admin@Example.com')
+
+    expect(result).toEqual({ matchedCount: 0, modifiedCount: 0, upsertedCount: 1 })
+    expect(mockCoinsCollection.findOneAndUpdate).not.toHaveBeenCalled()
+    expect(mockCoinsCollection.updateOne).toHaveBeenCalledWith(
+      { user: email },
+      expect.arrayContaining([
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            user: email,
+            coins: expect.objectContaining({
+              $max: expect.any(Array),
+            }),
+          }),
+        }),
+      ]),
+      { upsert: true }
+    )
+    expect(mockLedgerCollection.insertOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user: email,
+        delta: 5,
+        reason: 'admin_adjustment_add',
         createdBy: 'admin@example.com',
       })
     )

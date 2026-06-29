@@ -112,6 +112,20 @@ function normalizeModules(value: unknown): CoinsModulesConfig {
   }
 }
 
+function mergeModulesConfig(
+  current: CoinsModulesConfig,
+  value: CoinsConfigPatch['modules']
+): CoinsModulesConfig {
+  const modules = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+  return {
+    mainChat: modules.mainChat === undefined ? current.mainChat : modules.mainChat === true,
+    homeworkHints:
+      modules.homeworkHints === undefined ? current.homeworkHints : modules.homeworkHints === true,
+    sqlPractice:
+      modules.sqlPractice === undefined ? current.sqlPractice : modules.sqlPractice === true,
+  }
+}
+
 function normalizeCosts(value: unknown, messageCost: unknown): CoinsCostsConfig {
   const costs = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
   const normalizedMainChatCost = normalizeNumber(
@@ -123,6 +137,27 @@ function normalizeCosts(value: unknown, messageCost: unknown): CoinsCostsConfig 
     mainChatMessage: normalizedMainChatCost,
     sqlPracticeOpen: normalizeNumber(costs.sqlPracticeOpen, DEFAULT_SQL_PRACTICE_COST),
     homeworkHintOpen: normalizeNumber(costs.homeworkHintOpen, DEFAULT_HOMEWORK_HINT_COST),
+  }
+}
+
+function mergeCostsConfig(
+  current: CoinsCostsConfig,
+  value: CoinsConfigPatch['costs']
+): CoinsCostsConfig {
+  const costs = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+  return {
+    mainChatMessage:
+      costs.mainChatMessage === undefined
+        ? current.mainChatMessage
+        : normalizeNumber(costs.mainChatMessage, current.mainChatMessage),
+    sqlPracticeOpen:
+      costs.sqlPracticeOpen === undefined
+        ? current.sqlPracticeOpen
+        : normalizeNumber(costs.sqlPracticeOpen, current.sqlPracticeOpen),
+    homeworkHintOpen:
+      costs.homeworkHintOpen === undefined
+        ? current.homeworkHintOpen
+        : normalizeNumber(costs.homeworkHintOpen, current.homeworkHintOpen),
   }
 }
 
@@ -158,9 +193,13 @@ function normalizeCoinsConfig(doc?: CoinsStatusCollectionDoc | null): CoinsConfi
 }
 
 function normalizeCoinDoc(doc: Partial<CoinDoc> | null | undefined, fallbackUser: string): CoinDoc {
+  const coins = typeof doc?.coins === 'number' && Number.isFinite(doc.coins)
+    ? Math.max(0, doc.coins)
+    : 0
+
   return {
-    user: typeof doc?.user === 'string' ? doc.user : fallbackUser,
-    coins: typeof doc?.coins === 'number' && Number.isFinite(doc.coins) ? doc.coins : 0,
+    user: normalizeCoinUser(doc?.user) || fallbackUser,
+    coins,
   }
 }
 
@@ -169,8 +208,13 @@ function normalizeTransaction(doc: Partial<CoinTransaction> | null | undefined):
     return null
   }
 
+  const user = normalizeCoinUser(doc.user)
+  if (!user) {
+    return null
+  }
+
   return {
-    user: doc.user,
+    user,
     delta: typeof doc.delta === 'number' && Number.isFinite(doc.delta) ? doc.delta : 0,
     reason:
       typeof doc.reason === 'string' && doc.reason in CHARGE_REASON_TO_SOURCE
@@ -186,7 +230,7 @@ function normalizeTransaction(doc: Partial<CoinTransaction> | null | undefined):
         ? (doc.metadata as Record<string, unknown>)
         : undefined,
     createdAt: doc.createdAt instanceof Date ? doc.createdAt : new Date(0),
-    createdBy: typeof doc.createdBy === 'string' ? doc.createdBy : undefined,
+    createdBy: normalizeCoinUser(doc.createdBy) || undefined,
   }
 }
 
@@ -300,14 +344,8 @@ export class CoinsService {
 
   async setCoinsConfig(partial: CoinsConfigPatch, updatedBy?: string) {
     const current = await this.getCoinsConfig()
-    const mergedModules: CoinsModulesConfig = {
-      ...current.modules,
-      ...(partial.modules || {}),
-    }
-    const mergedCosts: CoinsCostsConfig = {
-      ...current.costs,
-      ...(partial.costs || {}),
-    }
+    const mergedModules = mergeModulesConfig(current.modules, partial.modules)
+    const mergedCosts = mergeCostsConfig(current.costs, partial.costs)
 
     if (partial.messageCost !== undefined) {
       mergedCosts.mainChatMessage = normalizeNumber(partial.messageCost, DEFAULT_MESSAGE_COST)
@@ -338,7 +376,7 @@ export class CoinsService {
       },
       modules: mergedModules,
       updatedAt: new Date(),
-      updatedBy: updatedBy || current.updatedBy,
+      updatedBy: normalizeCoinUser(updatedBy) || current.updatedBy,
     }
     const { sid: _sid, ...persistedConfig } = nextConfig
 
@@ -357,22 +395,32 @@ export class CoinsService {
   }
 
   async getOrCreateUserBalance(email: string): Promise<CoinDoc> {
+    const user = normalizeCoinUser(email)
+    if (!user) {
+      throw new Error('email is required')
+    }
+
     const config = await this.getCoinsConfig()
     return executeWithRetry(async (db) => {
       const result = await db.collection<CoinDoc>(COLLECTIONS.COINS).findOneAndUpdate(
-        { user: email },
-        { $setOnInsert: { user: email, coins: config.starterBalance } },
+        { user },
+        { $setOnInsert: { user, coins: config.starterBalance } },
         { upsert: true, returnDocument: 'after' }
       )
-      return normalizeCoinDoc(result, email)
+      return normalizeCoinDoc(result, user)
     })
   }
 
   async getUserBalance(email: string): Promise<CoinDoc> {
+    const user = normalizeCoinUser(email)
+    if (!user) {
+      return { user: '', coins: 0 }
+    }
+
     return executeWithRetry(async (db) => {
-      const doc = await db.collection<CoinDoc>(COLLECTIONS.COINS).findOne({ user: email })
+      const doc = await db.collection<CoinDoc>(COLLECTIONS.COINS).findOne({ user })
       // Canonical no-row representation: return zero balance without inserting.
-      return normalizeCoinDoc(doc, email)
+      return normalizeCoinDoc(doc, user)
     })
   }
 
@@ -383,14 +431,19 @@ export class CoinsService {
     metadata?: Record<string, unknown>
     createdBy?: string
   }) {
+    const user = normalizeCoinUser(entry.user)
+    if (!user) {
+      throw new Error('user is required')
+    }
+
     const transaction: CoinTransaction = {
-      user: entry.user,
+      user,
       delta: entry.delta,
       reason: entry.reason,
       source: CHARGE_REASON_TO_SOURCE[entry.reason],
       metadata: entry.metadata,
       createdAt: new Date(),
-      createdBy: entry.createdBy,
+      createdBy: normalizeCoinUser(entry.createdBy) || undefined,
     }
 
     return executeWithRetry(async (db) => {
@@ -416,23 +469,28 @@ export class CoinsService {
       return { ok: true }
     }
 
-    await this.getOrCreateUserBalance(email)
+    const user = normalizeCoinUser(email)
+    if (!user) {
+      return { ok: false, balance: 0, required }
+    }
+
+    await this.getOrCreateUserBalance(user)
 
     const updated = await executeWithRetry(async (db) => {
       return db.collection<CoinDoc>(COLLECTIONS.COINS).findOneAndUpdate(
-        { user: email, coins: { $gte: required } },
+        { user, coins: { $gte: required } },
         { $inc: { coins: -required } },
         { returnDocument: 'after' }
       )
     })
 
     if (!updated) {
-      const current = await this.getUserBalance(email)
+      const current = await this.getUserBalance(user)
       return { ok: false, balance: current.coins, required }
     }
 
     await this.logCoinTransaction({
-      user: email,
+      user,
       delta: -required,
       reason,
       metadata,
@@ -458,23 +516,23 @@ export class CoinsService {
   }
 
   async adjustBalanceAdmin(users: string[], delta: number, adminEmail?: string) {
-    const uniqueUsers = [...new Set(users.filter((user): user is string => typeof user === 'string' && user.trim().length > 0))]
-    if (uniqueUsers.length === 0 || !Number.isFinite(delta) || delta === 0) {
+    const normalizedDelta = typeof delta === 'number' && Number.isFinite(delta) ? Math.trunc(delta) : 0
+    const uniqueUsers = [...new Set(users.map(normalizeCoinUser).filter(Boolean))]
+    const normalizedAdminEmail = normalizeCoinUser(adminEmail) || undefined
+    if (uniqueUsers.length === 0 || normalizedDelta === 0) {
       return { matchedCount: 0, modifiedCount: 0 }
     }
 
-    await Promise.all(uniqueUsers.map((user) => this.getOrCreateUserBalance(user)))
-
-    if (delta > 0) {
-      const result = await this.updateCoinsBalance(uniqueUsers, delta)
+    if (normalizedDelta > 0) {
+      const result = await this.updateCoinsBalance(uniqueUsers, normalizedDelta)
 
       await Promise.all(
         uniqueUsers.map((user) =>
           this.logCoinTransaction({
             user,
-            delta,
+            delta: normalizedDelta,
             reason: 'admin_adjustment_add',
-            createdBy: adminEmail,
+            createdBy: normalizedAdminEmail,
           })
         )
       )
@@ -487,7 +545,8 @@ export class CoinsService {
     await Promise.all(
       uniqueUsers.map(async (user) => {
         const currentBalance = await this.getUserBalance(user)
-        const safeDelta = Math.max(delta, -currentBalance.coins)
+        const currentCoins = Math.max(0, currentBalance.coins)
+        const safeDelta = Math.max(normalizedDelta, -currentCoins)
 
         if (safeDelta === 0) {
           return
@@ -506,7 +565,7 @@ export class CoinsService {
           user,
           delta: safeDelta,
           reason: 'admin_adjustment_reduce',
-          createdBy: adminEmail,
+          createdBy: normalizedAdminEmail,
         })
       })
     )
