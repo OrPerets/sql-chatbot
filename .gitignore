@@ -8,6 +8,8 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
 
 # next.js
 /.next/
@@ -41,4 +43,5 @@ michael-test-app/
 # local exports/doc artifacts
 exports/**/*.xlsx
 docs/*.xlsx
-*.docx
+/*.docx
+/output/playwright/
