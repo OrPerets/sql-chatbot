@@ -102,6 +102,7 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [successDetails, setSuccessDetails] = useState<string | null>(null);
   const [config, setConfig] = useState<CoinsConfig | null>(null);
+  const [savedConfig, setSavedConfig] = useState<CoinsConfig | null>(null);
   const [summary, setSummary] = useState<CoinsOverview["summary"] | null>(null);
   const [users, setUsers] = useState<EnrichedUserRow[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -130,6 +131,14 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
     return filteredUsers.reduce((sum, user) => sum + user.currentBalance, 0);
   }, [filteredUsers]);
 
+  const hasUnsavedConfigChanges = useMemo(() => {
+    if (!config || !savedConfig) {
+      return false;
+    }
+
+    return JSON.stringify(config) !== JSON.stringify(savedConfig);
+  }, [config, savedConfig]);
+
   const getAdminHeaders = (baseHeaders: Record<string, string> = {}) => ({
     ...baseHeaders,
     "x-user-email": currentAdminEmail,
@@ -155,10 +164,18 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
       ]);
 
       if (!overviewResponse.ok) {
-        throw new Error(`טעינת נתוני מטבעות נכשלה (${overviewResponse.status})`);
+        const message =
+          overviewResponse.status === 403
+            ? "פג תוקף ההתחברות לממשק המנהל. יש להתחבר מחדש."
+            : `טעינת נתוני מטבעות נכשלה (${overviewResponse.status})`;
+        throw new Error(message);
       }
       if (!usersResponse.ok) {
-        throw new Error(`טעינת רשימת משתמשים נכשלה (${usersResponse.status})`);
+        const message =
+          usersResponse.status === 403
+            ? "פג תוקף ההתחברות לממשק המנהל. יש להתחבר מחדש."
+            : `טעינת רשימת משתמשים נכשלה (${usersResponse.status})`;
+        throw new Error(message);
       }
 
       const overview = (await overviewResponse.json()) as CoinsOverview;
@@ -204,6 +221,7 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
         });
 
       setConfig(overview.config);
+      setSavedConfig(overview.config);
       setSummary({
         ...overview.summary,
         totalUsers: mergedRows.length,
@@ -228,6 +246,9 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
     if (!config) {
       return;
     }
+
+    setSuccessMessage(null);
+    setSuccessDetails(null);
 
     if (section === "starterBalance") {
       setConfig({
@@ -271,10 +292,15 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
 
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error || "שמירת ההגדרות נכשלה.");
+        const message =
+          response.status === 403
+            ? "פג תוקף ההתחברות לממשק המנהל. יש להתחבר מחדש."
+            : payload.error || "שמירת ההגדרות נכשלה.";
+        throw new Error(message);
       }
 
       setConfig(payload);
+      setSavedConfig(payload);
       setSuccessMessage("הגדרות המטבעות נשמרו בהצלחה");
       setSuccessDetails(null);
       await loadCoinsData(true);
@@ -379,10 +405,11 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
               type="button"
               className={styles.primaryButton}
               onClick={saveConfig}
-              disabled={!config || savingConfig}
+              disabled={!config || savingConfig || !hasUnsavedConfigChanges}
+              title={hasUnsavedConfigChanges ? "שמירת השינויים בהגדרות" : "אין שינויים לשמירה"}
             >
               <Settings2 size={16} />
-              {savingConfig ? "שומר..." : "שמירת הגדרות"}
+              {savingConfig ? "שומר..." : hasUnsavedConfigChanges ? "שמירת שינויים" : "ההגדרות שמורות"}
             </button>
           </div>
         </section>
@@ -417,6 +444,11 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                 <h2>הגדרות וחיוב</h2>
                 <p>הפעלה וכיבוי לפי משטח, תמחור נקודתי ויתרת פתיחה למשתמש חדש.</p>
               </div>
+              {hasUnsavedConfigChanges ? (
+                <span className={styles.unsavedBadge}>יש שינויים שלא נשמרו</span>
+              ) : (
+                <span className={styles.savedBadge}>נשמר</span>
+              )}
             </div>
 
             {config ? (
@@ -507,8 +539,12 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                   <h3>תקציר תפעולי</h3>
                   <dl className={styles.definitionList}>
                     <div>
-                      <dt>סטטוס ישן</dt>
-                      <dd>{config.status}</dd>
+                      <dt>צ'אט שמור</dt>
+                      <dd>{savedConfig?.modules.mainChat ? "פעיל" : "כבוי"}</dd>
+                    </div>
+                    <div>
+                      <dt>רמזים שמורים</dt>
+                      <dd>{savedConfig?.modules.homeworkHints ? "פעיל" : "כבוי"}</dd>
                     </div>
                     <div>
                       <dt>שימושי צ'אט</dt>

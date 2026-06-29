@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { DEFAULT_ADMIN_EMAILS } from "@/lib/admin-emails";
@@ -81,14 +81,51 @@ export default function AdminShell({ children }: AdminShellProps) {
   }, [router]);
 
   useEffect(() => {
+    if (!currentAdminEmail) return;
+
+    let cancelled = false;
+
+    async function validateAdminSession() {
+      try {
+        const response = await fetch("/api/admin/session", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`admin session rejected (${response.status})`);
+        }
+
+        const payload = (await response.json()) as { email?: string };
+        const sessionEmail = payload.email?.toLowerCase().trim();
+        if (sessionEmail !== currentAdminEmail) {
+          throw new Error("admin session email mismatch");
+        }
+      } catch (validationError) {
+        console.error("Admin session validation failed:", validationError);
+        if (cancelled) return;
+        localStorage.removeItem("currentUser");
+        setCurrentUser(null);
+        setCurrentAdminEmail(null);
+        setError("פג תוקף ההתחברות לממשק המנהל. יש להתחבר מחדש.");
+        setAuthChecked(true);
+        router.replace("/login");
+      }
+    }
+
+    void validateAdminSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentAdminEmail, router]);
+
+  useEffect(() => {
     if (!authChecked || !currentAdminEmail || !pathname) return;
     recordRecentRoute(pathname);
   }, [authChecked, currentAdminEmail, pathname]);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem("currentUser");
+    void fetch("/api/users/logout", { method: "POST" });
     router.push("/");
-  };
+  }, [router]);
 
   const contextValue = useMemo<AdminShellContextValue>(
     () => ({
@@ -96,7 +133,7 @@ export default function AdminShell({ children }: AdminShellProps) {
       currentAdminEmail,
       logout,
     }),
-    [currentAdminEmail, currentUser]
+    [currentAdminEmail, currentUser, logout]
   );
 
   if (!authChecked) {
