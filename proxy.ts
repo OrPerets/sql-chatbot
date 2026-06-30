@@ -5,6 +5,7 @@ import { readSessionFromRequest } from "@/lib/session-auth";
 
 const ADMIN_PAGE_PREFIXES = ["/admin", "/homework/builder"] as const;
 const ADMIN_API_PREFIX = "/api/admin";
+const PUBLIC_ADMIN_GET_PATHS = new Set(["/api/admin/status"]);
 const SUPPORTED_LOCALES = new Set(["he", "en"]);
 const DEFAULT_LOCALE = "he";
 
@@ -42,7 +43,10 @@ export async function proxy(request: NextRequest) {
   const session = await readSessionFromRequest(request);
   const sessionRole = session?.role ?? "guest";
 
-  if (pathname.startsWith(ADMIN_API_PREFIX) && sessionRole !== "admin") {
+  const isPublicAdminGet =
+    request.method === "GET" && PUBLIC_ADMIN_GET_PATHS.has(pathname);
+
+  if (pathname.startsWith(ADMIN_API_PREFIX) && !isPublicAdminGet && sessionRole !== "admin") {
     const status = session ? 403 : 401;
     return NextResponse.json(
       { error: status === 401 ? "Unauthorized" : "Forbidden" },

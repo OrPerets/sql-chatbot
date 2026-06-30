@@ -6,6 +6,7 @@ import styles from './login.module.css';
 const UPDATE_PASSWORD = `/api/users`;
 const GET_COINS_BALANCE = `/api/users/balance`;
 const REQUEST_TIMEOUT_MS = 8000;
+const SHOULD_FORCE_DEFAULT_PASSWORD_CHANGE = process.env.NODE_ENV === 'production';
 
 const LoginPage = () => {
   const isMountedRef = useRef(true);
@@ -15,9 +16,8 @@ const LoginPage = () => {
   const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState('');
   const [changePassword, setChangePassword] = useState(false);
-  const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isFetchingUsers, setIsFetchingUsers] = useState(true);
+  const [isFetchingUsers, setIsFetchingUsers] = useState(false);
   const [status, setStatus] = useState('ON');
   const [loginMode, setLoginMode] = useState('user'); // 'user' or 'admin'
   const router = useRouter();
@@ -48,8 +48,6 @@ const LoginPage = () => {
 
     window.addEventListener('pagehide', markPageLeaving);
     window.addEventListener('beforeunload', markPageLeaving);
-    fetchUsers();
-
     return () => {
       isMountedRef.current = false;
       pageLeavingRef.current = true;
@@ -122,50 +120,6 @@ const LoginPage = () => {
     }
   }
 
-  const fetchUsers = async () => {
-    setIsFetchingUsers(true);
-    let fetchedUsers = [];
-
-    if (isMountedRef.current) {
-      setUsers([]);
-    }
-    
-    try {
-      const response = await fetchWithTimeout('/api/admin/status', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      const data = await response.json();
-      // setStatus(data["status"]);
-      if (isMountedRef.current) {
-        setStatus("ON");
-      }
-    } catch (error) {
-      if (isTransientRequestFailure(error)) {
-        return fetchedUsers;
-      }
-      console.error('Error fetching status:', error);
-      const message = error?.name === 'AbortError'
-        ? 'Fetching status timed out. Please try again.'
-        : 'Failed to fetch status. Please try again.';
-      if (isMountedRef.current) {
-        setError(message);
-      }
-      // Keep login available even if status endpoint is temporarily unavailable.
-      if (isMountedRef.current) {
-        setStatus('ON');
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsFetchingUsers(false);
-      }
-    }
-
-    return fetchedUsers;
-  };
-
   const storeUserInfo = (user) => {
     localStorage.setItem("currentUser", JSON.stringify({
       id: user.id,
@@ -187,7 +141,7 @@ const LoginPage = () => {
         setIsLoading(false);
         return;
       }
-      if (password === 'shenkar') {
+      if (SHOULD_FORCE_DEFAULT_PASSWORD_CHANGE && password === 'shenkar') {
         setChangePassword(true);
         setIsLoading(false);
         return;
@@ -214,7 +168,7 @@ const LoginPage = () => {
         setError('שגיאה בהתחברות, נסו שוב');
       }
     } else {
-      if (password === 'shenkar') {
+      if (SHOULD_FORCE_DEFAULT_PASSWORD_CHANGE && password === 'shenkar') {
         setChangePassword(true);
         setIsLoading(false);
         return;

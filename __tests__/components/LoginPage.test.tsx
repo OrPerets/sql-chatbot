@@ -19,13 +19,6 @@ describe('LoginPage', () => {
     mockFetch.mockClear()
     localStorageMock.getItem.mockClear()
     localStorageMock.setItem.mockClear()
-
-    // Mock successful API responses by default
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ status: 'ON' }) // Mock status response
-      })
   })
 
   it('renders login page', async () => {
@@ -33,24 +26,17 @@ describe('LoginPage', () => {
       render(<LoginPage />)
     })
 
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledTimes(1)
-    }, { timeout: 5000 })
-
     expect(document.body).toBeInTheDocument()
     expect(document.querySelector('.loginContainer')).toBeInTheDocument()
   })
 
-  it('handles API calls on mount', async () => {
+  it('does not require API calls on mount', async () => {
     await act(async () => {
       render(<LoginPage />)
     })
 
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledTimes(1)
-    }, { timeout: 5000 })
-
-    expect(mockFetch).toHaveBeenCalledWith('/api/admin/status', expect.any(Object))
+    expect(document.querySelector('.loginContainer')).toBeInTheDocument()
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('handles fetch errors gracefully', async () => {
