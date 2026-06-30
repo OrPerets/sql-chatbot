@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { Settings, Play, BookOpen, Users } from "lucide-react";
+import { ArrowUpLeft, BookOpen, ClipboardList, Play, Settings, Users } from "lucide-react";
 import styles from "./welcome.module.css";
 
 const quickLinks = [
@@ -9,22 +9,25 @@ const quickLinks = [
     href: "/homework/builder",
     label: "ממשק הבנייה",
     description: "יצירה וניהול של מטלות SQL (עד 25 שאלות)",
-    icon: <Settings size={24} />,
-    color: "primary",
+    meta: "ניהול מטלות",
+    icon: <Settings size={22} />,
+    tone: "primary",
   },
   {
     href: "/homework/start",
     label: "ממשק הסטודנט",
     description: "חוויית פתרון המטלות עבור הסטודנטים",
-    icon: <Play size={24} />,
-    color: "secondary",
+    meta: "תצוגת תלמיד",
+    icon: <Play size={22} />,
+    tone: "secondary",
   },
   {
     href: "/homework/questions",
     label: "בנק השאלות",
     description: "ניהול ויצירת שאלות למטלות הבית",
-    icon: <BookOpen size={24} />,
-    color: "tertiary",
+    meta: "מאגר תוכן",
+    icon: <BookOpen size={22} />,
+    tone: "tertiary",
   },
 ];
 
@@ -38,24 +41,38 @@ export default async function HomeworkLandingPage() {
 
   return (
     <div className={styles.container} dir="rtl">
-      <section className={styles.hero}>
-        <div className={styles.heroIcon}>
-          <Users size={32} />
+      <section className={styles.headerPanel}>
+        <div className={styles.headerCopy}>
+          <div className={styles.headerIcon}>
+            <Users size={24} />
+          </div>
+          <div>
+            <p className={styles.eyebrow}>מרכז ניהול</p>
+            <h1>מודול שיעורי הבית</h1>
+            <p>גישה מהירה לבנייה, בדיקה וניהול של תרגילי SQL.</p>
+          </div>
         </div>
-        <h2>מודול שיעורי הבית</h2>
-        <p>סביבות בונה ותלמיד לשיעורי הבית המלאים</p>
+
+        <div className={styles.headerStatus} aria-label="מצב מודול">
+          <ClipboardList size={18} />
+          <span>3 סביבות עבודה</span>
+        </div>
       </section>
 
       <section className={styles.links}>
         {quickLinks.map((link) => (
-          <Link key={link.href} href={link.href} className={`${styles.linkCard} ${styles[link.color]}`}>
+          <Link key={link.href} href={link.href} className={styles.linkCard} data-tone={link.tone}>
             <div className={styles.linkIcon}>
               {link.icon}
             </div>
             <div className={styles.linkContent}>
+              <span className={styles.linkMeta}>{link.meta}</span>
               <span className={styles.linkTitle}>{link.label}</span>
               <span className={styles.linkDescription}>{link.description}</span>
             </div>
+            <span className={styles.linkAction} aria-hidden="true">
+              <ArrowUpLeft size={18} />
+            </span>
           </Link>
         ))}
       </section>
