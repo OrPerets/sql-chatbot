@@ -163,6 +163,26 @@ describe('deadline-utils availability windows', () => {
     expect(getAvailabilityState(homework, 'student@example.com', duringOverride)).toBe('closed');
   });
 
+  it('opens HW3 for Roni until the end of July 5 Asia/Jerusalem', () => {
+    const homework = {
+      id: '693d8a930a7ebe39f7099c88',
+      title: 'תרגיל בית 3',
+      availableFrom: '2026-06-17T01:00',
+      availableUntil: '2026-06-23T23:59',
+    };
+    const duringOverride = new Date('2026-07-05T20:00:00.000+03:00');
+    const afterOverride = new Date('2026-07-06T00:01:00.000+03:00');
+
+    const info = getHomeworkAvailabilityInfo(homework, 'ronibitterman81@gmail.com', duringOverride);
+
+    expect(info.availabilityState).toBe('open');
+    expect(info.accessible).toBe(true);
+    expect(info.effectiveAvailableUntil).toBe('2026-07-05T20:59:59.999Z');
+    expect(info.availabilityMessage).toContain('פתיחה אישית');
+    expect(getAvailabilityState(homework, 'ronibitterman81@gmail.com', afterOverride)).toBe('closed');
+    expect(getAvailabilityState(homework, 'student@example.com', duringOverride)).toBe('closed');
+  });
+
   it('uses createdAt as the fallback opening date for legacy homework', () => {
     const homework = {
       dueAt: '2026-03-07T00:00:00.000Z',
