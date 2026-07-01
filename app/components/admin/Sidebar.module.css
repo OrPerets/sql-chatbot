@@ -110,15 +110,12 @@
   color: var(--brand-primary);
 }
 
-.sectionBadge {
+.sectionDot {
   display: inline-flex;
-  min-height: 22px;
-  align-items: center;
+  width: 0.45rem;
+  height: 0.45rem;
   border-radius: 999px;
-  background: rgba(36, 92, 115, 0.1);
-  color: var(--brand-primary);
-  padding: 0 var(--space-2);
-  font-size: 0.68rem;
+  background: var(--brand-accent);
 }
 
 .routeList {
@@ -195,14 +192,8 @@
   color: var(--color-neutral-500);
   font-size: 0.72rem;
   line-height: 1.35;
-  display: inline-flex;
-  width: fit-content;
+  display: block;
   max-width: 100%;
-  min-height: 22px;
-  align-items: center;
-  border-radius: 999px;
-  background: var(--color-neutral-100);
-  padding: 0 var(--space-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -210,7 +201,6 @@
 
 .navLinkActive .navLinkDescription {
   color: var(--brand-primary);
-  background: rgba(36, 92, 115, 0.12);
 }
 
 .sidebarFooter {
@@ -283,6 +273,9 @@
 
 @media (max-width: 1023px) {
   .sidebar {
+    position: relative;
+    top: auto;
+    right: auto;
     box-shadow: var(--shadow-lg);
   }
 }

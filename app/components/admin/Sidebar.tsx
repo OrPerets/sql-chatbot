@@ -81,7 +81,7 @@ export default function Sidebar({
               {!isCollapsed ? (
                 <div className={styles.sectionLabel}>
                   <span>{bucket.label}</span>
-                  {isSectionActive ? <span className={styles.sectionBadge}>פעיל</span> : null}
+                  {isSectionActive ? <span className={styles.sectionDot} aria-label="אזור פעיל" /> : null}
                 </div>
               ) : null}
 
@@ -89,6 +89,10 @@ export default function Sidebar({
                 {routes.map((route) => {
                   const Icon = route.icon;
                   const isActive = activeRoute?.id === route.id;
+                  const compactMeta =
+                    route.shortLabel && route.shortLabel !== route.label
+                      ? route.shortLabel
+                      : route.actionLabel;
 
                   return (
                     <Link
@@ -108,9 +112,9 @@ export default function Sidebar({
                       {!isCollapsed ? (
                         <span className={styles.navLinkBody}>
                           <span className={styles.navLinkLabel}>{route.label}</span>
-                          <span className={styles.navLinkDescription}>
-                            {route.actionLabel || route.shortLabel || route.description}
-                          </span>
+                          {compactMeta ? (
+                            <span className={styles.navLinkDescription}>{compactMeta}</span>
+                          ) : null}
                         </span>
                       ) : null}
                     </Link>

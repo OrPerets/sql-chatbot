@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -90,12 +90,12 @@ export default function CommandCenter() {
   const [error, setError] = useState<string | null>(null);
   const [recentRoutes, setRecentRoutes] = useState<RecentRouteItem[]>([]);
 
-  const getAdminHeaders = (baseHeaders: Record<string, string> = {}) => ({
+  const getAdminHeaders = useCallback((baseHeaders: Record<string, string> = {}) => ({
     ...baseHeaders,
     ...(currentAdminEmail ? { "x-user-email": currentAdminEmail } : {}),
-  });
+  }), [currentAdminEmail]);
 
-  const loadOverview = async () => {
+  const loadOverview = useCallback(async () => {
     if (!currentAdminEmail) return;
 
     setLoading(true);
@@ -119,11 +119,11 @@ export default function CommandCenter() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentAdminEmail, getAdminHeaders]);
 
   useEffect(() => {
     void loadOverview();
-  }, [currentAdminEmail]);
+  }, [loadOverview]);
 
   useEffect(() => {
     const stored = localStorage.getItem(RECENT_ROUTES_STORAGE_KEY);
@@ -335,11 +335,11 @@ export default function CommandCenter() {
     },
     {
       id: "homework",
-      href: "/admin/homework",
-      label: "מטלות",
+      href: "/admin/homework?mode=students&view=attention",
+      label: "הגשות",
       value: formatNumber(overview?.statuses.totalHomeworkSets, loading),
-      status: "בנייה, פרסום ובדיקה",
-      action: "המשך מטלות",
+      status: "בדיקה, פתיחה וחסימות",
+      action: "בדוק הגשות",
       icon: Layers3,
       tone: "accent",
     },
@@ -366,9 +366,9 @@ export default function CommandCenter() {
     },
     {
       id: "homework",
-      href: "/admin/homework",
-      label: "המשך מטלות",
-      description: "בנייה ופרסום",
+      href: "/admin/homework?mode=students&view=attention",
+      label: "בדיקת הגשות",
+      description: "מי צריך טיפול",
       icon: Layers3,
       type: "link" as const,
       priority: "primary",

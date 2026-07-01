@@ -3,6 +3,7 @@ import {
   BarChart3,
   BookOpen,
   Brain,
+  CalendarClock,
   Coins,
   Database,
   FileText,
@@ -59,22 +60,22 @@ export interface AdminCommandConfig {
 export const ADMIN_BUCKETS: AdminBucket[] = [
   {
     id: "daily-ops",
-    label: "תפעול יומיומי",
-    description: "משתמשים, מצב מערכת ועלויות.",
+    label: "שליטה מהירה",
+    description: "הגשות, משתמשים וזמינות מערכת.",
   },
   {
     id: "content-assessment",
-    label: "תוכן והערכה",
-    description: "מטלות, שאלות, תבניות ונתונים.",
+    label: "בניית תוכן",
+    description: "שאלות, תבניות, מבחנים ונתוני תרגול.",
   },
   {
     id: "student-intelligence",
-    label: "מודיעין סטודנטים",
-    description: "סיכון, התקדמות ודוחות למרצה.",
+    label: "מעקב למידה",
+    description: "סיכון, התקדמות ומגמות למרצה.",
   },
   {
     id: "platform-tools",
-    label: "כלי פלטפורמה",
+    label: "כלי מערכת",
     description: "מודלים, בדיקות וקונטקסט Michael.",
   },
 ];
@@ -83,9 +84,9 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
   {
     id: "admin-home",
     href: "/admin",
-    label: "מרכז פיקוד",
+    label: "לוח בקרה",
     shortLabel: "בית",
-    description: "דף הבית התפעולי של ממשק הניהול.",
+    description: "תמונת מצב מהירה של הגשות, משתמשים ומערכת.",
     whyOpen: "כדי להבין מה דורש טיפול עכשיו ולקפוץ לפעולה הבאה.",
     actionLabel: "בדוק מצב",
     bucket: "daily-ops",
@@ -101,7 +102,7 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
     href: "/admin/users",
     label: "ניהול משתמשים",
     shortLabel: "משתמשים",
-    description: "יצירה, עריכה, איפוס סיסמה ופעולות מרובות על משתמשים.",
+    description: "גישה, סיסמאות ופעולות מרובות על משתמשים.",
     whyOpen: "כדי לטפל מהר בסטודנט בודד או בפעולת אדמין רוחבית.",
     actionLabel: "פתח משתמש",
     bucket: "daily-ops",
@@ -144,12 +145,12 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
   {
     id: "admin-homework",
     href: "/admin/homework",
-    label: "מטלות ובחינות",
-    shortLabel: "מטלות",
-    description: "מרחב העבודה הראשי של בניית מטלות, תצוגה מקדימה ופרסום.",
-    whyOpen: "כדי להמשיך בדיוק מהמקום שבו בנית או פרסמת מטלה.",
-    actionLabel: "המשך בנייה",
-    bucket: "content-assessment",
+    label: "מטלות והגשות",
+    shortLabel: "הגשות",
+    description: "ניהול הגשות, פתיחות אישיות ובניית מטלות.",
+    whyOpen: "כדי לראות מי הגיש, מי חסום ומה צריך לפתוח או לבדוק.",
+    actionLabel: "בדוק הגשות",
+    bucket: "daily-ops",
     icon: FolderKanban,
     nav: true,
     tile: true,
@@ -163,7 +164,7 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
     shortLabel: "שאלות",
     description: "עבודה ישירה על שאלות קיימות, פרמטרים ותוכן.",
     whyOpen: "כדי למצוא ולשנות שאלה בלי להיכנס לכל מרחב הבנייה.",
-    actionLabel: "ערוך שאלה",
+    actionLabel: "ערוך שאלות",
     bucket: "content-assessment",
     icon: Search,
     nav: true,
@@ -216,11 +217,11 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
   {
     id: "admin-databases",
     href: "/admin/databases",
-    label: "מסדי נתונים לתרגילים",
-    shortLabel: "מסדי נתונים",
+    label: "סכמות SQL",
+    shortLabel: "סכמות",
     description: "יצירה ותחזוקה של סכמות SQL למטלות ולתרגול.",
     whyOpen: "כדי להקים או לעדכן סביבת נתונים לתוכן לימודי.",
-    actionLabel: "עדכן סכמה",
+    actionLabel: "נהל סכמות",
     bucket: "content-assessment",
     icon: Database,
     nav: true,
@@ -231,7 +232,7 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
   {
     id: "admin-datasets",
     href: "/admin/datasets",
-    label: "דאטה-סטים",
+    label: "דאטה-סטים לימודיים",
     shortLabel: "דאטה-סטים",
     description: "הרחבה, ולידציה ותצוגה מקדימה של סטים לימודיים.",
     whyOpen: "כדי לייצר נתונים בצורה נשלטת ולבדוק את איכותם.",
@@ -360,13 +361,21 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 ];
 
 export const ADMIN_PINNED_ROUTE_IDS = [
-  "admin-users",
-  "admin-settings",
   "admin-homework",
-  "admin-templates",
+  "admin-users",
+  "admin-students",
+  "admin-settings",
 ] as const;
 
 export const ADMIN_COMMANDS: AdminCommandConfig[] = [
+  {
+    id: "command-open-homework-attention",
+    href: "/admin/homework?mode=students&view=attention",
+    label: "הגשות שדורשות טיפול",
+    description: "מעבר ישיר לסטודנטים ללא הגשה, חסומים או ממתינים לבדיקה.",
+    icon: FolderKanban,
+    keywords: ["homework", "submissions", "attention", "הגשות", "לטיפול"],
+  },
   {
     id: "command-add-user",
     href: "/admin/users?panel=add",
@@ -390,6 +399,14 @@ export const ADMIN_COMMANDS: AdminCommandConfig[] = [
     description: "קיצור למסך העלאת קובץ התאמות זמן לבחינה.",
     icon: Settings2,
     keywords: ["extra time", "upload", "התאמות זמן"],
+  },
+  {
+    id: "command-open-homework-overrides",
+    href: "/admin/homework?mode=students&view=override",
+    label: "פתיחות אישיות",
+    description: "סטודנטים עם חלון זמן אישי במטלה הנבחרת.",
+    icon: CalendarClock,
+    keywords: ["homework", "override", "extra time", "פתיחה אישית"],
   },
   {
     id: "command-open-datasets",

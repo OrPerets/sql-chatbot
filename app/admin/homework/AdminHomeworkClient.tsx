@@ -1,13 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
+  AlertTriangle,
   CalendarClock,
   CheckCircle2,
+  Clock3,
   Download,
   Eye,
   FileText,
+  Filter,
   GraduationCap,
+  Inbox,
+  ListChecks,
   Pencil,
   RefreshCw,
   RotateCcw,
@@ -29,7 +35,30 @@ import type {
 import styles from "./homework-admin.module.css";
 
 type Mode = "builder" | "students";
-type StatusFilter = "all" | "none" | "in_progress" | "submitted" | "graded" | "blocked";
+type StatusFilter =
+  | "attention"
+  | "all"
+  | "none"
+  | "in_progress"
+  | "submitted"
+  | "graded"
+  | "blocked"
+  | "override"
+  | "open"
+  | "closing_soon";
+
+const STATUS_FILTERS = new Set<StatusFilter>([
+  "attention",
+  "all",
+  "none",
+  "in_progress",
+  "submitted",
+  "graded",
+  "blocked",
+  "override",
+  "open",
+  "closing_soon",
+]);
 
 interface AccessEditorState {
   row: AdminHomeworkUserRow;
@@ -53,6 +82,53 @@ const STATUS_LABELS: Record<string, string> = {
   open: "פתוח",
   closed: "סגור",
 };
+
+function isStatusFilter(value: string | null): value is StatusFilter {
+  return Boolean(value && STATUS_FILTERS.has(value as StatusFilter));
+}
+
+function getRowKey(row: AdminHomeworkUserRow, index: number) {
+  if (row.user.id) return `user:${row.user.id}`;
+  if (row.submission.id) return `submission:${row.submission.id}`;
+  if (row.user.studentIdNumber) return `student-id:${row.user.studentIdNumber}`;
+  return `email:${row.user.email}:row:${index}`;
+}
+
+function getHoursUntil(value?: string | null) {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  if (Number.isNaN(timestamp)) return null;
+  return (timestamp - Date.now()) / (1000 * 60 * 60);
+}
+
+function isClosingSoon(row: AdminHomeworkUserRow) {
+  if (!row.access.accessible || row.access.availabilityState !== "open") return false;
+  const hoursUntilClose = getHoursUntil(row.access.effectiveAvailableUntil);
+  return hoursUntilClose !== null && hoursUntilClose >= 0 && hoursUntilClose <= 48;
+}
+
+function getAttentionReason(row: AdminHomeworkUserRow) {
+  if (!row.access.accessible && row.access.availabilityState === "closed" && row.submission.status !== "graded") {
+    return "סגור לגישה";
+  }
+  if (row.submission.status === "submitted") return "ממתין לבדיקה";
+  if (row.submission.status === "none" && row.access.accessible) return "אין הגשה";
+  if (row.submission.status === "in_progress" && row.submission.progress > 0) return "טיוטה פעילה";
+  if (isClosingSoon(row) && row.submission.status !== "graded") return "נסגר בקרוב";
+  return "";
+}
+
+function getNextAction(row: AdminHomeworkUserRow) {
+  if (!row.access.accessible && row.access.availabilityState === "closed" && row.submission.status !== "graded") {
+    return { label: "פתח חלון", tone: "danger" };
+  }
+  if (row.submission.status === "submitted") return { label: "בדוק הגשה", tone: "info" };
+  if (row.submission.status === "graded") return { label: "נבדק", tone: "success" };
+  if (row.submission.status === "in_progress") return { label: "בדוק טיוטה", tone: "warning" };
+  if (row.submission.status === "none" && row.access.accessible) return { label: "מעקב", tone: "neutral" };
+  if (row.access.hasOverride) return { label: "בדוק פתיחה", tone: "override" };
+  return { label: "פתח הגשה", tone: "neutral" };
+}
 
 function formatDateTime(value?: string | null) {
   if (!value) return "-";
@@ -151,12 +227,12 @@ function answerSummary(answer: Submission["answers"][string] | undefined) {
   };
 }
 
-function StudentManagementPanel() {
+function StudentManagementPanel({ initialFilter }: { initialFilter: StatusFilter }) {
   const [payload, setPayload] = useState<AdminHomeworkManagementPayload | null>(null);
   const [selectedSetId, setSelectedSetId] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialFilter);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [bulkFrom, setBulkFrom] = useState("");
   const [bulkUntil, setBulkUntil] = useState("");
   const [loading, setLoading] = useState(true);
@@ -174,7 +250,7 @@ function StudentManagementPanel() {
       const data = await fetchJson<AdminHomeworkManagementPayload>(`/api/admin/homework-management${query}`);
       setPayload(data);
       setSelectedSetId(data.selectedSet?.id ?? "");
-      setSelectedEmails([]);
+      setSelectedRowKeys([]);
     } catch (loadError) {
       console.error("Failed to load homework management:", loadError);
       setError(loadError instanceof Error ? loadError.message : "טעינת נתוני המטלות נכשלה.");
@@ -187,16 +263,37 @@ function StudentManagementPanel() {
     void loadManagementData("");
   }, [loadManagementData]);
 
+  useEffect(() => {
+    setStatusFilter(initialFilter);
+  }, [initialFilter]);
+
   const rows = useMemo(() => payload?.rows ?? [], [payload?.rows]);
   const selectedSet = payload?.selectedSet ?? null;
 
+  const rowItems = useMemo(
+    () =>
+      rows.map((row, index) => ({
+        row,
+        rowKey: getRowKey(row, index),
+        attentionReason: getAttentionReason(row),
+        closingSoon: isClosingSoon(row),
+      })),
+    [rows],
+  );
+
   const filteredRows = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
-    return rows.filter((row) => {
-      if (statusFilter === "blocked" && (row.access.accessible || row.access.availabilityState !== "closed")) {
-        return false;
-      }
-      if (statusFilter !== "all" && statusFilter !== "blocked" && row.submission.status !== statusFilter) {
+    return rowItems.filter(({ row, attentionReason, closingSoon }) => {
+      const matchesFilter =
+        statusFilter === "all" ||
+        (statusFilter === "attention" && Boolean(attentionReason)) ||
+        (statusFilter === "blocked" && !row.access.accessible && row.access.availabilityState === "closed") ||
+        (statusFilter === "override" && row.access.hasOverride) ||
+        (statusFilter === "open" && row.access.accessible && row.access.availabilityState === "open") ||
+        (statusFilter === "closing_soon" && closingSoon) ||
+        row.submission.status === statusFilter;
+
+      if (!matchesFilter) {
         return false;
       }
       if (!normalizedSearch) return true;
@@ -206,9 +303,25 @@ function StudentManagementPanel() {
         String(row.user.studentIdNumber || "").includes(normalizedSearch)
       );
     });
-  }, [rows, searchTerm, statusFilter]);
+  }, [rowItems, searchTerm, statusFilter]);
 
-  const selectedEmailSet = useMemo(() => new Set(selectedEmails), [selectedEmails]);
+  const selectedRowKeySet = useMemo(() => new Set(selectedRowKeys), [selectedRowKeys]);
+  const selectedRows = useMemo(
+    () => rowItems.filter((item) => selectedRowKeySet.has(item.rowKey)).map((item) => item.row),
+    [rowItems, selectedRowKeySet],
+  );
+
+  const triage = useMemo(() => {
+    return rowItems.reduce(
+      (acc, item) => {
+        acc.attention += item.attentionReason ? 1 : 0;
+        acc.open += item.row.access.accessible && item.row.access.availabilityState === "open" ? 1 : 0;
+        acc.closingSoon += item.closingSoon ? 1 : 0;
+        return acc;
+      },
+      { attention: 0, open: 0, closingSoon: 0 },
+    );
+  }, [rowItems]);
 
   const openAccessEditor = (row: AdminHomeworkUserRow) => {
     setAccessEditor({
@@ -265,21 +378,21 @@ function StudentManagementPanel() {
   };
 
   const applyBulkWindow = async () => {
-    if (!selectedSet || selectedEmails.length === 0 || !bulkFrom || !bulkUntil) return;
+    if (!selectedSet || selectedRows.length === 0 || !bulkFrom || !bulkUntil) return;
     setSaving(true);
     setError(null);
     setSuccess(null);
     try {
-      await Promise.all(selectedEmails.map((email) => fetchJson("/api/admin/homework-management/access", {
+      await Promise.all(selectedRows.map((row) => fetchJson("/api/admin/homework-management/access", {
         method: "PUT",
         body: JSON.stringify({
           homeworkSetId: selectedSet.id,
-          userEmail: email,
+          userEmail: row.user.email,
           availableFrom: toIsoFromInputValue(bulkFrom),
           availableUntil: toIsoFromInputValue(bulkUntil),
         }),
       })));
-      setSuccess(`עודכנו ${selectedEmails.length} סטודנטים.`);
+      setSuccess(`עודכנו ${selectedRows.length} סטודנטים.`);
       setBulkFrom("");
       setBulkUntil("");
       await loadManagementData(selectedSet.id);
@@ -310,8 +423,6 @@ function StudentManagementPanel() {
 
   const reopenSubmission = async () => {
     if (!submissionDialog || !selectedSet) return;
-    const confirmed = window.confirm("לפתוח מחדש את ההגשה? המערכת תשמור ארכיון לפני שינוי הסטטוס.");
-    if (!confirmed) return;
     setSaving(true);
     setError(null);
     try {
@@ -337,8 +448,8 @@ function StudentManagementPanel() {
     <section className={styles.management} dir="rtl">
       <div className={styles.managementHeader}>
         <div>
-          <h2>ניהול סטודנטים לפי מטלה</h2>
-          <p>רשימה מבוססת משתמשים קיימים, עם מצב הגשה וחלונות זמינות אישיים.</p>
+          <h2>בקרת מטלה</h2>
+          <p>{selectedSet ? selectedSet.title : "בחר מטלה כדי לראות הגשות, חסימות ופתיחות אישיות."}</p>
         </div>
         <div className={styles.headerActions}>
           <button type="button" className={styles.secondaryButton} onClick={() => loadManagementData(selectedSetId)} disabled={loading}>
@@ -348,13 +459,76 @@ function StudentManagementPanel() {
           <button
             type="button"
             className={styles.secondaryButton}
-            onClick={() => downloadCsv(filteredRows, selectedSet?.title || "homework")}
+            onClick={() => downloadCsv(filteredRows.map((item) => item.row), selectedSet?.title || "homework")}
             disabled={filteredRows.length === 0}
           >
             <Download size={16} />
-            CSV
+            יצוא CSV
           </button>
         </div>
+      </div>
+
+      <div className={styles.triageStrip} aria-label="סינון מהיר לפי מצב">
+        <button
+          type="button"
+          className={statusFilter === "attention" ? styles.activeTriage : ""}
+          data-tone="warning"
+          onClick={() => setStatusFilter("attention")}
+        >
+          <AlertTriangle size={18} />
+          <strong>{triage.attention}</strong>
+          <span>צריך טיפול</span>
+        </button>
+        <button
+          type="button"
+          className={statusFilter === "submitted" ? styles.activeTriage : ""}
+          data-tone="info"
+          onClick={() => setStatusFilter("submitted")}
+        >
+          <CheckCircle2 size={18} />
+          <strong>{payload?.summary.submitted ?? 0}</strong>
+          <span>הוגשו לבדיקה</span>
+        </button>
+        <button
+          type="button"
+          className={statusFilter === "none" ? styles.activeTriage : ""}
+          data-tone="neutral"
+          onClick={() => setStatusFilter("none")}
+        >
+          <Inbox size={18} />
+          <strong>{payload?.summary.noSubmission ?? 0}</strong>
+          <span>ללא הגשה</span>
+        </button>
+        <button
+          type="button"
+          className={statusFilter === "blocked" ? styles.activeTriage : ""}
+          data-tone="danger"
+          onClick={() => setStatusFilter("blocked")}
+        >
+          <ShieldAlert size={18} />
+          <strong>{payload?.summary.blockedByClosedWindow ?? 0}</strong>
+          <span>סגור לגישה</span>
+        </button>
+        <button
+          type="button"
+          className={statusFilter === "override" ? styles.activeTriage : ""}
+          data-tone="override"
+          onClick={() => setStatusFilter("override")}
+        >
+          <CalendarClock size={18} />
+          <strong>{payload?.summary.overrides ?? 0}</strong>
+          <span>פתיחות אישיות</span>
+        </button>
+        <button
+          type="button"
+          className={statusFilter === "closing_soon" ? styles.activeTriage : ""}
+          data-tone="closing"
+          onClick={() => setStatusFilter("closing_soon")}
+        >
+          <Clock3 size={18} />
+          <strong>{triage.closingSoon}</strong>
+          <span>נסגר בקרוב</span>
+        </button>
       </div>
 
       <div className={styles.toolbar}>
@@ -383,42 +557,55 @@ function StudentManagementPanel() {
           />
         </label>
         <label className={styles.field}>
-          <span>סטטוס</span>
+          <span>תצוגה</span>
           <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
+            <option value="attention">צריך טיפול</option>
             <option value="all">כולם</option>
+            <option value="open">פתוחים עכשיו</option>
+            <option value="closing_soon">נסגר בקרוב</option>
             <option value="none">ללא הגשה</option>
             <option value="in_progress">בתהליך</option>
             <option value="submitted">הוגש</option>
             <option value="graded">נבדק</option>
             <option value="blocked">סגור לגישה</option>
+            <option value="override">פתיחות אישיות</option>
           </select>
         </label>
+        <div className={styles.resultCount}>
+          <Filter size={15} />
+          {filteredRows.length} מתוך {rows.length}
+        </div>
       </div>
 
       {payload?.summary ? (
         <div className={styles.statsGrid}>
-          <div className={styles.statCard}><Users size={18} /><strong>{payload.summary.totalUsers}</strong><span>משתמשים</span></div>
-          <div className={styles.statCard}><FileText size={18} /><strong>{payload.summary.noSubmission}</strong><span>ללא הגשה</span></div>
-          <div className={styles.statCard}><CheckCircle2 size={18} /><strong>{payload.summary.submitted}</strong><span>הוגשו</span></div>
-          <div className={styles.statCard}><GraduationCap size={18} /><strong>{payload.summary.graded}</strong><span>נבדקו</span></div>
-          <div className={styles.statCard}><ShieldAlert size={18} /><strong>{payload.summary.blockedByClosedWindow}</strong><span>סגור לגישה</span></div>
-          <div className={styles.statCard}><CalendarClock size={18} /><strong>{payload.summary.overrides}</strong><span>פתיחות אישיות</span></div>
+          <div className={styles.statCard} data-tone="total"><Users size={18} /><strong>{payload.summary.totalUsers}</strong><span>סטודנטים</span></div>
+          <div className={styles.statCard} data-tone="open"><ListChecks size={18} /><strong>{triage.open}</strong><span>פתוחים עכשיו</span></div>
+          <div className={styles.statCard} data-tone="warning"><FileText size={18} /><strong>{payload.summary.noSubmission}</strong><span>ללא הגשה</span></div>
+          <div className={styles.statCard} data-tone="info"><CheckCircle2 size={18} /><strong>{payload.summary.submitted}</strong><span>הוגשו</span></div>
+          <div className={styles.statCard} data-tone="success"><GraduationCap size={18} /><strong>{payload.summary.graded}</strong><span>נבדקו</span></div>
+          <div className={styles.statCard} data-tone="danger"><ShieldAlert size={18} /><strong>{payload.summary.blockedByClosedWindow}</strong><span>סגור לגישה</span></div>
         </div>
       ) : null}
 
-      <div className={styles.bulkBar}>
-        <span>{selectedEmails.length} נבחרו</span>
-        <input type="datetime-local" value={bulkFrom} onChange={(event) => setBulkFrom(event.target.value)} />
-        <input type="datetime-local" value={bulkUntil} onChange={(event) => setBulkUntil(event.target.value)} />
-        <button
-          type="button"
-          className={styles.primaryButton}
-          disabled={saving || selectedEmails.length === 0 || !bulkFrom || !bulkUntil}
-          onClick={applyBulkWindow}
-        >
-          החל חלון אישי
-        </button>
-      </div>
+      {selectedRows.length > 0 ? (
+        <div className={styles.bulkBar}>
+          <div className={styles.bulkMeta}>
+            <strong>{selectedRows.length} נבחרו</strong>
+            <span>החלת חלון אישי רק על הסטודנטים המסומנים</span>
+          </div>
+          <input type="datetime-local" value={bulkFrom} onChange={(event) => setBulkFrom(event.target.value)} aria-label="תחילת חלון אישי" />
+          <input type="datetime-local" value={bulkUntil} onChange={(event) => setBulkUntil(event.target.value)} aria-label="סיום חלון אישי" />
+          <button
+            type="button"
+            className={styles.primaryButton}
+            disabled={saving || selectedRows.length === 0 || !bulkFrom || !bulkUntil}
+            onClick={applyBulkWindow}
+          >
+            החל חלון אישי
+          </button>
+        </div>
+      ) : null}
 
       {error ? <div className={styles.errorBanner}>{error}</div> : null}
       {success ? <div className={styles.successBanner}>{success}</div> : null}
@@ -432,54 +619,65 @@ function StudentManagementPanel() {
                 <th>
                   <input
                     type="checkbox"
-                    checked={filteredRows.length > 0 && filteredRows.every((row) => selectedEmailSet.has(row.user.email))}
+                    checked={filteredRows.length > 0 && filteredRows.every((item) => selectedRowKeySet.has(item.rowKey))}
                     onChange={(event) => {
                       if (event.target.checked) {
-                        setSelectedEmails(Array.from(new Set([...selectedEmails, ...filteredRows.map((row) => row.user.email)])));
+                        setSelectedRowKeys((current) => Array.from(new Set([...current, ...filteredRows.map((item) => item.rowKey)])));
                       } else {
-                        const visible = new Set(filteredRows.map((row) => row.user.email));
-                        setSelectedEmails(selectedEmails.filter((email) => !visible.has(email)));
+                        const visible = new Set(filteredRows.map((item) => item.rowKey));
+                        setSelectedRowKeys((current) => current.filter((rowKey) => !visible.has(rowKey)));
                       }
                     }}
                     aria-label="בחר את כל השורות המסוננות"
                   />
                 </th>
                 <th>סטודנט</th>
-                <th>סטטוס הגשה</th>
-                <th>התקדמות</th>
+                <th>מצב</th>
+                <th>גישה</th>
                 <th>ציון</th>
-                <th>חלון אישי</th>
-                <th>זמינות אפקטיבית</th>
+                <th>התקדמות</th>
                 <th>תאריכים</th>
+                <th>פעולה מומלצת</th>
                 <th>פעולות</th>
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((row) => (
-                <tr key={row.user.email}>
-                  <td>
+              {filteredRows.map(({ row, rowKey, attentionReason, closingSoon }) => {
+                const nextAction = getNextAction(row);
+                return (
+                <tr key={rowKey} data-attention={attentionReason ? "true" : "false"}>
+                  <td className={styles.selectionCell} data-label="בחירה">
                     <input
                       type="checkbox"
-                      checked={selectedEmailSet.has(row.user.email)}
+                      checked={selectedRowKeySet.has(rowKey)}
                       onChange={(event) => {
-                        setSelectedEmails((current) => event.target.checked
-                          ? Array.from(new Set([...current, row.user.email]))
-                          : current.filter((email) => email !== row.user.email));
+                        setSelectedRowKeys((current) => event.target.checked
+                          ? Array.from(new Set([...current, rowKey]))
+                          : current.filter((currentKey) => currentKey !== rowKey));
                       }}
                       aria-label={`בחר ${row.user.name}`}
                     />
                   </td>
-                  <td>
+                  <td className={styles.studentCell} data-label="סטודנט">
                     <strong>{row.user.name}</strong>
-                    <span>{row.user.email}</span>
+                    <span dir="ltr">{row.user.email}</span>
                     {row.user.studentIdNumber ? <small>ת.ז {row.user.studentIdNumber}</small> : null}
                   </td>
-                  <td>
+                  <td className={styles.stateCell} data-label="מצב">
                     <span className={styles.statusBadge} data-status={row.submission.status}>
                       {STATUS_LABELS[row.submission.status] || row.submission.status}
                     </span>
+                    {attentionReason ? <small className={styles.attentionReason}>{attentionReason}</small> : null}
                   </td>
-                  <td>
+                  <td className={styles.accessCell} data-label="גישה">
+                    <span className={styles.accessState} data-state={row.access.availabilityState}>
+                      {STATUS_LABELS[row.access.availabilityState] || row.access.availabilityState}
+                    </span>
+                    {row.access.hasOverride ? <span className={styles.overrideTag}>אישי</span> : <span className={styles.mutedText}>גלובלי</span>}
+                    <small>{row.access.availabilityMessage}</small>
+                  </td>
+                  <td className={styles.scoreCell} data-label="ציון">{typeof row.submission.overallScore === "number" ? row.submission.overallScore : "-"}</td>
+                  <td data-label="התקדמות">
                     <div className={styles.progressCell}>
                       <span>{row.submission.answeredCount}/{row.submission.totalQuestions}</span>
                       <div className={styles.progressTrack}>
@@ -487,26 +685,16 @@ function StudentManagementPanel() {
                       </div>
                     </div>
                   </td>
-                  <td>{typeof row.submission.overallScore === "number" ? row.submission.overallScore : "-"}</td>
-                  <td>
-                    {row.access.hasOverride ? (
-                      <span className={styles.overrideTag}>אישי</span>
-                    ) : (
-                      <span className={styles.mutedText}>גלובלי</span>
-                    )}
-                  </td>
-                  <td>
-                    <span className={styles.accessState} data-state={row.access.availabilityState}>
-                      {STATUS_LABELS[row.access.availabilityState] || row.access.availabilityState}
-                    </span>
-                    <small>{row.access.availabilityMessage}</small>
-                  </td>
-                  <td>
+                  <td className={styles.dateCell} data-label="תאריכים">
                     <span>{formatDateTime(row.access.effectiveAvailableFrom)}</span>
                     <span>{formatDateTime(row.access.effectiveAvailableUntil)}</span>
                     {row.submission.submittedAt ? <small>הוגש: {formatDateTime(row.submission.submittedAt)}</small> : null}
+                    {closingSoon ? <small className={styles.closingSoon}>נסגר בקרוב</small> : null}
                   </td>
-                  <td>
+                  <td data-label="פעולה">
+                    <span className={styles.actionChip} data-tone={nextAction.tone}>{nextAction.label}</span>
+                  </td>
+                  <td data-label="פעולות">
                     <div className={styles.rowActions}>
                       <button type="button" onClick={() => openAccessEditor(row)} title="ערוך חלון אישי" aria-label="ערוך חלון אישי">
                         <Pencil size={15} />
@@ -526,7 +714,8 @@ function StudentManagementPanel() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
               {filteredRows.length === 0 ? (
                 <tr>
                   <td colSpan={9} className={styles.emptyTable}>אין משתמשים שתואמים לסינון.</td>
@@ -547,6 +736,16 @@ function StudentManagementPanel() {
               </button>
             </div>
             <div className={styles.modalBody}>
+              <div className={styles.windowCompare}>
+                <div>
+                  <span>חלון גלובלי</span>
+                  <strong>{formatDateTime(accessEditor.row.access.globalAvailableFrom)} - {formatDateTime(accessEditor.row.access.globalAvailableUntil)}</strong>
+                </div>
+                <div>
+                  <span>מצב נוכחי</span>
+                  <strong>{accessEditor.row.access.hasOverride ? "חלון אישי פעיל" : "חלון גלובלי"}</strong>
+                </div>
+              </div>
               <label className={styles.field}>
                 <span>פתיחה</span>
                 <input type="datetime-local" value={accessEditor.availableFrom} onChange={(event) => setAccessEditor({ ...accessEditor, availableFrom: event.target.value })} />
@@ -591,6 +790,7 @@ function SubmissionDialog({
 }) {
   const submission = state.payload?.submission ?? null;
   const questions = state.payload?.questions ?? [];
+  const [confirmReopen, setConfirmReopen] = useState(false);
 
   return (
     <div className={styles.modalOverlay} role="dialog" aria-modal="true">
@@ -625,6 +825,16 @@ function SubmissionDialog({
                   {submission.submittedAt ? <span>הוגש {formatDateTime(submission.submittedAt)}</span> : null}
                   {submission.gradedAt ? <span>נבדק {formatDateTime(submission.gradedAt)}</span> : null}
                 </div>
+
+                {confirmReopen ? (
+                  <div className={styles.reopenWarning}>
+                    <ShieldAlert size={18} />
+                    <div>
+                      <strong>פתיחה מחדש תשמור ארכיון ותעביר את ההגשה לסטטוס בתהליך.</strong>
+                      <span>{state.row.user.name} · {state.row.user.email}</span>
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className={styles.answerList}>
                   {questions.map((question, index) => {
@@ -663,10 +873,22 @@ function SubmissionDialog({
         <div className={styles.modalActions}>
           <button type="button" className={styles.secondaryButton} onClick={onClose}>סגור</button>
           {submission && (submission.status === "submitted" || submission.status === "graded") ? (
-            <button type="button" className={styles.dangerButton} onClick={onReopen} disabled={saving}>
-              <RotateCcw size={16} />
-              פתח מחדש
-            </button>
+            confirmReopen ? (
+              <>
+                <button type="button" className={styles.secondaryButton} onClick={() => setConfirmReopen(false)} disabled={saving}>
+                  ביטול
+                </button>
+                <button type="button" className={styles.dangerButton} onClick={onReopen} disabled={saving}>
+                  <RotateCcw size={16} />
+                  אשר פתיחה מחדש
+                </button>
+              </>
+            ) : (
+              <button type="button" className={styles.dangerButton} onClick={() => setConfirmReopen(true)} disabled={saving}>
+                <RotateCcw size={16} />
+                פתח מחדש
+              </button>
+            )
           ) : null}
         </div>
       </div>
@@ -675,11 +897,28 @@ function SubmissionDialog({
 }
 
 export default function AdminHomeworkClient() {
-  const [mode, setMode] = useState<Mode>("builder");
+  const searchParams = useSearchParams();
+  const requestedMode = searchParams.get("mode");
+  const requestedView = searchParams.get("view");
+  const [mode, setMode] = useState<Mode>(requestedMode === "builder" ? "builder" : "students");
+  const initialFilter = isStatusFilter(requestedView) ? requestedView : "attention";
+
+  useEffect(() => {
+    setMode(requestedMode === "builder" ? "builder" : "students");
+  }, [requestedMode]);
 
   return (
     <div className={styles.shell}>
       <div className={styles.modeTabs} role="tablist" aria-label="מצבי ניהול מטלות">
+        <button
+          type="button"
+          className={mode === "students" ? styles.activeTab : ""}
+          onClick={() => setMode("students")}
+          aria-pressed={mode === "students"}
+        >
+          <Users size={16} />
+          ניהול הגשות
+        </button>
         <button
           type="button"
           className={mode === "builder" ? styles.activeTab : ""}
@@ -689,18 +928,9 @@ export default function AdminHomeworkClient() {
           <FileText size={16} />
           בניית מטלות
         </button>
-        <button
-          type="button"
-          className={mode === "students" ? styles.activeTab : ""}
-          onClick={() => setMode("students")}
-          aria-pressed={mode === "students"}
-        >
-          <Users size={16} />
-          ניהול סטודנטים
-        </button>
       </div>
 
-      {mode === "builder" ? <BuilderDashboardPage /> : <StudentManagementPanel />}
+      {mode === "builder" ? <BuilderDashboardPage /> : <StudentManagementPanel initialFilter={initialFilter} />}
     </div>
   );
 }
