@@ -16,6 +16,7 @@ type AdminShellContextValue = {
 };
 
 const RECENT_ROUTES_STORAGE_KEY = "admin_recent_routes";
+const LOGIN_PATH = "/";
 const AdminShellContext = createContext<AdminShellContextValue | null>(null);
 
 function readStoredUser() {
@@ -63,7 +64,7 @@ export default function AdminShell({ children }: AdminShellProps) {
   useEffect(() => {
     const user = readStoredUser();
     if (!user?.email) {
-      router.replace("/login");
+      router.replace(LOGIN_PATH);
       return;
     }
 
@@ -71,7 +72,7 @@ export default function AdminShell({ children }: AdminShellProps) {
     if (!DEFAULT_ADMIN_EMAILS.map((email) => email.toLowerCase()).includes(normalizedEmail)) {
       setError("אין לך הרשאת גישה לממשק המנהל.");
       setAuthChecked(true);
-      window.setTimeout(() => router.replace("/login"), 1800);
+      window.setTimeout(() => router.replace(LOGIN_PATH), 1800);
       return;
     }
 
@@ -105,7 +106,7 @@ export default function AdminShell({ children }: AdminShellProps) {
         setCurrentAdminEmail(null);
         setError("פג תוקף ההתחברות לממשק המנהל. יש להתחבר מחדש.");
         setAuthChecked(true);
-        router.replace("/login");
+        router.replace(LOGIN_PATH);
       }
     }
 

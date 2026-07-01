@@ -10,27 +10,34 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--space-5);
 }
 
 .hero {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
+  gap: var(--space-5);
   align-items: flex-start;
-  padding: 24px;
-  border-radius: 24px;
-  background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%);
-  color: #f8fafc;
-  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
+  padding: var(--space-6);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-xl);
+  background:
+    linear-gradient(135deg, rgba(36, 92, 115, 0.08), rgba(183, 141, 63, 0.08)),
+    rgba(255, 255, 255, 0.94);
+  color: var(--color-neutral-900);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.06);
 }
 
 .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 var(--space-3);
+  border-radius: 999px;
+  background: rgba(36, 92, 115, 0.1);
+  color: var(--brand-primary);
   font-size: 0.82rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.7;
 }
 
 .title {
@@ -43,7 +50,7 @@
   margin: 0;
   max-width: 760px;
   line-height: 1.7;
-  color: rgba(248, 250, 252, 0.9);
+  color: var(--color-neutral-600);
 }
 
 .heroActions {
@@ -57,7 +64,7 @@
 .inlineAction,
 .inlineActionMuted {
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
   transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease;
 }
@@ -67,19 +74,20 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 18px;
+  min-height: var(--touch-target-min);
+  padding: 0 18px;
   font-weight: 700;
 }
 
 .primaryButton {
-  background: #facc15;
-  color: #172554;
+  background: var(--brand-primary);
+  color: white;
 }
 
 .secondaryButton {
-  background: rgba(255, 255, 255, 0.12);
-  color: #f8fafc;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: var(--color-neutral-0);
+  color: var(--color-neutral-800);
+  border: 1px solid rgba(15, 23, 42, 0.1);
 }
 
 .primaryButton:disabled,
@@ -99,9 +107,9 @@
 .statCard {
   position: relative;
   padding: 20px;
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   background: #ffffff;
-  border: 1px solid #dbe4ff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
 }
 
@@ -121,7 +129,7 @@
   position: absolute;
   top: 18px;
   left: 18px;
-  color: #2563eb;
+  color: var(--brand-primary);
 }
 
 .contentGrid {
@@ -132,8 +140,8 @@
 
 .panel {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 24px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-xl);
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
   overflow: hidden;
 }
@@ -203,9 +211,9 @@
   min-height: 34px;
   padding: 6px 12px;
   border-radius: 999px;
-  background: #eff6ff;
-  border: 1px solid #dbeafe;
-  color: #1d4ed8;
+  background: rgba(36, 92, 115, 0.1);
+  border: 1px solid rgba(36, 92, 115, 0.14);
+  color: var(--brand-primary);
   font-weight: 700;
   font-size: 0.88rem;
 }
@@ -229,7 +237,7 @@
   padding: 16px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
 }
 
 .configBlock h3 {
@@ -252,7 +260,8 @@
 .searchBox input {
   width: 110px;
   padding: 10px 12px;
-  border-radius: 12px;
+  min-height: var(--touch-target-min);
+  border-radius: var(--radius-lg);
   border: 1px solid #cbd5e1;
   background: #ffffff;
   color: #0f172a;
@@ -292,8 +301,8 @@
   gap: 8px;
   padding: 10px 14px;
   background: #f8fafc;
-  border: 1px solid #dbe4ff;
-  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: var(--radius-lg);
 }
 
 .searchBox input {
@@ -360,8 +369,8 @@
   min-width: 56px;
   padding: 6px 12px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  color: #1d4ed8;
+  background: rgba(36, 92, 115, 0.1);
+  color: var(--brand-primary);
   font-weight: 800;
   font-size: 0.95rem;
   box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.12);
@@ -384,7 +393,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   color: #334155;
@@ -406,7 +415,7 @@
   flex-direction: column;
   gap: 4px;
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: #ffffff;
   border: 1px solid #e2e8f0;
 }
@@ -444,7 +453,7 @@
   flex-direction: column;
   gap: 12px;
   padding: 14px;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: #f8fafc;
   border: 1px solid #e2e8f0;
 }
@@ -485,8 +494,8 @@
 }
 
 .inlineAction {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: rgba(36, 92, 115, 0.1);
+  color: var(--brand-primary);
 }
 
 .inlineActionMuted {

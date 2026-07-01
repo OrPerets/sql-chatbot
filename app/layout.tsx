@@ -1,5 +1,6 @@
 import { cookies, headers } from "next/headers";
 import localFont from "next/font/local";
+import Script from "next/script";
 import "./globals.css";
 import "./components/admin/design-tokens.css";
 const inter = localFont({
@@ -71,7 +72,7 @@ export default async function RootLayout({ children }) {
         {/* <img className="logo" src="/bot.png" alt="Mik Logo" style={{width: "120px", height: "120px"}}/> */}
         
         {/* Service Worker Registration */}
-        <script dangerouslySetInnerHTML={{
+        <Script id="service-worker-cleanup" strategy="afterInteractive" dangerouslySetInnerHTML={{
           __html: `
             (function() {
               if (!('serviceWorker' in navigator)) return;

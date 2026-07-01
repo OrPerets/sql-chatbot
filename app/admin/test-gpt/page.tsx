@@ -81,7 +81,7 @@ export default function TestGptPage() {
   useEffect(() => {
     const storedUser = localStorage.getItem("currentUser");
     if (!storedUser) {
-      window.location.href = "/login";
+      window.location.href = "/";
       return;
     }
 

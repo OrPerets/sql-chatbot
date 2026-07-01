@@ -48,7 +48,8 @@ export default function Sidebar({
               <PanelRightClose size={18} />
             </div>
             <div className={styles.brandText}>
-              <div className={styles.brandTitle}>Admin</div>
+              <div className={styles.brandTitle}>מסוף ניהול</div>
+              <div className={styles.brandSubtitle}>SQL Chatbot</div>
             </div>
           </div>
         ) : (
@@ -71,9 +72,18 @@ export default function Sidebar({
       <nav className={styles.navigation} aria-label="ניווט אדמין">
         {ADMIN_BUCKETS.map((bucket) => {
           const routes = getRoutesForBucket(bucket.id);
+          const isSectionActive = routes.some((route) => activeRoute?.id === route.id);
           return (
-            <section key={bucket.id} className={styles.navigationSection}>
-              {!isCollapsed ? <div className={styles.sectionLabel}>{bucket.label}</div> : null}
+            <section
+              key={bucket.id}
+              className={`${styles.navigationSection} ${isSectionActive ? styles.navigationSectionActive : ""}`}
+            >
+              {!isCollapsed ? (
+                <div className={styles.sectionLabel}>
+                  <span>{bucket.label}</span>
+                  {isSectionActive ? <span className={styles.sectionBadge}>פעיל</span> : null}
+                </div>
+              ) : null}
 
               <div className={styles.routeList}>
                 {routes.map((route) => {
@@ -89,13 +99,18 @@ export default function Sidebar({
                         isCollapsed ? styles.navLinkCollapsed : ""
                       }`}
                       title={`${route.label}: ${route.description}`}
+                      aria-current={isActive ? "page" : undefined}
                     >
+                      {isActive ? <span className={styles.activeMarker} aria-hidden="true" /> : null}
                       <span className={styles.navLinkIcon}>
                         <Icon size={18} />
                       </span>
                       {!isCollapsed ? (
                         <span className={styles.navLinkBody}>
                           <span className={styles.navLinkLabel}>{route.label}</span>
+                          <span className={styles.navLinkDescription}>
+                            {route.actionLabel || route.shortLabel || route.description}
+                          </span>
                         </span>
                       ) : null}
                     </Link>
@@ -115,7 +130,7 @@ export default function Sidebar({
           {!isCollapsed ? (
             <div className={styles.profileBody}>
               <div className={styles.profileName}>{currentUser || "מנהל מערכת"}</div>
-              <div className={styles.profileRole}>Admin</div>
+              <div className={styles.profileRole}>הרשאת ניהול מלאה</div>
             </div>
           ) : null}
         </div>

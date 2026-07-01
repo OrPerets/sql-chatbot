@@ -3,7 +3,7 @@
 import AdminShell from "@/app/components/admin/AdminShell";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Search, Filter, BookOpen, Edit3, Trash2, Copy, AlertCircle, X, Eye, Play } from "lucide-react";
+import { AlertCircle, BookOpen, Edit3, Eye, Plus, Search, Trash2, X } from "lucide-react";
 import styles from "./templates.module.css";
 
 interface VariableDefinition {
@@ -57,10 +57,10 @@ export default function TemplatesPage() {
       if (data.success) {
         setTemplates(data.data);
       } else {
-        setError(data.error || 'Failed to load templates');
+        setError(data.error || "טעינת התבניות נכשלה");
       }
     } catch (err) {
-      setError('Failed to load templates');
+      setError("טעינת התבניות נכשלה");
       console.error('Error loading templates:', err);
     } finally {
       setLoading(false);
@@ -68,7 +68,7 @@ export default function TemplatesPage() {
   };
 
   const handleDeleteTemplate = async (templateId: string) => {
-    if (!confirm('Are you sure you want to delete this template?')) {
+    if (!confirm("למחוק את התבנית? אי אפשר לבטל את הפעולה הזו.")) {
       return;
     }
 
@@ -85,10 +85,10 @@ export default function TemplatesPage() {
           setSelectedTemplate(null);
         }
       } else {
-        setError(data.error || 'Failed to delete template');
+        setError(data.error || "מחיקת התבנית נכשלה");
       }
     } catch (err) {
-      setError('Failed to delete template');
+      setError("מחיקת התבנית נכשלה");
       console.error('Error deleting template:', err);
     }
   };
@@ -103,10 +103,10 @@ export default function TemplatesPage() {
         setSelectedTemplate(template);
         setShowPreview(true);
       } else {
-        setError(data.error || 'Failed to preview template');
+        setError(data.error || "טעינת התצוגה המקדימה נכשלה");
       }
     } catch (err) {
-      setError('Failed to preview template');
+      setError("טעינת התצוגה המקדימה נכשלה");
       console.error('Error previewing template:', err);
     }
   };
@@ -123,7 +123,7 @@ export default function TemplatesPage() {
         <div className={styles.container}>
           <div className={styles.loading}>
             <div className={styles.spinner}></div>
-            <p>Loading templates...</p>
+            <p>טוען תבניות שאלות...</p>
           </div>
         </div>
       </AdminShell>
@@ -198,6 +198,7 @@ export default function TemplatesPage() {
                     onClick={() => handlePreviewTemplate(template)}
                     className={styles.actionButton}
                     title="תצוגה מקדימה"
+                    aria-label={`תצוגה מקדימה של ${template.name}`}
                   >
                     <Eye size={16} />
                   </button>
@@ -205,6 +206,7 @@ export default function TemplatesPage() {
                     href={`/admin/templates/${template.id}/edit`}
                     className={styles.actionButton}
                     title="ערוך תבנית"
+                    aria-label={`עריכת ${template.name}`}
                   >
                     <Edit3 size={16} />
                   </Link>
@@ -212,6 +214,7 @@ export default function TemplatesPage() {
                     onClick={() => handleDeleteTemplate(template.id)}
                     className={styles.actionButton}
                     title="מחק תבנית"
+                    aria-label={`מחיקת ${template.name}`}
                   >
                     <Trash2 size={16} />
                   </button>

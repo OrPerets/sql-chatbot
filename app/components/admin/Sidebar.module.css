@@ -8,7 +8,7 @@
   width: var(--sidebar-width);
   flex-direction: column;
   border-left: 1px solid var(--sidebar-border);
-  background: var(--sidebar-background);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   transition: width var(--transition-base), transform var(--transition-base);
 }
 
@@ -40,8 +40,8 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-xl);
-  background: var(--color-primary-100);
+  border-radius: var(--radius-lg);
+  background: rgba(36, 92, 115, 0.1);
   color: var(--brand-primary);
 }
 
@@ -52,13 +52,19 @@
 .brandTitle {
   color: var(--color-neutral-900);
   font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
+  font-weight: var(--font-bold);
+}
+
+.brandSubtitle {
+  margin-top: 2px;
+  color: var(--color-neutral-500);
+  font-size: var(--text-xs);
 }
 
 .collapseButton {
   display: inline-flex;
-  height: 2rem;
-  width: 2rem;
+  min-height: var(--touch-target-min);
+  min-width: var(--touch-target-min);
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
@@ -85,16 +91,34 @@
 }
 
 .navigationSection + .navigationSection {
-  margin-top: var(--space-6);
+  margin-top: var(--space-5);
 }
 
 .sectionLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
   margin-bottom: var(--space-2);
   padding-inline: var(--space-2);
-  color: var(--color-neutral-500);
+  color: var(--color-neutral-600);
   font-size: 0.72rem;
   font-weight: var(--font-semibold);
-  letter-spacing: 0.03em;
+}
+
+.navigationSectionActive .sectionLabel {
+  color: var(--brand-primary);
+}
+
+.sectionBadge {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(36, 92, 115, 0.1);
+  color: var(--brand-primary);
+  padding: 0 var(--space-2);
+  font-size: 0.68rem;
 }
 
 .routeList {
@@ -104,10 +128,12 @@
 }
 
 .navLink {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
-  border-radius: var(--radius-xl);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
   padding: var(--space-3);
   color: var(--color-neutral-700);
   text-decoration: none;
@@ -116,14 +142,18 @@
 
 .navLink:hover,
 .navLink:focus-visible {
-  background: var(--color-neutral-100);
+  background: var(--color-neutral-0);
+  border-color: rgba(15, 23, 42, 0.08);
   color: var(--color-neutral-900);
   outline: none;
 }
 
 .navLinkActive {
-  background: var(--color-primary-50);
+  background: rgba(36, 92, 115, 0.09);
+  border-color: rgba(36, 92, 115, 0.18);
   color: var(--brand-primary);
+  box-shadow: inset -3px 0 0 var(--brand-primary);
+  padding-right: calc(var(--space-3) + 0.65rem);
 }
 
 .navLinkCollapsed {
@@ -138,15 +168,49 @@
   padding-top: 1px;
 }
 
+.activeMarker {
+  position: absolute;
+  top: 50%;
+  right: 0.45rem;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--brand-accent);
+  transform: translateY(-50%);
+}
+
 .navLinkBody {
   display: flex;
   min-width: 0;
   flex-direction: column;
+  gap: 2px;
 }
 
 .navLinkLabel {
   font-size: var(--text-sm);
-  font-weight: var(--font-medium);
+  font-weight: var(--font-bold);
+}
+
+.navLinkDescription {
+  color: var(--color-neutral-500);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 22px;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--color-neutral-100);
+  padding: 0 var(--space-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navLinkActive .navLinkDescription {
+  color: var(--brand-primary);
+  background: rgba(36, 92, 115, 0.12);
 }
 
 .sidebarFooter {
@@ -161,8 +225,9 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  border-radius: var(--radius-xl);
-  background: var(--color-neutral-50);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-lg);
+  background: var(--color-neutral-0);
   padding: var(--space-3);
 }
 
@@ -199,7 +264,8 @@
   justify-content: center;
   gap: var(--space-2);
   border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-xl);
+  min-height: var(--touch-target-min);
+  border-radius: var(--radius-lg);
   background: var(--color-neutral-0);
   color: var(--color-neutral-700);
   cursor: pointer;

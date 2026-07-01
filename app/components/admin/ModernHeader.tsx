@@ -6,8 +6,10 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   ChevronDown,
+  Inbox,
   Menu,
   Search,
+  SearchX,
   Settings2,
   User,
   UserCircle,
@@ -201,6 +203,11 @@ export default function ModernHeader({
 
             <div>
               <div className={styles.pageTitle}>{route?.label || "מערכת ניהול"}</div>
+              {route ? (
+                <div className={styles.pageIntent}>
+                  {route.actionLabel || route.shortLabel || "תפעול"}
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -236,14 +243,18 @@ export default function ModernHeader({
                       <span className={styles.commandIcon}>
                         <Icon size={16} />
                       </span>
-                      <span className={styles.commandLabel} title={item.description}>
-                        {item.label}
+                      <span className={styles.commandText} title={item.description}>
+                        <span className={styles.commandLabel}>{item.label}</span>
+                        <span className={styles.commandDescription}>{item.description}</span>
                       </span>
                     </button>
                   );
                 })
               ) : (
-                <div className={styles.emptyMenuState}>לא נמצאו מסכים או פעולות תואמים.</div>
+                <div className={styles.emptyMenuState}>
+                  <SearchX size={18} />
+                  <span>לא נמצאה פעולה.</span>
+                </div>
               )}
             </div>
           ) : null}
@@ -297,7 +308,10 @@ export default function ModernHeader({
                       </button>
                     ))
                   ) : (
-                    <div className={styles.emptyMenuState}>אין כרגע התראות חדשות.</div>
+                    <div className={styles.emptyMenuState}>
+                      <Inbox size={18} />
+                      <span>אין התראות חדשות.</span>
+                    </div>
                   )}
                 </div>
               </div>

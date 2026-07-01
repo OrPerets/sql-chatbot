@@ -1,7 +1,7 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-5);
 }
 
 .header {
@@ -15,7 +15,6 @@
   margin: 0;
   font-size: 2rem;
   line-height: 1.08;
-  letter-spacing: -0.03em;
   color: #0f172a;
 }
 
@@ -38,16 +37,18 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 42px;
+  min-height: var(--touch-target-min);
   padding: 0 16px;
-  border-radius: 999px;
+  border-radius: var(--radius-lg);
   font-weight: 700;
   text-decoration: none;
+  cursor: pointer;
+  transition: transform var(--transition-base), border-color var(--transition-base), background-color var(--transition-base);
 }
 
 .primaryButton {
-  border: 1px solid #245c73;
-  background: #245c73;
+  border: 1px solid var(--brand-primary);
+  background: var(--brand-primary);
   color: #fff;
 }
 
@@ -66,7 +67,7 @@
 
 .overviewCard,
 .section {
-  border-radius: 22px;
+  border-radius: var(--radius-xl);
   border: 1px solid rgba(15, 23, 42, 0.08);
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
@@ -76,10 +77,32 @@
   padding: 18px;
 }
 
+.overviewCardOk {
+  border-color: rgba(22, 163, 74, 0.18);
+  background: linear-gradient(180deg, #f0fdf4, #ffffff);
+}
+
 .overviewLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin: 0;
   color: #64748b;
   font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.statusDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #16a34a;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.1);
+}
+
+.overviewCard:not(.overviewCardOk) .statusDot {
+  background: #94a3b8;
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.16);
 }
 
 .overviewValue {
@@ -123,7 +146,7 @@
 .toggleCard,
 .relatedCard {
   padding: 16px;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   border: 1px solid rgba(15, 23, 42, 0.08);
   background: #fff;
 }
@@ -186,7 +209,7 @@
 
 .uploadPanel {
   padding: 16px;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   border: 1px solid rgba(15, 23, 42, 0.08);
   background: #f8fafb;
   display: flex;
@@ -195,16 +218,16 @@
 }
 
 .fileInput {
-  min-height: 44px;
+  min-height: var(--touch-target-min);
   padding: 10px 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   border: 1px dashed rgba(36, 92, 115, 0.25);
   background: #fff;
 }
 
 .uploadResult {
   padding: 14px;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: #eff6ff;
   border: 1px solid rgba(59, 130, 246, 0.18);
   color: #1d4ed8;
@@ -212,10 +235,35 @@
 
 .errorState {
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: #fff7ed;
   border: 1px solid rgba(234, 88, 12, 0.18);
   color: #9a3412;
+}
+
+.primaryButton:hover,
+.secondaryButton:hover,
+.linkButton:hover,
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.linkButton:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(36, 92, 115, 0.28);
+  outline: none;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.linkButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
+.fileInput:focus-visible {
+  border-color: rgba(36, 92, 115, 0.35);
+  box-shadow: var(--focus-ring);
+  outline: none;
 }
 
 @media (max-width: 980px) {

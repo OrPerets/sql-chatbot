@@ -337,6 +337,7 @@ const LoginPage = () => {
                     type="email" 
                     className={styles.input}
                     placeholder="כתובת מייל" 
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmailandAdmin(e.target.value)}
                     required
@@ -350,6 +351,7 @@ const LoginPage = () => {
                     type="password" 
                     className={styles.input}
                     placeholder="סיסמה"
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -395,6 +397,7 @@ const LoginPage = () => {
                       type="email" 
                       className={styles.input}
                       placeholder="כתובת מייל" 
+                      autoComplete="email"
                       value={email}
                       disabled
                       style={{backgroundColor: '#f0f0f0'}}
@@ -408,6 +411,7 @@ const LoginPage = () => {
                       type="password" 
                       className={styles.input}
                       placeholder="סיסמה חדשה"
+                      autoComplete="new-password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       required

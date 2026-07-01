@@ -192,8 +192,7 @@ export default function SystemSettingsPage() {
         <div>
           <h1 className={styles.title}>הגדרות מערכת</h1>
           <p className={styles.description}>
-            שליטה תפעולית על זמינות המערכת, נראות מטבעות, קיצורי דרך להגדרות פיננסיות והעלאת
-            התאמות זמן לבחינה.
+            זמינות Michael, נראות מטבעות והתאמות זמן במקום אחד.
           </p>
         </div>
 
@@ -212,16 +211,22 @@ export default function SystemSettingsPage() {
       {error ? <div className={styles.errorState}>{error}</div> : null}
 
       <div className={styles.overviewGrid}>
-        <div className={styles.overviewCard}>
-          <p className={styles.overviewLabel}>מצב Michael</p>
+        <div className={`${styles.overviewCard} ${overview?.statuses.michaelEnabled ? styles.overviewCardOk : ""}`}>
+          <p className={styles.overviewLabel}>
+            <span className={styles.statusDot} />
+            Michael
+          </p>
           <p className={styles.overviewValue}>{overview?.statuses.michaelEnabled ? "פעיל" : "כבוי"}</p>
         </div>
-        <div className={styles.overviewCard}>
-          <p className={styles.overviewLabel}>נראות מטבעות</p>
+        <div className={`${styles.overviewCard} ${overview?.statuses.coinsVisible ? styles.overviewCardOk : ""}`}>
+          <p className={styles.overviewLabel}>
+            <span className={styles.statusDot} />
+            מטבעות
+          </p>
           <p className={styles.overviewValue}>{overview?.statuses.coinsVisible ? "מוצג" : "מוסתר"}</p>
         </div>
         <div className={styles.overviewCard}>
-          <p className={styles.overviewLabel}>Runtime פעיל</p>
+          <p className={styles.overviewLabel}>Runtime</p>
           <p className={styles.overviewValue}>{overview?.statuses.runtimeModel || "—"}</p>
         </div>
       </div>
@@ -230,9 +235,7 @@ export default function SystemSettingsPage() {
         <div className={styles.sectionHeader}>
           <div>
             <h2 className={styles.sectionTitle}>זמינות ותפעול מיידי</h2>
-            <p className={styles.sectionCaption}>
-              קודם רואים מה המצב, ורק אחר כך משנים. כל כפתור מסביר מה ההשפעה שלו.
-            </p>
+            <p className={styles.sectionCaption}>שני מתגים שמשפיעים מיד על חוויית הסטודנטים.</p>
           </div>
         </div>
 
@@ -241,17 +244,14 @@ export default function SystemSettingsPage() {
             <div className={styles.toggleHeader}>
               <div>
                 <h3 className={styles.toggleTitle}>Michael לסטודנטים</h3>
-                <p className={styles.toggleDescription}>
-                  שליטה בזמינות עוזר ה-AI במסלולי הלמידה.
-                </p>
+                <p className={styles.toggleDescription}>עוזר AI במסלולי הלמידה.</p>
               </div>
               <span className={styles.statusPill}>
                 {overview?.statuses.michaelEnabled ? "פעיל" : "כבוי"}
               </span>
             </div>
             <p className={styles.toggleMeta}>
-              כש-Michael כבוי, סטודנטים מאבדים גישה לעזרה המיידית. כדאי להשתמש בזה רק במצבי
-              תחזוקה או בדיקות.
+              כיבוי מתאים לתחזוקה, בדיקות או עצירת תקלה.
             </p>
             <div className={styles.toggleActions}>
               <button
@@ -273,17 +273,14 @@ export default function SystemSettingsPage() {
             <div className={styles.toggleHeader}>
               <div>
                 <h3 className={styles.toggleTitle}>נראות מטבעות</h3>
-                <p className={styles.toggleDescription}>
-                  האם היתרות מוצגות כרגע למשתמשי הקצה.
-                </p>
+                <p className={styles.toggleDescription}>האם יתרות מוצגות למשתמשי הקצה.</p>
               </div>
               <span className={styles.statusPill}>
                 {overview?.statuses.coinsVisible ? "מוצג" : "מוסתר"}
               </span>
             </div>
             <p className={styles.toggleMeta}>
-              השינוי משפיע מיידית על ה-UI של המשתמשים. ניהול העלויות עצמו נשאר במסך מטבעות
-              נפרד.
+              השינוי מיידי. ניהול העלויות נשאר במסך מטבעות.
             </p>
             <div className={styles.toggleActions}>
               <button
@@ -311,10 +308,7 @@ export default function SystemSettingsPage() {
         <div className={styles.sectionHeader}>
           <div>
             <h2 className={styles.sectionTitle}>התאמות זמן לבחינה</h2>
-            <p className={styles.sectionCaption}>
-              העלאת קובץ מרוכז ושמירה במסד ייעודי כדי שהפעולה תהיה חלק מממשק הניהול ולא UI
-              שבור.
-            </p>
+            <p className={styles.sectionCaption}>העלאת קובץ מרוכז למסד ההתאמות.</p>
           </div>
           <span className={styles.statusPill}>{overview?.statuses.extraTimeUploads ?? 0} רשומות פעילות</span>
         </div>
@@ -324,7 +318,6 @@ export default function SystemSettingsPage() {
             <ul className={styles.uploadChecklist}>
               <li>הקובץ חייב להכיל עמודות בשם `ID` ו-`PERCENTAGE`.</li>
               <li>אחוז ההתאמה חייב להיות בין 0 ל-100.</li>
-              <li>אם אותה זהות מופיעה פעמיים, הרשומה האחרונה תעדכן את הקודמת.</li>
               <li>נתמכים קבצי `.xlsx` וגם `.csv`.</li>
             </ul>
           </div>
@@ -360,9 +353,7 @@ export default function SystemSettingsPage() {
         <div className={styles.sectionHeader}>
           <div>
             <h2 className={styles.sectionTitle}>קישורים קשורים</h2>
-            <p className={styles.sectionCaption}>
-              מסכים צמודים שכדאי לפתוח מההגדרות, בלי ללכת לאיבוד בניווט.
-            </p>
+            <p className={styles.sectionCaption}>מסכים סמוכים לפעולות ההגדרה.</p>
           </div>
         </div>
 
