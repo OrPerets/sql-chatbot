@@ -4,7 +4,7 @@ import AdminShell from "@/app/components/admin/AdminShell";
 import { HomeworkLocaleProvider } from "@/app/homework/context/HomeworkLocaleProvider";
 import { resolveHomeworkLocale } from "@/app/homework/context/locale";
 import { HomeworkQueryProvider } from "@/app/homework/context/HomeworkQueryProvider";
-import BuilderDashboardPage from "@/app/homework/builder/page";
+import AdminHomeworkClient from "./AdminHomeworkClient";
 
 export default async function AdminHomeworkPage() {
   const headerList = await headers();
@@ -17,7 +17,7 @@ export default async function AdminHomeworkPage() {
     <AdminShell>
       <HomeworkLocaleProvider initialLocale={initialLocale}>
         <HomeworkQueryProvider>
-          <BuilderDashboardPage />
+          <AdminHomeworkClient />
         </HomeworkQueryProvider>
       </HomeworkLocaleProvider>
     </AdminShell>

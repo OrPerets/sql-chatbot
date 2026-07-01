@@ -319,4 +319,6 @@ export const COLLECTIONS = {
   // Submitted students tracking (for PDF report delivery)
   SUBMITTED: 'submitted',
   EXTRA_TIME_ACCOMMODATIONS: 'exam_extra_time_accommodations',
+  HOMEWORK_ACCESS_OVERRIDES: 'homework_access_overrides',
+  HOMEWORK_SUBMISSION_ARCHIVES: 'homework_submission_archives',
 } as const;

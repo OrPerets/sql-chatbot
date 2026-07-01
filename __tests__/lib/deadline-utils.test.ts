@@ -86,6 +86,29 @@ describe('deadline-utils availability windows', () => {
     expect(getAvailabilityState(homework, 'student@example.com', duringOverride)).toBe('closed');
   });
 
+  it('uses a strict DB override as the effective personal availability window', () => {
+    const homework = {
+      id: 'set-1',
+      title: 'Global Open Homework',
+      availableFrom: '2026-03-01T00:00:00.000Z',
+      availableUntil: '2026-03-20T00:00:00.000Z',
+    };
+    const overrideWindow = {
+      availableFrom: '2026-03-08T00:00:00.000Z',
+      availableUntil: '2026-03-09T00:00:00.000Z',
+      strict: true,
+      source: 'db' as const,
+    };
+
+    expect(getAvailabilityState(homework, 'student@example.com', now, overrideWindow)).toBe('upcoming');
+    expect(isHomeworkAccessible(homework, 'student@example.com', now, overrideWindow)).toBe(false);
+    expect(getAvailabilityState(homework, 'student@example.com', new Date('2026-03-10T00:00:00.000Z'), overrideWindow))
+      .toBe('closed');
+    expect(getHomeworkAvailabilityInfo(homework, 'student@example.com', now, overrideWindow).effectiveAvailableUntil)
+      .toBe('2026-03-09T00:00:00.000Z');
+    expect(getAvailabilityState(homework, 'control@example.com', now)).toBe('open');
+  });
+
   it('closes the personal HW1 access window after one week', () => {
     const homework = {
       id: '69aabdaaafa3dcd3648446cb',

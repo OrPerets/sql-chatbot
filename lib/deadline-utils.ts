@@ -19,6 +19,13 @@ export interface HomeworkAvailabilityInput {
   createdAt?: DateInput;
 }
 
+export interface HomeworkPersonalAccessWindow {
+  availableFrom: DateInput;
+  availableUntil: DateInput;
+  strict?: boolean;
+  source?: 'db' | 'legacy';
+}
+
 // Users with extended deadlines (2 additional days)
 const EXTENDED_DEADLINE_USERS = [
   'nakash.tal@gmail.com',
@@ -94,14 +101,26 @@ function findPersonalAccessOverride(
 
 function getPersonalAccessWindow(
   homework: HomeworkAvailabilityInput,
-  userEmail: string | null | undefined
-) {
+  userEmail: string | null | undefined,
+  overrideWindow?: HomeworkPersonalAccessWindow | null
+): { availableFrom: Date; availableUntil: Date; strict: boolean; source: 'db' | 'legacy' } | null {
+  if (overrideWindow) {
+    return {
+      availableFrom: toDate(overrideWindow.availableFrom),
+      availableUntil: toDate(overrideWindow.availableUntil),
+      strict: overrideWindow.strict ?? overrideWindow.source === 'db',
+      source: overrideWindow.source ?? 'db',
+    };
+  }
+
   const override = findPersonalAccessOverride(homework, userEmail);
   if (!override) return null;
 
   return {
     availableFrom: toDate(override.availableFrom),
     availableUntil: toDate(override.availableUntil),
+    strict: false,
+    source: 'legacy',
   };
 }
 
@@ -150,7 +169,8 @@ export function getEffectiveDeadline(
 export function getAvailabilityState(
   homework: HomeworkAvailabilityInput,
   userEmail: string | null | undefined,
-  nowInput?: Date
+  nowInput?: Date,
+  overrideWindow?: HomeworkPersonalAccessWindow | null
 ): HomeworkAvailabilityState {
   if (isHomeworkAccessAdmin(userEmail)) {
     return 'open';
@@ -158,7 +178,19 @@ export function getAvailabilityState(
 
   const now = nowInput ?? new Date();
   const availableFrom = resolveAvailabilityStart(homework);
-  const personalAccessWindow = getPersonalAccessWindow(homework, userEmail);
+  const personalAccessWindow = getPersonalAccessWindow(homework, userEmail, overrideWindow);
+
+  if (personalAccessWindow?.strict) {
+    if (now < personalAccessWindow.availableFrom) {
+      return 'upcoming';
+    }
+
+    if (now > personalAccessWindow.availableUntil) {
+      return 'closed';
+    }
+
+    return 'open';
+  }
 
   if (
     personalAccessWindow &&
@@ -184,20 +216,22 @@ export function getAvailabilityState(
 export function isHomeworkAccessible(
   homework: HomeworkAvailabilityInput,
   userEmail: string | null | undefined,
-  nowInput?: Date
+  nowInput?: Date,
+  overrideWindow?: HomeworkPersonalAccessWindow | null
 ): boolean {
-  return getAvailabilityState(homework, userEmail, nowInput) === 'open';
+  return getAvailabilityState(homework, userEmail, nowInput, overrideWindow) === 'open';
 }
 
 export function getAvailabilityMessage(
   homework: HomeworkAvailabilityInput,
   userEmail: string | null | undefined,
-  nowInput?: Date
+  nowInput?: Date,
+  overrideWindow?: HomeworkPersonalAccessWindow | null
 ): string {
   const availableFrom = resolveAvailabilityStart(homework);
-  const personalAccessWindow = getPersonalAccessWindow(homework, userEmail);
+  const personalAccessWindow = getPersonalAccessWindow(homework, userEmail, overrideWindow);
   const effectiveAvailableUntil = getEffectiveDeadline(resolveAvailabilityEnd(homework), userEmail);
-  const state = getAvailabilityState(homework, userEmail, nowInput);
+  const state = getAvailabilityState(homework, userEmail, nowInput, overrideWindow);
   const isExtended = hasExtendedDeadline(userEmail);
   const hasActivePersonalAccess =
     personalAccessWindow &&
@@ -206,10 +240,14 @@ export function getAvailabilityMessage(
     (nowInput ?? new Date()) <= personalAccessWindow.availableUntil;
 
   if (state === 'upcoming') {
-    return `שיעור הבית ייפתח ב-${formatDate(availableFrom)}`;
+    return `שיעור הבית ייפתח ב-${formatDate(personalAccessWindow?.strict ? personalAccessWindow.availableFrom : availableFrom)}`;
   }
 
   if (state === 'closed') {
+    if (personalAccessWindow?.strict) {
+      return `חלון ההגשה האישי נסגר ב-${formatDate(personalAccessWindow.availableUntil)}`;
+    }
+
     return isExtended
       ? `חלון ההגשה המורחב נסגר ב-${formatDate(effectiveAvailableUntil)}`
       : `חלון ההגשה נסגר ב-${formatDate(effectiveAvailableUntil)}`;
@@ -227,20 +265,23 @@ export function getAvailabilityMessage(
 export function getHomeworkAvailabilityInfo(
   homework: HomeworkAvailabilityInput,
   userEmail: string | null | undefined,
-  nowInput?: Date
+  nowInput?: Date,
+  overrideWindow?: HomeworkPersonalAccessWindow | null
 ): HomeworkAvailabilityInfo {
-  const personalAccessWindow = getPersonalAccessWindow(homework, userEmail);
+  const personalAccessWindow = getPersonalAccessWindow(homework, userEmail, overrideWindow);
   const standardEffectiveDeadline = getEffectiveDeadline(resolveAvailabilityEnd(homework), userEmail);
-  const effectiveAvailableUntil = personalAccessWindow &&
+  const effectiveAvailableUntil = personalAccessWindow?.strict
+    ? personalAccessWindow.availableUntil
+    : personalAccessWindow &&
     personalAccessWindow.availableUntil > standardEffectiveDeadline
     ? personalAccessWindow.availableUntil
     : standardEffectiveDeadline;
-  const availabilityState = getAvailabilityState(homework, userEmail, nowInput);
+  const availabilityState = getAvailabilityState(homework, userEmail, nowInput, overrideWindow);
 
   return {
     availabilityState,
     accessible: availabilityState === 'open',
-    availabilityMessage: getAvailabilityMessage(homework, userEmail, nowInput),
+    availabilityMessage: getAvailabilityMessage(homework, userEmail, nowInput, overrideWindow),
     effectiveAvailableUntil: effectiveAvailableUntil.toISOString(),
   };
 }

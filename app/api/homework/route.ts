@@ -5,6 +5,10 @@ import {
 } from "@/lib/homework";
 import type { HomeworkSet } from "@/app/homework/types";
 import { getHomeworkAvailabilityInfo } from "@/lib/deadline-utils";
+import {
+  getHomeworkAccessOverridesForUser,
+  toStrictPersonalAccessWindow,
+} from "@/lib/homework-access-overrides";
 import { getUsersService } from "@/lib/users";
 
 function isElevatedRole(role: string | null): boolean {
@@ -42,10 +46,18 @@ export async function GET(request: Request) {
     });
 
     const includeHidden = isElevatedRole(role);
+    const overridesBySet = userEmail
+      ? await getHomeworkAccessOverridesForUser(userEmail)
+      : new Map();
     const items = result.items
       .map((homeworkSet) => ({
         ...homeworkSet,
-        ...getHomeworkAvailabilityInfo(homeworkSet, userEmail),
+        ...getHomeworkAvailabilityInfo(
+          homeworkSet,
+          userEmail,
+          undefined,
+          toStrictPersonalAccessWindow(overridesBySet.get(homeworkSet.id)),
+        ),
       }))
       .filter((homeworkSet) => {
         if (includeHidden) {

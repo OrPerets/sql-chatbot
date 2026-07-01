@@ -6,6 +6,10 @@ import { sendEmail } from "@/app/utils/email-service";
 import { getQuestionsByHomeworkSet } from "@/lib/questions";
 import { generateSubmissionPdf } from "@/lib/submission-pdf";
 import { getHomeworkAvailabilityInfo, isHomeworkAccessible } from "@/lib/deadline-utils";
+import {
+  getHomeworkAccessOverride,
+  toStrictPersonalAccessWindow,
+} from "@/lib/homework-access-overrides";
 
 interface RouteParams {
   params: Promise<{ setId: string }>;
@@ -69,8 +73,10 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     // Check if homework is still accessible
-    const availability = getHomeworkAvailabilityInfo(homeworkSet, userEmail);
-    if (!isHomeworkAccessible(homeworkSet, userEmail)) {
+    const accessOverride = await getHomeworkAccessOverride(setId, userEmail);
+    const overrideWindow = toStrictPersonalAccessWindow(accessOverride);
+    const availability = getHomeworkAvailabilityInfo(homeworkSet, userEmail, undefined, overrideWindow);
+    if (!isHomeworkAccessible(homeworkSet, userEmail, undefined, overrideWindow)) {
       return NextResponse.json(
         { 
           error: availability.availabilityMessage,
