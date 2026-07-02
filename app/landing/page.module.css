@@ -165,7 +165,7 @@
   margin-top: 28px;
 }
 
-.primaryAction {
+.container .primaryAction {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -189,7 +189,7 @@
     border-color 180ms ease;
 }
 
-.secondaryAction {
+.container .secondaryAction {
   color: var(--blue-deep);
   background: rgba(255, 255, 255, 0.88);
   box-shadow: 0 16px 34px rgba(19, 44, 104, 0.12);

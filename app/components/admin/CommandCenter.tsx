@@ -3,32 +3,20 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Activity,
-  AlertTriangle,
   ArrowUpRight,
-  Bell,
   Bot,
   CheckCircle2,
-  Clock3,
   Coins,
   Database,
   FileUp,
-  GraduationCap,
   Layers3,
   LifeBuoy,
-  MessageSquareWarning,
-  Radio,
-  RefreshCw,
-  ShieldCheck,
   Users,
 } from "lucide-react";
 
 import { useAdminShell } from "./AdminShell";
 import {
   ADMIN_BUCKETS,
-  ADMIN_ROUTES,
-  getAdminRouteMatch,
-  getPinnedRoutes,
   getTileRoutesForBucket,
 } from "./adminRoutes";
 import styles from "./CommandCenter.module.css";
@@ -59,20 +47,6 @@ type AdminOverview = {
   };
 };
 
-type RecentRouteItem = { href: string; at: string };
-
-const RECENT_ROUTES_STORAGE_KEY = "admin_recent_routes";
-
-function formatFreshness(dateString: string) {
-  const value = new Date(dateString);
-  return value.toLocaleString("he-IL", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function formatNumber(value: number | undefined, loading: boolean) {
   if (loading) return "...";
   return (value ?? 0).toLocaleString("he-IL");
@@ -88,7 +62,6 @@ export default function CommandCenter() {
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [recentRoutes, setRecentRoutes] = useState<RecentRouteItem[]>([]);
 
   const getAdminHeaders = useCallback((baseHeaders: Record<string, string> = {}) => ({
     ...baseHeaders,
@@ -124,33 +97,6 @@ export default function CommandCenter() {
   useEffect(() => {
     void loadOverview();
   }, [loadOverview]);
-
-  useEffect(() => {
-    const stored = localStorage.getItem(RECENT_ROUTES_STORAGE_KEY);
-    if (!stored) {
-      setRecentRoutes([]);
-      return;
-    }
-    try {
-      setRecentRoutes(JSON.parse(stored) as RecentRouteItem[]);
-    } catch (parseError) {
-      console.error("Failed to parse recent admin routes:", parseError);
-      setRecentRoutes([]);
-    }
-  }, []);
-
-  const recentRouteConfigs = useMemo(() => {
-    return recentRoutes
-      .map((item) => {
-        const route = getAdminRouteMatch(item.href);
-        if (!route) return null;
-        return { route, at: item.at };
-      })
-      .filter((item): item is { route: (typeof ADMIN_ROUTES)[number]; at: string } => Boolean(item))
-      .slice(0, 4);
-  }, [recentRoutes]);
-
-  const pinnedRoutes = useMemo(() => getPinnedRoutes(), []);
 
   const routeBadgeMap = useMemo(() => {
     if (!overview) return {} as Record<string, string | undefined>;
@@ -195,86 +141,6 @@ export default function CommandCenter() {
     });
     await loadOverview();
   };
-
-  const totalAttention =
-    (overview?.attention.activeAlerts ?? 0) +
-    (overview?.attention.missingAnswers ?? 0) +
-    (overview?.attention.pendingAnalysisReviews ?? 0) +
-    (overview?.attention.unreadNotifications ?? 0);
-
-  const attentionItems = [
-    {
-      id: "alerts",
-      label: "התראות פעילות",
-      value: overview?.attention.activeAlerts ?? 0,
-      href: "/admin/chat-report",
-      icon: AlertTriangle,
-      tone: "critical",
-      description: "אירועים לבדיקה",
-    },
-    {
-      id: "missing",
-      label: "תשובות חסרות",
-      value: overview?.attention.missingAnswers ?? 0,
-      href: "/admin/settings",
-      icon: MessageSquareWarning,
-      tone: "warning",
-      description: "פערי תוכן",
-    },
-    {
-      id: "reviews",
-      label: "סקירות ממתינות",
-      value: overview?.attention.pendingAnalysisReviews ?? 0,
-      href: "/admin/students",
-      icon: GraduationCap,
-      tone: "neutral",
-      description: "מקרים לעיון",
-    },
-    {
-      id: "notifications",
-      label: "עדכונים שלא נקראו",
-      value: overview?.attention.unreadNotifications ?? 0,
-      href: "/admin/weekly-analytics",
-      icon: Bell,
-      tone: "neutral",
-      description: "עדכונים אחרונים",
-    },
-  ];
-
-  const nextAttentionItem = attentionItems.find((item) => item.value > 0);
-  const nextAction = nextAttentionItem
-    ? {
-        href: nextAttentionItem.href,
-        label: nextAttentionItem.label,
-        description: nextAttentionItem.description,
-        icon: nextAttentionItem.icon,
-        tone: nextAttentionItem.tone,
-      }
-    : {
-        href: "/admin/users",
-        label: "בדוק משתמשים ומטלות",
-        description: "השלושה המרכזיים תקינים",
-        icon: Users,
-        tone: "ok",
-      };
-  const NextActionIcon = nextAction.icon;
-
-  const activityItems = [
-    ...(overview?.recent.alerts || []).map((alert) => ({
-      id: `alert-${alert.id}`,
-      label: alert.title,
-      meta: alert.severity === "critical" ? "קריטי" : "התראה",
-      icon: AlertTriangle,
-      tone: "critical",
-    })),
-    ...(overview?.recent.notifications || []).map((notification) => ({
-      id: `notification-${notification.id}`,
-      label: notification.title,
-      meta: formatFreshness(notification.createdAt),
-      icon: Bell,
-      tone: "neutral",
-    })),
-  ].slice(0, 4);
 
   const statusCards = [
     {
@@ -336,7 +202,7 @@ export default function CommandCenter() {
     {
       id: "homework",
       href: "/admin/homework?mode=students&view=attention",
-      label: "הגשות",
+      label: "תרגילי בית",
       value: formatNumber(overview?.statuses.totalHomeworkSets, loading),
       status: "בדיקה, פתיחה וחסימות",
       action: "בדוק הגשות",
@@ -404,32 +270,6 @@ export default function CommandCenter() {
 
   return (
     <div className={styles.page}>
-      <section className={styles.heroPanel} aria-labelledby="admin-command-title">
-        <div className={styles.heroText}>
-          <span className={styles.eyebrow}>
-            <ShieldCheck size={16} />
-            סביבת תפעול מרצים
-          </span>
-          <h1 id="admin-command-title" className={styles.title}>
-            מרכז פיקוד
-          </h1>
-          <p className={styles.subtitle}>
-            משתמשים, מטבעות ומטלות בראש. כל השאר תומך בתפעול השוטף.
-          </p>
-        </div>
-
-        <div className={styles.heroStatus}>
-          <div className={styles.liveBadge}>
-            <Clock3 size={16} />
-            {overview?.generatedAt ? `עודכן ${formatFreshness(overview.generatedAt)}` : "ממתין לנתונים"}
-          </div>
-          <button className={styles.refreshButton} type="button" onClick={() => void loadOverview()}>
-            <RefreshCw size={16} />
-            רענן תמונת מצב
-          </button>
-        </div>
-      </section>
-
       <section className={styles.priorityOpsGrid} aria-label="מוקדי ניהול מרכזיים">
         {priorityWorkstreams.map((item) => {
           const Icon = item.icon;
@@ -464,106 +304,7 @@ export default function CommandCenter() {
         })}
       </section>
 
-      <section className={styles.opsStrip} aria-label="פעולה מומלצת">
-        <Link
-          href={nextAction.href}
-          className={`${styles.nextActionCard} ${
-            nextAction.tone === "critical"
-              ? styles.nextActionCritical
-              : nextAction.tone === "warning"
-                ? styles.nextActionWarning
-                : ""
-          }`}
-        >
-          <span className={styles.nextActionIcon}>
-            <NextActionIcon size={22} />
-          </span>
-          <span className={styles.nextActionBody}>
-            <span className={styles.nextActionKicker}>הפעולה הבאה</span>
-            <strong>{loading ? "טוען תמונת מצב" : nextAction.label}</strong>
-            <span>{loading ? "בודק מה דורש טיפול" : nextAction.description}</span>
-          </span>
-          <span className={styles.nextActionArrow}>
-            <ArrowUpRight size={18} />
-          </span>
-        </Link>
-
-        <div className={styles.flowCard}>
-          <div className={styles.flowHeader}>
-            <Activity size={18} />
-            <span>זרימת תפעול</span>
-          </div>
-          <div className={styles.flowSteps}>
-            <span className={totalAttention > 0 ? styles.flowStepActive : styles.flowStepDone}>טיפול</span>
-            <span>בנייה</span>
-            <span>בדיקה</span>
-          </div>
-        </div>
-
-        <div className={styles.healthCard}>
-          <div className={styles.healthHeader}>
-            <Radio size={18} />
-            <span>{totalAttention > 0 ? "יש עומס פתוח" : "שגרה תקינה"}</span>
-          </div>
-          <div className={styles.healthMeter} aria-hidden="true">
-            <span style={{ width: `${totalAttention > 0 ? Math.min(100, totalAttention * 14) : 100}%` }} />
-          </div>
-          <div className={styles.healthMeta}>{totalAttention.toLocaleString("he-IL")} פריטים פתוחים</div>
-        </div>
-      </section>
-
       {error ? <div className={styles.errorState}>{error}</div> : null}
-
-      <section className={styles.attentionPanel} aria-label="מה דורש טיפול">
-        <div className={styles.panelHeader}>
-          <div>
-            <h2 className={styles.panelTitle}>מה דורש תשומת לב</h2>
-            <p className={styles.panelCaption}>
-              {loading
-                ? "טוען..."
-                : totalAttention > 0
-                  ? `${totalAttention.toLocaleString("he-IL")} פתוחים`
-                  : "אין דחופים"}
-            </p>
-          </div>
-          <span className={totalAttention > 0 ? styles.priorityPillWarning : styles.priorityPillOk}>
-            {totalAttention > 0 ? "דורש מעבר" : "תקין"}
-          </span>
-        </div>
-
-        <div className={styles.attentionGrid}>
-          {attentionItems.map((item) => {
-            const Icon = item.icon;
-            const value = loading ? "..." : item.value.toLocaleString("he-IL");
-            return (
-              <Link
-                key={item.id}
-                href={item.href}
-                className={`${styles.attentionCard} ${
-                  item.value > 0 && item.tone === "critical"
-                    ? styles.attentionCritical
-                    : item.value > 0 && item.tone === "warning"
-                      ? styles.attentionWarning
-                      : ""
-                }`}
-                title={item.description}
-              >
-                <span className={styles.attentionTopline}>
-                  <span className={styles.attentionIcon}>
-                    <Icon size={18} />
-                  </span>
-                  <span className={item.value > 0 ? styles.attentionStatusOpen : styles.attentionStatusQuiet}>
-                    {item.value > 0 ? "לטיפול" : "נקי"}
-                  </span>
-                </span>
-                <span className={styles.attentionValue}>{value}</span>
-                <span className={styles.attentionLabel}>{item.label}</span>
-                <span className={styles.attentionDescription}>{item.description}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
 
       <div className={styles.mainGrid}>
         <section className={styles.section}>
@@ -677,76 +418,6 @@ export default function CommandCenter() {
               </div>
             );
           })}
-        </div>
-      </section>
-
-      <section className={styles.section}>
-        <div className={styles.panelHeader}>
-          <div>
-            <h2 className={styles.panelTitle}>המשך עבודה</h2>
-            <p className={styles.panelCaption}>קיצורים קבועים ופעילות אחרונה.</p>
-          </div>
-        </div>
-
-        <div className={styles.miniRouteGrid}>
-          {pinnedRoutes.map((route) => {
-            const Icon = route.icon;
-            return (
-              <Link key={route.id} href={route.href} className={styles.miniRoute} title={route.whyOpen}>
-                <span className={styles.miniRouteIcon}>
-                  <Icon size={16} />
-                </span>
-                <span className={styles.miniRouteBody}>
-                  <span className={styles.miniRouteLabel}>{route.label}</span>
-                  <span className={styles.miniRouteMeta}>קבוע</span>
-                </span>
-                <ArrowUpRight size={15} className={styles.miniRouteArrow} />
-              </Link>
-            );
-          })}
-
-          {recentRouteConfigs.map(({ route, at }) => {
-            const Icon = route.icon;
-            return (
-              <Link
-                key={`${route.id}-${at}`}
-                href={route.href}
-                className={styles.miniRoute}
-                title={`נפתח לאחרונה: ${formatFreshness(at)}`}
-              >
-                <span className={styles.miniRouteIcon}>
-                  <Icon size={16} />
-                </span>
-                <span className={styles.miniRouteBody}>
-                  <span className={styles.miniRouteLabel}>{route.label}</span>
-                  <span className={styles.miniRouteMeta}>{formatFreshness(at)}</span>
-                </span>
-                <ArrowUpRight size={15} className={styles.miniRouteArrow} />
-              </Link>
-            );
-          })}
-
-          {activityItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <div key={item.id} className={styles.miniActivity}>
-                <span className={item.tone === "critical" ? styles.miniActivityAlert : styles.miniActivityIcon}>
-                  <Icon size={16} />
-                </span>
-                <span className={styles.miniRouteBody}>
-                  <span className={styles.miniRouteLabel}>{item.label}</span>
-                  <span className={styles.miniRouteMeta}>{item.meta}</span>
-                </span>
-              </div>
-            );
-          })}
-
-          {!loading && recentRouteConfigs.length === 0 && activityItems.length === 0 ? (
-            <div className={styles.emptyActivity}>
-              <CheckCircle2 size={18} />
-              אין עבודה אחרונה להצגה.
-            </div>
-          ) : null}
         </div>
       </section>
 
