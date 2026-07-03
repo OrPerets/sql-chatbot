@@ -51,6 +51,16 @@
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
 }
 
+.filterContext {
+  flex: 1 1 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #334155;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
 .searchContainer {
   position: relative;
   flex: 1 1 260px;
@@ -173,7 +183,8 @@
 }
 
 .errorBanner,
-.loadingState {
+.loadingState,
+.successBanner {
   background: #fff;
   border: 1px solid #fecaca;
   color: #991b1b;
@@ -181,9 +192,35 @@
   padding: 0.9rem 1rem;
 }
 
+.successBanner {
+  border-color: #bbf7d0;
+  color: #166534;
+  background: #f0fdf4;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .loadingState {
   border-color: #dbe4f0;
   color: #334155;
+}
+
+.emptyState {
+  min-height: 12rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  color: #475569;
+  text-align: center;
+  padding: 2rem;
+}
+
+.emptyState strong {
+  color: #0f172a;
+  font-size: 1rem;
 }
 
 .tableSection {
@@ -280,6 +317,14 @@
   overflow-wrap: anywhere;
 }
 
+.studentMetaLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
 .inlineBadges,
 .tagRow,
 .inlineActions,
@@ -328,6 +373,32 @@
   text-transform: capitalize;
 }
 
+.riskLow {
+  background: #ecfdf5;
+  color: #166534;
+}
+
+.riskMedium {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.riskHigh {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.reviewBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
 .summaryCell {
   display: flex;
   flex-direction: column;
@@ -357,11 +428,26 @@
   font-size: 0.8rem;
 }
 
+.recommendedAction {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  color: #0f172a;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.recommendedAction svg {
+  flex-shrink: 0;
+  color: #2563eb;
+  margin-top: 0.16rem;
+}
+
 .metricsContainer {
   display: flex;
   flex-direction: column;
   gap: 0.42rem;
-  min-width: 13rem;
+  min-width: 14rem;
 }
 
 .metricRow {
@@ -373,6 +459,13 @@
 .metricValue {
   color: #0f172a;
   font-weight: 600;
+  text-align: left;
+}
+
+.metricNote {
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.45;
 }
 
 .actions {
@@ -736,9 +829,32 @@
   color: #991b1b;
 }
 
+.freshnessRecalculate {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
 .freshnessUnknown {
   background: #e2e8f0;
   color: #475569;
+}
+
+.emptyInlineState {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #f8fafc;
+  color: #475569;
+  line-height: 1.55;
+}
+
+.emptyInlineState svg {
+  flex-shrink: 0;
+  color: #64748b;
+  margin-top: 0.15rem;
 }
 
 .outcomeHelpful {

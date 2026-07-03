@@ -64,9 +64,51 @@ describe("/api/admin/students/[studentId] route", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(200);
-    expect(mockGetAdminStudentEvidenceBundle).toHaveBeenCalledWith("student-1");
+    expect(mockGetAdminStudentEvidenceBundle).toHaveBeenCalledWith("student-1", {
+      academicPeriod: null,
+    });
     expect(payload.success).toBe(true);
     expect(payload.data.pedagogicalSummary.topWeakSkill).toBe("JOIN logic");
+  });
+
+  it("passes selected academic period to the evidence bundle", async () => {
+    mockGetAdminStudentEvidenceBundle.mockResolvedValue({
+      profile: { userId: "student-1" },
+      adminSummary: {
+        academicPeriod: { year: 2026, semester: 2 },
+      },
+      pedagogicalSummary: {
+        headline: "Student is weak on joins.",
+        rationale: "Recent attempts still fail.",
+        topWeakSkill: "JOIN logic",
+        confidence: 0.9,
+        freshnessLabel: "fresh",
+      },
+      evidenceConsole: {
+        weakSkills: [],
+        recentFailedAttempts: [],
+        hintUsagePatterns: {
+          totalShowAnswerClicks: 0,
+          averageTimeToFirstHintMs: null,
+          averageAttemptsBeforeHint: null,
+          mostSupportedQuestions: [],
+        },
+        chatMisconceptions: [],
+        recommendationHistory: [],
+        issueDetections: [],
+        fieldTraceability: [],
+      },
+    });
+
+    const { GET } = await import("@/app/api/admin/students/[studentId]/route");
+    const response = await GET(new Request("http://localhost/api/admin/students/student-1?year=2026&semester=2") as any, {
+      params: Promise.resolve({ studentId: "student-1" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(mockGetAdminStudentEvidenceBundle).toHaveBeenCalledWith("student-1", {
+      academicPeriod: { year: 2026, semester: 2 },
+    });
   });
 
   it("applies admin oversight actions and returns refreshed evidence", async () => {

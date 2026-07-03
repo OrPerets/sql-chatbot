@@ -1,5 +1,11 @@
 import { COLLECTIONS, connectToDatabase } from "@/lib/database";
 import { getFreshnessLabel, getFreshnessScore } from "@/lib/freshness";
+import type { AcademicPeriod } from "@/lib/academic-period";
+import {
+  buildAdminStudentProfileSummaries,
+  isStudentProfileInAcademicPeriod,
+  type StudentProfileAdminSummary,
+} from "@/lib/admin-student-profile-summary";
 import type { AnalyticsEventModel, AnalysisResultModel, QuestionAnalyticsModel } from "@/lib/models";
 import {
   getStudentPersonalizationBundle,
@@ -110,6 +116,7 @@ function buildPedagogicalSummary(
 
 export type AdminStudentEvidenceBundle = {
   profile: StudentProfile;
+  adminSummary: StudentProfileAdminSummary;
   pedagogicalSummary: {
     headline: string;
     rationale: string;
@@ -386,14 +393,30 @@ function buildIssueDetections(profile: StudentProfile) {
     });
 }
 
-export async function getAdminStudentEvidenceBundle(studentId: string): Promise<AdminStudentEvidenceBundle | null> {
+export async function getAdminStudentEvidenceBundle(
+  studentId: string,
+  options: { academicPeriod?: AcademicPeriod | null } = {}
+): Promise<AdminStudentEvidenceBundle | null> {
   const profile = await getStudentProfile(studentId);
   if (!profile) {
     return null;
   }
 
-  const bundle = await getStudentPersonalizationBundle({ studentId: profile.userId });
   const { db } = await connectToDatabase();
+  if (
+    options.academicPeriod &&
+    !(await isStudentProfileInAcademicPeriod(db, profile.userId, options.academicPeriod))
+  ) {
+    return null;
+  }
+
+  const [bundle, adminSummaries] = await Promise.all([
+    getStudentPersonalizationBundle({ studentId: profile.userId }),
+    buildAdminStudentProfileSummaries(db, [profile], {
+      academicPeriod: options.academicPeriod ?? null,
+    }),
+  ]);
+  const adminSummary = adminSummaries.get(String(profile._id?.toString?.() || profile.userId));
 
   const [analyticsEvents, analyses, questionAnalytics] = await Promise.all([
     db
@@ -443,6 +466,11 @@ export async function getAdminStudentEvidenceBundle(studentId: string): Promise<
 
   return {
     profile,
+    adminSummary:
+      adminSummary ??
+      (await buildAdminStudentProfileSummaries(db, [profile], {
+        academicPeriod: options.academicPeriod ?? null,
+      })).get(String(profile._id?.toString?.() || profile.userId))!,
     pedagogicalSummary: summary,
     evidenceConsole: {
       weakSkills: bundle.snapshot.topicMastery

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { AdminAuthError, requireAdmin } from "@/lib/admin-auth";
+import { parseAcademicPeriodFromSearchParams } from "@/lib/academic-period";
 import { getAdminStudentEvidenceBundle } from "@/lib/admin-student-insights";
+import { isStudentProfileInAcademicPeriod } from "@/lib/admin-student-profile-summary";
+import { connectToDatabase } from "@/lib/database";
 import { applyAdminOversightAction, updateKnowledgeScore } from "@/lib/student-profiles";
 
 export async function GET(
@@ -21,7 +24,9 @@ export async function GET(
       );
     }
 
-    const evidenceBundle = await getAdminStudentEvidenceBundle(studentId);
+    const { searchParams } = new URL(_request.url);
+    const academicPeriod = parseAcademicPeriodFromSearchParams(searchParams);
+    const evidenceBundle = await getAdminStudentEvidenceBundle(studentId, { academicPeriod });
 
     if (!evidenceBundle) {
       return NextResponse.json(
@@ -63,12 +68,25 @@ export async function PUT(
     const params = await context.params;
     const { studentId } = params;
     const body = await request.json();
+    const { searchParams } = new URL(request.url);
+    const academicPeriod = parseAcademicPeriodFromSearchParams(searchParams);
 
     if (!studentId) {
       return NextResponse.json(
         { success: false, error: "Student ID is required" },
         { status: 400 }
       );
+    }
+
+    if (academicPeriod) {
+      const { db } = await connectToDatabase();
+      const isInCohort = await isStudentProfileInAcademicPeriod(db, studentId, academicPeriod);
+      if (!isInCohort) {
+        return NextResponse.json(
+          { success: false, error: "Student is not in the selected academic period" },
+          { status: 404 }
+        );
+      }
     }
 
     if (body.actionType) {
@@ -91,7 +109,7 @@ export async function PUT(
         );
       }
 
-      const evidenceBundle = await getAdminStudentEvidenceBundle(studentId);
+      const evidenceBundle = await getAdminStudentEvidenceBundle(studentId, { academicPeriod });
       return NextResponse.json({
         success: true,
         data: evidenceBundle,
@@ -119,7 +137,7 @@ export async function PUT(
       );
     }
 
-    const evidenceBundle = await getAdminStudentEvidenceBundle(studentId);
+    const evidenceBundle = await getAdminStudentEvidenceBundle(studentId, { academicPeriod });
     return NextResponse.json({
       success: true,
       data: evidenceBundle,

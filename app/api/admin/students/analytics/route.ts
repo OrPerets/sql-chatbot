@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AdminAuthError, requireAdmin } from '@/lib/admin-auth'
-import { buildAcademicPeriodUserQuery, parseAcademicPeriodFromSearchParams } from '@/lib/academic-period'
+import { parseAcademicPeriodFromSearchParams } from '@/lib/academic-period'
+import {
+  buildAdminStudentProfileSummaries,
+  buildProfileScopeQuery,
+  getScopedStudentUsers,
+} from '@/lib/admin-student-profile-summary'
 import { executeWithRetry, COLLECTIONS } from '@/lib/database'
+import type { StudentProfile } from '@/lib/student-profiles'
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,25 +16,35 @@ export async function GET(request: NextRequest) {
     const academicPeriod = parseAcademicPeriodFromSearchParams(searchParams)
     const result = await executeWithRetry(async (db) => {
       const profileQuery: any = {}
+      let scopedUsers = undefined
       if (academicPeriod) {
-        const scopedUsers = await db
-          .collection(COLLECTIONS.USERS)
-          .find(buildAcademicPeriodUserQuery(academicPeriod) as any, { projection: { email: 1, id: 1 } })
-          .toArray()
-        const scopedEmails = scopedUsers
-          .map((user: any) => String(user.email || '').trim().toLowerCase())
-          .filter(Boolean)
-        const scopedIds = scopedUsers
-          .map((user: any) => user.id || user._id?.toString?.())
-          .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
-        profileQuery.$or = [
-          { email: { $in: scopedEmails } },
-          { userId: { $in: Array.from(new Set([...scopedEmails, ...scopedIds])) } },
-        ]
+        scopedUsers = await getScopedStudentUsers(db, academicPeriod)
+        if (scopedUsers.length === 0) {
+          return {
+            totalStudents: 0,
+            scoreDistribution: { empty: 0, good: 0, needs_attention: 0, struggling: 0 },
+            riskDistribution: { low: 0, medium: 0, high: 0 },
+            averageGrade: 0,
+            averageEngagement: 0,
+            topChallenges: [],
+            freshnessDistribution: { current: 0, stale: 0, needs_recalculation: 0, no_evidence: 0 },
+            needsReview: 0,
+            missingSubmissions: 0,
+            lowActivity: 0,
+            staleProfiles: 0,
+            noEvidence: 0,
+            averageHomeworkCompletion: 0,
+          }
+        }
+        profileQuery.$or = buildProfileScopeQuery(scopedUsers).$or
       }
 
       // Get all student profiles
-      const profiles = await db.collection(COLLECTIONS.STUDENT_PROFILES).find(profileQuery).toArray()
+      const profiles = await db.collection<StudentProfile>(COLLECTIONS.STUDENT_PROFILES).find(profileQuery).limit(1000).toArray()
+      const summaries = await buildAdminStudentProfileSummaries(db, profiles, {
+        academicPeriod,
+        scopedUsers,
+      })
       
       // Calculate analytics
       const totalStudents = profiles.length
@@ -53,6 +69,19 @@ export async function GET(request: NextRequest) {
       let gradeCount = 0
       let engagementCount = 0
       const allChallenges: string[] = []
+      const freshnessDistribution = {
+        current: 0,
+        stale: 0,
+        needs_recalculation: 0,
+        no_evidence: 0,
+      }
+      let needsReview = 0
+      let missingSubmissions = 0
+      let lowActivity = 0
+      let staleProfiles = 0
+      let noEvidence = 0
+      let completionSum = 0
+      let completionCount = 0
       
       profiles.forEach(profile => {
         // Count score distribution
@@ -80,6 +109,20 @@ export async function GET(request: NextRequest) {
         if (profile.commonChallenges && Array.isArray(profile.commonChallenges)) {
           allChallenges.push(...profile.commonChallenges)
         }
+
+        const summary = summaries.get(String(profile._id?.toString?.() || profile.userId))
+        if (summary) {
+          freshnessDistribution[summary.freshnessStatus] += 1
+          if (summary.flags.needsReview) needsReview += 1
+          if (summary.flags.missingSubmissions) missingSubmissions += 1
+          if (summary.flags.lowActivity) lowActivity += 1
+          if (summary.flags.staleProfile) staleProfiles += 1
+          if (summary.flags.noEvidence) noEvidence += 1
+          if (summary.homeworkCompletion.total > 0) {
+            completionSum += summary.homeworkCompletion.completed / summary.homeworkCompletion.total
+            completionCount += 1
+          }
+        }
       })
       
       // Calculate top challenges
@@ -99,7 +142,14 @@ export async function GET(request: NextRequest) {
         riskDistribution,
         averageGrade: gradeCount > 0 ? totalGrade / gradeCount : 0,
         averageEngagement: engagementCount > 0 ? totalEngagement / engagementCount : 0,
-        topChallenges
+        topChallenges,
+        freshnessDistribution,
+        needsReview,
+        missingSubmissions,
+        lowActivity,
+        staleProfiles,
+        noEvidence,
+        averageHomeworkCompletion: completionCount > 0 ? completionSum / completionCount : 0,
       }
     })
 
