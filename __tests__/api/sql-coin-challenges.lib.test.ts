@@ -67,6 +67,7 @@ describe("SqlCoinChallengeService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     challengeCollection = {
+      find: jest.fn(),
       findOne: jest.fn(),
       findOneAndUpdate: jest.fn(),
       insertOne: jest.fn(),
@@ -128,26 +129,47 @@ describe("SqlCoinChallengeService", () => {
     expect(mockLogCoinTransaction).not.toHaveBeenCalled();
   });
 
-  it("rejects opening a challenge for a privileged admin row", async () => {
+  it("creates a challenge for a privileged admin test recipient without cohort fields", async () => {
     const service = new SqlCoinChallengeService({} as any);
+    const questions = activeChallenge.questions.map((question) => ({
+      _id: { toString: () => question.queryId },
+      practiceId: question.practiceId,
+      question: question.question,
+      answerSql: question.answerSql,
+    }));
+    const queryCursor = {
+      sort: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      toArray: jest.fn().mockResolvedValue(questions),
+    };
+
     usersCollection.findOne.mockResolvedValue({
+      id: "admin-1",
       email: "orperets11@gmail.com",
       role: "admin",
-      year: 2026,
-      semester: 2,
+    });
+    challengeCollection.findOne.mockResolvedValue(null);
+    challengeCollection.insertOne.mockResolvedValue({ insertedId: "challenge-object-id" });
+    practiceQueriesCollection.find.mockReturnValue(queryCursor);
+
+    const result = await service.createChallenge({
+      studentEmail: "orperets11@gmail.com",
+      academicPeriod: { year: 2026, semester: 2 },
+      createdBy: "admin@example.com",
+      questionCount: 3,
     });
 
-    await expect(
-      service.createChallenge({
+    expect(result.studentEmail).toBe("orperets11@gmail.com");
+    expect(result.year).toBe(2026);
+    expect(result.semester).toBe(2);
+    expect(challengeCollection.insertOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        studentId: "admin-1",
         studentEmail: "orperets11@gmail.com",
-        academicPeriod: { year: 2026, semester: 2 },
-        createdBy: "admin@example.com",
-        questionCount: 3,
+        year: 2026,
+        semester: 2,
       })
-    ).rejects.toThrow("SQL coin challenges can only be opened for students");
-
-    expect(practiceQueriesCollection.find).not.toHaveBeenCalled();
-    expect(challengeCollection.insertOne).not.toHaveBeenCalled();
+    );
   });
 
   it("creates a challenge for a student whose cohort fields are stored as numeric strings", async () => {
@@ -251,6 +273,62 @@ describe("SqlCoinChallengeService", () => {
           questionCount: 3,
           correctCount: 3,
         }),
+      })
+    );
+  });
+
+  it("lets a privileged test recipient load and complete a challenge without cohort fields", async () => {
+    const service = new SqlCoinChallengeService({} as any);
+    const adminChallenge = {
+      ...activeChallenge,
+      id: "sql_coin_admin",
+      studentId: "admin-1",
+      studentEmail: "orperets11@gmail.com",
+    };
+    const completedPendingLedger = {
+      ...adminChallenge,
+      status: "completed",
+      score: { correctCount: 3, totalQuestions: 3, passingCorrectCount: 3, passed: true },
+      completedAt: "2026-07-03T00:01:00.000Z",
+    };
+    const completedFinal = {
+      ...completedPendingLedger,
+      coinLedgerTransactionId: "ledger-1",
+    };
+    const cursor = {
+      sort: jest.fn().mockReturnThis(),
+      toArray: jest.fn().mockResolvedValue([adminChallenge]),
+    };
+
+    challengeCollection.find.mockReturnValue(cursor);
+    challengeCollection.findOne.mockResolvedValue(adminChallenge);
+    challengeCollection.findOneAndUpdate
+      .mockResolvedValueOnce(completedPendingLedger)
+      .mockResolvedValueOnce(completedFinal);
+
+    const current = await service.getCurrentChallengeForStudent({
+      id: "admin-1",
+      email: "orperets11@gmail.com",
+      role: "admin",
+    });
+    const completed = await service.submitChallenge({
+      challengeId: "sql_coin_admin",
+      user: { id: "admin-1", email: "orperets11@gmail.com", role: "admin" },
+      answers: [
+        { questionId: "q1", answer: "select * from students" },
+        { questionId: "q2", answer: "select * from courses" },
+        { questionId: "q3", answer: "select * from grades" },
+      ],
+    });
+
+    expect(current?.id).toBe("sql_coin_admin");
+    expect(challengeCollection.find).toHaveBeenCalledWith({ studentEmail: "orperets11@gmail.com" });
+    expect(completed?.status).toBe("completed");
+    expect(mockUpdateCoinsBalance).toHaveBeenCalledWith(["orperets11@gmail.com"], 1);
+    expect(mockLogCoinTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user: "orperets11@gmail.com",
+        reason: "sql_coin_challenge_completed",
       })
     );
   });

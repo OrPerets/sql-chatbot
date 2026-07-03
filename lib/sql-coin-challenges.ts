@@ -75,6 +75,12 @@ export interface SubmitSqlCoinChallengeInput {
 
 const DEFAULT_QUESTION_COUNT = 3
 
+type ChallengeAccessContext = {
+  studentEmail: string
+  academicPeriod: AcademicPeriod | null
+  isPrivileged: boolean
+}
+
 function normalizeEmail(value: unknown): string {
   return typeof value === 'string' ? value.trim().toLowerCase() : ''
 }
@@ -106,6 +112,35 @@ function getAcademicPeriodFromUser(user: UserModel): AcademicPeriod | null {
     return null
   }
   return { year: Math.trunc(year), semester: Math.trunc(semester) }
+}
+
+function getChallengeAccessContext(user: UserModel): ChallengeAccessContext | null {
+  const studentEmail = normalizeEmail(user.email)
+  if (!studentEmail) {
+    return null
+  }
+
+  return {
+    studentEmail,
+    academicPeriod: getAcademicPeriodFromUser(user),
+    isPrivileged: isPrivilegedUserRecord(user),
+  }
+}
+
+function buildChallengeOwnerQuery(context: ChallengeAccessContext) {
+  if (context.isPrivileged) {
+    return { studentEmail: context.studentEmail }
+  }
+
+  if (!context.academicPeriod) {
+    return null
+  }
+
+  return {
+    studentEmail: context.studentEmail,
+    year: context.academicPeriod.year,
+    semester: context.academicPeriod.semester,
+  }
 }
 
 function stripAnswers(challenge: SqlCoinChallengeDoc): PublicSqlCoinChallenge {
@@ -240,18 +275,15 @@ export class SqlCoinChallengeService {
         return { ok: false as const, message: 'Student was not found' }
       }
 
-      if (isPrivilegedUserRecord(user)) {
-        return {
-          ok: false as const,
-          message: 'SQL coin challenges can only be opened for students',
-        }
-      }
-
       const userAcademicPeriod = normalizeAcademicPeriodInput(user)
+      const userIsPrivileged = isPrivilegedUserRecord(user)
       if (
-        !userAcademicPeriod ||
-        userAcademicPeriod.year !== input.academicPeriod.year ||
-        userAcademicPeriod.semester !== input.academicPeriod.semester
+        !userIsPrivileged &&
+        (
+          !userAcademicPeriod ||
+          userAcademicPeriod.year !== input.academicPeriod.year ||
+          userAcademicPeriod.semester !== input.academicPeriod.semester
+        )
       ) {
         return { ok: false as const, message: 'Student was not found in the selected cohort' }
       }
@@ -324,20 +356,16 @@ export class SqlCoinChallengeService {
   }
 
   async getCurrentChallengeForStudent(user: UserModel): Promise<PublicSqlCoinChallenge | null> {
-    const studentEmail = normalizeEmail(user.email)
-    const academicPeriod = getAcademicPeriodFromUser(user)
-    if (!studentEmail || !academicPeriod) {
+    const context = getChallengeAccessContext(user)
+    const ownerQuery = context ? buildChallengeOwnerQuery(context) : null
+    if (!ownerQuery) {
       return null
     }
 
     return executeWithRetry(async (db) => {
       const docs = await db
         .collection<SqlCoinChallengeDoc>(COLLECTIONS.SQL_COIN_CHALLENGES)
-        .find({
-          studentEmail,
-          year: academicPeriod.year,
-          semester: academicPeriod.semester,
-        })
+        .find(ownerQuery)
         .sort({ updatedAt: -1 })
         .toArray()
 
@@ -349,19 +377,17 @@ export class SqlCoinChallengeService {
   }
 
   async getChallengeForStudent(challengeId: string, user: UserModel): Promise<PublicSqlCoinChallenge | null> {
-    const studentEmail = normalizeEmail(user.email)
-    const academicPeriod = getAcademicPeriodFromUser(user)
+    const context = getChallengeAccessContext(user)
+    const ownerQuery = context ? buildChallengeOwnerQuery(context) : null
     const id = normalizeText(challengeId)
-    if (!studentEmail || !academicPeriod || !id) {
+    if (!ownerQuery || !id) {
       return null
     }
 
     return executeWithRetry(async (db) => {
       const challenge = await db.collection<SqlCoinChallengeDoc>(COLLECTIONS.SQL_COIN_CHALLENGES).findOne({
         id,
-        studentEmail,
-        year: academicPeriod.year,
-        semester: academicPeriod.semester,
+        ...ownerQuery,
       })
 
       return challenge ? stripAnswers(withResolvedExpiry(challenge)) : null
@@ -402,10 +428,10 @@ export class SqlCoinChallengeService {
   }
 
   async submitChallenge(input: SubmitSqlCoinChallengeInput): Promise<PublicSqlCoinChallenge | null> {
-    const studentEmail = normalizeEmail(input.user.email)
-    const academicPeriod = getAcademicPeriodFromUser(input.user)
+    const context = getChallengeAccessContext(input.user)
+    const ownerQuery = context ? buildChallengeOwnerQuery(context) : null
     const challengeId = normalizeText(input.challengeId)
-    if (!studentEmail || !academicPeriod || !challengeId) {
+    if (!context || !ownerQuery || !challengeId) {
       return null
     }
 
@@ -415,9 +441,7 @@ export class SqlCoinChallengeService {
       const collection = db.collection<SqlCoinChallengeDoc>(COLLECTIONS.SQL_COIN_CHALLENGES)
       const challenge = await collection.findOne({
         id: challengeId,
-        studentEmail,
-        year: academicPeriod.year,
-        semester: academicPeriod.semester,
+        ...ownerQuery,
       })
 
       if (!challenge) {
@@ -465,7 +489,7 @@ export class SqlCoinChallengeService {
       const completed = await collection.findOneAndUpdate(
         {
           id: challenge.id,
-          studentEmail,
+          studentEmail: context.studentEmail,
           status: { $in: ['pending', 'active'] },
           coinLedgerTransactionId: { $exists: false },
         } as never,
@@ -482,13 +506,13 @@ export class SqlCoinChallengeService {
       )
 
       if (!completed) {
-        const latest = await collection.findOne({ id: challenge.id, studentEmail })
+        const latest = await collection.findOne({ id: challenge.id, studentEmail: context.studentEmail })
         return latest ? stripAnswers(withResolvedExpiry(latest)) : null
       }
 
-      await updateCoinsBalance([studentEmail], 1)
+      await updateCoinsBalance([context.studentEmail], 1)
       const ledgerResult = await logCoinTransaction({
-        user: studentEmail,
+        user: context.studentEmail,
         delta: 1,
         reason: 'sql_coin_challenge_completed',
         createdBy: completed.createdBy,

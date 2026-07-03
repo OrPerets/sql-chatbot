@@ -365,8 +365,8 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
             duplicateEmailIndex,
             isChallengeEligible:
               Boolean(normalizedEmail) &&
-              !isPrivilegedUser(profile) &&
-              isInAcademicPeriod(profile, academicPeriod.year, academicPeriod.semester),
+              (isPrivilegedUser(profile) ||
+                isInAcademicPeriod(profile, academicPeriod.year, academicPeriod.semester)),
           };
         })
         .sort((left, right) => {
@@ -677,19 +677,19 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
         <section className={styles.challengePanel}>
           <div className={styles.challengeCopy}>
             <div className={styles.challengeEyebrow}>אתגר SQL למטבע</div>
-            <h2>פתיחת אתגר לסטודנט מהמחזור הנבחר</h2>
+            <h2>פתיחת אתגר למשתמש מהמחזור הנבחר</h2>
             <p>
-              האתגר מופיע רק לסטודנט שנבחר, בתקופה {academicPeriod.year}/{academicPeriod.semester}, ומעניק מטבע אחד אחרי 3 תשובות נכונות.
+              האתגר מופיע רק למשתמש שנבחר, בתקופה {academicPeriod.year}/{academicPeriod.semester}, ומעניק מטבע אחד אחרי 3 תשובות נכונות. מנהלים זמינים כאן גם לצורכי בדיקה.
             </p>
           </div>
           <div className={styles.challengeControls}>
             <label className={styles.challengeSelect}>
-              <span>סטודנט</span>
+              <span>סטודנט או מנהל בדיקה</span>
               <select
                 value={selectedChallengeUser}
                 onChange={(event) => setSelectedChallengeUser(event.target.value)}
               >
-                <option value="">בחר סטודנט</option>
+                <option value="">בחר משתמש</option>
                 {challengeEligibleUsers.map((user) => {
                   const email = normalizeEmail(user.email);
                   const challenge = challengeByEmail.get(email);
@@ -983,7 +983,7 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                               ) : (
                                 <>
                                   <span className={`${styles.challengeStatus} ${styles.challengeStatus_none}`}>
-                                    {user.isChallengeEligible ? "אין אתגר" : "לא סטודנט במחזור"}
+                                    {user.isChallengeEligible ? "אין אתגר" : "לא במחזור"}
                                   </span>
                                   {user.isChallengeEligible ? (
                                     <button

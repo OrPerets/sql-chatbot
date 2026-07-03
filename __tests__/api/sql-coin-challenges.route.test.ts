@@ -100,11 +100,12 @@ describe("SQL coin challenge routes", () => {
     expect(mockListSqlCoinChallenges).toHaveBeenCalledWith({ year: 2026, semester: 2 });
   });
 
-  it("returns a clear validation error when admin selects a privileged user", async () => {
+  it("admin can create a challenge for a privileged test recipient", async () => {
     mockRequireAdmin.mockResolvedValue({ email: adminEmail });
-    mockCreateSqlCoinChallenge.mockRejectedValue(
-      new Error("SQL coin challenges can only be opened for students")
-    );
+    mockCreateSqlCoinChallenge.mockResolvedValue({
+      ...challenge,
+      studentEmail: "orperets11@gmail.com",
+    });
 
     const { POST } = await import("@/app/api/admin/coins/challenges/route");
     const request = new Request("http://localhost/api/admin/coins/challenges", {
@@ -121,8 +122,15 @@ describe("SQL coin challenge routes", () => {
     const response = await POST(request);
     const payload = await response.json();
 
-    expect(response.status).toBe(400);
-    expect(payload.error).toBe("SQL coin challenges can only be opened for students");
+    expect(response.status).toBe(200);
+    expect(payload.challenge.studentEmail).toBe("orperets11@gmail.com");
+    expect(mockCreateSqlCoinChallenge).toHaveBeenCalledWith({
+      studentEmail: "orperets11@gmail.com",
+      academicPeriod: { year: 2026, semester: 2 },
+      createdBy: adminEmail,
+      questionCount: 3,
+      practiceId: undefined,
+    });
   });
 
   it("student current challenge lookup uses the authenticated session user only", async () => {
