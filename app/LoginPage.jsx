@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Lock, Loader, Shield, UserCheck } from 'lucide-react';
+import { ArrowUpLeft, Lock, Loader, Mail } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import styles from './login.module.css';
 
@@ -19,24 +19,13 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingUsers, setIsFetchingUsers] = useState(false);
   const [status, setStatus] = useState('ON');
-  const [loginMode, setLoginMode] = useState('user'); // 'user' or 'admin'
   const router = useRouter();
-  const [isAdmin, setIsAdmin] = useState(false);
   
   // Forgot password states
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
-
-  const setEmailandAdmin = (val) => {
-    if (val === "orperets11@gmail.com") {
-      setIsAdmin(true);
-    } else {
-      setIsAdmin(false);
-    }
-    setEmail(val);
-  }
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -133,68 +122,33 @@ const LoginPage = () => {
     setIsLoading(true);
     setError('');
 
-    if (loginMode === 'admin') {
-      const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il", "r_admin@gmail.com"];
-      if (!adminEmails.includes(email)) {
-        setError('אין לך הרשאת מנהל');
+    if (SHOULD_FORCE_DEFAULT_PASSWORD_CHANGE && password === 'shenkar') {
+      setChangePassword(true);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/users/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'כתובת המייל או הסיסמה שגויות');
         setTimeout(() => setError(''), 3000);
-        setIsLoading(false);
-        return;
+      } else {
+        getCoinsBalance(data.email);
+        storeUserInfo(data);
+        router.push('/landing');
       }
-      if (SHOULD_FORCE_DEFAULT_PASSWORD_CHANGE && password === 'shenkar') {
-        setChangePassword(true);
-        setIsLoading(false);
-        return;
-      }
-      try {
-        const response = await fetch('/api/users/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email, password }),
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-          setError(data.error || 'סיסמת מנהל שגויה');
-          setTimeout(() => setError(''), 3000);
-        } else {
-          storeUserInfo(data);
-          router.push('/landing');
-        }
-      } catch (error) {
-        console.error('Error during admin login:', error);
-        setError('שגיאה בהתחברות, נסו שוב');
-      }
-    } else {
-      if (SHOULD_FORCE_DEFAULT_PASSWORD_CHANGE && password === 'shenkar') {
-        setChangePassword(true);
-        setIsLoading(false);
-        return;
-      }
-      try {
-        const response = await fetch('/api/users/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email, password }),
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-          setError(data.error || 'Wrong Password or Email');
-          setTimeout(() => setError(''), 3000);
-        } else {
-          getCoinsBalance(data.email);
-          storeUserInfo(data);
-          router.push('/landing');
-        }
-      } catch (error) {
-        console.error('Error during login:', error);
-        setError('שגיאה בהתחברות, נסו שוב');
-      }
+    } catch (error) {
+      console.error('Error during login:', error);
+      setError('שגיאה בהתחברות, נסו שוב');
     }
 
     setIsLoading(false);
@@ -239,12 +193,7 @@ const LoginPage = () => {
         } else {
           storeUserInfo({ email, firstName: email });
         }
-        // Redirect based on login mode
-        if (loginMode === 'admin') {
-          router.push('/landing');
-        } else {
-          router.push('/landing');
-        }
+        router.push('/landing');
       } else {
         setError('Failed to update password. Please try again.');
       }
@@ -288,7 +237,8 @@ const LoginPage = () => {
   };
 
   return (
-    <div className={styles.loginContainer}>
+    <div className={styles.loginContainer} dir="rtl">
+      <div className={styles.backgroundLayer} aria-hidden="true" />
       {status === "OFF" && (
         <div className={styles.loginCard}>
           <div className={styles.assistantTitle} style={{color: "black"}}>Michael is sleeping now</div>
@@ -296,186 +246,158 @@ const LoginPage = () => {
         </div>
       )}
       {status === "ON" && (
-        <div>
-          <div className={styles.logoWrapper}>
-            <img className={styles.botImage} src="bot.png" alt="Bot" />
-            <div className={styles.assistantName}>
-              <img className={styles.logoImage} src="logo.png" alt="Logo" />
-              <h2 className={styles.assistantTitle}>MICHAEL</h2>
-              <p className={styles.assistantSubtitle}>SQL AI Assistant</p>
+        <>
+          <header className={styles.topBar}>
+            <div className={styles.brand} aria-label="Michael SQL learning hub">
+              <img className={styles.logoImage} src="/bot.png" alt="מייקל" />
+              <div className={styles.brandText}>
+                <span className={styles.brandTitle}>Michael</span>
+                <span className={styles.brandSubtitle}>SQL Learning Lab</span>
+              </div>
             </div>
-          </div>
-          <div className={styles.loginCard}>
-            <h2 className={styles.title}>התחברות</h2>
-
-            <div className={styles.loginModeContainer}>
-              <button 
-                type="button"
-                className={`${styles.loginModeButton} ${loginMode === 'user' ? styles.loginModeActive : ''}`}
-                onClick={() => setLoginMode('user')}
-              >
-                <UserCheck size={18} />
-                כניסת משתמש
-              </button>
-              <button 
-                type="button"
-                className={`${styles.loginModeButton} ${loginMode === 'admin' ? styles.loginModeActive : ''}`}
-                onClick={() => setLoginMode('admin')}
-              >
-                <Shield size={18} />
-                כניסת מנהל
-              </button>
+            <div className={styles.shenkarBrand} aria-label="Shenkar">
+              <span className={styles.shenkarLogoTile}>
+                <img className={styles.shenkarLogo} src="/logo.png" alt="" />
+              </span>
+              <span className={styles.shenkarText}>Shenkar</span>
             </div>
+          </header>
 
-            {!changePassword ? (
-              <form className={styles.form} onSubmit={handleLogin}>
-                <div className={styles.inputGroup}>
-                  <span className={styles.iconWrapper}>
-                    <User size={18} />
-                  </span>
-                  <input 
-                    type="email" 
-                    className={styles.input}
-                    placeholder="כתובת מייל" 
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmailandAdmin(e.target.value)}
-                    required
-                  />
+          <main className={styles.shell}>
+            <section className={styles.hero}>
+              <div className={styles.loginCard}>
+                <div className={styles.cardHeader}>
+                  <img className={styles.botImage} src="/bot.png" alt="" />
+                  <div>
+                    <h2 className={styles.title}>התחברות</h2>
+                  </div>
                 </div>
-                <div className={styles.inputGroup}>
-                  <span className={styles.iconWrapper}>
-                    <Lock size={18} />
-                  </span>
-                  <input 
-                    type="password" 
-                    className={styles.input}
-                    placeholder="סיסמה"
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                
-                
-                
-                <button type="submit" className={styles.button} disabled={isLoading || isFetchingUsers}>
-                  {isLoading || isFetchingUsers ? <Loader className={styles.loadingSpinner} size={18} /> : (loginMode === 'admin' ? 'כניסה כמנהל' : 'אישור')}
-                </button>
-                {!changePassword && (
-                  <div style={{ textAlign: 'center', marginTop: '10px' }}>
-                    <button 
+
+                {!changePassword ? (
+                  <form className={styles.form} onSubmit={handleLogin}>
+                    <div className={styles.inputGroup}>
+                      <span className={styles.iconWrapper}>
+                        <Mail size={18} />
+                      </span>
+                      <input
+                        type="email"
+                        className={styles.input}
+                        placeholder="כתובת מייל"
+                        autoComplete="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className={styles.inputGroup}>
+                      <span className={styles.iconWrapper}>
+                        <Lock size={18} />
+                      </span>
+                      <input
+                        type="password"
+                        className={styles.input}
+                        placeholder="סיסמה"
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <button type="submit" className={styles.button} disabled={isLoading || isFetchingUsers}>
+                      {isLoading || isFetchingUsers ? (
+                        <Loader className={styles.loadingSpinner} size={18} />
+                      ) : (
+                        <>
+                          <span>כניסה</span>
+                          <ArrowUpLeft aria-hidden="true" size={18} />
+                        </>
+                      )}
+                    </button>
+                    <button
                       type="button"
                       onClick={() => setShowForgotPassword(true)}
-                      style={{ 
-                        background: 'none', 
-                        border: 'none', 
-                        color: '#007bff', 
-                        textDecoration: 'underline',
-                        cursor: 'pointer',
-                        fontSize: '14px'
-                      }}
+                      className={styles.textButton}
                     >
                       איפוס סיסמה
                     </button>
-                  </div>
+                  </form>
+                ) : (
+                  <>
+                    <h2 className={styles.title}>שינוי סיסמה - כניסה ראשונה</h2>
+                    <p className={styles.helperText}>
+                      זוהי הכניסה הראשונה שלך. אנא הגדר סיסמה חדשה
+                    </p>
+                    <form className={styles.form} onSubmit={handleChangePassword}>
+                      <div className={styles.inputGroup}>
+                        <span className={styles.iconWrapper}>
+                          <Mail size={18} />
+                        </span>
+                        <input
+                          type="email"
+                          className={styles.input}
+                          placeholder="כתובת מייל"
+                          autoComplete="email"
+                          value={email}
+                          disabled
+                        />
+                      </div>
+                      <div className={styles.inputGroup}>
+                        <span className={styles.iconWrapper}>
+                          <Lock size={18} />
+                        </span>
+                        <input
+                          type="password"
+                          className={styles.input}
+                          placeholder="סיסמה חדשה"
+                          autoComplete="new-password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <button type="submit" className={styles.button} disabled={isLoading}>
+                        {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'שנה סיסמה'}
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.button} ${styles.secondaryButton}`}
+                        onClick={() => {
+                          setChangePassword(false);
+                          setNewPassword('');
+                          setError('');
+                        }}
+                      >
+                        חזור
+                      </button>
+                    </form>
+                  </>
                 )}
-              </form>
-            ) : (
-              <>
-                <h2 className={styles.title}>שינוי סיסמה - כניסה ראשונה</h2>
-                <p style={{textAlign: 'center', marginBottom: '20px', color: '#666'}}>
-                  זוהי הכניסה הראשונה שלך. אנא הגדר סיסמה חדשה
-                </p>
-                <form className={styles.form} onSubmit={handleChangePassword}>
-                  <div className={styles.inputGroup}>
-                    <span className={styles.iconWrapper}>
-                      <User size={18} />
-                    </span>
-                    <input 
-                      type="email" 
-                      className={styles.input}
-                      placeholder="כתובת מייל" 
-                      autoComplete="email"
-                      value={email}
-                      disabled
-                      style={{backgroundColor: '#f0f0f0'}}
-                    />
-                  </div>
-                  <div className={styles.inputGroup}>
-                    <span className={styles.iconWrapper}>
-                      <Lock size={18} />
-                    </span>
-                    <input 
-                      type="password" 
-                      className={styles.input}
-                      placeholder="סיסמה חדשה"
-                      autoComplete="new-password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <button type="submit" className={styles.button} disabled={isLoading}>
-                    {isLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'שנה סיסמה'}
-                  </button>
-                  <button 
-                    type="button" 
-                    className={styles.button}
-                    style={{backgroundColor: '#666', marginTop: '10px'}}
-                    onClick={() => {
-                      setChangePassword(false);
-                      setNewPassword('');
-                      setError('');
-                    }}
-                  >
-                    חזור
-                  </button>
-                </form>
-              </>
-            )}
-            {error && <div className={styles.errorMessage}>{error}</div>}
-          </div>
+                {error && <div className={styles.errorMessage}>{error}</div>}
+              </div>
+            </section>
+          </main>
           {isLoading && (
             <div className={styles.loadingOverlay}>
               <Loader className={styles.loadingSpinner} size={48} />
             </div>
           )}
-        </div>
+        </>
       )}
       
       {/* Forgot Password Modal */}
       {showForgotPassword && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '30px',
-            borderRadius: '10px',
-            maxWidth: '400px',
-            width: '90%',
-            textAlign: 'center'
-          }}>
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalCard}>
             <h3>איפוס סיסמה</h3>
-            <p style={{ marginBottom: '20px', color: '#666' }}>
+            <p className={styles.helperText}>
               הזן את כתובת המייל שלך ונשלח לך קישור לאיפוס הסיסמה
             </p>
             
             <form onSubmit={handleForgotPassword}>
               <div className={styles.inputGroup}>
                 <span className={styles.iconWrapper}>
-                  <User size={18} />
+                  <Mail size={18} />
                 </span>
                 <input 
                   type="email" 
@@ -487,19 +409,17 @@ const LoginPage = () => {
                 />
               </div>
               
-              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+              <div className={styles.modalActions}>
                 <button 
                   type="submit" 
                   className={styles.button} 
                   disabled={forgotPasswordLoading}
-                  style={{ flex: 1 }}
                 >
                   {forgotPasswordLoading ? <Loader className={styles.loadingSpinner} size={18} /> : 'שלח קישור'}
                 </button>
                 <button 
                   type="button" 
-                  className={styles.button}
-                  style={{ backgroundColor: '#666', flex: 1 }}
+                  className={`${styles.button} ${styles.secondaryButton}`}
                   onClick={() => {
                     setShowForgotPassword(false);
                     setForgotPasswordEmail('');
@@ -512,14 +432,7 @@ const LoginPage = () => {
             </form>
             
             {forgotPasswordMessage && (
-              <div style={{ 
-                marginTop: '15px', 
-                padding: '10px', 
-                backgroundColor: forgotPasswordMessage.includes('שגיאה') ? '#f8d7da' : '#d4edda',
-                color: forgotPasswordMessage.includes('שגיאה') ? '#721c24' : '#155724',
-                borderRadius: '5px',
-                fontSize: '14px'
-              }}>
+              <div className={`${styles.feedbackMessage} ${forgotPasswordMessage.includes('שגיאה') ? styles.feedbackError : styles.feedbackSuccess}`}>
                 {forgotPasswordMessage}
               </div>
             )}
