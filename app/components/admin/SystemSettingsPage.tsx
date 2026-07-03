@@ -56,7 +56,7 @@ function formatCoinModuleSummary(overview: AdminOverview | null) {
 }
 
 export default function SystemSettingsPage() {
-  const { currentAdminEmail } = useAdminShell();
+  const { currentAdminEmail, academicPeriodQuery } = useAdminShell();
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -73,7 +73,7 @@ export default function SystemSettingsPage() {
   const loadOverview = async () => {
     if (!currentAdminEmail) return;
     try {
-      const response = await fetch("/api/admin/overview", {
+      const response = await fetch(`/api/admin/overview?${academicPeriodQuery}`, {
         headers: getAdminHeaders(),
         cache: "no-store",
       });
@@ -90,7 +90,7 @@ export default function SystemSettingsPage() {
 
   useEffect(() => {
     void loadOverview();
-  }, [currentAdminEmail]);
+  }, [academicPeriodQuery, currentAdminEmail]);
 
   const toggleMichael = async () => {
     if (!overview) return;

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Coins, RefreshCw, Search, Settings2, TrendingUp, Users } from "lucide-react";
 
+import { useAdminShell } from "@/app/components/admin/AdminShell";
 import ErrorBanner from "@/app/components/admin/ErrorBanner";
 import styles from "@/app/admin/coins/page.module.css";
 
@@ -103,6 +104,7 @@ interface CoinsManagementPanelProps {
 }
 
 export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagementPanelProps) {
+  const { academicPeriodQuery } = useAdminShell();
   const [loading, setLoading] = useState(true);
   const [savingConfig, setSavingConfig] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -119,7 +121,7 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
 
   useEffect(() => {
     void loadCoinsData();
-  }, [currentAdminEmail]);
+  }, [academicPeriodQuery, currentAdminEmail]);
 
   const filteredUsers = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -175,11 +177,11 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
 
     try {
       const [overviewResponse, usersResponse] = await Promise.all([
-        fetch("/api/admin/coins/analytics", {
+        fetch(`/api/admin/coins/analytics?${academicPeriodQuery}`, {
           headers: getAdminHeaders(),
           cache: "no-store",
         }),
-        fetch("/api/users", {
+        fetch(`/api/users?${academicPeriodQuery}`, {
           cache: "no-store",
         }),
       ]);

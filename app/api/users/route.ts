@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAllUsers, updatePassword, createUser, getUsersService } from '@/lib/users'
 import { AdminAuthError, requireAdmin } from '@/lib/admin-auth'
+import { parseAcademicPeriodFromSearchParams } from '@/lib/academic-period'
 
 function sanitizeUser(user: any) {
   const { password, ...safeUser } = user
@@ -10,7 +11,9 @@ function sanitizeUser(user: any) {
 export async function GET(request: Request) {
   try {
     await requireAdmin(request)
-    const users = await getAllUsers()
+    const { searchParams } = new URL(request.url)
+    const academicPeriod = parseAcademicPeriodFromSearchParams(searchParams)
+    const users = await getAllUsers({ academicPeriod })
     return NextResponse.json(users.map(sanitizeUser))
   } catch (error) {
     if (error instanceof AdminAuthError) {
@@ -45,7 +48,9 @@ export async function POST(request: Request) {
         firstName: body.firstName,
         lastName: body.lastName,
         password: body.password || 'shenkar',
-        isFirst: body.isFirst !== undefined ? body.isFirst : true
+        isFirst: body.isFirst !== undefined ? body.isFirst : true,
+        year: body.year,
+        semester: body.semester,
       })
       
       if (!result.success) {

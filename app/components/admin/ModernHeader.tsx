@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
+  CalendarDays,
   ChevronDown,
   Inbox,
   Menu,
@@ -15,6 +16,7 @@ import {
   UserCircle,
 } from "lucide-react";
 
+import type { AcademicPeriod } from "@/lib/academic-period";
 import {
   getAdminBreadcrumbs,
   getAdminCommandItems,
@@ -24,6 +26,8 @@ import styles from "./ModernHeader.module.css";
 
 interface ModernHeaderProps {
   currentUser?: string | null;
+  academicPeriod: AcademicPeriod;
+  onAcademicPeriodChange: (period: AcademicPeriod) => void;
   onLogout: () => void;
   isSidebarCollapsed: boolean;
   onToggleSidebar: () => void;
@@ -53,6 +57,8 @@ function formatTimeAgo(createdAt: string) {
 
 export default function ModernHeader({
   currentUser,
+  academicPeriod,
+  onAcademicPeriodChange,
   onLogout,
   isSidebarCollapsed,
   onToggleSidebar,
@@ -171,6 +177,16 @@ export default function ModernHeader({
     }
   };
 
+  const handleYearChange = (value: string) => {
+    const year = Number.parseInt(value, 10);
+    if (!Number.isFinite(year) || year <= 0) return;
+    onAcademicPeriodChange({ ...academicPeriod, year });
+  };
+
+  const handleSemesterChange = (semester: number) => {
+    onAcademicPeriodChange({ ...academicPeriod, semester });
+  };
+
   return (
     <header className={`${styles.header} ${isSidebarCollapsed ? styles.headerCollapsed : ""}`}>
       <div className={styles.headerContainer}>
@@ -261,6 +277,36 @@ export default function ModernHeader({
         </div>
 
         <div className={styles.headerActions}>
+          <div className={styles.periodSelector} aria-label="בחירת שנת לימודים וסמסטר">
+            <div className={styles.periodLabel}>
+              <CalendarDays size={15} />
+              <span>תקופה</span>
+              <strong>{academicPeriod.year}/{academicPeriod.semester}</strong>
+            </div>
+            <input
+              className={styles.periodYearInput}
+              type="number"
+              min={2020}
+              max={2035}
+              value={academicPeriod.year}
+              onChange={(event) => handleYearChange(event.target.value)}
+              aria-label="שנת לימודים"
+            />
+            <div className={styles.semesterSegment} role="group" aria-label="סמסטר">
+              {[1, 2].map((semester) => (
+                <button
+                  key={semester}
+                  type="button"
+                  className={academicPeriod.semester === semester ? styles.semesterActive : ""}
+                  onClick={() => handleSemesterChange(semester)}
+                  aria-pressed={academicPeriod.semester === semester}
+                >
+                  {semester}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className={styles.notificationWrapper}>
             <button
               type="button"

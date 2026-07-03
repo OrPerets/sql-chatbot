@@ -1,5 +1,9 @@
 import { Db } from 'mongodb'
 import { connectToDatabase, executeWithRetry, COLLECTIONS } from './database'
+import {
+  buildAcademicPeriodUserQuery,
+  type AcademicPeriod,
+} from '@/lib/academic-period'
 
 export interface CoinDoc {
   _id?: any
@@ -576,12 +580,29 @@ export class CoinsService {
     }
   }
 
-  async getAdminOverview(): Promise<CoinsAdminOverview> {
+  async getAdminOverview(academicPeriod?: AcademicPeriod | null): Promise<CoinsAdminOverview> {
     const [config, users, transactions] = await Promise.all([
       this.getCoinsConfig(),
       this.getAllCoins(),
       this.getCoinTransactions(),
     ])
+
+    const scopedUserEmails = academicPeriod
+      ? await executeWithRetry(async (db) => {
+          const scopedUsers = await db
+            .collection(COLLECTIONS.USERS)
+            .find(buildAcademicPeriodUserQuery(academicPeriod) as any, { projection: { email: 1 } })
+            .toArray()
+          return new Set(scopedUsers.map((user: any) => normalizeCoinUser(user.email)).filter(Boolean))
+        })
+      : null
+
+    const scopedCoins = scopedUserEmails
+      ? users.filter((user) => scopedUserEmails.has(normalizeCoinUser(user.user)))
+      : users
+    const scopedTransactions = scopedUserEmails
+      ? transactions.filter((transaction) => scopedUserEmails.has(normalizeCoinUser(transaction.user)))
+      : transactions
 
     const usageByReason: Partial<Record<CoinChargeReason, number>> = {}
     const usageBySource: Partial<Record<CoinChargeSource, number>> = {}
@@ -597,7 +618,7 @@ export class CoinsService {
     let lastActivity: Date | null = null
     let totalSpent = 0
 
-    for (const transaction of transactions) {
+    for (const transaction of scopedTransactions) {
       usageByReason[transaction.reason] = (usageByReason[transaction.reason] || 0) + 1
       usageBySource[transaction.source] = (usageBySource[transaction.source] || 0) + 1
 
@@ -625,7 +646,7 @@ export class CoinsService {
       perUser.set(transaction.user, current)
     }
 
-    const enrichedUsers = users.map((user) => {
+    const enrichedUsers = scopedCoins.map((user) => {
       const stats = perUser.get(user.user)
       return {
         ...user,
@@ -640,9 +661,9 @@ export class CoinsService {
       config,
       users: enrichedUsers,
       summary: {
-        totalUsers: users.length,
-        totalBalance: users.reduce((sum, user) => sum + user.coins, 0),
-        totalTransactions: transactions.length,
+        totalUsers: scopedCoins.length,
+        totalBalance: scopedCoins.reduce((sum, user) => sum + user.coins, 0),
+        totalTransactions: scopedTransactions.length,
         totalSpent,
         usageByReason,
         usageBySource,
@@ -672,9 +693,9 @@ export async function getAllCoins() {
   return service.getAllCoins()
 }
 
-export async function getCoinsAdminOverview() {
+export async function getCoinsAdminOverview(academicPeriod?: AcademicPeriod | null) {
   const service = await getCoinsService()
-  return service.getAdminOverview()
+  return service.getAdminOverview(academicPeriod)
 }
 
 export async function getCoinsStatus() {

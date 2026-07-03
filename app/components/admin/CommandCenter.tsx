@@ -86,7 +86,7 @@ function clampPercent(value: number, maxValue: number) {
 }
 
 export default function CommandCenter() {
-  const { currentAdminEmail } = useAdminShell();
+  const { currentAdminEmail, academicPeriodQuery } = useAdminShell();
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,7 +103,7 @@ export default function CommandCenter() {
     setError(null);
 
     try {
-      const response = await fetch("/api/admin/overview", {
+      const response = await fetch(`/api/admin/overview?${academicPeriodQuery}`, {
         headers: getAdminHeaders(),
         cache: "no-store",
       });
@@ -120,7 +120,7 @@ export default function CommandCenter() {
     } finally {
       setLoading(false);
     }
-  }, [currentAdminEmail, getAdminHeaders]);
+  }, [academicPeriodQuery, currentAdminEmail, getAdminHeaders]);
 
   useEffect(() => {
     void loadOverview();

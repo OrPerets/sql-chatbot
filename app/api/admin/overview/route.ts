@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { AdminAuthError, requireAdmin } from "@/lib/admin-auth";
+import {
+  buildAcademicPeriodUserQuery,
+  parseAcademicPeriodFromSearchParams,
+  type AcademicPeriod,
+} from "@/lib/academic-period";
 import { getCoinsConfig } from "@/lib/coins";
 import { COLLECTIONS, executeWithRetry } from "@/lib/database";
 import { getMonitoringService } from "@/lib/monitoring";
@@ -21,8 +26,31 @@ type OverviewCounts = {
   michaelEnabled: boolean;
 };
 
-async function getOverviewCounts(): Promise<OverviewCounts> {
+async function getOverviewCounts(academicPeriod?: AcademicPeriod | null): Promise<OverviewCounts> {
   return executeWithRetry(async (db) => {
+    const userQuery = buildAcademicPeriodUserQuery(academicPeriod);
+    const scopedUsers = academicPeriod
+      ? await db
+          .collection(COLLECTIONS.USERS)
+          .find(userQuery as any, { projection: { email: 1, id: 1 } })
+          .toArray()
+      : null;
+    const scopedEmails = scopedUsers
+      ? scopedUsers.map((user: any) => String(user.email || "").trim().toLowerCase()).filter(Boolean)
+      : [];
+    const scopedIds = scopedUsers
+      ? scopedUsers
+          .map((user: any) => user.id || user._id?.toString?.())
+          .filter((id: unknown): id is string => typeof id === "string" && id.length > 0)
+      : [];
+    const profileScope = scopedUsers
+      ? {
+          $or: [
+            { email: { $in: scopedEmails } },
+            { userId: { $in: Array.from(new Set([...scopedEmails, ...scopedIds])) } },
+          ],
+        }
+      : {};
     const [
       totalUsers,
       totalTemplates,
@@ -34,11 +62,12 @@ async function getOverviewCounts(): Promise<OverviewCounts> {
       extraTimeUploads,
       michaelDoc,
     ] = await Promise.all([
-      db.collection(COLLECTIONS.USERS).countDocuments(),
+      db.collection(COLLECTIONS.USERS).countDocuments(userQuery as any),
       db.collection(COLLECTIONS.QUESTION_TEMPLATES).countDocuments(),
       db.collection(COLLECTIONS.DATASETS).countDocuments(),
       db.collection(COLLECTIONS.HOMEWORK_SETS).countDocuments(),
       db.collection(COLLECTIONS.STUDENT_PROFILES).countDocuments({
+        ...profileScope,
         "riskFactors.riskLevel": "high",
       }),
       db.collection(COLLECTIONS.ANALYSIS_RESULTS).countDocuments({
@@ -94,10 +123,12 @@ async function getOverviewCounts(): Promise<OverviewCounts> {
 export async function GET(request: Request) {
   try {
     await requireAdmin(request);
+    const { searchParams } = new URL(request.url);
+    const academicPeriod = parseAcademicPeriodFromSearchParams(searchParams);
 
     const [counts, notifications, unreadNotifications, coinsConfig, runtimeConfig, activeAlerts] =
       await Promise.all([
-        getOverviewCounts(),
+        getOverviewCounts(academicPeriod),
         NotificationService.getNotifications({ limit: 3 }),
         NotificationService.getUnreadCount(),
         getCoinsConfig(),

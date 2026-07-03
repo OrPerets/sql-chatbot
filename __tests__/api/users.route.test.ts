@@ -63,6 +63,46 @@ describe('/api/users', () => {
 
     expect(response.status).toBe(200);
     expect(data).toEqual([{ email: 'student@example.com', firstName: 'Student' }]);
+    expect(mockGetAllUsers).toHaveBeenCalledWith({ academicPeriod: null });
+  });
+
+  it('passes academic period filters to admin user listing', async () => {
+    mockGetAllUsers.mockResolvedValue([
+      { email: 'student@example.com', password: 'secret', firstName: 'Student', year: 2026, semester: 2 },
+    ]);
+    mockRequireAdmin.mockResolvedValue({ email: 'orperets11@gmail.com' });
+
+    const response = await GET(request('http://localhost:3000/api/users?year=2026&semester=2'));
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data).toEqual([{ email: 'student@example.com', firstName: 'Student', year: 2026, semester: 2 }]);
+    expect(mockGetAllUsers).toHaveBeenCalledWith({ academicPeriod: { year: 2026, semester: 2 } });
+  });
+
+  it('passes academic period fields when an admin creates a user', async () => {
+    mockRequireAdmin.mockResolvedValue({ email: 'orperets11@gmail.com' });
+    mockCreateUser.mockResolvedValue({ success: true, insertedId: 'new-id' });
+
+    const response = await POST(
+      request('http://localhost:3000/api/users', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: 'student@example.com',
+          firstName: 'Student',
+          lastName: 'User',
+          year: 2026,
+          semester: 2,
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockCreateUser).toHaveBeenCalledWith(expect.objectContaining({
+      email: 'student@example.com',
+      year: 2026,
+      semester: 2,
+    }));
   });
 
   it('allows first-login password change only with the current default password', async () => {

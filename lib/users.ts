@@ -2,6 +2,11 @@ import { Db } from 'mongodb'
 import { connectToDatabase, executeWithRetry, COLLECTIONS } from './database'
 import crypto from 'crypto'
 import { resolveLearnerIdentityFromDb } from '@/lib/learner-identity'
+import {
+  buildAcademicPeriodUserQuery,
+  normalizeAcademicPeriodInput,
+  type AcademicPeriod,
+} from '@/lib/academic-period'
 
 export interface UserModel {
   _id?: any
@@ -13,7 +18,27 @@ export interface UserModel {
   studentIdNumber?: string // Israeli ID number (ת.ז)
   password?: string
   role?: string
+  year?: number
+  semester?: number
   [key: string]: any
+}
+
+export interface CreateUserInput {
+  email: string
+  firstName: string
+  lastName: string
+  password?: string
+  isFirst?: boolean
+  year?: number
+  semester?: number
+}
+
+export interface UpdateUserInput {
+  firstName?: string
+  lastName?: string
+  email?: string
+  year?: number
+  semester?: number
 }
 
 export interface PasswordResetToken {
@@ -32,14 +57,15 @@ export class UsersService {
     this.db = db
   }
 
-  async getAllUsers(): Promise<UserModel[]> {
+  async getAllUsers(options: { academicPeriod?: AcademicPeriod | null } = {}): Promise<UserModel[]> {
     return executeWithRetry(async (db) => {
-      const users = await db.collection<UserModel>(COLLECTIONS.USERS).find({}).toArray()
+      const query = buildAcademicPeriodUserQuery(options.academicPeriod)
+      const users = await db.collection<UserModel>(COLLECTIONS.USERS).find(query as any).toArray()
       return users
     })
   }
 
-  async createUser(userData: { email: string; firstName: string; lastName: string; password?: string; isFirst?: boolean }): Promise<{ success: boolean; insertedId?: any; error?: string }> {
+  async createUser(userData: CreateUserInput): Promise<{ success: boolean; insertedId?: any; error?: string }> {
     return executeWithRetry(async (db) => {
       // Check if user already exists
       const existingUser = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({ email: userData.email })
@@ -48,13 +74,15 @@ export class UsersService {
       }
 
       // Create user document
+      const period = normalizeAcademicPeriodInput(userData)
       const newUser = {
         email: userData.email,
         firstName: userData.firstName,
         lastName: userData.lastName,
         password: userData.password || 'shenkar',
         isFirst: userData.isFirst !== undefined ? userData.isFirst : true,
-        name: `${userData.firstName} ${userData.lastName}` // Combine for compatibility
+        name: `${userData.firstName} ${userData.lastName}`, // Combine for compatibility
+        ...(period ? { year: period.year, semester: period.semester } : {}),
       }
 
       const result = await db.collection<UserModel>(COLLECTIONS.USERS).insertOne(newUser as any)
@@ -72,7 +100,7 @@ export class UsersService {
     })
   }
 
-  async updateUser(email: string, userData: { firstName?: string; lastName?: string; email?: string }): Promise<{ success: boolean; modifiedCount: number; error?: string }> {
+  async updateUser(email: string, userData: UpdateUserInput): Promise<{ success: boolean; modifiedCount: number; error?: string }> {
     return executeWithRetry(async (db) => {
       // Check if user exists
       const existingUser = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({ email })
@@ -98,6 +126,11 @@ export class UsersService {
       }
       if (userData.email !== undefined && userData.email !== email) {
         updateData.email = userData.email
+      }
+      const period = normalizeAcademicPeriodInput(userData)
+      if (period) {
+        updateData.year = period.year
+        updateData.semester = period.semester
       }
 
       // Update name field if firstName or lastName changed
@@ -295,9 +328,9 @@ export async function getUsersService(): Promise<UsersService> {
   return usersService
 }
 
-export async function getAllUsers() {
+export async function getAllUsers(options: { academicPeriod?: AcademicPeriod | null } = {}) {
   const service = await getUsersService()
-  return service.getAllUsers()
+  return service.getAllUsers(options)
 }
 
 export async function updatePassword(emails: string | string[], newPassword: string) {
@@ -335,12 +368,12 @@ export async function checkPasswordResetRateLimit(email: string) {
   return service.checkPasswordResetRateLimit(email)
 }
 
-export async function createUser(userData: { email: string; firstName: string; lastName: string; password?: string; isFirst?: boolean }) {
+export async function createUser(userData: CreateUserInput) {
   const service = await getUsersService()
   return service.createUser(userData)
 }
 
-export async function updateUser(email: string, userData: { firstName?: string; lastName?: string; email?: string }) {
+export async function updateUser(email: string, userData: UpdateUserInput) {
   const service = await getUsersService()
   return service.updateUser(email, userData)
 }

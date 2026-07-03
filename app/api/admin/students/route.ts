@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { connectToDatabase, executeWithRetry, COLLECTIONS } from '@/lib/database'
+import { AdminAuthError, requireAdmin } from '@/lib/admin-auth'
+import { buildAcademicPeriodUserQuery, parseAcademicPeriodFromSearchParams } from '@/lib/academic-period'
+import { executeWithRetry, COLLECTIONS } from '@/lib/database'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAdmin(request)
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
@@ -12,6 +15,7 @@ export async function GET(request: NextRequest) {
     const knowledgeScore = searchParams.get('knowledgeScore') || ''
     const riskLevel = searchParams.get('riskLevel') || ''
 
+    const academicPeriod = parseAcademicPeriodFromSearchParams(searchParams)
     const skip = (page - 1) * limit
 
     const result = await executeWithRetry(async (db) => {
@@ -31,6 +35,28 @@ export async function GET(request: NextRequest) {
       
       if (riskLevel) {
         query['riskFactors.riskLevel'] = riskLevel
+      }
+
+      if (academicPeriod) {
+        const scopedUsers = await db
+          .collection(COLLECTIONS.USERS)
+          .find(buildAcademicPeriodUserQuery(academicPeriod) as any, { projection: { email: 1, id: 1 } })
+          .toArray()
+        const scopedEmails = scopedUsers
+          .map((user: any) => String(user.email || '').trim().toLowerCase())
+          .filter(Boolean)
+        const scopedIds = scopedUsers
+          .map((user: any) => user.id || user._id?.toString?.())
+          .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
+        query.$and = [
+          ...(query.$and || []),
+          {
+            $or: [
+              { email: { $in: scopedEmails } },
+              { userId: { $in: Array.from(new Set([...scopedEmails, ...scopedIds])) } },
+            ],
+          },
+        ]
       }
 
       // Get total count
@@ -65,6 +91,9 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
+    if (error instanceof AdminAuthError) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
     console.error('Error fetching student profiles:', error)
     return NextResponse.json(
       { 

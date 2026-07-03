@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { parseAcademicPeriodFromSearchParams } from '@/lib/academic-period';
 import { AdminAuthError, requireAdmin } from '@/lib/admin-auth';
 import { getAdminHomeworkManagementPayload } from '@/lib/admin-homework-management';
 
@@ -10,7 +11,7 @@ export async function GET(request: Request) {
     await requireAdmin(request);
     const { searchParams } = new URL(request.url);
     const setId = searchParams.get('setId');
-    const payload = await getAdminHomeworkManagementPayload(setId);
+    const payload = await getAdminHomeworkManagementPayload(setId, parseAcademicPeriodFromSearchParams(searchParams));
     return NextResponse.json(payload);
   } catch (error) {
     if (error instanceof AdminAuthError) {

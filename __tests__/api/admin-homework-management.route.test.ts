@@ -68,11 +68,11 @@ describe('/api/admin/homework-management', () => {
       summary: { totalUsers: 1 },
     });
 
-    const response = await GET_MANAGEMENT(request('http://localhost:3000/api/admin/homework-management?setId=set-1'));
+    const response = await GET_MANAGEMENT(request('http://localhost:3000/api/admin/homework-management?setId=set-1&year=2026&semester=2'));
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(mockGetManagementPayload).toHaveBeenCalledWith('set-1');
+    expect(mockGetManagementPayload).toHaveBeenCalledWith('set-1', { year: 2026, semester: 2 });
     expect(data.rows).toHaveLength(1);
   });
 

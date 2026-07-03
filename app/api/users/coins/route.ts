@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { adjustBalanceAdmin, getCoinsAdminOverview, getCoinsConfig, setCoinsConfig } from '@/lib/coins'
 import { AdminAuthError, requireAdmin } from '@/lib/admin-auth'
+import { parseAcademicPeriodFromSearchParams } from '@/lib/academic-period'
 
 function buildCoinsConfigPatch(body: any) {
   const source =
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
     const status = searchParams.get('status')
     if (all === '1') {
       await requireAdmin(request)
-      const overview = await getCoinsAdminOverview()
+      const overview = await getCoinsAdminOverview(parseAcademicPeriodFromSearchParams(searchParams))
       return NextResponse.json(overview)
     }
     if (status === '1') {

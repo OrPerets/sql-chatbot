@@ -3,6 +3,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
+import {
+  DEFAULT_ACADEMIC_PERIOD,
+  buildAcademicPeriodSearchParams,
+  type AcademicPeriod,
+} from "@/lib/academic-period";
 import { DEFAULT_ADMIN_EMAILS } from "@/lib/admin-emails";
 
 import ModernAdminLayout from "./ModernAdminLayout";
@@ -12,10 +17,14 @@ import styles from "./AdminShell.module.css";
 type AdminShellContextValue = {
   currentUser: string | null;
   currentAdminEmail: string | null;
+  academicPeriod: AcademicPeriod;
+  academicPeriodQuery: string;
+  setAcademicPeriod: (period: AcademicPeriod) => void;
   logout: () => void;
 };
 
 const RECENT_ROUTES_STORAGE_KEY = "admin_recent_routes";
+const ACADEMIC_PERIOD_STORAGE_KEY = "admin_academic_period";
 const LOGIN_PATH = "/";
 const AdminShellContext = createContext<AdminShellContextValue | null>(null);
 
@@ -41,6 +50,24 @@ function recordRecentRoute(pathname: string) {
   localStorage.setItem(RECENT_ROUTES_STORAGE_KEY, JSON.stringify(next));
 }
 
+function readStoredAcademicPeriod(): AcademicPeriod {
+  const stored = localStorage.getItem(ACADEMIC_PERIOD_STORAGE_KEY);
+  if (!stored) return DEFAULT_ACADEMIC_PERIOD;
+
+  try {
+    const parsed = JSON.parse(stored) as Partial<AcademicPeriod>;
+    const year = Number(parsed.year);
+    const semester = Number(parsed.semester);
+    if (Number.isFinite(year) && Number.isFinite(semester) && year > 0 && semester > 0) {
+      return { year: Math.trunc(year), semester: Math.trunc(semester) };
+    }
+  } catch (error) {
+    console.error("Failed to parse admin academic period from localStorage:", error);
+  }
+
+  return DEFAULT_ACADEMIC_PERIOD;
+}
+
 export function useAdminShell() {
   const context = useContext(AdminShellContext);
   if (!context) {
@@ -59,6 +86,7 @@ export default function AdminShell({ children }: AdminShellProps) {
   const [authChecked, setAuthChecked] = useState(false);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [currentAdminEmail, setCurrentAdminEmail] = useState<string | null>(null);
+  const [academicPeriod, setAcademicPeriodState] = useState<AcademicPeriod>(DEFAULT_ACADEMIC_PERIOD);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -80,6 +108,10 @@ export default function AdminShell({ children }: AdminShellProps) {
     setCurrentAdminEmail(normalizedEmail);
     setAuthChecked(true);
   }, [router]);
+
+  useEffect(() => {
+    setAcademicPeriodState(readStoredAcademicPeriod());
+  }, []);
 
   useEffect(() => {
     if (!currentAdminEmail) return;
@@ -128,13 +160,26 @@ export default function AdminShell({ children }: AdminShellProps) {
     router.push("/");
   }, [router]);
 
+  const setAcademicPeriod = useCallback((period: AcademicPeriod) => {
+    setAcademicPeriodState(period);
+    localStorage.setItem(ACADEMIC_PERIOD_STORAGE_KEY, JSON.stringify(period));
+  }, []);
+
+  const academicPeriodQuery = useMemo(
+    () => buildAcademicPeriodSearchParams(academicPeriod),
+    [academicPeriod],
+  );
+
   const contextValue = useMemo<AdminShellContextValue>(
     () => ({
       currentUser,
       currentAdminEmail,
+      academicPeriod,
+      academicPeriodQuery,
+      setAcademicPeriod,
       logout,
     }),
-    [currentAdminEmail, currentUser, logout]
+    [academicPeriod, academicPeriodQuery, currentAdminEmail, currentUser, logout, setAcademicPeriod]
   );
 
   if (!authChecked) {

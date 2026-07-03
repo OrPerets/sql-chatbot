@@ -1,11 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { connectToDatabase, executeWithRetry, COLLECTIONS } from '@/lib/database'
+import { AdminAuthError, requireAdmin } from '@/lib/admin-auth'
+import { buildAcademicPeriodUserQuery, parseAcademicPeriodFromSearchParams } from '@/lib/academic-period'
+import { executeWithRetry, COLLECTIONS } from '@/lib/database'
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAdmin(request)
+    const { searchParams } = new URL(request.url)
+    const academicPeriod = parseAcademicPeriodFromSearchParams(searchParams)
     const result = await executeWithRetry(async (db) => {
+      const profileQuery: any = {}
+      if (academicPeriod) {
+        const scopedUsers = await db
+          .collection(COLLECTIONS.USERS)
+          .find(buildAcademicPeriodUserQuery(academicPeriod) as any, { projection: { email: 1, id: 1 } })
+          .toArray()
+        const scopedEmails = scopedUsers
+          .map((user: any) => String(user.email || '').trim().toLowerCase())
+          .filter(Boolean)
+        const scopedIds = scopedUsers
+          .map((user: any) => user.id || user._id?.toString?.())
+          .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
+        profileQuery.$or = [
+          { email: { $in: scopedEmails } },
+          { userId: { $in: Array.from(new Set([...scopedEmails, ...scopedIds])) } },
+        ]
+      }
+
       // Get all student profiles
-      const profiles = await db.collection(COLLECTIONS.STUDENT_PROFILES).find({}).toArray()
+      const profiles = await db.collection(COLLECTIONS.STUDENT_PROFILES).find(profileQuery).toArray()
       
       // Calculate analytics
       const totalStudents = profiles.length
@@ -86,6 +109,9 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
+    if (error instanceof AdminAuthError) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
     console.error('Error fetching student analytics:', error)
     return NextResponse.json(
       { 

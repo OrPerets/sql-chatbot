@@ -18,6 +18,8 @@ interface UserRecord {
   classId?: number;
   coins?: number;
   lastActivity?: string;
+  year?: number;
+  semester?: number;
 }
 
 type EditorMode = "add" | "edit" | null;
@@ -27,6 +29,8 @@ const DEFAULT_USER_FORM = {
   firstName: "",
   lastName: "",
   email: "",
+  year: 2026,
+  semester: 2,
 };
 
 function getDisplayName(user: UserRecord) {
@@ -61,7 +65,7 @@ function buildClassOptions(payload: unknown): Class[] {
 }
 
 export default function UsersManagementPage() {
-  const { currentAdminEmail } = useAdminShell();
+  const { currentAdminEmail, academicPeriod, academicPeriodQuery } = useAdminShell();
   const searchParams = useSearchParams();
 
   const [users, setUsers] = useState<UserRecord[]>([]);
@@ -90,8 +94,8 @@ export default function UsersManagementPage() {
 
     try {
       const [usersResponse, coinsResponse, classesResponse] = await Promise.all([
-        fetch("/api/users", { cache: "no-store" }),
-        fetch("/api/users/coins?all=1", { headers: getAdminHeaders(), cache: "no-store" }),
+        fetch(`/api/users?${academicPeriodQuery}`, { cache: "no-store" }),
+        fetch(`/api/users/coins?all=1&${academicPeriodQuery}`, { headers: getAdminHeaders(), cache: "no-store" }),
         fetch("/api/classes", { cache: "no-store" }).catch(() => null),
       ]);
 
@@ -132,16 +136,16 @@ export default function UsersManagementPage() {
 
   useEffect(() => {
     void loadUsers();
-  }, [currentAdminEmail]);
+  }, [academicPeriodQuery, currentAdminEmail]);
 
   useEffect(() => {
     const panel = searchParams.get("panel");
     if (panel === "add") {
       setEditorMode("add");
       setEditingUser(null);
-      setUserForm(DEFAULT_USER_FORM);
+      setUserForm({ ...DEFAULT_USER_FORM, ...academicPeriod });
     }
-  }, [searchParams]);
+  }, [academicPeriod, searchParams]);
 
   const filteredUsers = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -165,7 +169,7 @@ export default function UsersManagementPage() {
   const openAddPanel = () => {
     setEditorMode("add");
     setEditingUser(null);
-    setUserForm(DEFAULT_USER_FORM);
+    setUserForm({ ...DEFAULT_USER_FORM, ...academicPeriod });
     setError(null);
     setSuccess(null);
   };
@@ -178,6 +182,8 @@ export default function UsersManagementPage() {
       lastName:
         user.lastName || (user.name?.split(" ").slice(1).join(" ") || ""),
       email: user.email,
+      year: user.year ?? academicPeriod.year,
+      semester: user.semester ?? academicPeriod.semester,
     });
     setError(null);
     setSuccess(null);
@@ -186,7 +192,7 @@ export default function UsersManagementPage() {
   const resetEditor = () => {
     setEditorMode(null);
     setEditingUser(null);
-    setUserForm(DEFAULT_USER_FORM);
+    setUserForm({ ...DEFAULT_USER_FORM, ...academicPeriod });
   };
 
   const handleCreateOrUpdate = async () => {
@@ -225,6 +231,8 @@ export default function UsersManagementPage() {
             firstName: userForm.firstName,
             lastName: userForm.lastName,
             email: userForm.email,
+            year: userForm.year,
+            semester: userForm.semester,
           }),
         });
 
@@ -570,9 +578,39 @@ export default function UsersManagementPage() {
                 />
               </div>
 
+              <div className={styles.periodFields}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>שנה</label>
+                  <input
+                    className={styles.editorInput}
+                    type="number"
+                    min={2020}
+                    max={2035}
+                    value={userForm.year}
+                    onChange={(event) =>
+                      setUserForm((current) => ({ ...current, year: Number(event.target.value) }))
+                    }
+                  />
+                </div>
+
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>סמסטר</label>
+                  <select
+                    className={styles.editorInput}
+                    value={userForm.semester}
+                    onChange={(event) =>
+                      setUserForm((current) => ({ ...current, semester: Number(event.target.value) }))
+                    }
+                  >
+                    <option value={1}>1</option>
+                    <option value={2}>2</option>
+                  </select>
+                </div>
+              </div>
+
               <div className={styles.editorMeta}>
                 {editorMode === "add"
-                  ? 'סיסמת ברירת המחדל למשתמש חדש: "shenkar".'
+                  ? `סיסמת ברירת המחדל: "shenkar". המשתמש ישויך לתקופה ${userForm.year}/${userForm.semester}.`
                   : 'ניתן גם לאפס סיסמה מיידית מאותו פאנל בלי לפתוח חלון נוסף.'}
               </div>
 

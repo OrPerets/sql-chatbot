@@ -20,6 +20,7 @@ import {
   XCircle,
 } from "lucide-react";
 
+import { useAdminShell } from "./AdminShell";
 import studentStyles from "./StudentProfiles.module.css";
 
 type KnowledgeScore = "empty" | "good" | "needs_attention" | "struggling";
@@ -456,6 +457,7 @@ function buildLecturerActionItems(bundle: AdminStudentEvidenceBundle) {
 }
 
 export default function StudentProfiles({ onClose }: StudentProfilesProps) {
+  const { academicPeriodQuery } = useAdminShell();
   const [isMounted, setIsMounted] = useState(false);
   const [profiles, setProfiles] = useState<StudentProfileRow[]>([]);
   const [analytics, setAnalytics] = useState<StudentAnalytics | null>(null);
@@ -487,6 +489,8 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
       if (searchTerm) params.append("search", searchTerm);
       if (selectedScore) params.append("knowledgeScore", selectedScore);
       if (selectedRisk) params.append("riskLevel", selectedRisk);
+      const periodParams = new URLSearchParams(academicPeriodQuery);
+      periodParams.forEach((value, key) => params.set(key, value));
 
       const response = await fetch(`/api/admin/students?${params}`);
       const data = await response.json();
@@ -504,11 +508,11 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, searchTerm, selectedRisk, selectedScore]);
+  }, [academicPeriodQuery, currentPage, searchTerm, selectedRisk, selectedScore]);
 
   const fetchAnalytics = useCallback(async () => {
     try {
-      const response = await fetch("/api/admin/students/analytics");
+      const response = await fetch(`/api/admin/students/analytics?${academicPeriodQuery}`);
       const data = await response.json();
       if (!data.success) {
         return;
@@ -533,7 +537,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
     } catch (fetchError) {
       console.error("Failed to fetch analytics:", fetchError);
     }
-  }, []);
+  }, [academicPeriodQuery]);
 
   useEffect(() => {
     setIsMounted(true);

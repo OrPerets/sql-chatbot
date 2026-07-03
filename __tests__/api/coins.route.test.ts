@@ -60,7 +60,7 @@ describe('/api/users/coins route', () => {
   it('GET ?all=1 returns 403 when admin auth fails', async () => {
     mockRequireAdmin.mockRejectedValueOnce(new MockAdminAuthError('Forbidden'))
     const { GET } = await import('../../app/api/users/coins/route')
-    const request = new Request('http://localhost:3000/api/users/coins?all=1')
+    const request = new Request('http://localhost:3000/api/users/coins?all=1&year=2026&semester=2')
 
     const response = await GET(request)
     const payload = await response.json()
@@ -78,7 +78,7 @@ describe('/api/users/coins route', () => {
       config: { status: 'OFF' },
     })
     const { GET } = await import('../../app/api/users/coins/route')
-    const request = new Request('http://localhost:3000/api/users/coins?all=1')
+    const request = new Request('http://localhost:3000/api/users/coins?all=1&year=2026&semester=2')
 
     const response = await GET(request)
     const payload = await response.json()
@@ -89,7 +89,7 @@ describe('/api/users/coins route', () => {
       summary: { totalUsers: 1 },
       config: { status: 'OFF' },
     })
-    expect(mockGetCoinsAdminOverview).toHaveBeenCalledTimes(1)
+    expect(mockGetCoinsAdminOverview).toHaveBeenCalledWith({ year: 2026, semester: 2 })
   })
 
   it('POST returns 403 when admin auth fails', async () => {

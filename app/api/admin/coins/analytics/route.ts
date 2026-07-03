@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 
 import { AdminAuthError, requireAdmin } from "@/lib/admin-auth";
+import { parseAcademicPeriodFromSearchParams } from "@/lib/academic-period";
 import { getCoinsAdminOverview } from "@/lib/coins";
 
 export async function GET(request: Request) {
   try {
     await requireAdmin(request);
-    const overview = await getCoinsAdminOverview();
+    const { searchParams } = new URL(request.url);
+    const overview = await getCoinsAdminOverview(parseAcademicPeriodFromSearchParams(searchParams));
     return NextResponse.json(overview);
   } catch (error) {
     if (error instanceof AdminAuthError) {

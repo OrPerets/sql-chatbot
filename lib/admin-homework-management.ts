@@ -1,6 +1,10 @@
 import { ObjectId } from 'mongodb';
 
 import type { HomeworkSet, Question, Submission } from '@/app/homework/types';
+import {
+  buildAcademicPeriodUserQuery,
+  type AcademicPeriod,
+} from '@/lib/academic-period';
 import { DEFAULT_ADMIN_EMAILS } from '@/lib/admin-emails';
 import { COLLECTIONS, executeWithRetry } from '@/lib/database';
 import { getHomeworkAvailabilityInfo } from '@/lib/deadline-utils';
@@ -148,11 +152,11 @@ function getStudentSubmissionIdentifiers(studentId: string, user: UserModel | nu
   ].filter(Boolean)));
 }
 
-async function loadCurrentUsersAndSubmissions(homeworkSetId: string) {
+async function loadCurrentUsersAndSubmissions(homeworkSetId: string, academicPeriod?: AcademicPeriod | null) {
   return executeWithRetry(async (db) => {
     const users = await db
       .collection<UserModel>(COLLECTIONS.USERS)
-      .find({})
+      .find(buildAcademicPeriodUserQuery(academicPeriod) as any)
       .sort({ lastName: 1, firstName: 1, name: 1, email: 1 })
       .toArray();
     const currentUsers = users.filter(isCurrentStudentUser);
@@ -169,6 +173,7 @@ async function loadCurrentUsersAndSubmissions(homeworkSetId: string) {
 
 export async function getAdminHomeworkManagementPayload(
   setId?: string | null,
+  academicPeriod?: AcademicPeriod | null,
 ): Promise<AdminHomeworkManagementPayload> {
   const homeworkSetsResult = await listHomeworkSets({ pageSize: 1000 });
   const homeworkSets = homeworkSetsResult.items;
@@ -194,7 +199,7 @@ export async function getAdminHomeworkManagementPayload(
   }
 
   const [{ currentUsers, submissions }, overridesByEmail, questions] = await Promise.all([
-    loadCurrentUsersAndSubmissions(selectedSet.id),
+    loadCurrentUsersAndSubmissions(selectedSet.id, academicPeriod),
     getHomeworkAccessOverridesForSet(selectedSet.id),
     getQuestionsByHomeworkSet(selectedSet.id),
   ]);

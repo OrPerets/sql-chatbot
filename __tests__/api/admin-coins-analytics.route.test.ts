@@ -28,7 +28,7 @@ describe('/api/admin/coins/analytics route', () => {
   it('returns 403 when admin auth fails', async () => {
     mockRequireAdmin.mockRejectedValueOnce(new MockAdminAuthError('Forbidden'))
     const { GET } = await import('../../app/api/admin/coins/analytics/route')
-    const request = new Request('http://localhost:3000/api/admin/coins/analytics')
+    const request = new Request('http://localhost:3000/api/admin/coins/analytics?year=2026&semester=2')
 
     const response = await GET(request)
     const payload = await response.json()
@@ -47,7 +47,7 @@ describe('/api/admin/coins/analytics route', () => {
     })
 
     const { GET } = await import('../../app/api/admin/coins/analytics/route')
-    const request = new Request('http://localhost:3000/api/admin/coins/analytics')
+    const request = new Request('http://localhost:3000/api/admin/coins/analytics?year=2026&semester=2')
 
     const response = await GET(request)
     const payload = await response.json()
@@ -58,6 +58,6 @@ describe('/api/admin/coins/analytics route', () => {
       summary: { totalUsers: 1, totalSpent: 3 },
       config: { status: 'ON' },
     })
-    expect(mockGetCoinsAdminOverview).toHaveBeenCalledTimes(1)
+    expect(mockGetCoinsAdminOverview).toHaveBeenCalledWith({ year: 2026, semester: 2 })
   })
 })

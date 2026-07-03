@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
+import { useAdminShell } from "./AdminShell";
 import ModernHeader from "./ModernHeader";
 import Sidebar from "./Sidebar";
 import styles from "./ModernAdminLayout.module.css";
@@ -19,6 +20,7 @@ export default function ModernAdminLayout({
   onLogout,
 }: ModernAdminLayoutProps) {
   const pathname = usePathname();
+  const { academicPeriod, setAcademicPeriod } = useAdminShell();
   const sidebarContainerRef = useRef<HTMLDivElement | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -120,6 +122,8 @@ export default function ModernAdminLayout({
       >
         <ModernHeader
           currentUser={currentUser}
+          academicPeriod={academicPeriod}
+          onAcademicPeriodChange={setAcademicPeriod}
           onLogout={onLogout}
           isSidebarCollapsed={!isMobile && isSidebarCollapsed}
           onToggleSidebar={handleToggleSidebar}

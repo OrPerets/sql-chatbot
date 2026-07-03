@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 
+import { useAdminShell } from "@/app/components/admin/AdminShell";
 import BuilderDashboardPage from "@/app/homework/builder/page";
 import type { Question, Submission } from "@/app/homework/types";
 import type {
@@ -228,6 +229,7 @@ function answerSummary(answer: Submission["answers"][string] | undefined) {
 }
 
 function StudentManagementPanel({ initialFilter }: { initialFilter: StatusFilter }) {
+  const { academicPeriodQuery } = useAdminShell();
   const [payload, setPayload] = useState<AdminHomeworkManagementPayload | null>(null);
   const [selectedSetId, setSelectedSetId] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialFilter);
@@ -246,7 +248,11 @@ function StudentManagementPanel({ initialFilter }: { initialFilter: StatusFilter
     setLoading(true);
     setError(null);
     try {
-      const query = setId ? `?setId=${encodeURIComponent(setId)}` : "";
+      const params = new URLSearchParams(academicPeriodQuery);
+      if (setId) {
+        params.set("setId", setId);
+      }
+      const query = `?${params.toString()}`;
       const data = await fetchJson<AdminHomeworkManagementPayload>(`/api/admin/homework-management${query}`);
       setPayload(data);
       setSelectedSetId(data.selectedSet?.id ?? "");
@@ -257,7 +263,7 @@ function StudentManagementPanel({ initialFilter }: { initialFilter: StatusFilter
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [academicPeriodQuery]);
 
   useEffect(() => {
     void loadManagementData("");
