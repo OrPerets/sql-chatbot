@@ -5,6 +5,7 @@ import { Coins, RefreshCw, RotateCcw, Search, Send, Settings2, Trophy, TrendingU
 
 import { useAdminShell } from "@/app/components/admin/AdminShell";
 import ErrorBanner from "@/app/components/admin/ErrorBanner";
+import { DEFAULT_ADMIN_EMAILS } from "@/lib/admin-emails";
 import styles from "@/app/admin/coins/page.module.css";
 
 type CoinsFeatureStatus = "ON" | "OFF";
@@ -77,6 +78,9 @@ interface UserRecord {
   name?: string;
   firstName?: string;
   lastName?: string;
+  role?: string;
+  year?: number | string;
+  semester?: number | string;
 }
 
 interface EnrichedUserRow {
@@ -92,6 +96,7 @@ interface EnrichedUserRow {
   lastUsageDate: string | null;
   duplicateEmailCount: number;
   duplicateEmailIndex: number;
+  isChallengeEligible: boolean;
 }
 
 function normalizeCoinsConfig(config: CoinsConfig): CoinsConfig {
@@ -151,6 +156,19 @@ function getDisplayName(user: UserRecord): string {
 
 function normalizeEmail(value: unknown): string {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function isPrivilegedUser(user: Pick<UserRecord, "email" | "role">): boolean {
+  const email = normalizeEmail(user.email);
+  const role = typeof user.role === "string" ? user.role.trim().toLowerCase() : "";
+  return (
+    DEFAULT_ADMIN_EMAILS.map((adminEmail) => adminEmail.toLowerCase()).includes(email) ||
+    ["admin", "instructor", "teacher", "builder"].includes(role)
+  );
+}
+
+function isInAcademicPeriod(user: Pick<UserRecord, "year" | "semester">, year: number, semester: number): boolean {
+  return Number(user.year) === year && Number(user.semester) === semester;
 }
 
 interface CoinsManagementPanelProps {
@@ -250,6 +268,10 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
       .sort(([leftEmail], [rightEmail]) => leftEmail.localeCompare(rightEmail));
   }, [users]);
 
+  const challengeEligibleUsers = useMemo(() => {
+    return users.filter((user) => user.isChallengeEligible);
+  }, [users]);
+
   const hasUnsavedConfigChanges = useMemo(() => {
     if (!config || !savedConfig) {
       return false;
@@ -341,6 +363,10 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
             lastUsageDate: analytics?.lastActivity ?? null,
             duplicateEmailCount: emailCounts.get(normalizedEmail) || 1,
             duplicateEmailIndex,
+            isChallengeEligible:
+              Boolean(normalizedEmail) &&
+              !isPrivilegedUser(profile) &&
+              isInAcademicPeriod(profile, academicPeriod.year, academicPeriod.semester),
           };
         })
         .sort((left, right) => {
@@ -664,7 +690,7 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                 onChange={(event) => setSelectedChallengeUser(event.target.value)}
               >
                 <option value="">בחר סטודנט</option>
-                {users.map((user) => {
+                {challengeEligibleUsers.map((user) => {
                   const email = normalizeEmail(user.email);
                   const challenge = challengeByEmail.get(email);
                   const disabled = challenge?.status === "active" || challenge?.status === "pending";
@@ -872,7 +898,8 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                         const canCancelChallenge =
                           challenge?.status === "active" || challenge?.status === "pending";
                         const canRetryChallenge =
-                          !challenge || challenge.status === "cancelled" || challenge.status === "expired";
+                          user.isChallengeEligible &&
+                          (!challenge || challenge.status === "cancelled" || challenge.status === "expired");
 
 	                      return (
                         <tr key={user.rowKey}>
@@ -956,17 +983,19 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                               ) : (
                                 <>
                                   <span className={`${styles.challengeStatus} ${styles.challengeStatus_none}`}>
-                                    אין אתגר
+                                    {user.isChallengeEligible ? "אין אתגר" : "לא סטודנט במחזור"}
                                   </span>
-                                  <button
-                                    type="button"
-                                    className={styles.inlineAction}
-                                    disabled={challengeBusy}
-                                    onClick={() => void createChallenge(user.email)}
-                                  >
-                                    <Send size={14} />
-                                    {challengeBusy ? "פותח..." : "פתח אתגר"}
-                                  </button>
+                                  {user.isChallengeEligible ? (
+                                    <button
+                                      type="button"
+                                      className={styles.inlineAction}
+                                      disabled={challengeBusy}
+                                      onClick={() => void createChallenge(user.email)}
+                                    >
+                                      <Send size={14} />
+                                      {challengeBusy ? "פותח..." : "פתח אתגר"}
+                                    </button>
+                                  ) : null}
                                 </>
                               )}
                             </div>

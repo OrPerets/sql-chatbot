@@ -54,7 +54,10 @@ export async function POST(request: Request) {
     }
 
     const message = error instanceof Error ? error.message : 'Failed to create SQL coin challenge'
-    if (message.includes('selected cohort')) {
+    if (message.includes('can only be opened')) {
+      return NextResponse.json({ error: message }, { status: 400 })
+    }
+    if (message.includes('selected cohort') || message.includes('Student was not found')) {
       return NextResponse.json({ error: message }, { status: 404 })
     }
     if (message.includes('Not enough')) {

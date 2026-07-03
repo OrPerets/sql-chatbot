@@ -28,6 +28,8 @@ import { SqlCoinChallengeService } from "@/lib/sql-coin-challenges";
 
 describe("SqlCoinChallengeService", () => {
   let challengeCollection: any;
+  let usersCollection: any;
+  let practiceQueriesCollection: any;
 
   const activeChallenge = {
     id: "sql_coin_1",
@@ -67,9 +69,18 @@ describe("SqlCoinChallengeService", () => {
     challengeCollection = {
       findOne: jest.fn(),
       findOneAndUpdate: jest.fn(),
+      insertOne: jest.fn(),
+    };
+    usersCollection = {
+      findOne: jest.fn(),
+    };
+    practiceQueriesCollection = {
+      find: jest.fn(),
     };
     mockDb.collection.mockImplementation((name: string) => {
       if (name === "sql_coin_challenges") return challengeCollection;
+      if (name === "users") return usersCollection;
+      if (name === "practice_queries") return practiceQueriesCollection;
       throw new Error(`Unexpected collection: ${name}`);
     });
     mockExecuteWithRetry.mockImplementation(async (operation: (db: any) => Promise<unknown>) => operation(mockDb));
@@ -115,6 +126,73 @@ describe("SqlCoinChallengeService", () => {
     );
     expect(mockUpdateCoinsBalance).not.toHaveBeenCalled();
     expect(mockLogCoinTransaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects opening a challenge for a privileged admin row", async () => {
+    const service = new SqlCoinChallengeService({} as any);
+    usersCollection.findOne.mockResolvedValue({
+      email: "orperets11@gmail.com",
+      role: "admin",
+      year: 2026,
+      semester: 2,
+    });
+
+    await expect(
+      service.createChallenge({
+        studentEmail: "orperets11@gmail.com",
+        academicPeriod: { year: 2026, semester: 2 },
+        createdBy: "admin@example.com",
+        questionCount: 3,
+      })
+    ).rejects.toThrow("SQL coin challenges can only be opened for students");
+
+    expect(practiceQueriesCollection.find).not.toHaveBeenCalled();
+    expect(challengeCollection.insertOne).not.toHaveBeenCalled();
+  });
+
+  it("creates a challenge for a student whose cohort fields are stored as numeric strings", async () => {
+    const service = new SqlCoinChallengeService({} as any);
+    const questions = activeChallenge.questions.map((question) => ({
+      _id: { toString: () => question.queryId },
+      practiceId: question.practiceId,
+      question: question.question,
+      answerSql: question.answerSql,
+    }));
+    const queryCursor = {
+      sort: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      toArray: jest.fn().mockResolvedValue(questions),
+    };
+
+    usersCollection.findOne.mockResolvedValue({
+      id: "student-1",
+      email: "student@example.com",
+      year: "2026",
+      semester: "2",
+    });
+    challengeCollection.findOne.mockResolvedValue(null);
+    challengeCollection.insertOne.mockResolvedValue({ insertedId: "challenge-object-id" });
+    practiceQueriesCollection.find.mockReturnValue(queryCursor);
+
+    const result = await service.createChallenge({
+      studentEmail: "student@example.com",
+      academicPeriod: { year: 2026, semester: 2 },
+      createdBy: "admin@example.com",
+      questionCount: 3,
+    });
+
+    expect(result.studentEmail).toBe("student@example.com");
+    expect(result.status).toBe("active");
+    expect(result.questions).toHaveLength(3);
+    expect(result.questions[0]).not.toHaveProperty("answerSql");
+    expect(challengeCollection.insertOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        studentId: "student-1",
+        studentEmail: "student@example.com",
+        year: 2026,
+        semester: 2,
+      })
+    );
   });
 
   it("awards one coin once after a completed challenge and ignores duplicate completion", async () => {

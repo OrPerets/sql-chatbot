@@ -100,6 +100,31 @@ describe("SQL coin challenge routes", () => {
     expect(mockListSqlCoinChallenges).toHaveBeenCalledWith({ year: 2026, semester: 2 });
   });
 
+  it("returns a clear validation error when admin selects a privileged user", async () => {
+    mockRequireAdmin.mockResolvedValue({ email: adminEmail });
+    mockCreateSqlCoinChallenge.mockRejectedValue(
+      new Error("SQL coin challenges can only be opened for students")
+    );
+
+    const { POST } = await import("@/app/api/admin/coins/challenges/route");
+    const request = new Request("http://localhost/api/admin/coins/challenges", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        studentEmail: "orperets11@gmail.com",
+        year: 2026,
+        semester: 2,
+        questionCount: 3,
+      }),
+    });
+
+    const response = await POST(request);
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload.error).toBe("SQL coin challenges can only be opened for students");
+  });
+
   it("student current challenge lookup uses the authenticated session user only", async () => {
     mockResolveAuthenticatedSession.mockResolvedValue({
       user: studentUser,

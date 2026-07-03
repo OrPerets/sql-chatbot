@@ -1,6 +1,6 @@
 import { Db, ObjectId } from 'mongodb'
 
-import type { AcademicPeriod } from '@/lib/academic-period'
+import { isPrivilegedUserRecord, normalizeAcademicPeriodInput, type AcademicPeriod } from '@/lib/academic-period'
 import { COLLECTIONS, connectToDatabase, executeWithRetry } from '@/lib/database'
 import { logCoinTransaction, updateCoinsBalance } from '@/lib/coins'
 import type { PracticeQueryDoc } from '@/lib/practice'
@@ -231,15 +231,29 @@ export class SqlCoinChallengeService {
       throw new Error('createdBy is required')
     }
 
-    return executeWithRetry(async (db) => {
+    const result = await executeWithRetry(async (db) => {
       const user = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({
         email: { $regex: `^${escapeRegExp(studentEmail)}$`, $options: 'i' },
-        year: input.academicPeriod.year,
-        semester: input.academicPeriod.semester,
       } as never)
 
       if (!user) {
-        throw new Error('Student was not found in the selected cohort')
+        return { ok: false as const, message: 'Student was not found' }
+      }
+
+      if (isPrivilegedUserRecord(user)) {
+        return {
+          ok: false as const,
+          message: 'SQL coin challenges can only be opened for students',
+        }
+      }
+
+      const userAcademicPeriod = normalizeAcademicPeriodInput(user)
+      if (
+        !userAcademicPeriod ||
+        userAcademicPeriod.year !== input.academicPeriod.year ||
+        userAcademicPeriod.semester !== input.academicPeriod.semester
+      ) {
+        return { ok: false as const, message: 'Student was not found in the selected cohort' }
       }
 
       const existing = await db.collection<SqlCoinChallengeDoc>(COLLECTIONS.SQL_COIN_CHALLENGES).findOne({
@@ -250,7 +264,7 @@ export class SqlCoinChallengeService {
       } as never)
 
       if (existing && !isExpired(existing)) {
-        return stripAnswers(existing)
+        return { ok: true as const, challenge: stripAnswers(existing) }
       }
 
       const questionFilter = input.practiceId ? { practiceId: input.practiceId } : {}
@@ -276,7 +290,10 @@ export class SqlCoinChallengeService {
         .filter((question) => question.queryId && question.question && question.answerSql)
 
       if (questions.length < questionCount) {
-        throw new Error('Not enough SQL practice questions are available for a coin challenge')
+        return {
+          ok: false as const,
+          message: 'Not enough SQL practice questions are available for a coin challenge',
+        }
       }
 
       const now = new Date().toISOString()
@@ -296,8 +313,14 @@ export class SqlCoinChallengeService {
       }
 
       await db.collection<SqlCoinChallengeDoc>(COLLECTIONS.SQL_COIN_CHALLENGES).insertOne(challenge)
-      return stripAnswers(challenge)
+      return { ok: true as const, challenge: stripAnswers(challenge) }
     })
+
+    if (!result.ok) {
+      throw new Error(result.message)
+    }
+
+    return result.challenge
   }
 
   async getCurrentChallengeForStudent(user: UserModel): Promise<PublicSqlCoinChallenge | null> {
