@@ -31,17 +31,12 @@ describe("/api/practice/coins", () => {
     jest.clearAllMocks();
   });
 
-  it("returns refreshed balance after a successful billed SQL practice open", async () => {
+  it("returns refreshed balance after a regular SQL practice open without charging coins", async () => {
     mockRequireAuthenticatedUser.mockResolvedValue({
       ok: true,
       user: { email: "student@example.com" },
       userId: "student-1",
     });
-    mockGetCoinsConfig.mockResolvedValue({
-      modules: { sqlPractice: true },
-      costs: { sqlPracticeOpen: 1 },
-    });
-    mockChargeSqlPracticeOpen.mockResolvedValue({ ok: true });
     mockGetUserBalance.mockResolvedValue({ user: "student@example.com", coins: 8 });
 
     const { POST } = await import("@/app/api/practice/coins/route");
@@ -60,24 +55,20 @@ describe("/api/practice/coins", () => {
     expect(response.status).toBe(200);
     expect(payload).toEqual({
       currentBalance: 8,
-      cost: 1,
+      cost: 0,
+      billingDisabled: true,
     });
-    expect(mockChargeSqlPracticeOpen).toHaveBeenCalledWith("student@example.com", {
-      entryPoint: "chat",
-      userId: "student-1",
-    });
+    expect(mockGetCoinsConfig).not.toHaveBeenCalled();
+    expect(mockChargeSqlPracticeOpen).not.toHaveBeenCalled();
   });
 
-  it("returns 403 when SQL practice is disabled", async () => {
+  it("does not consult the old SQL practice coin module", async () => {
     mockRequireAuthenticatedUser.mockResolvedValue({
       ok: true,
       user: { email: "student@example.com" },
       userId: "student-1",
     });
-    mockGetCoinsConfig.mockResolvedValue({
-      modules: { sqlPractice: false },
-      costs: { sqlPracticeOpen: 1 },
-    });
+    mockGetUserBalance.mockResolvedValue({ user: "student@example.com", coins: 0 });
 
     const { POST } = await import("@/app/api/practice/coins/route");
     const request = new NextRequest("http://localhost:3000/api/practice/coins", {
@@ -92,22 +83,23 @@ describe("/api/practice/coins", () => {
     const response = await POST(request);
     const payload = await response.json();
 
-    expect(response.status).toBe(403);
-    expect(payload.error).toBe("תרגול SQL אינו זמין כרגע.");
+    expect(response.status).toBe(200);
+    expect(payload).toEqual({
+      currentBalance: 0,
+      cost: 0,
+      billingDisabled: true,
+    });
+    expect(mockGetCoinsConfig).not.toHaveBeenCalled();
     expect(mockChargeSqlPracticeOpen).not.toHaveBeenCalled();
   });
 
-  it("returns 402 when the user does not have enough coins", async () => {
+  it("does not return 402 for a zero coin balance", async () => {
     mockRequireAuthenticatedUser.mockResolvedValue({
       ok: true,
       user: { email: "student@example.com" },
       userId: "student-1",
     });
-    mockGetCoinsConfig.mockResolvedValue({
-      modules: { sqlPractice: true },
-      costs: { sqlPracticeOpen: 1 },
-    });
-    mockChargeSqlPracticeOpen.mockResolvedValue({ ok: false, balance: 0, required: 1 });
+    mockGetUserBalance.mockResolvedValue({ user: "student@example.com", coins: 0 });
 
     const { POST } = await import("@/app/api/practice/coins/route");
     const request = new NextRequest("http://localhost:3000/api/practice/coins", {
@@ -122,12 +114,12 @@ describe("/api/practice/coins", () => {
     const response = await POST(request);
     const payload = await response.json();
 
-    expect(response.status).toBe(402);
+    expect(response.status).toBe(200);
     expect(payload).toEqual({
-      error: "אין מספיק מטבעות",
-      balance: 0,
-      required: 1,
+      currentBalance: 0,
+      cost: 0,
+      billingDisabled: true,
     });
-    expect(mockGetUserBalance).not.toHaveBeenCalled();
+    expect(mockChargeSqlPracticeOpen).not.toHaveBeenCalled();
   });
 });

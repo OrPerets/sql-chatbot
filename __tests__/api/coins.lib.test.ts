@@ -210,7 +210,7 @@ describe('CoinsService', () => {
     expect(mockLedgerCollection.insertOne).not.toHaveBeenCalled()
   })
 
-  it('chargeSqlPracticeOpen decrements balance and logs a practice transaction', async () => {
+  it('chargeSqlPracticeOpen bypasses charging because generic SQL practice no longer uses coins', async () => {
     mockStatusCollection.findOne.mockResolvedValue({
       sid: 'admin',
       status: 'OFF',
@@ -220,24 +220,13 @@ describe('CoinsService', () => {
       costs: { mainChatMessage: 1, sqlPracticeOpen: 1, homeworkHintOpen: 1 },
       updatedAt: new Date(),
     })
-    mockCoinsCollection.findOneAndUpdate
-      .mockResolvedValueOnce({ user: email, coins: 20 })
-      .mockResolvedValueOnce({ user: email, coins: 19 })
-    mockLedgerCollection.insertOne.mockResolvedValue({ acknowledged: true, insertedId: 'txn-practice' })
     const service = new CoinsService({} as any)
 
     const result = await service.chargeSqlPracticeOpen(email, { entryPoint: 'chat' })
 
     expect(result).toEqual({ ok: true })
-    expect(mockLedgerCollection.insertOne).toHaveBeenCalledWith(
-      expect.objectContaining({
-        user: email,
-        delta: -1,
-        reason: 'sql_practice_open',
-        source: 'sql_practice',
-        metadata: { entryPoint: 'chat' },
-      })
-    )
+    expect(mockCoinsCollection.findOneAndUpdate).not.toHaveBeenCalled()
+    expect(mockLedgerCollection.insertOne).not.toHaveBeenCalled()
   })
 
   it('chargeSqlPracticeOpen bypasses charging when SQL practice is disabled', async () => {
@@ -283,11 +272,11 @@ describe('CoinsService', () => {
     expect(result.modules).toEqual({
       mainChat: true,
       homeworkHints: false,
-      sqlPractice: true,
+      sqlPractice: false,
     })
     expect(result.costs).toEqual({
       mainChatMessage: 2,
-      sqlPracticeOpen: 4,
+      sqlPracticeOpen: 0,
       homeworkHintOpen: 1,
     })
     expect(mockStatusCollection.updateOne).toHaveBeenCalledTimes(1)
@@ -300,13 +289,13 @@ describe('CoinsService', () => {
           starterBalance: 20,
           costs: {
             mainChatMessage: 2,
-            sqlPracticeOpen: 4,
+            sqlPracticeOpen: 0,
             homeworkHintOpen: 1,
           },
           modules: {
             mainChat: true,
             homeworkHints: false,
-            sqlPractice: true,
+            sqlPractice: false,
           },
           updatedBy: 'admin@example.com',
         }),

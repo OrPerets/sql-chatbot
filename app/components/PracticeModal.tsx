@@ -311,7 +311,9 @@ const PracticeModal: React.FC<PracticeModalProps> = ({ isOpen, onClose, userId, 
           <div className={styles.heroStrip}>
             <div className={styles.heroMetric}>
               <span className={styles.heroMetricLabel}>עלות פתיחה</span>
-              <strong className={styles.heroMetricValue}>{openCost} מטבע</strong>
+              <strong className={styles.heroMetricValue}>
+                {openCost > 0 ? `${openCost} מטבע` : "ללא חיוב"}
+              </strong>
             </div>
             <div className={styles.heroMetric}>
               <span className={styles.heroMetricLabel}>מצב</span>

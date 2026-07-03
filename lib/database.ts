@@ -296,6 +296,7 @@ export const COLLECTIONS = {
   STATUS: 'Status',
   COINS_STATUS: 'CoinsStatus',
   COINS_LEDGER: 'CoinsLedger',
+  SQL_COIN_CHALLENGES: 'SqlCoinChallenges',
   PRACTICE_TABLES: 'practiceTables',
   PRACTICE_QUERIES: 'practiceQueries',
   PRACTICE_ATTEMPTS: 'practiceAttempts',

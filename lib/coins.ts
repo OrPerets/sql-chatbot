@@ -16,11 +16,12 @@ export type CoinsFeatureStatus = 'ON' | 'OFF'
 export type CoinChargeReason =
   | 'main_chat_message'
   | 'sql_practice_open'
+  | 'sql_coin_challenge_completed'
   | 'homework_hint_open'
   | 'admin_adjustment_add'
   | 'admin_adjustment_reduce'
 
-export type CoinChargeSource = 'main_chat' | 'sql_practice' | 'homework' | 'admin'
+export type CoinChargeSource = 'main_chat' | 'sql_practice' | 'sql_challenge' | 'homework' | 'admin'
 
 export interface CoinTransaction {
   _id?: any
@@ -79,7 +80,7 @@ interface CoinsStatusCollectionDoc {
 export const DEFAULT_MESSAGE_COST = 1
 export const DEFAULT_STARTER_BALANCE = 20
 export const DEFAULT_STATUS: CoinsFeatureStatus = 'OFF'
-export const DEFAULT_SQL_PRACTICE_COST = 1
+export const DEFAULT_SQL_PRACTICE_COST = 0
 export const DEFAULT_HOMEWORK_HINT_COST = 1
 export const DEFAULT_MODULES: CoinsModulesConfig = {
   mainChat: false,
@@ -91,6 +92,7 @@ const COINS_CONFIG_SID = 'admin' as const
 const CHARGE_REASON_TO_SOURCE: Record<CoinChargeReason, CoinChargeSource> = {
   main_chat_message: 'main_chat',
   sql_practice_open: 'sql_practice',
+  sql_coin_challenge_completed: 'sql_challenge',
   homework_hint_open: 'homework',
   admin_adjustment_add: 'admin',
   admin_adjustment_reduce: 'admin',
@@ -112,7 +114,7 @@ function normalizeModules(value: unknown): CoinsModulesConfig {
   return {
     mainChat: modules.mainChat === true,
     homeworkHints: modules.homeworkHints === true,
-    sqlPractice: modules.sqlPractice === true,
+    sqlPractice: false,
   }
 }
 
@@ -125,8 +127,7 @@ function mergeModulesConfig(
     mainChat: modules.mainChat === undefined ? current.mainChat : modules.mainChat === true,
     homeworkHints:
       modules.homeworkHints === undefined ? current.homeworkHints : modules.homeworkHints === true,
-    sqlPractice:
-      modules.sqlPractice === undefined ? current.sqlPractice : modules.sqlPractice === true,
+    sqlPractice: false,
   }
 }
 
@@ -139,7 +140,7 @@ function normalizeCosts(value: unknown, messageCost: unknown): CoinsCostsConfig 
 
   return {
     mainChatMessage: normalizedMainChatCost,
-    sqlPracticeOpen: normalizeNumber(costs.sqlPracticeOpen, DEFAULT_SQL_PRACTICE_COST),
+    sqlPracticeOpen: DEFAULT_SQL_PRACTICE_COST,
     homeworkHintOpen: normalizeNumber(costs.homeworkHintOpen, DEFAULT_HOMEWORK_HINT_COST),
   }
 }
@@ -156,8 +157,8 @@ function mergeCostsConfig(
         : normalizeNumber(costs.mainChatMessage, current.mainChatMessage),
     sqlPracticeOpen:
       costs.sqlPracticeOpen === undefined
-        ? current.sqlPracticeOpen
-        : normalizeNumber(costs.sqlPracticeOpen, current.sqlPracticeOpen),
+        ? DEFAULT_SQL_PRACTICE_COST
+        : DEFAULT_SQL_PRACTICE_COST,
     homeworkHintOpen:
       costs.homeworkHintOpen === undefined
         ? current.homeworkHintOpen
@@ -226,7 +227,7 @@ function normalizeTransaction(doc: Partial<CoinTransaction> | null | undefined):
         : 'admin_adjustment_add',
     source:
       typeof doc.source === 'string' &&
-      ['main_chat', 'sql_practice', 'homework', 'admin'].includes(doc.source)
+      ['main_chat', 'sql_practice', 'sql_challenge', 'homework', 'admin'].includes(doc.source)
         ? (doc.source as CoinChargeSource)
         : 'admin',
     metadata:

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Coins, RefreshCw, Search, Settings2, TrendingUp, Users } from "lucide-react";
+import { Coins, RefreshCw, RotateCcw, Search, Send, Settings2, Trophy, TrendingUp, XCircle, Users } from "lucide-react";
 
 import { useAdminShell } from "@/app/components/admin/AdminShell";
 import ErrorBanner from "@/app/components/admin/ErrorBanner";
@@ -47,6 +47,29 @@ interface CoinsOverview {
   };
 }
 
+type SqlCoinChallengeStatus = "pending" | "active" | "completed" | "expired" | "cancelled";
+
+interface SqlCoinChallengeOverview {
+  id: string;
+  studentEmail: string;
+  year: number;
+  semester: number;
+  status: SqlCoinChallengeStatus;
+  questions: Array<{ queryId: string; question: string; practiceId: string }>;
+  attempts: Array<{ questionId: string; correct: boolean; similarity: number; submittedAt: string }>;
+  score?: {
+    correctCount: number;
+    totalQuestions: number;
+    passingCorrectCount: number;
+    passed: boolean;
+  };
+  coinLedgerTransactionId?: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  cancelledAt?: string;
+}
+
 interface UserRecord {
   id?: string;
   _id?: string;
@@ -63,12 +86,43 @@ interface EnrichedUserRow {
   currentBalance: number;
   totalSpent: number;
   chatUsageCount: number;
-  sqlPracticeUsageCount: number;
+  sqlChallengeCompletedCount: number;
   homeworkHintUsageCount: number;
   usageCount: number;
   lastUsageDate: string | null;
   duplicateEmailCount: number;
   duplicateEmailIndex: number;
+}
+
+function normalizeCoinsConfig(config: CoinsConfig): CoinsConfig {
+  return {
+    ...config,
+    modules: {
+      ...config.modules,
+      sqlPractice: false,
+    },
+    costs: {
+      ...config.costs,
+      sqlPracticeOpen: 0,
+    },
+  };
+}
+
+function getChallengeLabel(status: SqlCoinChallengeStatus): string {
+  switch (status) {
+    case "pending":
+      return "ממתין";
+    case "active":
+      return "זמין לסטודנט";
+    case "completed":
+      return "הושלם";
+    case "expired":
+      return "פג תוקף";
+    case "cancelled":
+      return "בוטל";
+    default:
+      return status;
+  }
 }
 
 function formatDateTime(value: string | null): string {
@@ -104,7 +158,7 @@ interface CoinsManagementPanelProps {
 }
 
 export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagementPanelProps) {
-  const { academicPeriodQuery } = useAdminShell();
+  const { academicPeriod, academicPeriodQuery } = useAdminShell();
   const [loading, setLoading] = useState(true);
   const [savingConfig, setSavingConfig] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -115,12 +169,16 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
   const [savedConfig, setSavedConfig] = useState<CoinsConfig | null>(null);
   const [summary, setSummary] = useState<CoinsOverview["summary"] | null>(null);
   const [users, setUsers] = useState<EnrichedUserRow[]>([]);
+  const [challenges, setChallenges] = useState<SqlCoinChallengeOverview[]>([]);
+  const [selectedChallengeUser, setSelectedChallengeUser] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingAmounts, setPendingAmounts] = useState<Record<string, string>>({});
   const [busyUsers, setBusyUsers] = useState<Record<string, boolean>>({});
+  const [busyChallenges, setBusyChallenges] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     void loadCoinsData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only when the selected admin/cohort changes.
   }, [academicPeriodQuery, currentAdminEmail]);
 
   const filteredUsers = useMemo(() => {
@@ -140,6 +198,44 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
   const filteredUsersBalance = useMemo(() => {
     return filteredUsers.reduce((sum, user) => sum + user.currentBalance, 0);
   }, [filteredUsers]);
+
+  const challengeByEmail = useMemo(() => {
+    const priority: Record<SqlCoinChallengeStatus, number> = {
+      active: 0,
+      pending: 1,
+      completed: 2,
+      expired: 3,
+      cancelled: 4,
+    };
+    const map = new Map<string, SqlCoinChallengeOverview>();
+
+    [...challenges]
+      .sort((left, right) => {
+        const statusOrder = priority[left.status] - priority[right.status];
+        if (statusOrder !== 0) return statusOrder;
+        return new Date(right.updatedAt || right.createdAt).getTime() - new Date(left.updatedAt || left.createdAt).getTime();
+      })
+      .forEach((challenge) => {
+        const email = normalizeEmail(challenge.studentEmail);
+        if (email && !map.has(email)) {
+          map.set(email, challenge);
+        }
+      });
+
+    return map;
+  }, [challenges]);
+
+  const challengeSummary = useMemo(() => {
+    return challenges.reduce(
+      (accumulator, challenge) => {
+        accumulator.total += 1;
+        if (challenge.status === "active" || challenge.status === "pending") accumulator.active += 1;
+        if (challenge.status === "completed") accumulator.completed += 1;
+        return accumulator;
+      },
+      { total: 0, active: 0, completed: 0 }
+    );
+  }, [challenges]);
 
   const duplicateEmailGroups = useMemo(() => {
     const groups = new Map<string, number>();
@@ -176,12 +272,16 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
     setError(null);
 
     try {
-      const [overviewResponse, usersResponse] = await Promise.all([
+      const [overviewResponse, usersResponse, challengesResponse] = await Promise.all([
         fetch(`/api/admin/coins/analytics?${academicPeriodQuery}`, {
           headers: getAdminHeaders(),
           cache: "no-store",
         }),
         fetch(`/api/users?${academicPeriodQuery}`, {
+          cache: "no-store",
+        }),
+        fetch(`/api/admin/coins/challenges?${academicPeriodQuery}`, {
+          headers: getAdminHeaders(),
           cache: "no-store",
         }),
       ]);
@@ -200,9 +300,18 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
             : `טעינת רשימת משתמשים נכשלה (${usersResponse.status})`;
         throw new Error(message);
       }
+      if (!challengesResponse.ok) {
+        const message =
+          challengesResponse.status === 403
+            ? "פג תוקף ההתחברות לממשק המנהל. יש להתחבר מחדש."
+            : `טעינת אתגרי המטבע נכשלה (${challengesResponse.status})`;
+        throw new Error(message);
+      }
 
       const overview = (await overviewResponse.json()) as CoinsOverview;
       const userRecords = (await usersResponse.json()) as UserRecord[];
+      const challengesPayload = (await challengesResponse.json()) as { challenges?: SqlCoinChallengeOverview[] };
+      const normalizedConfig = normalizeCoinsConfig(overview.config);
 
       const analyticsByEmail = new Map(overview.users.map((user) => [normalizeEmail(user.user), user]));
       const emailCounts = new Map<string, number>();
@@ -226,7 +335,7 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
             currentBalance: analytics?.coins ?? 0,
             totalSpent: analytics?.totalSpent || 0,
             chatUsageCount: analytics?.usageByReason.main_chat_message || 0,
-            sqlPracticeUsageCount: analytics?.usageByReason.sql_practice_open || 0,
+            sqlChallengeCompletedCount: analytics?.usageByReason.sql_coin_challenge_completed || 0,
             homeworkHintUsageCount: analytics?.usageByReason.homework_hint_open || 0,
             usageCount: analytics?.usageCount || 0,
             lastUsageDate: analytics?.lastActivity ?? null,
@@ -240,8 +349,8 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
           return rightTime - leftTime || left.name.localeCompare(right.name, "he");
         });
 
-      setConfig(overview.config);
-      setSavedConfig(overview.config);
+      setConfig(normalizedConfig);
+      setSavedConfig(normalizedConfig);
       setSummary({
         ...overview.summary,
         totalUsers: mergedRows.length,
@@ -249,6 +358,7 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
         totalSpent: mergedRows.reduce((sum, user) => sum + user.totalSpent, 0),
       });
       setUsers(mergedRows);
+      setChallenges(Array.isArray(challengesPayload.challenges) ? challengesPayload.challenges : []);
     } catch (loadError) {
       console.error("Failed to load coins data:", loadError);
       setError(loadError instanceof Error ? loadError.message : "טעינת מסך המטבעות נכשלה.");
@@ -304,8 +414,8 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
         body: JSON.stringify({
           config: {
             starterBalance: config.starterBalance,
-            modules: config.modules,
-            costs: config.costs,
+            modules: { ...config.modules, sqlPractice: false },
+            costs: { ...config.costs, sqlPracticeOpen: 0 },
           },
         }),
       });
@@ -319,8 +429,9 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
         throw new Error(message);
       }
 
-      setConfig(payload);
-      setSavedConfig(payload);
+      const normalizedPayload = normalizeCoinsConfig(payload);
+      setConfig(normalizedPayload);
+      setSavedConfig(normalizedPayload);
       setSuccessMessage("הגדרות המטבעות נשמרו בהצלחה");
       setSuccessDetails(null);
       await loadCoinsData(true);
@@ -374,6 +485,81 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
     }
   };
 
+  const createChallenge = async (emailOverride?: string) => {
+    const email = normalizeEmail(emailOverride || selectedChallengeUser);
+    if (!email) {
+      setError("יש לבחור סטודנט לאתגר SQL.");
+      return;
+    }
+
+    setBusyChallenges((current) => ({ ...current, [email]: true }));
+    setError(null);
+
+    try {
+      const response = await fetch("/api/admin/coins/challenges", {
+        method: "POST",
+        headers: getAdminHeaders({
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify({
+          studentEmail: email,
+          year: academicPeriod.year,
+          semester: academicPeriod.semester,
+          questionCount: 3,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "פתיחת אתגר SQL נכשלה.");
+      }
+
+      setSuccessMessage("אתגר SQL נפתח לסטודנט");
+      setSuccessDetails(`האתגר זמין עכשיו ב-/landing עבור ${email}.`);
+      setSelectedChallengeUser(email);
+      await loadCoinsData(true);
+    } catch (challengeError) {
+      console.error("Failed to create SQL coin challenge:", challengeError);
+      setError(challengeError instanceof Error ? challengeError.message : "פתיחת אתגר SQL נכשלה.");
+    } finally {
+      setBusyChallenges((current) => ({ ...current, [email]: false }));
+    }
+  };
+
+  const updateChallengeStatus = async (challenge: SqlCoinChallengeOverview, status: "active" | "cancelled") => {
+    const busyKey = challenge.id;
+    setBusyChallenges((current) => ({ ...current, [busyKey]: true }));
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/admin/coins/challenges/${encodeURIComponent(challenge.id)}`, {
+        method: "PATCH",
+        headers: getAdminHeaders({
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify({
+          status,
+          year: academicPeriod.year,
+          semester: academicPeriod.semester,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "עדכון סטטוס האתגר נכשל.");
+      }
+
+      setSuccessMessage(status === "active" ? "אתגר SQL הופעל מחדש" : "אתגר SQL בוטל");
+      setSuccessDetails(`${challenge.studentEmail} - ${getChallengeLabel(status)}.`);
+      await loadCoinsData(true);
+    } catch (challengeError) {
+      console.error("Failed to update SQL coin challenge:", challengeError);
+      setError(challengeError instanceof Error ? challengeError.message : "עדכון סטטוס האתגר נכשל.");
+    } finally {
+      setBusyChallenges((current) => ({ ...current, [busyKey]: false }));
+    }
+  };
+
   return (
     <>
       {successMessage ? (
@@ -405,9 +591,9 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
         <section className={styles.hero}>
           <div>
             <div className={styles.eyebrow}>מטבעות</div>
-            <h1 className={styles.title}>ניהול מטבעות וצריכה</h1>
+            <h1 className={styles.title}>ניהול מטבעות ואתגרי SQL</h1>
             <p className={styles.subtitle}>
-              ניהול חיוב לפי משטח, מחירי שימוש, יתרות משתמשים וניתוח פעילות ממסך אחד.
+              ניהול יתרות, חיובי צ׳אט ורמזים, ואתגר SQL אישי שמעניק מטבע אחד רק אחרי הגשה מתועדת.
             </p>
           </div>
 
@@ -436,25 +622,74 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
 
         <section className={styles.statsGrid}>
           <article className={styles.statCard}>
-            <div className={styles.statLabel}>סה"כ משתמשים</div>
+            <div className={styles.statLabel}>סה״כ משתמשים</div>
             <div className={styles.statValue}>{summary?.totalUsers ?? 0}</div>
             <Users size={18} className={styles.statIcon} />
           </article>
           <article className={styles.statCard}>
-            <div className={styles.statLabel}>סה"כ יתרה</div>
+            <div className={styles.statLabel}>סה״כ יתרה</div>
             <div className={styles.statValue}>{summary?.totalBalance ?? 0}</div>
             <Coins size={18} className={styles.statIcon} />
           </article>
           <article className={styles.statCard}>
-            <div className={styles.statLabel}>סה"כ חיובים</div>
+            <div className={styles.statLabel}>סה״כ חיובים</div>
             <div className={styles.statValue}>{summary?.totalTransactions ?? 0}</div>
             <TrendingUp size={18} className={styles.statIcon} />
           </article>
           <article className={styles.statCard}>
-            <div className={styles.statLabel}>סה"כ מטבעות שנצרכו</div>
+            <div className={styles.statLabel}>סה״כ מטבעות שנצרכו</div>
             <div className={styles.statValue}>{summary?.totalSpent ?? 0}</div>
             <RefreshCw size={18} className={styles.statIcon} />
           </article>
+          <article className={styles.statCard}>
+            <div className={styles.statLabel}>אתגרי SQL פעילים</div>
+            <div className={styles.statValue}>{challengeSummary.active}</div>
+            <Trophy size={18} className={styles.statIcon} />
+          </article>
+        </section>
+
+        <section className={styles.challengePanel}>
+          <div className={styles.challengeCopy}>
+            <div className={styles.challengeEyebrow}>אתגר SQL למטבע</div>
+            <h2>פתיחת אתגר לסטודנט מהמחזור הנבחר</h2>
+            <p>
+              האתגר מופיע רק לסטודנט שנבחר, בתקופה {academicPeriod.year}/{academicPeriod.semester}, ומעניק מטבע אחד אחרי 3 תשובות נכונות.
+            </p>
+          </div>
+          <div className={styles.challengeControls}>
+            <label className={styles.challengeSelect}>
+              <span>סטודנט</span>
+              <select
+                value={selectedChallengeUser}
+                onChange={(event) => setSelectedChallengeUser(event.target.value)}
+              >
+                <option value="">בחר סטודנט</option>
+                {users.map((user) => {
+                  const email = normalizeEmail(user.email);
+                  const challenge = challengeByEmail.get(email);
+                  const disabled = challenge?.status === "active" || challenge?.status === "pending";
+                  return (
+                    <option key={user.rowKey} value={email} disabled={disabled}>
+                      {user.name} - {email}{disabled ? " (כבר פעיל)" : ""}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+            <button
+              type="button"
+              className={styles.primaryButton}
+              onClick={() => void createChallenge()}
+              disabled={!selectedChallengeUser || busyChallenges[normalizeEmail(selectedChallengeUser)] === true}
+            >
+              <Send size={16} />
+              {busyChallenges[normalizeEmail(selectedChallengeUser)] ? "פותח..." : "פתח אתגר"}
+            </button>
+            <div className={styles.challengeMiniStats}>
+              <span>{challengeSummary.total} אתגרים במחזור</span>
+              <span>{challengeSummary.completed} הושלמו</span>
+            </div>
+          </div>
         </section>
 
         <div className={styles.contentGrid}>
@@ -474,9 +709,9 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
             {config ? (
               <div className={styles.configSections}>
                 <div className={styles.configBlock}>
-                  <h3>הפעלת פיצ'רים</h3>
+                  <h3>הפעלת פיצ׳רים</h3>
                   <label className={styles.toggleRow}>
-                    <span>צ'אט ראשי</span>
+                    <span>צ׳אט ראשי</span>
                     <input
                       type="checkbox"
                       checked={config.modules.mainChat}
@@ -495,39 +730,21 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                       }
                     />
                   </label>
-                  <label className={styles.toggleRow}>
-                    <span>תרגול SQL</span>
-                    <input
-                      type="checkbox"
-                      checked={config.modules.sqlPractice}
-                      onChange={(event) =>
-                        handleConfigChange("modules", "sqlPractice", event.target.checked)
-                      }
-                    />
-                  </label>
+                  <div className={styles.configNotice}>
+                    תרגול SQL רגיל פתוח ללא חיוב. מטבעות SQL ניתנים רק דרך אתגר אישי מתועד.
+                  </div>
                 </div>
 
                 <div className={styles.configBlock}>
                   <h3>תמחור</h3>
                   <label className={styles.inputRow}>
-                    <span>עלות הודעת צ'אט</span>
+                    <span>עלות הודעת צ׳אט</span>
                     <input
                       type="number"
                       min={0}
                       value={config.costs.mainChatMessage}
                       onChange={(event) =>
                         handleConfigChange("costs", "mainChatMessage", Number(event.target.value))
-                      }
-                    />
-                  </label>
-                  <label className={styles.inputRow}>
-                    <span>עלות פתיחת תרגול SQL</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={config.costs.sqlPracticeOpen}
-                      onChange={(event) =>
-                        handleConfigChange("costs", "sqlPracticeOpen", Number(event.target.value))
                       }
                     />
                   </label>
@@ -559,7 +776,7 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                   <h3>תקציר תפעולי</h3>
                   <dl className={styles.definitionList}>
                     <div>
-                      <dt>צ'אט שמור</dt>
+                      <dt>צ׳אט שמור</dt>
                       <dd>{savedConfig?.modules.mainChat ? "פעיל" : "כבוי"}</dd>
                     </div>
                     <div>
@@ -567,12 +784,12 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                       <dd>{savedConfig?.modules.homeworkHints ? "פעיל" : "כבוי"}</dd>
                     </div>
                     <div>
-                      <dt>שימושי צ'אט</dt>
+                      <dt>שימושי צ׳אט</dt>
                       <dd>{summary?.usageByReason.main_chat_message ?? 0}</dd>
                     </div>
                     <div>
-                      <dt>שימושי תרגול SQL</dt>
-                      <dd>{summary?.usageByReason.sql_practice_open ?? 0}</dd>
+                      <dt>אתגרי SQL שהושלמו</dt>
+                      <dd>{summary?.usageByReason.sql_coin_challenge_completed ?? 0}</dd>
                     </div>
                     <div>
                       <dt>שימושי רמזים</dt>
@@ -635,19 +852,29 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                     <tr>
                       <th>שם משתמש</th>
                       <th>אימייל</th>
-                      <th>יתרה נוכחית</th>
-                      <th>שימוש וצריכה</th>
-                      <th>פעילות אחרונה</th>
-                      <th>עדכון יתרה</th>
+	                      <th>יתרה נוכחית</th>
+	                      <th>שימוש וצריכה</th>
+	                      <th>אתגר SQL</th>
+	                      <th>פעילות אחרונה</th>
+	                      <th>עדכון יתרה</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredUsers.map((user) => {
-                      const pendingAmount = pendingAmounts[user.email] ?? "";
-                      const customAmount = Number(pendingAmount);
-                      const rowBusy = busyUsers[user.email] === true;
+	                      const pendingAmount = pendingAmounts[user.email] ?? "";
+	                      const customAmount = Number(pendingAmount);
+	                      const rowBusy = busyUsers[user.email] === true;
+                        const normalizedEmail = normalizeEmail(user.email);
+                        const challenge = challengeByEmail.get(normalizedEmail);
+                        const challengeBusy =
+                          busyChallenges[challenge?.id || normalizedEmail] === true ||
+                          busyChallenges[normalizedEmail] === true;
+                        const canCancelChallenge =
+                          challenge?.status === "active" || challenge?.status === "pending";
+                        const canRetryChallenge =
+                          !challenge || challenge.status === "cancelled" || challenge.status === "expired";
 
-                      return (
+	                      return (
                         <tr key={user.rowKey}>
                           <td data-label="שם משתמש">
                             <div className={styles.userNameCell}>
@@ -663,30 +890,88 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                           <td data-label="יתרה נוכחית" className={styles.balanceCell}>
                             <span className={styles.balanceBadge}>{user.currentBalance}</span>
                           </td>
-                          <td data-label="שימוש וצריכה">
-                            <div className={styles.usageCell}>
+	                          <td data-label="שימוש וצריכה">
+	                            <div className={styles.usageCell}>
                               <div className={styles.usageTotal}>
-                                <span>סה"כ נצרך</span>
+                                <span>סה״כ נצרך</span>
                                 <strong>{user.totalSpent}</strong>
                               </div>
 
                               <div className={styles.usageBreakdown}>
                                 <div>
-                                  <span>צ'אט</span>
+                                  <span>צ׳אט</span>
                                   <strong>{user.chatUsageCount}</strong>
                                 </div>
-                                <div>
-                                  <span>SQL</span>
-                                  <strong>{user.sqlPracticeUsageCount}</strong>
-                                </div>
+	                                <div>
+	                                  <span>אתגר</span>
+	                                  <strong>{user.sqlChallengeCompletedCount}</strong>
+	                                </div>
                                 <div>
                                   <span>רמזים</span>
                                   <strong>{user.homeworkHintUsageCount}</strong>
                                 </div>
                               </div>
+	                            </div>
+	                          </td>
+                          <td data-label="אתגר SQL">
+                            <div className={styles.challengeCell}>
+                              {challenge ? (
+                                <>
+                                  <span className={`${styles.challengeStatus} ${styles[`challengeStatus_${challenge.status}`]}`}>
+                                    {getChallengeLabel(challenge.status)}
+                                  </span>
+                                  <span className={styles.challengeMeta}>
+                                    {challenge.status === "completed" && challenge.score
+                                      ? `${challenge.score.correctCount}/${challenge.score.totalQuestions} נכון`
+                                      : `${challenge.questions?.length || 3} שאלות`}
+                                  </span>
+                                  {challenge.coinLedgerTransactionId ? (
+                                    <span className={styles.challengeLedger}>נרשם בלדג׳ר</span>
+                                  ) : null}
+                                  <div className={styles.challengeActions}>
+                                    {canCancelChallenge ? (
+                                      <button
+                                        type="button"
+                                        className={styles.inlineActionMuted}
+                                        disabled={challengeBusy}
+                                        onClick={() => void updateChallengeStatus(challenge, "cancelled")}
+                                      >
+                                        <XCircle size={14} />
+                                        {challengeBusy ? "מבטל..." : "בטל"}
+                                      </button>
+                                    ) : null}
+                                    {canRetryChallenge ? (
+                                      <button
+                                        type="button"
+                                        className={styles.inlineAction}
+                                        disabled={challengeBusy}
+                                        onClick={() => void createChallenge(user.email)}
+                                      >
+                                        <RotateCcw size={14} />
+                                        {challengeBusy ? "פותח..." : "פתח מחדש"}
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <span className={`${styles.challengeStatus} ${styles.challengeStatus_none}`}>
+                                    אין אתגר
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className={styles.inlineAction}
+                                    disabled={challengeBusy}
+                                    onClick={() => void createChallenge(user.email)}
+                                  >
+                                    <Send size={14} />
+                                    {challengeBusy ? "פותח..." : "פתח אתגר"}
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </td>
-                          <td data-label="פעילות אחרונה">
+	                          <td data-label="פעילות אחרונה">
                             <div className={styles.activityCell}>
                               <strong>{formatDateTime(user.lastUsageDate)}</strong>
                               <span>{user.usageCount} חיובים מצטברים</span>

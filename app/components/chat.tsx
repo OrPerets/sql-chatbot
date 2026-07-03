@@ -785,8 +785,8 @@ const Chat = ({
   const [balanceErrorMessage, setBalanceErrorMessage] = useState<string | null>(null);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(false);
-  const [isSqlPracticeEnabled, setIsSqlPracticeEnabled] = useState(false);
-  const [practiceOpenCost, setPracticeOpenCost] = useState(1);
+  const [isSqlPracticeEnabled, setIsSqlPracticeEnabled] = useState(true);
+  const [practiceOpenCost, setPracticeOpenCost] = useState(0);
   const [loadingMessages, setLoadingMessages] = useState(false); // Add loading state
   const [sqlTutorModalOpen, setSqlTutorModalOpen] = useState(false);
   const [sqlTutorOperation, setSqlTutorOperation] = useState<"create" | "insert">("create");
@@ -1639,18 +1639,16 @@ const Chat = ({
       if (!response.ok) return null;
       const data: CoinsConfigClientResponse = await response.json();
       const mainChatEnabled = data?.modules?.mainChat === true || data?.status === "ON";
-      const sqlPracticeEnabled = data?.modules?.sqlPractice === true;
       const configuredMainChatCost = Number(data?.costs?.mainChatMessage);
-      const configuredPracticeCost = Number(data?.costs?.sqlPracticeOpen);
 
       setIsTokenBalanceVisible(mainChatEnabled);
-      setIsSqlPracticeEnabled(sqlPracticeEnabled);
+      setIsSqlPracticeEnabled(true);
       setMainChatMessageCost(
         Number.isFinite(configuredMainChatCost) && configuredMainChatCost >= 0
           ? configuredMainChatCost
           : 1
       );
-      setPracticeOpenCost(Number.isFinite(configuredPracticeCost) && configuredPracticeCost > 0 ? configuredPracticeCost : 1);
+      setPracticeOpenCost(0);
 
       return mainChatEnabled;
     } catch (error) {
@@ -4425,7 +4423,7 @@ return (
               מייקל יכול ליצור שאלות ותשובות שלא נכללות בחומר הנלמד
             </p>
             <p className={styles.disclaimerText}>
-              פתיחת תרגול SQL תחייב {practiceOpenCost} מטבע{practiceOpenCost === 1 ? "" : "ות"}.
+              פתיחת תרגול SQL אינה מחייבת מטבעות. מטבע חדש מתקבל רק באתגר SQL שמרצה פותח עבורך.
             </p>
             <div className={styles.disclaimerActions}>
               <button

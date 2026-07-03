@@ -100,7 +100,7 @@
 
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 16px;
 }
 
@@ -136,6 +136,72 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.challengePanel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 18px;
+  align-items: center;
+  padding: 22px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-xl);
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+}
+
+.challengeCopy {
+  display: grid;
+  gap: 8px;
+}
+
+.challengeEyebrow {
+  color: var(--brand-primary);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.challengeCopy h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.18rem;
+}
+
+.challengeCopy p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.challengeControls {
+  display: grid;
+  gap: 12px;
+}
+
+.challengeSelect {
+  display: grid;
+  gap: 6px;
+  color: #334155;
+  font-weight: 800;
+}
+
+.challengeSelect select {
+  min-height: var(--touch-target-min);
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-lg);
+  padding: 0 12px;
+  color: #0f172a;
+  background: #ffffff;
+  font: inherit;
+}
+
+.challengeMiniStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #64748b;
+  font-size: 0.86rem;
+  font-weight: 700;
 }
 
 .panel {
@@ -246,6 +312,16 @@
   color: #0f172a;
 }
 
+.configNotice {
+  padding: 12px;
+  border: 1px solid rgba(36, 92, 115, 0.14);
+  border-radius: var(--radius-lg);
+  background: rgba(36, 92, 115, 0.08);
+  color: #334155;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
 .toggleRow,
 .inputRow {
   display: flex;
@@ -324,7 +400,7 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1040px;
+  min-width: 1220px;
 }
 
 .table th,
@@ -461,6 +537,62 @@
   font-size: 1rem;
 }
 
+.challengeCell {
+  display: flex;
+  min-width: 180px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.challengeStatus {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.challengeStatus_active,
+.challengeStatus_pending {
+  color: #166534;
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+}
+
+.challengeStatus_completed {
+  color: #1d4ed8;
+  background: #dbeafe;
+  border: 1px solid #bfdbfe;
+}
+
+.challengeStatus_expired,
+.challengeStatus_cancelled,
+.challengeStatus_none {
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.challengeMeta,
+.challengeLedger {
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.challengeLedger {
+  color: #166534;
+}
+
+.challengeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .activityCell {
   display: flex;
   flex-direction: column;
@@ -518,6 +650,10 @@
 
 .inlineAction,
 .inlineActionMuted {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 8px 12px;
   font-size: 0.85rem;
   font-weight: 700;
@@ -564,6 +700,10 @@
   .configSections {
     grid-template-columns: 1fr;
   }
+
+  .challengePanel {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
@@ -596,6 +736,10 @@
 
   .configSections {
     grid-template-columns: 1fr;
+  }
+
+  .challengePanel {
+    padding: 16px;
   }
 
   .searchBox {
@@ -675,6 +819,7 @@
   .balanceCell,
   .actionsCell,
   .usageCell,
+  .challengeCell,
   .activityCell {
     width: auto;
     min-width: 0;
