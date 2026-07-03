@@ -117,7 +117,7 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
     href: "/admin/settings",
     label: "הגדרות מערכת",
     shortLabel: "הגדרות",
-    description: "שליטה בזמינות Michael, נראות מטבעות וכלי תפעול קריטיים.",
+    description: "שליטה בזמינות Michael, חיוב מטבעות וכלי תפעול קריטיים.",
     whyOpen: "כדי להפעיל, לכבות או לבדוק את מצב המערכת לפני שמשהו נשבר.",
     actionLabel: "בדוק זמינות",
     bucket: "daily-ops",

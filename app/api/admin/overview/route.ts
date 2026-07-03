@@ -110,6 +110,8 @@ export async function GET(request: Request) {
           }),
       ]);
 
+    const coinsActiveModules = Object.values(coinsConfig.modules).filter(Boolean).length;
+
     return NextResponse.json({
       generatedAt: new Date().toISOString(),
       attention: {
@@ -120,7 +122,9 @@ export async function GET(request: Request) {
       },
       statuses: {
         michaelEnabled: counts.michaelEnabled,
-        coinsVisible: coinsConfig.status === "ON",
+        coinsVisible: coinsConfig.modules.mainChat,
+        coinsModules: coinsConfig.modules,
+        coinsActiveModules,
         runtimeModel: runtimeConfig.model,
         totalUsers: counts.totalUsers,
         totalTemplates: counts.totalTemplates,

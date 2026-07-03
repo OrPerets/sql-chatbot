@@ -32,6 +32,12 @@ type AdminOverview = {
   statuses: {
     michaelEnabled: boolean;
     coinsVisible: boolean;
+    coinsModules?: {
+      mainChat: boolean;
+      homeworkHints: boolean;
+      sqlPractice: boolean;
+    };
+    coinsActiveModules?: number;
     runtimeModel: string;
     totalUsers: number;
     totalTemplates: number;
@@ -46,6 +52,28 @@ type AdminOverview = {
     notifications: Array<{ id: string; title: string; createdAt: string }>;
   };
 };
+
+function getCoinModules(overview: AdminOverview | null) {
+  return overview?.statuses.coinsModules ?? {
+    mainChat: overview?.statuses.coinsVisible === true,
+    homeworkHints: false,
+    sqlPractice: false,
+  };
+}
+
+function getActiveCoinModuleCount(overview: AdminOverview | null) {
+  if (typeof overview?.statuses.coinsActiveModules === "number") {
+    return overview.statuses.coinsActiveModules;
+  }
+
+  return Object.values(getCoinModules(overview)).filter(Boolean).length;
+}
+
+function formatCoinModuleSummary(overview: AdminOverview | null, loading: boolean) {
+  if (loading) return "...";
+  const count = getActiveCoinModuleCount(overview);
+  return count > 0 ? `${count}/3 פעילים` : "כבוי";
+}
 
 function formatNumber(value: number | undefined, loading: boolean) {
   if (loading) return "...";
@@ -103,7 +131,7 @@ export default function CommandCenter() {
     return {
       "admin-users": `${overview.statuses.totalUsers.toLocaleString("he-IL")} משתמשים`,
       "admin-settings": overview.statuses.michaelEnabled ? "Michael פעיל" : "Michael כבוי",
-      "admin-coins": overview.statuses.coinsVisible ? "נראות פעילה" : "נראות כבויה",
+      "admin-coins": formatCoinModuleSummary(overview, false),
       "admin-homework": `${overview.statuses.totalHomeworkSets.toLocaleString("he-IL")} מטלות`,
       "admin-templates": `${overview.statuses.totalTemplates.toLocaleString("he-IL")} תבניות`,
       "admin-datasets": `${overview.statuses.totalDatasets.toLocaleString("he-IL")} סטים`,
@@ -128,16 +156,24 @@ export default function CommandCenter() {
     await loadOverview();
   };
 
-  const toggleCoinsVisibility = async () => {
+  const toggleMainChatBilling = async () => {
     if (!overview) return;
-    const nextValue = !overview.statuses.coinsVisible;
+    const modules = getCoinModules(overview);
+    const nextValue = !modules.mainChat;
     await fetch("/api/users/coins", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         ...getAdminHeaders(),
       },
-      body: JSON.stringify({ newStatus: nextValue ? "ON" : "OFF" }),
+      body: JSON.stringify({
+        config: {
+          modules: {
+            ...modules,
+            mainChat: nextValue,
+          },
+        },
+      }),
     });
     await loadOverview();
   };
@@ -193,11 +229,11 @@ export default function CommandCenter() {
       id: "coins",
       href: "/admin/coins",
       label: "מטבעות",
-      value: overview?.statuses.coinsVisible ? "מוצג" : "מוסתר",
-      status: "יתרות וחיובים",
+      value: formatCoinModuleSummary(overview, loading),
+      status: "מודולי חיוב פעילים",
       action: "בדיקת עלויות",
       icon: Coins,
-      tone: overview?.statuses.coinsVisible ? "success" : "warning",
+      tone: getActiveCoinModuleCount(overview) > 0 ? "success" : "warning",
     },
     {
       id: "homework",
@@ -241,11 +277,11 @@ export default function CommandCenter() {
     },
     {
       id: "toggle-coins",
-      label: overview?.statuses.coinsVisible ? "הסתר יתרות" : "הצג יתרות",
-      description: overview?.statuses.coinsVisible ? "מוצג לסטודנטים" : "מוסתר כרגע",
+      label: getCoinModules(overview).mainChat ? "כבה חיוב צ'אט" : "הפעל חיוב צ'אט",
+      description: getCoinModules(overview).mainChat ? "צ'אט ראשי מחויב" : "צ'אט ראשי ללא חיוב",
       icon: Coins,
       type: "button" as const,
-      onClick: toggleCoinsVisibility,
+      onClick: toggleMainChatBilling,
       priority: "secondary",
     },
     {
@@ -375,10 +411,10 @@ export default function CommandCenter() {
             <div className={styles.systemRow}>
               <span>
                 <span className={styles.systemLabel}>מטבעות</span>
-                <span className={styles.systemDescription}>נראות יתרות לסטודנטים</span>
+                <span className={styles.systemDescription}>מודולי חיוב פעילים</span>
               </span>
-              <span className={overview?.statuses.coinsVisible ? styles.statusOn : styles.statusOff}>
-                {overview?.statuses.coinsVisible ? "מוצג" : "מוסתר"}
+              <span className={getActiveCoinModuleCount(overview) > 0 ? styles.statusOn : styles.statusOff}>
+                {formatCoinModuleSummary(overview, loading)}
               </span>
             </div>
 

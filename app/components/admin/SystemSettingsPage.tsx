@@ -12,6 +12,12 @@ type AdminOverview = {
   statuses: {
     michaelEnabled: boolean;
     coinsVisible: boolean;
+    coinsModules?: {
+      mainChat: boolean;
+      homeworkHints: boolean;
+      sqlPractice: boolean;
+    };
+    coinsActiveModules?: number;
     runtimeModel: string;
     totalUsers: number;
     extraTimeUploads: number;
@@ -27,6 +33,27 @@ type UploadResult = {
     errors: number;
   };
 };
+
+function getCoinModules(overview: AdminOverview | null) {
+  return overview?.statuses.coinsModules ?? {
+    mainChat: overview?.statuses.coinsVisible === true,
+    homeworkHints: false,
+    sqlPractice: false,
+  };
+}
+
+function getActiveCoinModuleCount(overview: AdminOverview | null) {
+  if (typeof overview?.statuses.coinsActiveModules === "number") {
+    return overview.statuses.coinsActiveModules;
+  }
+
+  return Object.values(getCoinModules(overview)).filter(Boolean).length;
+}
+
+function formatCoinModuleSummary(overview: AdminOverview | null) {
+  const count = getActiveCoinModuleCount(overview);
+  return count > 0 ? `${count}/3 פעילים` : "כבוי";
+}
 
 export default function SystemSettingsPage() {
   const { currentAdminEmail } = useAdminShell();
@@ -105,12 +132,13 @@ export default function SystemSettingsPage() {
     }
   };
 
-  const toggleCoinsVisibility = async () => {
+  const toggleMainChatBilling = async () => {
     if (!overview) return;
     setError(null);
     setTogglingCoins(true);
     try {
-      const nextVisible = !overview.statuses.coinsVisible;
+      const modules = getCoinModules(overview);
+      const nextEnabled = !modules.mainChat;
       const response = await fetch("/api/users/coins", {
         method: "POST",
         headers: {
@@ -118,10 +146,12 @@ export default function SystemSettingsPage() {
           ...getAdminHeaders(),
         },
         body: JSON.stringify({
-          newStatus: nextVisible ? "ON" : "OFF",
-          modules: nextVisible
-            ? { mainChat: true }
-            : { mainChat: false, homeworkHints: false, sqlPractice: false },
+          config: {
+            modules: {
+              ...modules,
+              mainChat: nextEnabled,
+            },
+          },
         }),
       });
 
@@ -136,14 +166,18 @@ export default function SystemSettingsPage() {
               ...current,
               statuses: {
                 ...current.statuses,
-                coinsVisible: nextVisible,
+                coinsVisible: nextEnabled,
+                coinsModules: {
+                  ...getCoinModules(current),
+                  mainChat: nextEnabled,
+                },
               },
             }
           : current
       );
       await loadOverview();
     } catch (toggleError) {
-      console.error("Failed to toggle coins visibility:", toggleError);
+      console.error("Failed to toggle main chat billing:", toggleError);
       setError(toggleError instanceof Error ? toggleError.message : "עדכון מצב המטבעות נכשל.");
     } finally {
       setTogglingCoins(false);
@@ -192,7 +226,7 @@ export default function SystemSettingsPage() {
         <div>
           <h1 className={styles.title}>הגדרות מערכת</h1>
           <p className={styles.description}>
-            זמינות Michael, נראות מטבעות והתאמות זמן במקום אחד.
+            זמינות Michael, חיוב מטבעות והתאמות זמן במקום אחד.
           </p>
         </div>
 
@@ -218,12 +252,12 @@ export default function SystemSettingsPage() {
           </p>
           <p className={styles.overviewValue}>{overview?.statuses.michaelEnabled ? "פעיל" : "כבוי"}</p>
         </div>
-        <div className={`${styles.overviewCard} ${overview?.statuses.coinsVisible ? styles.overviewCardOk : ""}`}>
+        <div className={`${styles.overviewCard} ${getActiveCoinModuleCount(overview) > 0 ? styles.overviewCardOk : ""}`}>
           <p className={styles.overviewLabel}>
             <span className={styles.statusDot} />
             מטבעות
           </p>
-          <p className={styles.overviewValue}>{overview?.statuses.coinsVisible ? "מוצג" : "מוסתר"}</p>
+          <p className={styles.overviewValue}>{formatCoinModuleSummary(overview)}</p>
         </div>
         <div className={styles.overviewCard}>
           <p className={styles.overviewLabel}>Runtime</p>
@@ -272,28 +306,28 @@ export default function SystemSettingsPage() {
           <div className={styles.toggleCard}>
             <div className={styles.toggleHeader}>
               <div>
-                <h3 className={styles.toggleTitle}>נראות מטבעות</h3>
-                <p className={styles.toggleDescription}>האם יתרות מוצגות למשתמשי הקצה.</p>
+                <h3 className={styles.toggleTitle}>חיוב צ׳אט ראשי</h3>
+                <p className={styles.toggleDescription}>האם הודעות Michael בצ׳אט הראשי צורכות מטבעות.</p>
               </div>
               <span className={styles.statusPill}>
-                {overview?.statuses.coinsVisible ? "מוצג" : "מוסתר"}
+                {getCoinModules(overview).mainChat ? "פעיל" : "כבוי"}
               </span>
             </div>
             <p className={styles.toggleMeta}>
-              השינוי מיידי. ניהול העלויות נשאר במסך מטבעות.
+              השינוי מיידי לצ׳אט הראשי בלבד. רמזים ותרגול SQL מנוהלים במסך מטבעות.
             </p>
             <div className={styles.toggleActions}>
               <button
                 className={styles.primaryButton}
-                onClick={toggleCoinsVisibility}
+                onClick={toggleMainChatBilling}
                 disabled={!overview || togglingCoins}
               >
                 <Coins size={16} />
                 {togglingCoins
                   ? "מעדכן..."
-                  : overview?.statuses.coinsVisible
-                    ? "הסתר מטבעות"
-                    : "הצג מטבעות"}
+                  : getCoinModules(overview).mainChat
+                    ? "כבה חיוב צ'אט"
+                    : "הפעל חיוב צ'אט"}
               </button>
               <Link href="/admin/coins" className={styles.linkButton}>
                 <ArrowUpRight size={16} />

@@ -48,6 +48,7 @@ interface CoinsOverview {
 
 interface UserRecord {
   id?: string;
+  _id?: string;
   email: string;
   name?: string;
   firstName?: string;
@@ -55,6 +56,7 @@ interface UserRecord {
 }
 
 interface EnrichedUserRow {
+  rowKey: string;
   email: string;
   name: string;
   currentBalance: number;
@@ -64,6 +66,8 @@ interface EnrichedUserRow {
   homeworkHintUsageCount: number;
   usageCount: number;
   lastUsageDate: string | null;
+  duplicateEmailCount: number;
+  duplicateEmailIndex: number;
 }
 
 function formatDateTime(value: string | null): string {
@@ -88,6 +92,10 @@ function getDisplayName(user: UserRecord): string {
 
   const combined = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
   return combined || user.email;
+}
+
+function normalizeEmail(value: unknown): string {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
 
 interface CoinsManagementPanelProps {
@@ -130,6 +138,19 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
   const filteredUsersBalance = useMemo(() => {
     return filteredUsers.reduce((sum, user) => sum + user.currentBalance, 0);
   }, [filteredUsers]);
+
+  const duplicateEmailGroups = useMemo(() => {
+    const groups = new Map<string, number>();
+    users.forEach((user) => {
+      const email = normalizeEmail(user.email);
+      if (!email) return;
+      groups.set(email, (groups.get(email) || 0) + 1);
+    });
+
+    return Array.from(groups.entries())
+      .filter(([, count]) => count > 1)
+      .sort(([leftEmail], [rightEmail]) => leftEmail.localeCompare(rightEmail));
+  }, [users]);
 
   const hasUnsavedConfigChanges = useMemo(() => {
     if (!config || !savedConfig) {
@@ -181,13 +202,23 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
       const overview = (await overviewResponse.json()) as CoinsOverview;
       const userRecords = (await usersResponse.json()) as UserRecord[];
 
-      const analyticsByEmail = new Map(overview.users.map((user) => [user.user, user]));
-      const mergedRowsMap = new Map<string, EnrichedUserRow>();
+      const analyticsByEmail = new Map(overview.users.map((user) => [normalizeEmail(user.user), user]));
+      const emailCounts = new Map<string, number>();
+      userRecords.forEach((profile) => {
+        const email = normalizeEmail(profile.email);
+        if (!email) return;
+        emailCounts.set(email, (emailCounts.get(email) || 0) + 1);
+      });
 
-      userRecords
-        .map((profile) => {
-          const analytics = analyticsByEmail.get(profile.email);
+      const emailSeen = new Map<string, number>();
+      const mergedRows: EnrichedUserRow[] = userRecords
+        .map((profile, index) => {
+          const normalizedEmail = normalizeEmail(profile.email);
+          const duplicateEmailIndex = (emailSeen.get(normalizedEmail) || 0) + 1;
+          emailSeen.set(normalizedEmail, duplicateEmailIndex);
+          const analytics = analyticsByEmail.get(normalizedEmail);
           return {
+            rowKey: `${profile.id ?? profile._id ?? "user"}:${normalizedEmail}:${index}`,
             email: profile.email,
             name: getDisplayName(profile),
             currentBalance: analytics?.coins ?? 0,
@@ -197,24 +228,11 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
             homeworkHintUsageCount: analytics?.usageByReason.homework_hint_open || 0,
             usageCount: analytics?.usageCount || 0,
             lastUsageDate: analytics?.lastActivity ?? null,
+            duplicateEmailCount: emailCounts.get(normalizedEmail) || 1,
+            duplicateEmailIndex,
           };
         })
-        .forEach((row) => {
-          const existing = mergedRowsMap.get(row.email);
-          if (!existing) {
-            mergedRowsMap.set(row.email, row);
-            return;
-          }
-
-          const existingTime = existing.lastUsageDate ? new Date(existing.lastUsageDate).getTime() : 0;
-          const nextTime = row.lastUsageDate ? new Date(row.lastUsageDate).getTime() : 0;
-
-          if (nextTime > existingTime) {
-            mergedRowsMap.set(row.email, row);
-          }
-        });
-
-      const mergedRows: EnrichedUserRow[] = Array.from(mergedRowsMap.values()).sort((left, right) => {
+        .sort((left, right) => {
           const leftTime = left.lastUsageDate ? new Date(left.lastUsageDate).getTime() : 0;
           const rightTime = right.lastUsageDate ? new Date(right.lastUsageDate).getTime() : 0;
           return rightTime - leftTime || left.name.localeCompare(right.name, "he");
@@ -596,6 +614,14 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
               </label>
             </div>
 
+            {duplicateEmailGroups.length > 0 ? (
+              <div className={styles.duplicateNotice}>
+                נמצאו אימיילים כפולים:{" "}
+                {duplicateEmailGroups.map(([email, count]) => `${email} (${count})`).join(", ")}.
+                היתרה משותפת לפי אימייל, לכן עדכון אחד ישפיע על כל הרשומות עם אותו אימייל.
+              </div>
+            ) : null}
+
             {loading ? (
               <div className={styles.emptyState}>טוען טבלת משתמשים...</div>
             ) : filteredUsers.length === 0 ? (
@@ -620,13 +646,22 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                       const rowBusy = busyUsers[user.email] === true;
 
                       return (
-                        <tr key={user.email}>
-                          <td>{user.name}</td>
-                          <td className={styles.emailCell} title={user.email}>{user.email}</td>
-                          <td className={styles.balanceCell}>
+                        <tr key={user.rowKey}>
+                          <td data-label="שם משתמש">
+                            <div className={styles.userNameCell}>
+                              <span>{user.name}</span>
+                              {user.duplicateEmailCount > 1 ? (
+                                <span className={styles.duplicateBadge}>
+                                  כפול {user.duplicateEmailIndex}/{user.duplicateEmailCount}
+                                </span>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td data-label="אימייל" className={styles.emailCell} title={user.email}>{user.email}</td>
+                          <td data-label="יתרה נוכחית" className={styles.balanceCell}>
                             <span className={styles.balanceBadge}>{user.currentBalance}</span>
                           </td>
-                          <td>
+                          <td data-label="שימוש וצריכה">
                             <div className={styles.usageCell}>
                               <div className={styles.usageTotal}>
                                 <span>סה"כ נצרך</span>
@@ -649,13 +684,13 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                               </div>
                             </div>
                           </td>
-                          <td>
+                          <td data-label="פעילות אחרונה">
                             <div className={styles.activityCell}>
                               <strong>{formatDateTime(user.lastUsageDate)}</strong>
                               <span>{user.usageCount} חיובים מצטברים</span>
                             </div>
                           </td>
-                          <td>
+                          <td data-label="עדכון יתרה">
                             <div className={styles.actionsCell}>
                               <div className={styles.adjustCard}>
                                 <div className={styles.adjustCardHeader}>
