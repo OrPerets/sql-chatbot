@@ -291,8 +291,8 @@ const TOPIC_LABELS_HE: Record<string, string> = {
   Filtering: "סינון",
   sorting: "מיון",
   Sorting: "מיון",
-  joins: "לוגיקת JOIN",
-  "JOIN logic": "לוגיקת JOIN",
+  joins: "צירופי טבלאות",
+  "JOIN logic": "צירופי טבלאות",
   grouping_aggregation: "קיבוץ ואגרגציה",
   "Grouping and aggregation": "קיבוץ ואגרגציה",
   subqueries: "תתי-שאילתות",
@@ -326,11 +326,13 @@ function localizeText(value: string | null | undefined) {
 
   let text = value.trim();
   const replacements: Array<[RegExp, string]> = [
+    [/Student is weak on joins\.?/gi, "הסטודנט מתקשה בצירופי טבלאות."],
+    [/Recent attempts still fail\.?/gi, "גם בניסיונות האחרונים הופיע קושי."],
     [/No hint reliance recorded\.?/gi, "לא זוהתה הסתמכות על רמזים."],
     [/(\d+)\s+hint opens recorded\.?/gi, "תועדו $1 פתיחות רמז."],
     [/(\d+)\s+hint opens, first after about\s+(\d+)\s+minutes\.?/gi, "$1 פתיחות רמז, והרמז הראשון נפתח אחרי כ-$2 דקות."],
     [/Confidence\s+(\d+)%\.?/gi, "רמת ביטחון $1%."],
-    [/ai_analysis/gi, "ניתוח AI"],
+    [/ai_analysis/gi, "ניתוח בינה מלאכותית"],
     [/runner_attempts/gi, "ניסיונות בפתרון"],
     [/question_analytics_speed/gi, "מהירות פתרון"],
     [/question_analytics/gi, "אנליטיקת שאלות"],
@@ -375,6 +377,22 @@ function formatDate(value: string | null | undefined) {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+  });
+}
+
+function formatCompactDate(value: string | null | undefined) {
+  if (!value) {
+    return "אין נתון";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "אין נתון";
+  }
+
+  return parsed.toLocaleDateString("he-IL", {
+    month: "short",
+    day: "numeric",
   });
 }
 
@@ -522,6 +540,48 @@ function formatKnowledgeScore(score: KnowledgeScore) {
     default:
       return "ריק";
   }
+}
+
+function getProfilePriority(profile: StudentProfileRow) {
+  const summary = profile.adminSummary;
+
+  if (summary?.flags.needsReview || summary?.riskSummary.level === "high" || profile.riskFactors.riskLevel === "high") {
+    return {
+      label: "לטיפול עכשיו",
+      detail: "דורש החלטת מרצה",
+      className: studentStyles.priorityHigh,
+    };
+  }
+
+  if (summary?.flags.missingSubmissions) {
+    return {
+      label: "חסרות הגשות",
+      detail: `${summary.homeworkCompletion.missing} חסרות`,
+      className: studentStyles.priorityMedium,
+    };
+  }
+
+  if (summary?.flags.staleProfile || summary?.freshnessStatus === "needs_recalculation") {
+    return {
+      label: "לעדכן פרופיל",
+      detail: "הראיות לא עדכניות",
+      className: studentStyles.priorityWarning,
+    };
+  }
+
+  if (summary?.flags.noEvidence) {
+    return {
+      label: "אין מספיק ראיות",
+      detail: "צריך לאסוף נתונים",
+      className: studentStyles.priorityMuted,
+    };
+  }
+
+  return {
+    label: "במעקב תקין",
+    detail: "אין פעולה דחופה",
+    className: studentStyles.priorityLow,
+  };
 }
 
 function getKnowledgeScoreClass(score: KnowledgeScore) {
@@ -826,7 +886,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
         body: JSON.stringify({
           studentId: profile.userId,
           analysisType: "manual",
-          triggerReason: "Manual analysis requested by admin evidence console",
+          triggerReason: "ניתוח ידני ממסך פרופיל הסטודנט",
         }),
       });
       const data = await response.json();
@@ -894,6 +954,40 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
     return Array.from(topicMap.entries()).sort((left, right) => left[1].localeCompare(right[1], "he"));
   }, [profiles]);
 
+  const lecturerFocusCards = useMemo(
+    () => [
+      {
+        key: "needs_review" as OperationalFilter,
+        icon: ShieldAlert,
+        value: analytics?.needsReview ?? 0,
+        title: "לטיפול מרצה",
+        description: "מקרים שדורשים החלטה או בדיקה ידנית",
+      },
+      {
+        key: "missing_submissions" as OperationalFilter,
+        icon: ListChecks,
+        value: analytics?.missingSubmissions ?? 0,
+        title: "חסרות הגשות",
+        description: "סטודנטים שכדאי ליצור איתם קשר",
+      },
+      {
+        key: "stale_profile" as OperationalFilter,
+        icon: Clock3,
+        value: analytics?.staleProfiles ?? 0,
+        title: "לא עדכני",
+        description: "פרופילים שמומלץ לחשב או לרענן",
+      },
+      {
+        key: "no_evidence" as OperationalFilter,
+        icon: Info,
+        value: analytics?.noEvidence ?? 0,
+        title: "אין ראיות",
+        description: "סטודנטים שצריך לאסוף עליהם אותות",
+      },
+    ],
+    [analytics]
+  );
+
   return (
     <div className={studentStyles.studentProfilesContainer}>
       <div className={studentStyles.analyticsSection}>
@@ -925,6 +1019,52 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
           <div className={studentStyles.statLabel}>השלמת מטלות ממוצעת</div>
         </div>
       </div>
+
+      <section className={studentStyles.lecturerFocusSection} aria-label="מעקב מרצה">
+        <div className={studentStyles.focusHeader}>
+          <div>
+            <h2>מעקב מרצה למחזור {academicPeriod.year}/{academicPeriod.semester}</h2>
+            <p>התחילו מהקבוצה הדחופה, פתחו פרופיל, וסמנו פעולה או מטרה בלי לחפש בתוך כל הראיות.</p>
+          </div>
+          <button
+            type="button"
+            className={studentStyles.secondaryActionButton}
+            onClick={() => {
+              setSelectedOperationalFilter("");
+              setSelectedRisk("");
+              setSelectedScore("");
+              setSelectedTopic("");
+              setSortMode("priority");
+              setSearchTerm("");
+            }}
+          >
+            <X size={16} />
+            נקה מיקוד
+          </button>
+        </div>
+        <div className={studentStyles.focusGrid}>
+          {lecturerFocusCards.map((card) => {
+            const Icon = card.icon;
+            const isActive = selectedOperationalFilter === card.key;
+            return (
+              <button
+                key={card.key}
+                type="button"
+                className={`${studentStyles.focusCard} ${isActive ? studentStyles.focusCardActive : ""}`}
+                onClick={() => {
+                  setSelectedOperationalFilter(isActive ? "" : card.key);
+                  setSortMode("priority");
+                }}
+              >
+                <Icon size={18} />
+                <span className={studentStyles.focusValue}>{card.value}</span>
+                <span className={studentStyles.focusTitle}>{card.title}</span>
+                <span className={studentStyles.focusDescription}>{card.description}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       <div className={studentStyles.filtersSection}>
         <div className={studentStyles.filterContext}>
@@ -1007,7 +1147,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
           <RefreshCw size={16} />
           <div className={studentStyles.buttonContent}>
             <div className={studentStyles.buttonTitle}>רענון</div>
-            <div className={studentStyles.buttonDescription}>טען מחדש את רשימת הסטודנטים</div>
+            <div className={studentStyles.buttonDescription}>טען רשימה מחדש</div>
           </div>
         </button>
 
@@ -1017,7 +1157,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
           disabled={actionLoading === "calculate" || loading}
         >
           <BarChart3 size={16} />
-          <span>{actionLoading === "calculate" ? "מחשב..." : "חשב מחדש למחזור"}</span>
+          <span>{actionLoading === "calculate" ? "מחשב..." : "חשב פרופילים"}</span>
         </button>
 
         {onClose ? (
@@ -1040,7 +1180,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
         <div className={studentStyles.tableHeader}>
           <h3 className={studentStyles.tableTitle}>פרופילי סטודנטים למרצה</h3>
           <p className={studentStyles.tableSubtitle}>
-            הטבלה מציגה סיכום פדגוגי למחזור {academicPeriod.year}/{academicPeriod.semester}, כולל מקור הראיות, עדכניות, חסרי הגשה ופעולה מומלצת.
+            כל שורה מציגה החלטה מעשית: מצב, פעולה מומלצת, הגשות, ציון ועדכניות ראיות.
           </p>
         </div>
 
@@ -1066,9 +1206,9 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
               <thead>
                 <tr className={studentStyles.tableHeaderRow}>
                   <th className={studentStyles.tableHeaderCell}>סטודנט</th>
-                  <th className={studentStyles.tableHeaderCell}>סיכון ופעולה מומלצת</th>
-                  <th className={studentStyles.tableHeaderCell}>הגשות וציונים</th>
-                  <th className={studentStyles.tableHeaderCell}>עדכניות וראיות</th>
+                  <th className={studentStyles.tableHeaderCell}>מצב</th>
+                  <th className={studentStyles.tableHeaderCell}>פעולה מומלצת</th>
+                  <th className={studentStyles.tableHeaderCell}>מעקב</th>
                   <th className={studentStyles.tableHeaderCell}>פעולות</th>
                 </tr>
               </thead>
@@ -1078,6 +1218,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                   const summary = profile.adminSummary;
                   const weakTopicLabels = summary?.weakTopics.map((topic) => localizeTopicLabel(topic.label)) || [];
                   const riskLevel = summary?.riskSummary.level ?? profile.riskFactors.riskLevel;
+                  const priority = getProfilePriority(profile);
                   return (
                     <tr key={profile._id} className={studentStyles.tableRow}>
                       <td className={studentStyles.tableCell}>
@@ -1090,27 +1231,32 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                             <div className={studentStyles.studentEmail}>{profile.email}</div>
                             <div className={studentStyles.studentMetaLine}>
                               <span>מחזור {formatAcademicPeriod(summary?.academicPeriod)}</span>
-                              <span>פעילות אחרונה {formatDate(profile.lastActivity)}</span>
-                            </div>
-                            <div className={studentStyles.inlineBadges}>
-                              <span className={`${studentStyles.scoreBadge} ${getKnowledgeScoreClass(profile.knowledgeScore)}`}>
-                                {formatKnowledgeScore(profile.knowledgeScore)}
-                              </span>
-                              <span className={`${studentStyles.riskBadge} ${getRiskClass(riskLevel)}`}>
-                                {formatRiskLevel(riskLevel)}
-                              </span>
-                              {summary?.flags.needsReview ? (
-                                <span className={studentStyles.reviewBadge}>דורש סקירה</span>
-                              ) : null}
+                              <span>פעילות {formatCompactDate(profile.lastActivity)}</span>
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className={studentStyles.tableCell}>
-                        <div className={studentStyles.summaryCell}>
-                          <div className={studentStyles.summaryHeadline}>
-                            {summary?.riskSummary.reason || pedagogicalSummary.headline}
+                        <div className={studentStyles.statusStack}>
+                          <span className={`${studentStyles.priorityBadge} ${priority.className}`}>
+                            {priority.label}
+                          </span>
+                          <span className={studentStyles.priorityDetail}>{priority.detail}</span>
+                          <div className={studentStyles.inlineBadges}>
+                            <span className={`${studentStyles.scoreBadge} ${getKnowledgeScoreClass(profile.knowledgeScore)}`}>
+                              {formatKnowledgeScore(profile.knowledgeScore)}
+                            </span>
+                            <span className={`${studentStyles.riskBadge} ${getRiskClass(riskLevel)}`}>
+                              {formatRiskLevel(riskLevel)}
+                            </span>
+                            {summary?.flags.needsReview ? (
+                              <span className={studentStyles.reviewBadge}>דורש סקירה</span>
+                            ) : null}
                           </div>
+                        </div>
+                      </td>
+                      <td className={studentStyles.tableCell}>
+                        <div className={studentStyles.summaryCell}>
                           <div className={studentStyles.recommendedAction}>
                             <Target size={14} />
                             <span>{summary?.recommendedAction || pedagogicalSummary.detail}</span>
@@ -1118,84 +1264,54 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                           <div className={studentStyles.summaryDetail}>
                             {weakTopicLabels.length > 0
                               ? `נושאים חלשים: ${weakTopicLabels.join(", ")}`
-                              : "אין מספיק נתונים לנושא חלש מובהק"}
-                          </div>
-                          <div className={studentStyles.summaryFooter}>
-                            <span>נבדק: {formatDate(summary?.riskSummary.assessedAt)}</span>
-                            <span>התראות פתוחות: {profile.issueCount}</span>
+                              : summary?.riskSummary.reason || pedagogicalSummary.headline}
                           </div>
                         </div>
                       </td>
                       <td className={studentStyles.tableCell}>
-                        <div className={studentStyles.metricsContainer}>
-                          <div className={studentStyles.metricRow}>
-                            <span className={studentStyles.metricLabel}>הגשות</span>
-                            <span className={studentStyles.metricValue}>{formatHomeworkCompletion(summary)}</span>
+                        <div className={studentStyles.compactMetricGrid}>
+                          <div className={studentStyles.compactMetric}>
+                            <span>הגשות</span>
+                            <strong>{formatHomeworkCompletion(summary)}</strong>
                           </div>
-                          <div className={studentStyles.metricRow}>
-                            <span className={studentStyles.metricLabel}>חסרות</span>
-                            <span className={studentStyles.metricValue}>{summary?.homeworkCompletion.missing ?? "אין מספיק נתונים"}</span>
+                          <div className={studentStyles.compactMetric}>
+                            <span>ממוצע</span>
+                            <strong>{formatScoreSummary(summary, profile.averageGrade)}</strong>
                           </div>
-                          <div className={studentStyles.metricRow}>
-                            <span className={studentStyles.metricLabel}>ממוצע</span>
-                            <span className={studentStyles.metricValue}>{formatScoreSummary(summary, profile.averageGrade)}</span>
+                          <div className={studentStyles.compactMetric}>
+                            <span>חסרות</span>
+                            <strong>{summary?.homeworkCompletion.missing ?? "אין נתון"}</strong>
                           </div>
-                          <div className={studentStyles.metricRow}>
-                            <span className={studentStyles.metricLabel}>מקור ציון</span>
-                            <span className={studentStyles.metricValue}>{formatScoreSource(summary)}</span>
+                          <div className={studentStyles.compactMetric}>
+                            <span>ראיות</span>
+                            <strong>{summary ? summary.evidenceCounts.sourceTypes : "אין נתון"}</strong>
                           </div>
-                          <div className={studentStyles.metricRow}>
-                            <span className={studentStyles.metricLabel}>דיוק רץ</span>
-                            <span className={studentStyles.metricValue}>
-                              {profile.totalQuestions > 0
-                                ? formatAccuracy(profile.correctAnswers, profile.totalQuestions)
-                                : "אין מספיק נתונים"}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className={studentStyles.tableCell}>
-                        <div className={studentStyles.metricsContainer}>
-                          <div className={studentStyles.inlineBadges}>
+                          <div className={studentStyles.compactMetricWide}>
                             <span className={`${studentStyles.metaPill} ${getFreshnessClass(summary?.freshnessStatus)}`}>
                               {formatFreshnessLabel(summary?.freshnessStatus || "unknown")}
                             </span>
-                          </div>
-                          <div className={studentStyles.metricRow}>
-                            <span className={studentStyles.metricLabel}>חושב</span>
-                            <span className={studentStyles.metricValue}>{formatDate(summary?.lastCalculated)}</span>
-                          </div>
-                          <div className={studentStyles.metricRow}>
-                            <span className={studentStyles.metricLabel}>ראיה אחרונה</span>
-                            <span className={studentStyles.metricValue}>{formatDate(summary?.lastEvidenceUpdate)}</span>
-                          </div>
-                          <div className={studentStyles.metricRow}>
-                            <span className={studentStyles.metricLabel}>מקורות</span>
-                            <span className={studentStyles.metricValue}>
-                              {summary ? `${summary.evidenceCounts.sourceTypes} סוגים / ${summary.evidenceCounts.profileEvidenceFields} שדות` : "אין מספיק נתונים"}
-                            </span>
-                          </div>
-                          <div className={studentStyles.metricNote}>
-                            {summary?.freshnessReason || "אין מספיק נתונים על עדכניות הפרופיל"}
+                            <small>חושב {formatCompactDate(summary?.lastCalculated)} · {formatScoreSource(summary)}</small>
                           </div>
                         </div>
                       </td>
                       <td className={studentStyles.tableCell}>
-                        <div className={studentStyles.actions}>
+                        <div className={studentStyles.actionsStack}>
                           <button
-                            className={studentStyles.actionButton}
+                            className={studentStyles.rowActionButton}
                             onClick={() => void openEvidenceConsole(profile)}
-                            title="פתח קונסולת ראיות"
+                            title="פתח פרופיל סטודנט"
                           >
                             <Eye size={16} />
+                            פרופיל
                           </button>
                           <button
-                            className={studentStyles.actionButton}
+                            className={studentStyles.rowActionButton}
                             onClick={() => void handleAnalyzeIssues(profile)}
-                            title="הרץ ניתוח AI מבוסס ראיות"
+                            title="הרץ ניתוח ראיות"
                             disabled={actionLoading === `analyze:${profile.userId}`}
                           >
                             {actionLoading === `analyze:${profile.userId}` ? <RefreshCw size={16} /> : <AlertTriangle size={16} />}
+                            נתח
                           </button>
                         </div>
                       </td>
@@ -1244,7 +1360,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
               >
             <div className={studentStyles.drawerHeader}>
               <div>
-                <h3 className={studentStyles.drawerTitle}>קונסולת ראיות: {selectedProfile.name}</h3>
+                <h3 className={studentStyles.drawerTitle}>פרופיל סטודנט: {selectedProfile.name}</h3>
                 <p className={studentStyles.drawerSubtitle}>{selectedProfile.email}</p>
               </div>
               <button
@@ -1266,7 +1382,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
             {selectedEvidence ? (
               <div className={studentStyles.drawerContent}>
                 <section className={`${studentStyles.consoleSection} ${studentStyles.overviewSection}`}>
-                  <div className={studentStyles.consoleEyebrow}>תקציר על</div>
+                  <div className={studentStyles.consoleEyebrow}>תקציר למרצה</div>
                   <div className={studentStyles.overviewGrid}>
                     <div className={studentStyles.overviewLead}>
                       <h4>{localizeText(selectedEvidence.pedagogicalSummary.headline)}</h4>
@@ -1344,7 +1460,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
 
                 <section className={studentStyles.consoleSection}>
                   <div className={studentStyles.sectionTitleRow}>
-                    <h4>למה אנחנו חושבים כך</h4>
+                    <h4>ראיות מרכזיות</h4>
                     <span className={studentStyles.sectionHint}>ראיות מרכזיות שאפשר גם לאשר או לדחות מתוכן</span>
                   </div>
                   <div className={studentStyles.cardList}>
@@ -1382,7 +1498,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                                   {
                                     actionType: "confirm_weakness",
                                     topic: skill.topic,
-                                    note: `Confirmed from admin evidence console for ${skill.label}`,
+                                    note: `אישור חולשה ממסך פרופיל הסטודנט: ${localizeTopicLabel(skill.label)}`,
                                   },
                                   `confirm:${skill.topic}`
                                 )
@@ -1399,7 +1515,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                                   {
                                     actionType: "dismiss_false_positive",
                                     topic: skill.topic,
-                                    note: `Dismissed as false positive from admin evidence console for ${skill.label}`,
+                                    note: `דחייה כחיובי שגוי ממסך פרופיל הסטודנט: ${localizeTopicLabel(skill.label)}`,
                                   },
                                   `dismiss:${skill.topic}`
                                 )
@@ -1415,8 +1531,13 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                   </div>
                 </section>
 
-                <section className={studentStyles.consoleSection}>
-                  <h4>ניסיונות אחרונים שנכשלו</h4>
+                <details className={studentStyles.detailsSection}>
+                  <summary className={studentStyles.detailsSummary}>
+                    <FileText size={16} />
+                    ראיות נוספות: ניסיונות, רמזים, המלצות ועקיבות
+                  </summary>
+                  <section className={studentStyles.consoleSection}>
+                  <h4>ניסיונות כושלים אחרונים</h4>
                   <div className={studentStyles.cardList}>
                     {selectedEvidence.evidenceConsole.recentFailedAttempts.length === 0 ? (
                       <div className={studentStyles.emptyInlineState}>
@@ -1456,14 +1577,14 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                       </article>
                     ))}
                   </div>
-                </section>
+                  </section>
 
                 <section className={studentStyles.consoleGrid}>
                   <article className={studentStyles.consoleCard}>
                     <div className={studentStyles.cardHeader}>
                       <div>
                         <h5>דפוסי שימוש ברמזים</h5>
-                        <p>כאן רואים אם הסטודנט ניגש מהר מדי לעזרה או רק אחרי רצף כשלונות.</p>
+                        <p>האם הסטודנט פונה לעזרה מהר מדי או אחרי רצף כישלונות.</p>
                       </div>
                       <Wrench size={16} />
                     </div>
@@ -1503,7 +1624,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                       {selectedEvidence.evidenceConsole.chatMisconceptions.length === 0 ? (
                         <div className={studentStyles.emptyInlineState}>
                           <Info size={16} />
-                          <span>אין מיסקונספציות חוזרות שמגובה בצ׳אט או בניתוחים שהושלמו.</span>
+                          <span>אין מיסקונספציות חוזרות שמגובות בצ׳אט או בניתוחים שהושלמו.</span>
                         </div>
                       ) : selectedEvidence.evidenceConsole.chatMisconceptions.map((item) => (
                         <div key={`${item.label}:${item.studentExplanation}`} className={studentStyles.miniCard}>
@@ -1590,7 +1711,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                     <div className={studentStyles.cardHeader}>
                       <div>
                         <h5>עקיבות שדות</h5>
-                        <p>מתי כל שדה התעדכן, מאילו מקורות, ומה היו הראיות הקצרות שהשפיעו עליו.</p>
+                        <p>מתי כל שדה התעדכן ומאילו מקורות.</p>
                       </div>
                       <Clock3 size={16} />
                     </div>
@@ -1618,10 +1739,11 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                     </div>
                   </article>
                 </section>
+                </details>
 
                 <section className={studentStyles.consoleSection}>
                   <div className={studentStyles.sectionTitleRow}>
-                    <h4>פעולות אדמין</h4>
+                    <h4>פעולות מרצה</h4>
                     <span className={studentStyles.sectionHint}>הפעולות נכתבות לפרופיל ומשפיעות על מודל הלומד</span>
                   </div>
                   <div className={studentStyles.actionComposerGrid}>
@@ -1631,7 +1753,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                         id="intervention-draft"
                         value={interventionDraft}
                         onChange={(event) => setInterventionDraft(event.target.value)}
-                        placeholder="למשל: לעבוד השבוע רק עם רמזים תמציתיים ולהתמקד ב-JOINs."
+                        placeholder="למשל: השבוע לעבוד רק עם רמזים תמציתיים ולהתמקד בצירופי טבלאות."
                       />
                       <button
                         className={studentStyles.successButton}
@@ -1642,7 +1764,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                               actionType: "set_temporary_intervention",
                               topic: activeWeakSkills[0]?.topic,
                               intervention: interventionDraft.trim(),
-                              note: "Temporary intervention from admin evidence console",
+                              note: "התערבות זמנית ממסך פרופיל הסטודנט",
                             },
                             "intervention"
                           );
@@ -1670,7 +1792,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                             {
                               actionType: "mark_student_goal",
                               goal: goalDraft.trim(),
-                              note: "Marked from admin evidence console",
+                              note: "מטרה שסומנה ממסך פרופיל הסטודנט",
                             },
                             "goal"
                           );
@@ -1691,7 +1813,7 @@ export default function StudentProfiles({ onClose }: StudentProfilesProps) {
                         void runAdminAction(
                           {
                             actionType: "force_recalibration",
-                            note: "Forced from admin evidence console",
+                            note: "כיול מחדש ממסך פרופיל הסטודנט",
                           },
                           "recalibration"
                         )
