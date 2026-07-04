@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSubmissionById } from "@/lib/submissions";
 import { getHomeworkSetById } from "@/lib/homework";
-import { getQuestionsByHomeworkSet } from "@/lib/questions";
+import { getRenderedQuestionsForStudent } from "@/lib/student-questions";
 import { generateSubmissionPdf } from "@/lib/submission-pdf";
 
 interface RouteParams {
@@ -21,7 +21,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
       return NextResponse.json({ message: "Homework not found" }, { status: 404 });
     }
 
-    const questions = await getQuestionsByHomeworkSet(submission.homeworkSetId);
+    const questions = await getRenderedQuestionsForStudent(submission.homeworkSetId, submission.studentId);
     const pdfBuffer = await generateSubmissionPdf({
       submission,
       questions,

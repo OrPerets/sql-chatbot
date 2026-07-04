@@ -22,6 +22,7 @@ import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider
 import type { Question, QuestionProgress, Submission, SubmissionSummary, SqlAnswer } from "@/app/homework/types";
 import styles from "./grade.module.css";
 import { exportHomeworkGradesToExcel } from "@/lib/excel-export";
+import { getAnswerText, hasAnswerText } from "@/app/homework/utils/answers";
 
 // Comment Bank types
 interface CommentBankEntry {
@@ -79,6 +80,7 @@ interface TestAIResult {
   studentId: string;
   studentName?: string;
   studentIdNumber?: string;
+  studentEmail?: string;
   sql: string;
   result: {
     score: number;
@@ -126,6 +128,30 @@ function resolveQuestionFromLookup(
   lookup: Map<string, Question> | undefined,
 ) {
   return lookup?.get(questionId) ?? (fallback?.templateId ? lookup?.get(fallback.templateId) : undefined) ?? fallback;
+}
+
+function getStudentDisplayName(summary: SubmissionSummary | undefined, fallbackStudentId: string) {
+  return summary?.studentName || summary?.studentEmail || fallbackStudentId;
+}
+
+function StudentIdentifiers({ summary, compact = false }: { summary: SubmissionSummary | undefined; compact?: boolean }) {
+  if (!summary) return null;
+
+  const shouldShowRawId = summary.studentId && summary.studentId !== summary.studentEmail;
+
+  return (
+    <span className={compact ? styles.studentIdentifierListCompact : styles.studentIdentifierList}>
+      {summary.studentIdNumber && (
+        <span className={compact ? styles.studentIdNumberSmall : styles.studentIdNumber}>ת.ז: {summary.studentIdNumber}</span>
+      )}
+      {summary.studentEmail && (
+        <span className={compact ? styles.studentEmailSmall : styles.studentEmail}>{summary.studentEmail}</span>
+      )}
+      {shouldShowRawId && (
+        <span className={compact ? styles.studentIdRawSmall : styles.studentIdRaw}>מזהה מערכת: {summary.studentId}</span>
+      )}
+    </span>
+  );
 }
 
 // Status Badge Component
@@ -568,11 +594,12 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
       });
     }
     
-    // Apply search filter - search by studentId, studentName, and studentIdNumber
+    // Apply search filter - search by system ID, email, name, and ID number
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(summary => 
         summary.studentId.toLowerCase().includes(query) ||
+        (summary.studentEmail && summary.studentEmail.toLowerCase().includes(query)) ||
         (summary.studentName && summary.studentName.toLowerCase().includes(query)) ||
         (summary.studentIdNumber && summary.studentIdNumber.includes(query))
       );
@@ -583,7 +610,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
       let comparison = 0;
       switch (sortField) {
         case "name":
-          comparison = a.studentId.localeCompare(b.studentId);
+          comparison = getStudentDisplayName(a, a.studentId).localeCompare(getStudentDisplayName(b, b.studentId));
           break;
         case "score":
           comparison = (a.overallScore ?? 0) - (b.overallScore ?? 0);
@@ -788,7 +815,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
 
       allSubmissions.forEach((submission) => {
         const answer = submission.answers[question.id] as SqlAnswer | undefined;
-        if (answer?.sql) {
+        if (hasAnswerText(answer)) {
           answeredCount++;
           const score = answer.feedback?.score ?? 0;
           totalScore += score;
@@ -1784,11 +1811,9 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                   onClick={() => setActiveSubmissionId(summary.id)}
                 >
                   <span className={styles.summaryPrimary}>
-                    {summary.studentName || summary.studentId}
+                    {getStudentDisplayName(summary, summary.studentId)}
                   </span>
-                  {summary.studentIdNumber && (
-                    <span className={styles.studentIdNumber}>ת.ז: {summary.studentIdNumber}</span>
-                  )}
+                  <StudentIdentifiers summary={summary} />
                   <StatusBadge status={summary.status} t={t} />
                   <span className={styles.summaryMeta}>
                     {SCORE_FORMATTER.format(summary.overallScore)} נקודות
@@ -1857,13 +1882,9 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                   >
                     <div className={styles.studentGridHeader}>
                       <div className={styles.studentGridName}>
-                        {summary.studentName || summary.studentId}
+                        {getStudentDisplayName(summary, summary.studentId)}
                       </div>
-                      {summary.studentIdNumber && (
-                        <div className={styles.studentGridId}>
-                          ת.ז: {summary.studentIdNumber}
-                        </div>
-                      )}
+                      <StudentIdentifiers summary={summary} />
                     </div>
                     <div className={styles.studentGridScore}>
                       <span className={styles.scoreValue}>
@@ -1881,12 +1902,8 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                 <div className={styles.studentDetailedView}>
                   <header className={styles.detailHeader}>
                     <div>
-                      <h3>{t("builder.grade.submission.by", { studentId: summaries.find(s => s.id === activeSubmissionId)?.studentName || submission.studentId })}</h3>
-                      {summaries.find(s => s.id === activeSubmissionId)?.studentIdNumber && (
-                        <p className={styles.studentIdBadge}>
-                          ת.ז: {summaries.find(s => s.id === activeSubmissionId)?.studentIdNumber}
-                        </p>
-                      )}
+                      <h3>{t("builder.grade.submission.by", { studentId: getStudentDisplayName(activeSubmissionSummary, submission.studentId) })}</h3>
+                      <StudentIdentifiers summary={activeSubmissionSummary} />
                       <p className={styles.detailMeta}>
                         {t("builder.grade.submission.attempt", { number: submission.attemptNumber })} · {t("builder.grade.submission.status", { status: submission.status })}
                       </p>
@@ -1927,7 +1944,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                             <span className={styles.questionPoints}>{draft?.score ?? 0}/{question?.points ?? 0} נקודות</span>
                           </header>
                           <p className={styles.questionInstructions}>{question?.instructions}</p>
-                          <pre className={styles.sqlBlock}>{sqlAnswer.sql || t("builder.grade.noResponse")}</pre>
+                          <pre className={styles.sqlBlock}>{getAnswerText(sqlAnswer) || t("builder.grade.noResponse")}</pre>
                           {sqlAnswer.resultPreview?.rows?.length ? (
                             <div className={styles.resultPreview}>
                               <strong>{t("builder.grade.resultPreview")}</strong>
@@ -2145,12 +2162,8 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                     onChange={() => toggleStudentSelection(submission.id)}
                                   />
                                   <div className={styles.studentInfo}>
-                                    <strong>{summaries.find(s => s.id === submission.id)?.studentName || submission.studentId}</strong>
-                                    {summaries.find(s => s.id === submission.id)?.studentIdNumber && (
-                                      <span className={styles.studentIdNumberSmall}>
-                                        ת.ז: {summaries.find(s => s.id === submission.id)?.studentIdNumber}
-                                      </span>
-                                    )}
+                                    <strong>{getStudentDisplayName(summaries.find(s => s.id === submission.id), submission.studentId)}</strong>
+                                    <StudentIdentifiers summary={summaries.find(s => s.id === submission.id)} compact />
                                   </div>
                                 </label>
                                 <div className={styles.cardHeaderActions}>
@@ -2180,7 +2193,7 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                                     )}
                                   </div>
                                 )}
-                                <pre className={styles.sqlBlock}>{answer?.sql || t("builder.grade.noResponse")}</pre>
+                                <pre className={styles.sqlBlock}>{getAnswerText(answer) || t("builder.grade.noResponse")}</pre>
                                 
                                 {answer?.resultPreview?.rows?.length ? (
                                   <div className={styles.resultPreview}>
@@ -2618,9 +2631,12 @@ export function GradeHomeworkClient({ setId }: GradeHomeworkClientProps) {
                           <div key={result.submissionId} className={styles.testAIResultItem}>
                             <div className={styles.testAIResultHeader}>
                               <div className={styles.testAIResultStudent}>
-                                <strong>{result.studentName || result.studentId}</strong>
+                                <strong>{result.studentName || result.studentEmail || result.studentId}</strong>
                                 {result.studentIdNumber && (
                                   <span className={styles.testAIResultIdNumber}>ת.ז: {result.studentIdNumber}</span>
+                                )}
+                                {result.studentEmail && (
+                                  <span className={styles.testAIResultIdNumber}>{result.studentEmail}</span>
                                 )}
                               </div>
                               <div className={styles.testAIResultScore}>

@@ -1,4 +1,5 @@
 import type { HomeworkSet, Question, Submission } from "@/app/homework/types";
+import { getAnswerText } from "@/app/homework/utils/answers";
 
 // Use puppeteer-core for serverless environments, puppeteer for local development
 let puppeteer: any;
@@ -65,7 +66,7 @@ function generateHtml(options: PdfOptions): string {
 
   const tableRows = questions.map((question) => {
     const answer = submission.answers?.[question.id];
-    const answerText = answer?.sql?.trim() || "";
+    const answerText = getAnswerText(answer).trim();
     
     return `
       <tr>
@@ -86,8 +87,6 @@ function generateHtml(options: PdfOptions): string {
 <head>
   <meta charset="UTF-8">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap');
-    
     * {
       margin: 0;
       padding: 0;
@@ -95,7 +94,7 @@ function generateHtml(options: PdfOptions): string {
     }
     
     body {
-      font-family: 'Heebo', Arial, sans-serif;
+      font-family: Arial, sans-serif;
       font-size: 12px;
       line-height: 1.5;
       color: #1f2937;
@@ -262,7 +261,7 @@ function generateHtmlWithFeedback(options: PdfOptions): string {
   const tableRows = questions
     .map((question) => {
       const answer = submission.answers?.[question.id];
-      const answerText = answer?.sql?.trim() || "";
+      const answerText = getAnswerText(answer).trim();
       const feedback = answer?.feedback;
       const score = typeof feedback?.score === "number" ? feedback.score : null;
       const maxPoints = typeof question.points === "number" ? question.points : null;
@@ -297,8 +296,6 @@ function generateHtmlWithFeedback(options: PdfOptions): string {
 <head>
   <meta charset="UTF-8">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap');
-    
     * {
       margin: 0;
       padding: 0;
@@ -306,7 +303,7 @@ function generateHtmlWithFeedback(options: PdfOptions): string {
     }
     
     body {
-      font-family: 'Heebo', Arial, sans-serif;
+      font-family: Arial, sans-serif;
       font-size: 10px;
       line-height: 1.4;
       color: #1f2937;
@@ -546,7 +543,7 @@ export async function generateSubmissionPdf({
         const browser = await puppeteerFull.launch(launchOptions);
         try {
           const page = await browser.newPage();
-          await page.setContent(html, { waitUntil: "networkidle0" });
+          await page.setContent(html, { waitUntil: "domcontentloaded" });
           const pdfBuffer = await page.pdf({
             format: "A4",
             printBackground: true,
@@ -571,7 +568,7 @@ export async function generateSubmissionPdf({
   
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "domcontentloaded" });
     
     const pdfBuffer = await page.pdf({
       format: "A4",
@@ -655,7 +652,7 @@ export async function generateSubmissionPdfWithFeedback({
         const browser = await puppeteerFull.launch(launchOptions);
         try {
           const page = await browser.newPage();
-          await page.setContent(html, { waitUntil: "networkidle0" });
+          await page.setContent(html, { waitUntil: "domcontentloaded" });
           const pdfBuffer = await page.pdf({
             format: "A4",
             printBackground: true,
@@ -682,7 +679,7 @@ export async function generateSubmissionPdfWithFeedback({
 
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "domcontentloaded" });
 
     const pdfBuffer = await page.pdf({
       format: "A4",

@@ -3,7 +3,7 @@ import { resolve } from 'path'
 import { connectToDatabase, COLLECTIONS } from '../lib/database'
 import { getUsersService } from '../lib/users'
 import { getHomeworkSetById } from '../lib/homework'
-import { getQuestionsByHomeworkSet } from '../lib/questions'
+import { getRenderedQuestionsForStudent } from '../lib/student-questions'
 import { generateSubmissionPdfWithFeedback } from '../lib/submission-pdf'
 import { sendEmail } from '../app/utils/email-service'
 
@@ -49,7 +49,7 @@ async function resendEmailsToAllSubmissionsWithFeedback() {
   }
 
   try {
-    const { db } = await connectToDatabase()
+    const { db, client } = await connectToDatabase()
     const usersService = await getUsersService()
     // Get homework set info
     const homeworkSet = await getHomeworkSetById(homeworkSetId)
@@ -70,16 +70,8 @@ async function resendEmailsToAllSubmissionsWithFeedback() {
 
     if (submissions.length === 0) {
       console.log('✅ No submissions to process')
+      await client.close()
       process.exit(0)
-    }
-
-    // Get questions once (same for all submissions)
-    const questions = await getQuestionsByHomeworkSet(homeworkSetId)
-    console.log(`📝 Found ${questions.length} questions\n`)
-
-    if (questions.length === 0) {
-      console.error('❌ No questions found for this homework set')
-      process.exit(1)
     }
 
     // Get excluded user ID if provided
@@ -123,6 +115,23 @@ async function resendEmailsToAllSubmissionsWithFeedback() {
         }
 
         console.log(`   📬 Sending to: ${user.email}`)
+        const questions = await getRenderedQuestionsForStudent(homeworkSetId, studentId)
+        console.log(`   📝 Found ${questions.length} rendered questions`)
+
+        if (questions.length === 0) {
+          console.error(`   ❌ No questions found for this homework set`)
+          failureCount++
+          continue
+        }
+
+        const unrenderedQuestion = questions.find(
+          question => question.prompt.includes('{{') || question.instructions?.includes('{{')
+        )
+        if (unrenderedQuestion) {
+          console.error(`   ❌ Question still has unresolved placeholders: ${unrenderedQuestion.id}`)
+          failureCount++
+          continue
+        }
 
         // Convert submission document to Submission type
         const submission = {
@@ -202,8 +211,12 @@ async function resendEmailsToAllSubmissionsWithFeedback() {
     console.log(`   📋 Total processed: ${successCount + failureCount + skippedCount}/${submissions.length}`)
 
     if (failureCount > 0) {
+      await client.close()
       process.exit(1)
     }
+
+    await client.close()
+    process.exit(0)
   } catch (error) {
     console.error('❌ Error:', error)
     process.exit(1)

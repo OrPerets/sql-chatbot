@@ -1,0 +1,35 @@
+{
+  "collectionGroup": "homework-questions",
+  "createdAt": "2026-06-15T15:30:21.126Z",
+  "mode": "archive-only",
+  "archiveFile": "/Users/orperetz/Documents/shenkar/sql-chatbot/exports/homework-question-cleanup/exercise3-removed-questions-693d8a930a7ebe39f7099c88-2026-06-15T15-30-21-126Z.json",
+  "archiveSha256": "4d3572e26d837b61fe6128a25d3721598863dada197507dd8cf4fcdc98b67718",
+  "dbName": "experiment",
+  "homeworkSetId": "693d8a930a7ebe39f7099c88",
+  "homeworkSetAppId": "693d8a930a7ebe39f7099c87",
+  "homeworkSetTitle": "תרגיל בית 3",
+  "questionCountBefore": 14,
+  "questionCountAfter": 14,
+  "removedQuestionIds": [
+    "69ac3bd88c3f48ce26e80c5f",
+    "69ac3bd7b158593127a61c8a"
+  ],
+  "removedQuestionObjectIds": [
+    "69ac3bd88c3f48ce26e80c60",
+    "69ac3bd7b158593127a61c8b"
+  ],
+  "questionOrderAfter": [
+    "69ac3bd7b158593127a61c88",
+    "69ac3bd88c3f48ce26e80c69",
+    "69ac3bd88c3f48ce26e80c67",
+    "69ac3bd88c3f48ce26e80c65",
+    "69ac3bd88c3f48ce26e80c63",
+    "69ac3bd88c3f48ce26e80c61",
+    "69ac3bd78c3f48ce26e80c5d",
+    "69ac3bd78c3f48ce26e80c5b",
+    "69ac3bd78c3f48ce26e80c59",
+    "69ac3bd78c3f48ce26e80c55",
+    "69ac3bd6b158593127a61c7e",
+    "69ac3bd68c3f48ce26e80c51"
+  ]
+}

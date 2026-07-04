@@ -4,7 +4,7 @@ import { connectToDatabase, COLLECTIONS } from '../lib/database'
 import { getUsersService } from '../lib/users'
 import { getSubmissionsService } from '../lib/submissions'
 import { getHomeworkSetById } from '../lib/homework'
-import { getQuestionsByHomeworkSet } from '../lib/questions'
+import { getRenderedQuestionsForStudent } from '../lib/student-questions'
 import { generateSubmissionPdf } from '../lib/submission-pdf'
 import { sendEmail } from '../app/utils/email-service'
 import { ObjectId } from 'mongodb'
@@ -45,7 +45,7 @@ async function testSubmissionEmail() {
       console.log(`\n📧 Testing email send to: ${user.email}`)
       
       const homeworkSet = await getHomeworkSetById(submission.homeworkSetId)
-      const questions = await getQuestionsByHomeworkSet(submission.homeworkSetId)
+      const questions = await getRenderedQuestionsForStudent(submission.homeworkSetId, submission.studentId)
       
       const pdfBuffer = await generateSubmissionPdf({
         submission,

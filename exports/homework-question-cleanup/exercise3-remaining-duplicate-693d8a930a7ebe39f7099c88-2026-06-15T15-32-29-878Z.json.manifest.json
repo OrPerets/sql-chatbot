@@ -1,0 +1,11 @@
+{
+  "collectionGroup": "homework-questions",
+  "createdAt": "2026-06-15T15:32:29.878Z",
+  "mode": "archive-and-delete",
+  "archiveFile": "/Users/orperetz/Documents/shenkar/sql-chatbot/exports/homework-question-cleanup/exercise3-remaining-duplicate-693d8a930a7ebe39f7099c88-2026-06-15T15-32-29-878Z.json",
+  "archiveSha256": "00ac2ad36761ec8240e3f6233d5a8304c9d6dc9dca30f8d48431aed50da2eeaa",
+  "homeworkSetId": "693d8a930a7ebe39f7099c88",
+  "removedQuestionId": "69ac3bd88c3f48ce26e80c61",
+  "questionCountAfter": 11,
+  "questionOrderLengthAfter": 11
+}

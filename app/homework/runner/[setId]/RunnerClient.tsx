@@ -20,6 +20,7 @@ import { SubmittedPage } from "./SubmittedPage";
 import Chat from "@/app/components/chat";
 import { InstructionsSection } from "./InstructionsSection";
 import { RelationalAlgebraEditor } from "./RelationalAlgebraEditor";
+import { getAnswerText, hasAnswerText } from "@/app/homework/utils/answers";
 
 import Editor from "@monaco-editor/react";
 
@@ -411,11 +412,9 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
       setEditorValues((prev) => {
         const next: Record<string, string> = { ...prev };
         Object.entries(submissionQuery.data!.answers ?? {}).forEach(([questionId, answer]) => {
-          if (isRelationalAlgebra) {
-            next[questionId] = typeof answer?.expression === "string" ? answer.expression : "";
-          } else {
-            next[questionId] = typeof answer?.sql === "string" ? answer.sql : "";
-          }
+          next[questionId] = isRelationalAlgebra
+            ? getAnswerText(answer)
+            : typeof answer?.sql === "string" ? answer.sql : "";
         });
         return next;
       });
@@ -590,7 +589,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
         studentId,
         answers: {
           [payload.questionId]: isRelationalAlgebra
-            ? { sql: "", expression: payload.sql }
+            ? { sql: payload.sql, expression: payload.sql }
             : { sql: payload.sql },
         },
       }),
@@ -875,7 +874,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
   const answeredCount = useMemo(() =>
     questions.map((question) => question.id).filter((questionId) => {
       const answer = answers[questionId];
-      return Boolean(answer?.sql?.trim()) || Boolean(answer?.feedback?.score);
+      return hasAnswerText(answer) || Boolean(answer?.feedback?.score);
     }).length,
   [answers, questions]);
 
@@ -1163,7 +1162,7 @@ export function RunnerClient({ setId, studentId }: RunnerClientProps) {
                 const qId = question.id;
                 const isActive = qId === activeQuestionId;
                 const answer = answers[qId];
-                const hasAnswer = Boolean(answer?.sql?.trim());
+                const hasAnswer = hasAnswerText(answer);
                 const isCompleted = Boolean(answer?.feedback?.score);
                 const questionNum = index + 1;
 

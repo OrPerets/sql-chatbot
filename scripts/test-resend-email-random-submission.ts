@@ -3,7 +3,7 @@ import { resolve } from 'path'
 import { connectToDatabase, COLLECTIONS } from '../lib/database'
 import { getUsersService } from '../lib/users'
 import { getHomeworkSetById } from '../lib/homework'
-import { getQuestionsByHomeworkSet } from '../lib/questions'
+import { getRenderedQuestionsForStudent } from '../lib/student-questions'
 import { generateSubmissionPdfWithFeedback } from '../lib/submission-pdf'
 import { sendEmail } from '../app/utils/email-service'
 
@@ -43,7 +43,7 @@ async function testResendEmailRandomSubmission() {
   console.log(`   📬 Test email will be sent to: ${TEST_EMAIL}\n`)
 
   try {
-    const { db } = await connectToDatabase()
+    const { db, client } = await connectToDatabase()
     const usersService = await getUsersService()
     
     // Get homework set info
@@ -68,15 +68,6 @@ async function testResendEmailRandomSubmission() {
       process.exit(0)
     }
 
-    // Get questions once (same for all submissions)
-    const questions = await getQuestionsByHomeworkSet(homeworkSetId)
-    console.log(`📝 Found ${questions.length} questions\n`)
-
-    if (questions.length === 0) {
-      console.error('❌ No questions found for this homework set')
-      process.exit(1)
-    }
-
     // Randomly select one submission
     const randomIndex = Math.floor(Math.random() * submissions.length)
     const submissionDoc = submissions[randomIndex]
@@ -98,6 +89,21 @@ async function testResendEmailRandomSubmission() {
 
       console.log(`   👤 Original student: ${user.name || 'Unknown'} (${user.email || 'No email'})`)
       console.log(`   📬 Sending to test email: ${TEST_EMAIL}`)
+      const questions = await getRenderedQuestionsForStudent(homeworkSetId, studentId)
+      console.log(`   📝 Found ${questions.length} rendered questions`)
+
+      if (questions.length === 0) {
+        console.error('   ❌ No questions found for this homework set')
+        process.exit(1)
+      }
+
+      const unrenderedQuestion = questions.find(
+        question => question.prompt.includes('{{') || question.instructions?.includes('{{')
+      )
+      if (unrenderedQuestion) {
+        console.error(`   ❌ Question still has unresolved placeholders: ${unrenderedQuestion.id}`)
+        process.exit(1)
+      }
 
       // Convert submission document to Submission type
       const submission = {
@@ -162,6 +168,8 @@ async function testResendEmailRandomSubmission() {
         console.log(`   ✅ Successfully sent: 1`)
         console.log(`   📋 Total submissions available: ${submissions.length}`)
         console.log(`   🎲 Selected submission: ${submissionId}`)
+        await client.close()
+        process.exit(0)
       } else {
         console.error(`   ❌ Failed to send email`)
         process.exit(1)

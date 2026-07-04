@@ -1,0 +1,165 @@
+{
+  "metadata": {
+    "createdAt": "2026-06-15T15:30:21.126Z",
+    "mode": "archive-only",
+    "dbName": "experiment",
+    "homeworkSet": {
+      "_id": {
+        "$oid": "693d8a930a7ebe39f7099c88"
+      },
+      "id": "693d8a930a7ebe39f7099c87",
+      "title": "תרגיל בית 3",
+      "courseId": "sql-course",
+      "dueAt": "2026-06-23T23:59",
+      "published": true,
+      "datasetPolicy": "shared",
+      "questionOrder": [
+        "69ac3bd7b158593127a61c88",
+        "69ac3bd88c3f48ce26e80c69",
+        "69ac3bd88c3f48ce26e80c67",
+        "69ac3bd88c3f48ce26e80c65",
+        "69ac3bd88c3f48ce26e80c63",
+        "69ac3bd88c3f48ce26e80c61",
+        "69ac3bd88c3f48ce26e80c5f",
+        "69ac3bd7b158593127a61c8a",
+        "69ac3bd78c3f48ce26e80c5d",
+        "69ac3bd78c3f48ce26e80c5b",
+        "69ac3bd78c3f48ce26e80c59",
+        "69ac3bd78c3f48ce26e80c55",
+        "69ac3bd6b158593127a61c7e",
+        "69ac3bd68c3f48ce26e80c51"
+      ],
+      "visibility": "published",
+      "createdBy": "admin",
+      "overview": "",
+      "backgroundStory": "בתרגיל זה, עליכם לבנות מסד נתונים הקשור לניהול מערכת סטודנטים וקורסים במכללה. הנכם מגלמים תפקיד של מנהל/מנהלת מערכת קורסים במכללה האחראי/ת על ניהול קורסים, סטודנטים, מרצים ונרשמים לקורסים. מסד הנתונים שלכם יכלול 4 טבלאות:\n\n1) מידע על הסטודנטים:\nStudents (StudentID, FirstName, LastName, BirthDate, City, Email)\n\n2) מידע על הקורסים:\nCourses (CourseID, CourseName, Credits, Department)\n\n3) מידע על המרצים:\nLecturers (LecturerID, FirstName, LastName, City, HireDate, CourseID, Seniority)\n\n4) מידע על נתוני הנרשמים:\nEnrollments (StudentID, CourseID, EnrollmentDate, Grade)\n\nעמודת credits מייצגת את כמות נקודות הזכות שהסטודנט יקבל בסיום הקורס.",
+      "createdAt": "2025-12-13T15:47:31.679Z",
+      "updatedAt": "2026-06-11T13:19:07.262Z",
+      "selectedDatasetId": "69417d6f635615724d81a82e",
+      "availableFrom": "2026-06-17T08:00",
+      "availableUntil": "2026-06-23T23:59"
+    },
+    "aliases": [
+      "693d8a930a7ebe39f7099c88",
+      "693d8a930a7ebe39f7099c87"
+    ],
+    "removedQuestions": [
+      {
+        "displayedNumber": 7,
+        "reason": "unclear question requested for deletion",
+        "id": "69ac3bd88c3f48ce26e80c5f",
+        "_id": "69ac3bd88c3f48ce26e80c60",
+        "prompt": "הנהלת המכללה החליטה לקבל את ערעור הסטודנטים שלומדים במחלקת מדעי המחשב במבחן סיום בקורס Introduction to CS והעניקה לסטודנטים פקטור של 10% לציון המקורי לסטודנטים שנבחנו גם בקורס Introduction to CS וגם בקורס Calculus I בשל הקרבה של מועדי הבחינה. לאור כך עליכם להציג את רשימת כל הסטודנטים שלמדו קורסים במחלקת \"מדעי המחשב\" ונבחנו גם בקורס Calculus I, את תעודת זהות הסטודנט ואת הציון המעודכן. מיינו את הרשימה לפי הציון לאחר הפקטור מהגבוה לנמוך, ולאחר מכן לפי שם המחלקה בסדר אלפביתי.",
+        "instructions": "סכמה: תעודת זהות סטודנט, ציון מעודכן, מחלקה"
+      },
+      {
+        "displayedNumber": 8,
+        "reason": "duplicate of question 5",
+        "id": "69ac3bd7b158593127a61c8a",
+        "_id": "69ac3bd7b158593127a61c8b",
+        "prompt": "א. עדכנו את הציונים של כל הסטודנטים בקורס \"Calculus I\" כך שיתווסף להם פקטור של 6 נקודות וזאת רק עבור הסטודנטים בעלי ציון הנמוך מ-70.\nב. לאחר מכן, הציגו את תעודת הזהות של הסטודנט, שם הקורס, הציון הקודם, והציון החדש לאחר העדכון – בהנחה ועודכן.",
+        "instructions": "סכמה: תעודת הזהות של הסטודנט, שם הקורס, הציון הקודם, הציון החדש לאחר העדכון"
+      }
+    ],
+    "questionOrderBefore": [
+      "69ac3bd7b158593127a61c88",
+      "69ac3bd88c3f48ce26e80c69",
+      "69ac3bd88c3f48ce26e80c67",
+      "69ac3bd88c3f48ce26e80c65",
+      "69ac3bd88c3f48ce26e80c63",
+      "69ac3bd88c3f48ce26e80c61",
+      "69ac3bd88c3f48ce26e80c5f",
+      "69ac3bd7b158593127a61c8a",
+      "69ac3bd78c3f48ce26e80c5d",
+      "69ac3bd78c3f48ce26e80c5b",
+      "69ac3bd78c3f48ce26e80c59",
+      "69ac3bd78c3f48ce26e80c55",
+      "69ac3bd6b158593127a61c7e",
+      "69ac3bd68c3f48ce26e80c51"
+    ],
+    "questionOrderAfter": [
+      "69ac3bd7b158593127a61c88",
+      "69ac3bd88c3f48ce26e80c69",
+      "69ac3bd88c3f48ce26e80c67",
+      "69ac3bd88c3f48ce26e80c65",
+      "69ac3bd88c3f48ce26e80c63",
+      "69ac3bd88c3f48ce26e80c61",
+      "69ac3bd78c3f48ce26e80c5d",
+      "69ac3bd78c3f48ce26e80c5b",
+      "69ac3bd78c3f48ce26e80c59",
+      "69ac3bd78c3f48ce26e80c55",
+      "69ac3bd6b158593127a61c7e",
+      "69ac3bd68c3f48ce26e80c51"
+    ]
+  },
+  "questions": [
+    {
+      "_id": {
+        "$oid": "69ac3bd88c3f48ce26e80c60"
+      },
+      "id": "69ac3bd88c3f48ce26e80c5f",
+      "homeworkSetId": "693d8a930a7ebe39f7099c88",
+      "prompt": "הנהלת המכללה החליטה לקבל את ערעור הסטודנטים שלומדים במחלקת מדעי המחשב במבחן סיום בקורס Introduction to CS והעניקה לסטודנטים פקטור של 10% לציון המקורי לסטודנטים שנבחנו גם בקורס Introduction to CS וגם בקורס Calculus I בשל הקרבה של מועדי הבחינה. לאור כך עליכם להציג את רשימת כל הסטודנטים שלמדו קורסים במחלקת \"מדעי המחשב\" ונבחנו גם בקורס Calculus I, את תעודת זהות הסטודנט ואת הציון המעודכן. מיינו את הרשימה לפי הציון לאחר הפקטור מהגבוה לנמוך, ולאחר מכן לפי שם המחלקה בסדר אלפביתי.",
+      "instructions": "סכמה: תעודת זהות סטודנט, ציון מעודכן, מחלקה",
+      "expectedOutputDescription": "הפלט הצפוי צריך לכלול את העמודות: תעודת זהות סטודנט, ציון מעודכן, מחלקה.",
+      "starterSql": "SELECT e.StudentID, (e.Grade * 1.1) AS UpdatedGrade, c.Department FROM Enrollments e JOIN Courses c ON e.CourseID = c.CourseID WHERE c.Department = 'מדעי המחשב' AND e.StudentID IN (SELECT e2.StudentID FROM Enrollments e2 JOIN Courses c2 ON e2.CourseID = c2.CourseID WHERE c2.CourseName = 'Calculus I') ORDER BY UpdatedGrade DESC, c.Department ASC",
+      "expectedResultSchema": [
+        {
+          "column": "תעודת זהות סטודנט",
+          "type": "string"
+        },
+        {
+          "column": "ציון מעודכן",
+          "type": "number"
+        },
+        {
+          "column": "מחלקה",
+          "type": "string"
+        }
+      ],
+      "gradingRubric": [],
+      "datasetId": "69417d6f635615724d81a82e",
+      "maxAttempts": 3,
+      "points": 8,
+      "evaluationMode": "auto",
+      "updatedAt": "2026-06-11T13:19:02.172Z",
+      "isTemplate": false
+    },
+    {
+      "_id": {
+        "$oid": "69ac3bd7b158593127a61c8b"
+      },
+      "id": "69ac3bd7b158593127a61c8a",
+      "homeworkSetId": "693d8a930a7ebe39f7099c88",
+      "prompt": "א. עדכנו את הציונים של כל הסטודנטים בקורס \"Calculus I\" כך שיתווסף להם פקטור של 6 נקודות וזאת רק עבור הסטודנטים בעלי ציון הנמוך מ-70.\nב. לאחר מכן, הציגו את תעודת הזהות של הסטודנט, שם הקורס, הציון הקודם, והציון החדש לאחר העדכון – בהנחה ועודכן.",
+      "instructions": "סכמה: תעודת הזהות של הסטודנט, שם הקורס, הציון הקודם, הציון החדש לאחר העדכון",
+      "expectedOutputDescription": "הפלט הצפוי צריך לכלול את העמודות: תעודת זהות, שם הקורס, ציון קודם, ציון חדש.",
+      "starterSql": "UPDATE Enrollments SET Grade = Grade + 6 WHERE CourseID = (SELECT CourseID FROM Courses WHERE CourseName = 'Calculus I') AND Grade < 70; SELECT e.StudentID, c.CourseName, e.Grade - 6 AS PreviousGrade, e.Grade AS NewGrade FROM Enrollments e JOIN Courses c ON e.CourseID = c.CourseID WHERE c.CourseName = 'Calculus I' AND e.Grade >= 70;",
+      "expectedResultSchema": [
+        {
+          "column": "תעודת זהות",
+          "type": "string"
+        },
+        {
+          "column": "שם הקורס",
+          "type": "string"
+        },
+        {
+          "column": "ציון קודם",
+          "type": "number"
+        },
+        {
+          "column": "ציון חדש",
+          "type": "number"
+        }
+      ],
+      "gradingRubric": [],
+      "datasetId": "69417d6f635615724d81a82e",
+      "maxAttempts": 3,
+      "points": 8,
+      "evaluationMode": "auto",
+      "updatedAt": "2026-06-11T13:19:02.260Z",
+      "isTemplate": false
+    }
+  ]
+}

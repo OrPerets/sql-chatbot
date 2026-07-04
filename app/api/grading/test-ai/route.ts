@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSubmissionSummaries, getSubmissionById } from "@/lib/submissions";
 import { getQuestionsByHomeworkSet } from "@/lib/questions";
+import { getHomeworkSetById } from "@/lib/homework";
 import { evaluateAnswer, type AIGradingInput } from "@/lib/ai-grading";
 import type { Question, Submission, SqlAnswer } from "@/app/homework/types";
+import { getAnswerText, hasAnswerText } from "@/app/homework/utils/answers";
 
 interface TestAIRequest {
   homeworkSetId: string;
@@ -14,6 +16,7 @@ interface TestAIResult {
   studentId: string;
   studentName?: string;
   studentIdNumber?: string;
+  studentEmail?: string;
   sql: string;
   result: {
     score: number;
@@ -49,6 +52,8 @@ export async function POST(request: Request) {
     // Get the specific question
     const questions = await getQuestionsByHomeworkSet(homeworkSetId);
     const question = questions.find((q) => q.id === questionId);
+    const homeworkSet = await getHomeworkSetById(homeworkSetId);
+    const answerType = homeworkSet?.homeworkType === "relational_algebra" ? "relational_algebra" : "sql";
     
     if (!question) {
       return NextResponse.json(
@@ -79,10 +84,11 @@ export async function POST(request: Request) {
 
         const answer = submission.answers[questionId] as SqlAnswer | undefined;
         
-        // Skip if no SQL was submitted
-        if (!answer?.sql?.trim()) {
+        // Skip if no answer was submitted.
+        if (!hasAnswerText(answer)) {
           continue;
         }
+        const studentSql = getAnswerText(answer);
 
         // Prepare grading input
         const gradingInput: AIGradingInput = {
@@ -90,6 +96,7 @@ export async function POST(request: Request) {
           questionPrompt: question.prompt,
           questionInstructions: question.instructions,
           referenceSql: question.starterSql,
+          answerType,
           expectedSchema: question.expectedResultSchema || [],
           maxPoints: question.points || 10,
           rubricCriteria: (question.gradingRubric || []).map((r) => ({
@@ -98,7 +105,7 @@ export async function POST(request: Request) {
             description: r.description,
             weight: r.weight,
           })),
-          studentSql: answer.sql,
+          studentSql,
           studentResults: answer.resultPreview
             ? {
                 columns: answer.resultPreview.columns,
@@ -115,7 +122,8 @@ export async function POST(request: Request) {
           studentId: submission.studentId,
           studentName: summary.studentName,
           studentIdNumber: summary.studentIdNumber,
-          sql: answer.sql,
+          studentEmail: summary.studentEmail,
+          sql: studentSql,
           result: {
             score: aiResult.score,
             comment: aiResult.comment,

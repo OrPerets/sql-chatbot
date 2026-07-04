@@ -4,6 +4,7 @@ import { getQuestionsByHomeworkSet } from "@/lib/questions";
 import { getHomeworkSetById } from "@/lib/homework";
 import { evaluateSubmission, type AIGradingInput, type BulkGradingResult } from "@/lib/ai-grading";
 import type { HomeworkType, Question, Submission, SqlAnswer } from "@/app/homework/types";
+import { getAnswerText, hasAnswerText } from "@/app/homework/utils/answers";
 
 interface AIEvaluateRequest {
   homeworkSetId: string;
@@ -39,10 +40,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get homework set to determine type
     const homeworkSet = await getHomeworkSetById(homeworkSetId);
-    const hwType: HomeworkType = (homeworkSet?.homeworkType as HomeworkType) || "sql";
-    const isRA = hwType === "relational_algebra";
+    const hwType: HomeworkType = homeworkSet?.homeworkType === "relational_algebra" ? "relational_algebra" : "sql";
+    const answerType = hwType;
+    console.log("[AI Grading] Answer type:", answerType);
 
     // Get all questions for this homework set
     const questions = await getQuestionsByHomeworkSet(homeworkSetId);
@@ -122,13 +123,11 @@ export async function POST(request: Request) {
 
           const sqlAnswer = answer as SqlAnswer;
           
-          // Skip if no answer was submitted
-          const hasAnswer = isRA
-            ? !!sqlAnswer.expression?.trim()
-            : !!sqlAnswer.sql?.trim();
-          if (!hasAnswer) {
+          // Skip if no answer was submitted.
+          if (!hasAnswerText(sqlAnswer)) {
             continue;
           }
+          const studentSql = getAnswerText(sqlAnswer);
 
           let combinedInstructions = question.instructions;
           if (additionalGradingInstructions?.trim()) {
@@ -140,6 +139,7 @@ export async function POST(request: Request) {
             questionPrompt: question.prompt,
             questionInstructions: combinedInstructions,
             referenceSql: question.starterSql,
+            answerType,
             expectedSchema: question.expectedResultSchema || [],
             maxPoints: question.points || 10,
             rubricCriteria: (question.gradingRubric || []).map((r) => ({
@@ -148,7 +148,7 @@ export async function POST(request: Request) {
               description: r.description,
               weight: r.weight,
             })),
-            studentSql: sqlAnswer.sql,
+            studentSql,
             studentResults: sqlAnswer.resultPreview
               ? {
                   columns: sqlAnswer.resultPreview.columns,

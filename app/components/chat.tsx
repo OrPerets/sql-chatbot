@@ -913,6 +913,7 @@ const Chat = ({
 
   const [currentAssistantMessageId, setCurrentAssistantMessageId] = useState<string>("");
   const streamingTextRef = useRef<string>("");
+  const assistantPersistTextRef = useRef<string>("");
   const progressiveSpeechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const speechDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const speechControllerRef = useRef(initialSpeechControllerState);
@@ -2907,6 +2908,7 @@ const loadChatMessages = (chatId: string) => {
       "";
 
     setMessages(uniqueItems);
+    currentChatIdRef.current = chatId;
     setCurrentChatId(chatId);
     currentChatIdRef.current = chatId;
     sessionIdRef.current = restoredSessionId;
@@ -2955,6 +2957,7 @@ const loadChatMessages = (chatId: string) => {
     speechDispatch({ type: 'SET_STREAMING', streaming: true });
     flushAll('flush');
     streamingTextRef.current = "";
+    assistantPersistTextRef.current = "";
     tutorRawResponseRef.current = "";
     // Create a stable message id for this assistant message
     setCurrentAssistantMessageId(`${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -2986,6 +2989,7 @@ const loadChatMessages = (chatId: string) => {
       const step = text.length > 900 ? 8 : text.length > 450 ? 5 : 3;
       for (let i = 0; i < text.length; i += step) {
         const chunk = text.slice(i, i + step);
+        assistantPersistTextRef.current += chunk;
         setMessages((prevMessages) => {
           const lastMessage = prevMessages[prevMessages.length - 1];
           if (!lastMessage) return prevMessages;
@@ -3183,6 +3187,7 @@ const loadChatMessages = (chatId: string) => {
   };
 
   const setLastAssistantMessageText = (text: string) => {
+    assistantPersistTextRef.current = text;
     setMessages((prevMessages) => {
       const lastMessage = prevMessages[prevMessages.length - 1];
       if (!lastMessage) return prevMessages;
@@ -3221,6 +3226,7 @@ const loadChatMessages = (chatId: string) => {
     const formattedText = buildTutorResponseText(tutorResponse);
 
     if (progressive) {
+      assistantPersistTextRef.current = "";
       setMessages((prevMessages) => {
         const lastMessage = prevMessages[prevMessages.length - 1];
         if (!lastMessage) {
@@ -3259,6 +3265,7 @@ const loadChatMessages = (chatId: string) => {
       };
 
       if (lastMessage.role === "assistant") {
+        assistantPersistTextRef.current = formattedText;
         setLastAssistantMessage(formattedText);
         if (onAssistantResponse) {
           onAssistantResponse(formattedText);
@@ -3274,6 +3281,7 @@ const loadChatMessages = (chatId: string) => {
     
     // Track last assistant message for speech synthesis
     if (role === 'assistant') {
+      assistantPersistTextRef.current = text;
       setLastAssistantMessage(text);
       
       // Notify parent component about assistant response for avatar interaction
@@ -3356,6 +3364,7 @@ const loadChatMessages = (chatId: string) => {
   }
 
   const openNewChat = () => {
+    currentChatIdRef.current = null;
     setCurrentChatId(null);
     setMessages([]);
     setStreamError(null);

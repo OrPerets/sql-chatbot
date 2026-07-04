@@ -35,6 +35,7 @@ const EXTENDED_DEADLINE_USERS = [
 const HOMEWORK_ACCESS_ADMIN_EMAILS = [
   'orperets11@gmail.com',
   'roeizer@shenkar.ac.il',
+  'talushka7@gmail.com',
 ] as const;
 
 // Extension duration in milliseconds (2 days)
@@ -47,6 +48,34 @@ const PERSONAL_ACCESS_OVERRIDES = [
     titleMatchers: [/^תרגיל בית 1$/, /^HW1\b/i],
     availableFrom: '2026-05-16T00:00:00.000+03:00',
     availableUntil: '2026-05-23T23:59:59.999+03:00',
+  },
+  {
+    email: 'taltol2311@gmail.com',
+    homeworkIds: ['693d8a930a7ebe39f7099c88', '693d8a930a7ebe39f7099c87'],
+    titleMatchers: [/^תרגיל בית 3$/, /^תרגיל 3$/, /^HW3\b/i],
+    availableFrom: '2026-06-24T00:00:00.000+03:00',
+    availableUntil: '2026-06-26T23:59:59.999+03:00',
+  },
+  {
+    email: 'elay83832@gmail.com',
+    homeworkIds: ['693d8a930a7ebe39f7099c88', '693d8a930a7ebe39f7099c87'],
+    titleMatchers: [/^תרגיל בית 3$/, /^תרגיל 3$/, /^HW3\b/i],
+    availableFrom: '2026-06-24T00:00:00.000+03:00',
+    availableUntil: '2026-06-30T23:59:59.999+03:00',
+  },
+  {
+    email: 'zaguri000@gmail.com',
+    homeworkIds: ['693d8a930a7ebe39f7099c88', '693d8a930a7ebe39f7099c87'],
+    titleMatchers: [/^תרגיל בית 3$/, /^תרגיל 3$/, /^HW3\b/i],
+    availableFrom: '2026-06-27T00:00:00.000+03:00',
+    availableUntil: '2026-06-28T23:59:59.999+03:00',
+  },
+  {
+    email: 'ronibitterman81@gmail.com',
+    homeworkIds: ['693d8a930a7ebe39f7099c88', '693d8a930a7ebe39f7099c87'],
+    titleMatchers: [/^תרגיל בית 3$/, /^תרגיל 3$/, /^HW3\b/i],
+    availableFrom: '2026-07-01T00:00:00.000+03:00',
+    availableUntil: '2026-07-05T23:59:59.999+03:00',
   },
 ] as const;
 

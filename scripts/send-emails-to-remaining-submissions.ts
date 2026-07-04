@@ -4,7 +4,7 @@ import { connectToDatabase, COLLECTIONS } from '../lib/database'
 import { getUsersService } from '../lib/users'
 import { getSubmissionsService } from '../lib/submissions'
 import { getHomeworkSetById } from '../lib/homework'
-import { getQuestionsByHomeworkSet } from '../lib/questions'
+import { getRenderedQuestionsForStudent } from '../lib/student-questions'
 import { generateSubmissionPdf } from '../lib/submission-pdf'
 import { sendEmail } from '../app/utils/email-service'
 import { ObjectId } from 'mongodb'
@@ -81,15 +81,6 @@ async function sendEmailsToRemainingSubmissions() {
       process.exit(0)
     }
     
-    // Get questions once (same for all submissions)
-    const questions = await getQuestionsByHomeworkSet(homeworkSetId)
-    console.log(`📝 Found ${questions.length} questions\n`)
-    
-    if (questions.length === 0) {
-      console.error('❌ No questions found for this homework set')
-      process.exit(1)
-    }
-    
     // Get user info for each submission and filter out already sent
     const submissionsToProcess: Array<{
       submissionDoc: any
@@ -149,6 +140,15 @@ async function sendEmailsToRemainingSubmissions() {
       console.log(`   📬 Sending to: ${email}`)
       
       try {
+        const questions = await getRenderedQuestionsForStudent(homeworkSetId, submissionDoc.studentId)
+        console.log(`   📝 Found ${questions.length} rendered questions`)
+
+        if (questions.length === 0) {
+          console.error(`   ❌ No questions found for this homework set`)
+          failureCount++
+          continue
+        }
+
         // Convert submission document to Submission type
         const submission = {
           id: submissionId,

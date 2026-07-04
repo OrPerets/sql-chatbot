@@ -1,6 +1,7 @@
 import { Db, ObjectId } from 'mongodb';
 import { connectToDatabase, COLLECTIONS } from './database';
 import { generateId } from './models';
+import { buildHomeworkSetIdQuery, isObjectIdString } from './homework-set-ids';
 import type { 
   Submission, 
   SubmissionSummary,
@@ -10,12 +11,7 @@ import type {
   SaveSubmissionDraftPayload
 } from '@/app/homework/types';
 import type { SubmissionModel } from './models';
-
-const OBJECT_ID_PATTERN = /^[0-9a-fA-F]{24}$/;
-
-function isObjectIdString(value: string): boolean {
-  return OBJECT_ID_PATTERN.test(value);
-}
+import { getAnswerText, hasAnswerText } from '@/app/homework/utils/answers';
 
 function buildSubmissionIdQuery(submissionId: string) {
   const conditions: any[] = [{ id: submissionId }];
@@ -44,10 +40,6 @@ function buildSubmissionIdsQuery(submissionIds: string[]) {
   return conditions.length > 0 ? { $or: conditions } : { id: { $in: [] } };
 }
 
-function buildHomeworkSetIdQuery(homeworkSetId: string) {
-  return { homeworkSetId };
-}
-
 function normalizeSubmission(submission: SubmissionModel): Submission {
   return {
     id: submission._id?.toString() || submission.id,
@@ -66,6 +58,207 @@ function normalizeSubmission(submission: SubmissionModel): Submission {
   };
 }
 
+function normalizeAnswerForStorage(answer: any): any {
+  if (!answer) return { sql: "" };
+  const answerText = getAnswerText(answer);
+  return {
+    ...answer,
+    sql: answerText || answer.sql || "",
+  };
+}
+
+function normalizeAnswersForStorage(answers: Record<string, any> | undefined): Record<string, any> {
+  return Object.fromEntries(
+    Object.entries(answers || {}).map(([questionId, answer]) => [questionId, normalizeAnswerForStorage(answer)]),
+  );
+}
+
+type ScalarSqlExecutor = (sql: string) => unknown;
+
+function toSqlScalarLiteral(value: unknown): string {
+  if (value === null || value === undefined) return 'NULL';
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'NULL';
+  if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function findMatchingParen(sql: string, openIndex: number): number {
+  let depth = 0;
+  let quote: string | null = null;
+
+  for (let i = openIndex; i < sql.length; i += 1) {
+    const char = sql[i];
+    const nextChar = sql[i + 1];
+
+    if (quote) {
+      if (char === quote) {
+        if (quote === "'" && nextChar === "'") {
+          i += 1;
+        } else {
+          quote = null;
+        }
+      }
+      continue;
+    }
+
+    if (char === "'" || char === '"' || char === '`') {
+      quote = char;
+      continue;
+    }
+
+    if (char === '(') {
+      depth += 1;
+    } else if (char === ')') {
+      depth -= 1;
+      if (depth === 0) {
+        return i;
+      }
+    }
+  }
+
+  return -1;
+}
+
+function splitTopLevelArgs(argsText: string): string[] {
+  const args: string[] = [];
+  let start = 0;
+  let depth = 0;
+  let quote: string | null = null;
+
+  for (let i = 0; i < argsText.length; i += 1) {
+    const char = argsText[i];
+    const nextChar = argsText[i + 1];
+
+    if (quote) {
+      if (char === quote) {
+        if (quote === "'" && nextChar === "'") {
+          i += 1;
+        } else {
+          quote = null;
+        }
+      }
+      continue;
+    }
+
+    if (char === "'" || char === '"' || char === '`') {
+      quote = char;
+      continue;
+    }
+
+    if (char === '(') {
+      depth += 1;
+    } else if (char === ')') {
+      depth -= 1;
+    } else if (char === ',' && depth === 0) {
+      args.push(argsText.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+
+  args.push(argsText.slice(start).trim());
+  return args;
+}
+
+function unwrapScalarSubquery(arg: string): string | null {
+  const trimmed = arg.trim().replace(/;\s*$/, '');
+  if (!trimmed.startsWith('(')) return null;
+
+  const closeIndex = findMatchingParen(trimmed, 0);
+  if (closeIndex !== trimmed.length - 1) return null;
+
+  const inner = trimmed.slice(1, -1).trim().replace(/;\s*$/, '');
+  return /^select\b/i.test(inner) ? inner : null;
+}
+
+function firstScalarValue(result: unknown): unknown {
+  if (!Array.isArray(result)) {
+    return result;
+  }
+
+  if (result.length === 0) {
+    return null;
+  }
+
+  const firstRow = result[0];
+  if (firstRow && typeof firstRow === 'object' && !Array.isArray(firstRow)) {
+    const [firstKey] = Object.keys(firstRow);
+    return firstKey ? (firstRow as Record<string, unknown>)[firstKey] : null;
+  }
+
+  return firstRow;
+}
+
+export function rewriteStrcmpScalarSubqueries(sql: string, executeScalarSql: ScalarSqlExecutor): string {
+  const strcmpCallRegex = /\bSTRCMP\s*\(/gi;
+  let rewrittenSql = '';
+  let cursor = 0;
+  let madeReplacement = false;
+  let match: RegExpExecArray | null;
+
+  while ((match = strcmpCallRegex.exec(sql)) !== null) {
+    const openIndex = match.index + match[0].lastIndexOf('(');
+    const closeIndex = findMatchingParen(sql, openIndex);
+    if (closeIndex === -1) {
+      break;
+    }
+
+    const args = splitTopLevelArgs(sql.slice(openIndex + 1, closeIndex));
+    if (args.length !== 2) {
+      strcmpCallRegex.lastIndex = closeIndex + 1;
+      continue;
+    }
+
+    let changed = false;
+    const rewrittenArgs = args.map((arg) => {
+      const scalarSubquery = unwrapScalarSubquery(arg);
+      if (!scalarSubquery) {
+        return arg;
+      }
+
+      changed = true;
+      return toSqlScalarLiteral(firstScalarValue(executeScalarSql(scalarSubquery)));
+    });
+
+    if (changed) {
+      rewrittenSql += sql.slice(cursor, match.index);
+      rewrittenSql += `STRCMP(${rewrittenArgs.join(', ')})`;
+      cursor = closeIndex + 1;
+      madeReplacement = true;
+    }
+
+    strcmpCallRegex.lastIndex = closeIndex + 1;
+  }
+
+  return madeReplacement ? rewrittenSql + sql.slice(cursor) : sql;
+}
+
+interface SubmissionStudentInfo {
+  email?: string;
+  name?: string;
+  studentIdNumber?: string;
+}
+
+function getUserDisplayName(user: any): string | undefined {
+  return user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : undefined);
+}
+
+function addUserLookupEntries(
+  userMap: Map<string, SubmissionStudentInfo>,
+  user: any,
+  info: SubmissionStudentInfo,
+) {
+  const keys = [user.email, user.id, user._id?.toString()].filter(
+    (key): key is string => typeof key === "string" && key.length > 0,
+  );
+
+  keys.forEach((key) => {
+    userMap.set(key, info);
+    if (key.includes("@")) {
+      userMap.set(key.toLowerCase(), info);
+    }
+  });
+}
+
 /**
  * Submissions service for database operations
  */
@@ -80,8 +273,9 @@ export class SubmissionsService {
    * Get submission for a specific student and homework set
    */
   async getSubmissionForStudent(homeworkSetId: string, studentId: string): Promise<Submission | null> {
+    const homeworkSetQuery = await buildHomeworkSetIdQuery(this.db, homeworkSetId);
     const query: any = {
-      ...buildHomeworkSetIdQuery(homeworkSetId),
+      ...homeworkSetQuery,
       studentId,
     };
 
@@ -111,9 +305,10 @@ export class SubmissionsService {
    * Get all submissions for a homework set in one database read.
    */
   async getSubmissionsByHomeworkSet(homeworkSetId: string): Promise<Submission[]> {
+    const query = await buildHomeworkSetIdQuery(this.db, homeworkSetId);
     const submissions = await this.db
       .collection<SubmissionModel>(COLLECTIONS.SUBMISSIONS)
-      .find(buildHomeworkSetIdQuery(homeworkSetId))
+      .find(query)
       .sort({ createdAt: 1 })
       .toArray();
 
@@ -124,7 +319,7 @@ export class SubmissionsService {
    * Get submission summaries for a homework set
    */
   async getSubmissionSummaries(homeworkSetId: string): Promise<SubmissionSummary[]> {
-    const query = buildHomeworkSetIdQuery(homeworkSetId);
+    const query = await buildHomeworkSetIdQuery(this.db, homeworkSetId);
 
     const submissions = await this.db
       .collection<SubmissionModel>(COLLECTIONS.SUBMISSIONS)
@@ -132,37 +327,47 @@ export class SubmissionsService {
       .toArray();
 
     // Get question count for progress calculation
-    const questionQuery = buildHomeworkSetIdQuery(homeworkSetId);
+    const questionQuery = query;
     
     const questionCount = await this.db
       .collection(COLLECTIONS.QUESTIONS)
       .countDocuments(questionQuery);
 
-    // Fetch user data for all students to get their names and ID numbers
-    const studentIds = submissions.map(s => s.studentId);
+    // Fetch user data for all students to get names, emails, and ID numbers.
+    // Older submissions may store the users._id string as studentId, so include _id in the lookup.
+    const studentIds = Array.from(new Set(submissions.map(s => s.studentId).filter(Boolean)));
+    const studentEmailKeys = Array.from(new Set(studentIds.flatMap((studentId) => [studentId, studentId.toLowerCase()])));
+    const studentObjectIds = studentIds
+      .filter(isObjectIdString)
+      .map((studentId) => new ObjectId(studentId));
+    const userLookupConditions: any[] = [
+      { email: { $in: studentEmailKeys } },
+      { id: { $in: studentIds } },
+    ];
+
+    if (studentObjectIds.length > 0) {
+      userLookupConditions.push({ _id: { $in: studentObjectIds } });
+    }
+
     const users = await this.db
       .collection(COLLECTIONS.USERS)
-      .find({ 
-        $or: [
-          { email: { $in: studentIds } },
-          { id: { $in: studentIds } }
-        ]
-      })
+      .find({ $or: userLookupConditions })
       .toArray();
 
     // Create a map of studentId -> user data
-    const userMap = new Map<string, { name?: string; studentIdNumber?: string }>();
+    const userMap = new Map<string, SubmissionStudentInfo>();
     users.forEach((user: any) => {
-      const key = user.email || user.id;
-      userMap.set(key, {
-        name: user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : undefined),
+      const info = {
+        email: user.email,
+        name: getUserDisplayName(user),
         studentIdNumber: user.studentIdNumber,
-      });
+      };
+      addUserLookupEntries(userMap, user, info);
     });
 
     return submissions.map(submission => {
       const answered = Object.values(submission.answers).filter(
-        answer => Boolean(answer?.sql?.trim()) || Boolean(answer?.feedback?.score)
+        answer => hasAnswerText(answer) || Boolean(answer?.feedback?.score)
       ).length;
 
       const userData = userMap.get(submission.studentId);
@@ -170,6 +375,7 @@ export class SubmissionsService {
       return {
         id: normalizeSubmission(submission).id,
         studentId: submission.studentId,
+        studentEmail: userData?.email ?? (submission.studentId.includes("@") ? submission.studentId : undefined),
         studentIdNumber: userData?.studentIdNumber,
         studentName: userData?.name,
         status: submission.status,
@@ -199,7 +405,7 @@ export class SubmissionsService {
         mergedAnswers[questionId] = {
           ...existingAnswer,
           ...nextAnswer,
-          sql: nextAnswer.sql ?? existingAnswer.sql ?? "",
+          sql: getAnswerText({ ...existingAnswer, ...nextAnswer }) || nextAnswer.sql || existingAnswer.sql || "",
         };
       }
 
@@ -240,7 +446,7 @@ export class SubmissionsService {
         homeworkSetId,
         studentId: payload.studentId,
         attemptNumber: 1,
-        answers: payload.answers || {},
+        answers: normalizeAnswersForStorage(payload.answers),
         overallScore: 0,
         status: "in_progress",
         createdAt: now,
@@ -254,7 +460,7 @@ export class SubmissionsService {
         homeworkSetId,
         studentId: payload.studentId,
         attemptNumber: 1,
-        answers: payload.answers || {},
+        answers: normalizeAnswersForStorage(payload.answers),
         overallScore: 0,
         status: "in_progress",
         aiCommitment: undefined,
@@ -270,10 +476,11 @@ export class SubmissionsService {
     studentId: string,
     tableData: Record<string, any[]>
   ): Promise<void> {
+    const homeworkSetQuery = await buildHomeworkSetIdQuery(this.db, homeworkSetId);
     await this.db
       .collection<SubmissionModel>(COLLECTIONS.SUBMISSIONS)
       .updateOne(
-        { homeworkSetId, studentId },
+        { ...homeworkSetQuery, studentId },
         { $set: { studentTableData: tableData } }
       );
   }
@@ -324,9 +531,10 @@ export class SubmissionsService {
     aiCommitment?: Submission["aiCommitment"],
   ): Promise<Submission | null> {
     const now = new Date().toISOString();
+    const homeworkSetQuery = await buildHomeworkSetIdQuery(this.db, homeworkSetId);
     
     const query: any = {
-      ...buildHomeworkSetIdQuery(homeworkSetId),
+      ...homeworkSetQuery,
       studentId,
     };
     
@@ -537,7 +745,7 @@ export class SubmissionsService {
   private calculateTimeSpent(answer: any): number {
     // Simple time estimation based on execution count and complexity
     const executionCount = answer.executionCount || 1
-    const sqlLength = answer.sql?.length || 0
+    const sqlLength = getAnswerText(answer).length
     
     // Estimate: 2 minutes base + 1 minute per execution + 0.1 minutes per 10 characters
     return Math.round(2 + executionCount + (sqlLength / 10) * 0.1)
@@ -1256,6 +1464,8 @@ export class SubmissionsService {
       const isExamPrep = dataset.connectionUri.includes('exam-prep') ||
                         dataset.name?.includes('הכנה למבחן') ||
                         dataset.name?.includes('מבחנים');
+      const isExamPrepMoedB = dataset.connectionUri.includes('exam-prep-moed-b') ||
+                              dataset.name?.includes('מועד ב');
       const isExercise3 = dataset.connectionUri.includes('exercise3-college') ||
                           dataset.name?.includes('תרגיל 3') ||
                           dataset.name?.includes('מכללה');
@@ -1263,7 +1473,9 @@ export class SubmissionsService {
                     dataset.name?.includes('HW1') ||
                     homeworkSet.title?.includes('תרגיל בית 1');
 
-      if (isExamPrep) {
+      if (isExamPrepMoedB && initializePreviewTableData()) {
+        console.log('✅ Initialized Exam Prep Moed B tables from dataset preview rows using alasql');
+      } else if (isExamPrep) {
         initializeExamPrepData();
         console.log('✅ Initialized Exam Prep (הכנה למבחן) tables with sample data using alasql');
       } else if (isExercise3) {
@@ -1479,6 +1691,22 @@ export class SubmissionsService {
           'name': 'name',
           'salary': isHw1 ? 'Salary' : 'salary',
         };
+
+        if (Array.isArray(dataset.previewTables)) {
+          for (const table of dataset.previewTables) {
+            if (typeof table?.name === 'string' && table.name.trim()) {
+              caseMap[table.name.toLowerCase()] = table.name;
+            }
+
+            if (Array.isArray(table?.columns)) {
+              for (const column of table.columns) {
+                if (typeof column === 'string' && column.trim()) {
+                  caseMap[column.toLowerCase()] = column;
+                }
+              }
+            }
+          }
+        }
         
         // Replace all occurrences (word boundaries to avoid partial matches)
         for (const [lower, correct] of Object.entries(caseMap)) {
@@ -1497,8 +1725,14 @@ export class SubmissionsService {
       // Execute the SQL query using alasql
       let result: any[] | undefined;
       let columns: string[] = [];
+      let sqlToExecute = normalizedSql;
       try {
-        result = alasql(normalizedSql);
+        sqlToExecute = rewriteStrcmpScalarSubqueries(normalizedSql, (scalarSql) => alasql(scalarSql));
+        if (sqlToExecute !== normalizedSql) {
+          console.log('🔵 STRCMP scalar subqueries rewritten:', sqlToExecute);
+        }
+
+        result = alasql(sqlToExecute);
         console.log('✅ SQL executed successfully, result type:', typeof result, 'length:', Array.isArray(result) ? result.length : 'N/A');
         
         // Check if result is valid

@@ -6,6 +6,7 @@ import {
   gradeSubmissionRecord,
   listAnalyticsForSet,
   listHomeworkSets,
+  listSubmissionSummaries,
   publishGradesForSet,
   saveSubmissionDraftRecord,
 } from "../../app/api/_mock/homeworkStore";
@@ -40,6 +41,44 @@ describe("homeworkStore runner and grading flows", () => {
 
     const submission = getSubmissionForStudent(SET_ID, STUDENT_ID);
     expect(submission?.answers.q1?.feedback?.score).toBeGreaterThan(0);
+  });
+
+  it("treats relational algebra expressions as submitted answers", () => {
+    const setId = "hw-store-relational-algebra";
+    createHomework({
+      id: setId,
+      title: "Relational Algebra Store Coverage",
+      courseId: "CS401",
+      dueAt: "2026-03-12T20:00:00.000Z",
+      published: true,
+      visibility: "published",
+      homeworkType: "relational_algebra",
+      questions: [
+        {
+          id: "ra-q1",
+          prompt: "Find researcher names.",
+          instructions: "Use projection.",
+          expectedResultSchema: [],
+          gradingRubric: [],
+          maxAttempts: 3,
+          points: 10,
+        },
+      ],
+    });
+
+    const expression = "PROJECT_name(Researchers)";
+    const draft = saveSubmissionDraftRecord(setId, {
+      studentId: "student-ra",
+      answers: {
+        "ra-q1": { sql: "", expression },
+      },
+    });
+
+    expect(draft?.answers["ra-q1"]?.expression).toBe(expression);
+    expect(draft?.answers["ra-q1"]?.sql).toBe(expression);
+
+    const summary = listSubmissionSummaries(setId).find((item) => item.studentId === "student-ra");
+    expect(summary?.progress).toBe(1);
   });
 
   it("tracks question progress for student", () => {

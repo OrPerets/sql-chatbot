@@ -11,6 +11,7 @@ export interface AIGradingInput {
   questionPrompt: string
   questionInstructions: string
   referenceSql: string | undefined
+  answerType?: 'sql' | 'relational_algebra'
   expectedSchema: Array<{ column: string; type: string }>
   maxPoints: number
   rubricCriteria: Array<{ id: string; label: string; description: string; weight: number }>
@@ -29,7 +30,7 @@ export interface AIGradingResult {
   comment: string         // Short, precise Hebrew comment
   confidence: number      // 0-100 confidence level
   breakdown: {
-    queryCorrectness: number   // Percentage for SQL structure (0-100)
+    queryCorrectness: number   // Percentage for answer structure/correctness (0-100)
     outputCorrectness: number  // Percentage for correct results (0-100)
   }
 }
@@ -46,20 +47,30 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 })
 
+const AI_GRADING_VERBOSE = process.env.AI_GRADING_VERBOSE !== 'false'
+
 /**
  * Evaluate a single student SQL answer using AI
  */
 export async function evaluateAnswer(input: AIGradingInput): Promise<AIGradingResult> {
-  const isRA = input.homeworkType === 'relational_algebra'
-  const prompt = isRA ? buildRAEvaluationPrompt(input) : buildEvaluationPrompt(input)
-  const systemMessage = isRA ? buildRASystemPrompt() : buildSqlSystemPrompt()
+  const answerType = input.answerType ?? input.homeworkType ?? 'sql'
+  const prompt = buildEvaluationPrompt({ ...input, answerType })
+  const systemPrompt = answerType === 'relational_algebra'
+    ? buildRelationalAlgebraSystemPrompt()
+    : buildSqlSystemPrompt()
 
   try {
     const response = await openai.chat.completions.create({
       model: getModelForRole('aiGrading'),
       messages: [
-        { role: 'system', content: systemMessage },
-        { role: 'user', content: prompt }
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
       ],
       temperature: 0.3,
       max_tokens: 500,
@@ -73,13 +84,16 @@ export async function evaluateAnswer(input: AIGradingInput): Promise<AIGradingRe
 
     const parsed = JSON.parse(content)
     
-    console.log(`[AI Grading] AI Response for question ${input.questionId}:`, {
-      hasComment: !!parsed.comment,
-      commentLength: parsed.comment?.length || 0,
-      commentPreview: parsed.comment?.substring(0, 100) || "(empty)",
-      score: parsed.score,
-      fullParsed: parsed,
-    });
+    // Log what AI returned for debugging
+    if (AI_GRADING_VERBOSE) {
+      console.log(`[AI Grading] AI Response for question ${input.questionId}:`, {
+        hasComment: !!parsed.comment,
+        commentLength: parsed.comment?.length || 0,
+        commentPreview: parsed.comment?.substring(0, 100) || "(empty)",
+        score: parsed.score,
+        fullParsed: parsed,
+      });
+    }
     
     const comment = parsed.comment?.trim() || 'לא ניתן לבצע הערכה';
     
@@ -110,35 +124,6 @@ export async function evaluateAnswer(input: AIGradingInput): Promise<AIGradingRe
       }
     }
   }
-}
-
-function buildRASystemPrompt(): string {
-  return `אתה מעריך מומחה לאלגברת יחסים (Relational Algebra) בקורס מבוא לבסיסי נתונים.
-התפקיד שלך הוא להעריך ביטויי אלגברת יחסים של סטודנטים ולתת ציון והערה קצרה וברורה.
-
-סימנים מקובלים באלגברת יחסים:
-- σ (סלקציה/בחירה) - Selection
-- π (הטלה) - Projection
-- ρ (שינוי שם) - Rename
-- ⋈ (צירוף טבעי) - Natural Join
-- × (מכפלה קרטזית) - Cartesian Product
-- ∪ (איחוד) - Union
-- ∩ (חיתוך) - Intersection
-- − (הפרש) - Difference
-- ÷ (חלוקה) - Division
-- ∧ (AND), ∨ (OR), ¬ (NOT)
-- ≥, ≤, ≠, =, >, <
-
-כללים חשובים להערכה:
-1. הערות בעברית בלבד
-2. הערה קצרה ותמציתית (2-3 משפטים מקסימום)
-3. בדוק שימוש נכון באופרטורים
-4. בדוק שסדר הפעולות נכון ומתאים לדרישות השאלה
-5. בדוק שהתנאים בסלקציה (σ) נכונים
-6. בדוק שרשימת העמודות בהטלה (π) נכונה
-7. השתמש בטון חינוכי ומעודד
-
-פורמט התשובה חייב להיות JSON תקין בלבד, ללא טקסט נוסף.`
 }
 
 function buildSqlSystemPrompt(): string {
@@ -183,59 +168,28 @@ function buildSqlSystemPrompt(): string {
 פורמט התשובה חייב להיות JSON תקין בלבד, ללא טקסט נוסף.`
 }
 
-function buildRAEvaluationPrompt(input: AIGradingInput): string {
-  const { questionPrompt, questionInstructions, expectedSchema, maxPoints, rubricCriteria, studentExpression } = input
+function buildRelationalAlgebraSystemPrompt(): string {
+  return `אתה מעריך מומחה לאלגברת יחסים בקורס מבוא לבסיסי נתונים.
+התפקיד שלך הוא להעריך תשובות של סטודנטים באלגברת יחסים ולתת ציון והערה קצרה וברורה.
 
-  let prompt = `בדוק את תשובת הסטודנט לשאלת אלגברת יחסים הבאה:
+חשוב מאוד:
+- זו אינה שאלת SQL. אל תדרוש SELECT, FROM, WHERE, GROUP BY או סינטקס SQL.
+- הסימונים π, σ, ρ, ⋈, ×, ∪, ∩, −, ÷ הם סימונים תקינים ורצויים באלגברת יחסים.
+- אין להוריד נקודות רק כי התשובה אינה כתובה ב-SQL.
+- בדוק את המשמעות הלוגית של הביטוי: בחירה, הטלה, צירופים, שינוי שם, איחוד/חיתוך/הפרש/חלוקה, ותנאי השוואה.
+- אם יש שגיאות, התייחס לשגיאות אלגבריות: יחס חסר, תנאי צירוף שגוי, הטלה מוקדמת מדי, שימוש חסר ב-ρ כשצריך להבחין בין עותקים של אותו יחס, תנאי סינון לא נכון, או תוצאה עם עמודות עודפות/חסרות.
 
-## השאלה
-${questionPrompt}
+כללים חשובים להערכה:
+1. הערות בעברית בלבד
+2. הערה קצרה ותמציתית (2-3 משפטים מקסימום)
+3. ציין במדויק מה נכון ומה חסר/שגוי
+4. השתמש בטון חינוכי ומעודד
+5. השווה לפתרון הייחוס אם קיים, אבל קבל גם פתרונות אלגבריים שקולים
+6. אין לדרוש הרצה או תוצאת SQL; באלגברת יחסים בודקים נכונות לוגית של הביטוי
+7. אם הכתיב מעט שונה אבל המשמעות נכונה, אל תעניש בחומרה
+8. אם השאלה דורשת דרך מסוימת, למשל איחוד/חיתוך או שתי דרכים שונות, בדוק שהדרישה הזו מתקיימת
 
-## הנחיות
-${questionInstructions}
-`
-
-  if (expectedSchema.length > 0) {
-    prompt += `
-## סכמת תוצאה צפויה
-${expectedSchema.map(col => `- ${col.column} (${col.type})`).join('\n')}
-`
-  }
-
-  prompt += `
-## ניקוד מקסימלי
-${maxPoints} נקודות
-`
-
-  if (rubricCriteria.length > 0) {
-    prompt += `
-## קריטריונים להערכה
-${rubricCriteria.map(c => `- ${c.label}: ${c.description} (משקל: ${c.weight})`).join('\n')}
-`
-  }
-
-  prompt += `
-## תשובת הסטודנט (ביטוי אלגברת יחסים)
-${studentExpression || '(לא הוגשה תשובה)'}
-
-## הנחיות להערכה
-1. בדוק שהביטוי כתוב בתחביר תקני של אלגברת יחסים
-2. בדוק שהאופרטורים הנכונים נבחרו (σ, π, ⋈, ∪, ∩, − וכו')
-3. בדוק שתנאי הסלקציה (σ) נכונים ומלאים
-4. בדוק שרשימת העמודות בהטלה (π) מתאימה לדרישות
-5. בדוק שסדר הפעולות נכון (הפעולה הפנימית קודם לחיצונית)
-6. תן ציון הוגן בהתאם למה שנכון ומה חסר
-
-החזר תשובה בפורמט JSON הבא בלבד:
-{
-  "score": <ציון מ-0 עד ${maxPoints}>,
-  "comment": "<הערה קצרה בעברית - מקסימום 2-3 משפטים>",
-  "confidence": <רמת ביטחון 0-100>,
-  "queryCorrectness": <אחוז נכונות הביטוי 0-100>,
-  "outputCorrectness": <אחוז נכונות לוגית 0-100>
-}`
-
-  return prompt
+פורמט התשובה חייב להיות JSON תקין בלבד, ללא טקסט נוסף.`
 }
 
 /**
@@ -246,6 +200,7 @@ function buildEvaluationPrompt(input: AIGradingInput): string {
     questionPrompt,
     questionInstructions,
     referenceSql,
+    answerType = 'sql',
     expectedSchema,
     maxPoints,
     rubricCriteria,
@@ -253,7 +208,12 @@ function buildEvaluationPrompt(input: AIGradingInput): string {
     studentResults
   } = input
 
-  let prompt = `בדוק את התשובה של הסטודנט לשאלת SQL הבאה:
+  const isRelationalAlgebra = answerType === 'relational_algebra'
+  const answerLabel = isRelationalAlgebra ? 'אלגברת יחסים' : 'SQL'
+  const referenceLabel = isRelationalAlgebra ? 'פתרון ייחוס באלגברת יחסים' : 'פתרון ייחוס (SQL נכון)'
+  const codeFence = isRelationalAlgebra ? 'text' : 'sql'
+
+  let prompt = `בדוק את התשובה של הסטודנט לשאלת ${answerLabel} הבאה:
 
 ## השאלה
 ${questionPrompt}
@@ -277,8 +237,8 @@ ${rubricCriteria.map(c => `- ${c.label}: ${c.description} (משקל: ${c.weight}
 
   if (referenceSql) {
     prompt += `
-## פתרון ייחוס (SQL נכון)
-\`\`\`sql
+## ${referenceLabel}
+\`\`\`${codeFence}
 ${referenceSql}
 \`\`\`
 `
@@ -286,7 +246,7 @@ ${referenceSql}
 
   prompt += `
 ## תשובת הסטודנט
-\`\`\`sql
+\`\`\`${codeFence}
 ${studentSql || '(לא הוגשה תשובה)'}
 \`\`\`
 `
@@ -303,11 +263,29 @@ ${studentResults.rows.length > 5 ? `... (סה"כ ${studentResults.rows.length} �
   } else {
     prompt += `
 ## תוצאות השאילתה של הסטודנט
-(אין תוצאות זמינות או השאילתה לא הורצה)
+${isRelationalAlgebra ? '(לא רלוונטי - באלגברת יחסים אין צורך בתוצאות הרצה)' : '(אין תוצאות זמינות או השאילתה לא הורצה)'}
 `
   }
 
-  prompt += `
+  prompt += isRelationalAlgebra ? `
+## הנחיות להערכה
+1. בדוק את הביטוי באלגברת יחסים, לא SQL.
+2. השווה לפתרון הייחוס אם קיים, אבל קבל פתרונות שקולים לוגית.
+3. בדוק שימוש נכון ב-π הטלה, σ בחירה, ρ שינוי שם, ⋈ צירוף, × מכפלה, ∪ איחוד, ∩ חיתוך, − הפרש, ÷ חלוקה.
+4. אל תכתוב שהסימונים π/σ/⋈ אינם SQL תקני; הם תקינים כאן.
+5. בדוק שהביטוי מחזיר את היחסים/העמודות הנדרשים ושאין עמודות או רשומות עודפות.
+6. אם השאלה דורשת פעולה מסוימת, למשל איחוד או חיתוך, ודא שהפתרון משתמש בה או בדרך אלגברית שקולה רק אם הדרישה מאפשרת.
+7. הפחת נקודות על טעויות כמו תנאי צירוף חסר, יחס לא נכון, תנאי סינון שגוי, חוסר שינוי שם כשצריך self-join, או שימוש בפעולה שאינה מתאימה.
+8. תן ציון הוגן בהתאם למה שנכון ומה חסר.
+
+החזר תשובה בפורמט JSON הבא בלבד:
+{
+  "score": <ציון מ-0 עד ${maxPoints}>,
+  "comment": "<הערה קצרה בעברית - מקסימום 2-3 משפטים. התייחס לנכונות הביטוי באלגברת יחסים ומה חסר/שגוי>",
+  "confidence": <רמת ביטחון 0-100>,
+  "queryCorrectness": <אחוז נכונות הביטוי 0-100>,
+  "outputCorrectness": <אחוז התאמה לדרישת הפלט 0-100>
+}` : `
 ## הנחיות להערכה
 1. השווה את השאילתה של הסטודנט לפתרון הייחוס (אם קיים)
 2. בדוק אם התוצאות תואמות לסכמה הצפויה

@@ -1,6 +1,7 @@
 import { Db, ObjectId } from 'mongodb';
 import { connectToDatabase, COLLECTIONS } from './database';
 import { generateId } from './models';
+import { buildHomeworkSetIdQuery } from './homework-set-ids';
 import type { 
   HomeworkSet, 
   HomeworkSummary, 
@@ -266,10 +267,11 @@ export class HomeworkService {
    * Get submission statistics for a homework set
    */
   private async getSubmissionStats(homeworkSetId: string): Promise<{ total: number; averageScore?: number }> {
+    const homeworkSetQuery = await buildHomeworkSetIdQuery(this.db, homeworkSetId);
     const submissions = await this.db
       .collection(COLLECTIONS.SUBMISSIONS)
       .find({ 
-        homeworkSetId,
+        ...homeworkSetQuery,
         status: 'graded'
       })
       .toArray();
