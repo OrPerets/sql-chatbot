@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     if (!featureVoiceEnabled) {
       return NextResponse.json({ error: 'Voice feature disabled' }, { status: 404 });
     }
-    
+
     // Check if OpenAI API key is configured
     if (!process.env.OPENAI_API_KEY) {
       console.error('OPENAI_API_KEY not found in environment variables');
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    
+
     const formData = await request.formData();
     const audioFile = formData.get('audio') as File;
 
@@ -58,4 +58,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

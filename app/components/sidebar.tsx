@@ -64,7 +64,7 @@ const Sidebar: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, handleLog
             <Plus size={14} strokeWidth={2.4} aria-hidden="true" />
           </button>&nbsp;&nbsp; שיחות קודמות </h2>
         <div className={styles.headerButtons}>
-          
+
           {/* Close Button */}
           {onToggleSidebar && (
             <button
@@ -78,7 +78,7 @@ const Sidebar: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, handleLog
           )}
           {/* User Icon with first letter of currentUser */}
           <div className={styles.userIconWrapper}>
-            
+
             {isMenuOpen && (
               <div className={styles.dropdownMenu}>
                 <button onClick={onNewChat} className={styles.menuItem}>

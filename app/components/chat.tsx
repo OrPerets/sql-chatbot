@@ -408,7 +408,7 @@ const AssistantMessage = ({
         }
         tooltipTimeoutRef.current = setTimeout(() => {
           setCopied(false); // Hide tooltip after delay
-        }, 2000); 
+        }, 2000);
       })
       .catch((err) => console.error("Failed to copy text: ", err));
   };
@@ -446,11 +446,11 @@ const renderers = {
   ),
   code: ({ node, inline, className, children, ...props }) => {
     const code = Array.isArray(children) ? children.join("") : children;
-    
+
     if (inline) {
       return <code className={styles.inlineCode} {...props}>{children}</code>;
     }
-    
+
     if (className === "language-sql") {
       return (
         <div className={styles.sqlCodeContainer}>
@@ -477,7 +477,7 @@ const renderers = {
         </div>
       );
     }
-    
+
     // Generic code block
     return (
       <div className={styles.codeBlock}>
@@ -560,7 +560,7 @@ const renderers = {
   };
 const copyQueryToClipboard = (text) => {
   // Regular expression to find SQL queries within ```sql ... ``` blocks
-  const sqlRegex = /```sql\s*([\s\S]*?)\s*```/gi; 
+  const sqlRegex = /```sql\s*([\s\S]*?)\s*```/gi;
   let extractedQueries = [];
   let match;
 
@@ -773,7 +773,7 @@ const Chat = ({
   const [isDone, setIsDone] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  
+
   // Avatar interaction system - DISABLED
   const avatarRef = useRef(null);
   const [enableAvatarInteractions, setEnableAvatarInteractions] = useState(false); // DISABLED
@@ -797,7 +797,7 @@ const Chat = ({
   // Environment variables - these are available at build time
   const enableAvatar = process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1' || process.env.NODE_ENV === 'development';
   const enableVoice = isVoiceFeatureEnabled();
-  
+
   // Add avatar mode state with localStorage persistence
   const [avatarMode, setAvatarMode] = useState<AvatarMode>('avatar3d');
 
@@ -824,7 +824,7 @@ const Chat = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isActionMenuOpen]);
-  
+
   // Add display mode state for avatar/logo toggle
   const [displayMode, setDisplayMode] = useState<'avatar' | 'logo'>('avatar');
 
@@ -842,7 +842,7 @@ const Chat = ({
       if (savedDisplayMode === 'logo' || savedDisplayMode === 'avatar') {
         setDisplayMode(savedDisplayMode);
       }
-      
+
       // Load saved avatar mode
       const savedAvatarMode = localStorage.getItem('avatarMode');
       if (savedAvatarMode === 'voiceCircle' || savedAvatarMode === 'avatar3d' || savedAvatarMode === 'none') {
@@ -924,7 +924,7 @@ const Chat = ({
   const [isReasoningCollapsed, setIsReasoningCollapsed] = useState(false);
   const reasoningDraftRef = useRef("");
   const tutorRawResponseRef = useRef("");
-  
+
   // State for user typing detection
   const [isUserTyping, setIsUserTyping] = useState(false);
   const userTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -1269,8 +1269,8 @@ const Chat = ({
   }, [homeworkContext]);
 
   const avatarState = useMemo(() => {
-    const currentState = isThinking ? 'thinking' 
-                        : isRecording ? 'listening' 
+    const currentState = isThinking ? 'thinking'
+                        : isRecording ? 'listening'
                         : (enableVoice && activeAvatarMode !== 'none' && (speechController.status === 'speaking' || speechController.status === 'preparing')) ? 'speaking'
                         : isUserTyping ? 'userWriting'
                         : 'idle';
@@ -1406,11 +1406,11 @@ const Chat = ({
     }
 
     setIsUserTyping(true);
-    
+
     if (userTypingTimeoutRef.current) {
       clearTimeout(userTypingTimeoutRef.current);
     }
-    
+
     userTypingTimeoutRef.current = setTimeout(() => {
       setIsUserTyping(false);
     }, 2000);
@@ -1518,7 +1518,7 @@ const Chat = ({
       });
 
       const result = await response.json();
-      
+
       if (result.correct) {
         // Success - show points animation and close modal
         setUserPoints(result.totalPoints);
@@ -1529,10 +1529,10 @@ const Chat = ({
         setExerciseAnswer("");
         setExerciseAttempts(0);
         setShowSolutionButton(false);
-        
+
         // Hide animation after 3 seconds
         setTimeout(() => setPointsAnimation(null), 3000);
-        
+
         // Show success message in chat without triggering TTS
         appendMessage("assistant", `✅ ${result.feedback}`);
       } else {
@@ -1554,14 +1554,14 @@ const Chat = ({
     try {
       const response = await fetch(`/api/exercises/${currentExercise.id}/solution`);
       const result = await response.json();
-      
+
       // Show solution in modal, then close modal and add to chat
       setIsExerciseMode(false);
       setCurrentExercise(null);
       setShowSolutionButton(false);
       setShowExerciseModal(false);
       setExerciseAnswer("");
-      
+
       const solutionMessage = `💡 **פתרון לתרגול**\n\n\`\`\`sql\n${result.solution}\n\`\`\`\n\nתוכל לנסות תרגול חדש!`;
       appendMessage("assistant", solutionMessage);
     } catch (error) {
@@ -1907,7 +1907,7 @@ const Chat = ({
         },
       });
       const checkData = await checkResponse.json();
-      
+
       if (checkData.success) {
         const existingAnalysis = checkData.data.summaries.find(summary => summary.sessionId === sessionId);
         if (existingAnalysis) {
@@ -1994,7 +1994,7 @@ useEffect(() => {
       },
     }).then(response => response.json()).then(sessions => {
       setChatSessions(sessions);
-    })    
+    })
   };
 
   loadChatSessions();
@@ -2011,7 +2011,7 @@ useEffect(() => {
       },
     }).then(response => response.json()).then(sessions => {
       setChatSessions(sessions);
-    })    
+    })
   };
 
   // Handle window resize for responsive sidebar behavior
@@ -2027,7 +2027,7 @@ useEffect(() => {
 
     // Add resize listener
     window.addEventListener('resize', handleResize);
-    
+
     // Cleanup
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -2341,7 +2341,7 @@ useEffect(() => {
   // Avatar interaction handlers
   const handleAvatarInteraction = useCallback((gesture: string, context: any) => {
     logDebug('🎭 Avatar interaction:', { gesture, context });
-    
+
     // Track analytics
     // AVATAR DISABLED: if (enableAnalytics && currentUser) {
     //   avatarAnalytics.trackGesture(gesture, context.type, currentUser);
@@ -2569,12 +2569,12 @@ useEffect(() => {
     reasoningDraftRef.current = "";
     tutorRawResponseRef.current = "";
     setReasoningDraft("");
-    
+
     // Notify parent component about user message for avatar interaction
     if (onUserMessage) {
       onUserMessage(text);
     }
-    
+
     // Handle avatar interaction for user message
     if (enableAvatarInteractions && text.trim()) {
       if (enableSQLGestureMapping) {
@@ -2601,12 +2601,12 @@ useEffect(() => {
         // Trigger gesture if confidence is high enough
         if (confidence > 0.6 && avatarRef.current) {
           avatarRef.current.playGesture(recommendedGesture, 2, false, 1000);
-          
+
           logDebug(`🎭 Playing gesture: ${recommendedGesture} (confidence: ${confidence.toFixed(2)})`);
         }
       }
     }
-    
+
     // Message text is used as-is.
     let messageWithTags = text;
 
@@ -2638,7 +2638,7 @@ useEffect(() => {
       }
       activeChatId = await ensureChatThread(text, userEmail);
     }
-    
+
     setStreamError(null);
 
     // saveToDatabase(text, "user");
@@ -2729,7 +2729,7 @@ useEffect(() => {
           role: "user",
         });
       }
-      
+
       if (!response.body) {
         console.error('❌ Response body is null');
         const failureText = "מצטער, הייתה שגיאה בתקשורת. נסה לרענן את הדף.";
@@ -2873,7 +2873,7 @@ const loadChatMessages = (chatId: string) => {
   speechDispatch({ type: 'SET_STREAMING', streaming: false });
   setLastAssistantMessage("");
   setCurrentAssistantMessageId("");
-  
+
   fetch(`/api/chat/sessions/${chatId}/messages`, {
     method: 'GET',
     headers: {
@@ -2915,7 +2915,7 @@ const loadChatMessages = (chatId: string) => {
     setSessionId(restoredSessionId);
     setPreviousResponseId(restoredPreviousResponseId);
     setLoadingMessages(false);
-  })  
+  })
 };
 
   const handleSubmit = (e) => {
@@ -2933,18 +2933,18 @@ const loadChatMessages = (chatId: string) => {
       closeComposerPalette();
       return;
     }
-    
+
     // Display message with image info if present
-    const displayText = selectedImage 
+    const displayText = selectedImage
       ? `${messageText}${messageText ? '\n' : ''}[תמונה מצורפת: ${selectedImage.name}]`
       : messageText;
-    
+
     // Check if we're in exercise mode (but exercises are now handled in modal)
     if (isExerciseMode && currentExercise) {
       // In exercise mode, regular chat is disabled
       return;
     }
-    
+
     submitMessage(messageText, displayText, selectedImage, directives);
   };
 
@@ -2961,12 +2961,12 @@ const loadChatMessages = (chatId: string) => {
     tutorRawResponseRef.current = "";
     // Create a stable message id for this assistant message
     setCurrentAssistantMessageId(`${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    
+
     if (progressiveSpeechTimeoutRef.current) {
       clearTimeout(progressiveSpeechTimeoutRef.current);
       progressiveSpeechTimeoutRef.current = null;
     }
-    
+
     appendMessage("assistant", "");
   };
 
@@ -2974,7 +2974,7 @@ const loadChatMessages = (chatId: string) => {
   const handleTextDelta = (delta) => {
     if (delta.value != null) {
       const text = delta.value;
-      
+
       streamingTextRef.current += text;
       appendToLastMessage(text);
     }
@@ -3016,7 +3016,7 @@ const loadChatMessages = (chatId: string) => {
     setReasoningDraft("");
     reasoningDraftRef.current = "";
     tutorRawResponseRef.current = "";
-    
+
     // Clear progressive speech timeout when stream ends
     if (progressiveSpeechTimeoutRef.current) {
       clearTimeout(progressiveSpeechTimeoutRef.current);
@@ -3209,12 +3209,12 @@ const loadChatMessages = (chatId: string) => {
         ...lastMessage,
         text: lastMessage.text + text,
       };
-      
+
       // Update last assistant message for speech synthesis if it's an assistant message
       if (lastMessage.role === 'assistant') {
         setLastAssistantMessage(updatedLastMessage.text);
       }
-      
+
       return [...prevMessages.slice(0, -1), updatedLastMessage];
     });
   };
@@ -3278,17 +3278,17 @@ const loadChatMessages = (chatId: string) => {
 
   const appendMessage = (role, text, options: Partial<ChatMessage> = {}) => {
     setMessages((prevMessages) => [...prevMessages, { role, text, ...options }]);
-    
+
     // Track last assistant message for speech synthesis
     if (role === 'assistant') {
       assistantPersistTextRef.current = text;
       setLastAssistantMessage(text);
-      
+
       // Notify parent component about assistant response for avatar interaction
       if (onAssistantResponse) {
         onAssistantResponse(text);
       }
-      
+
       // Handle avatar interaction for assistant response
       if (enableAvatarInteractions) {
         const lowerResponse = text.toLowerCase();
@@ -3339,7 +3339,7 @@ const loadChatMessages = (chatId: string) => {
       })
       return [...prevMessages.slice(0, -1), updatedLastMessage];
     });
-    
+
   }
 
   const handleFeedback = (isLike, index) => {
@@ -3360,7 +3360,7 @@ const loadChatMessages = (chatId: string) => {
         "message": message.text,
         "feedback": message.feedback
       }),
-    }); 
+    });
   }
 
   const openNewChat = () => {
@@ -3378,7 +3378,7 @@ const loadChatMessages = (chatId: string) => {
     reasoningDraftRef.current = "";
     autoScrollRef.current = true;
     setIsReasoningCollapsed(false);
-    
+
     // Clear any pending progressive speech
     if (progressiveSpeechTimeoutRef.current) {
       clearTimeout(progressiveSpeechTimeoutRef.current);
@@ -3398,29 +3398,29 @@ const loadChatMessages = (chatId: string) => {
 
 // Embedded mode styles for homework runner sidebar
 const embeddedStyles = embeddedMode ? {
-  main: { 
-    width: '100%', 
-    height: '100%', 
-    flex: '1 1 0', 
-    minHeight: 0, 
-    margin: 0, 
+  main: {
+    width: '100%',
+    height: '100%',
+    flex: '1 1 0',
+    minHeight: 0,
+    margin: 0,
     padding: 0,
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column' as const,
   },
-  container: { 
-    width: '100%', 
-    flex: '1 1 0', 
-    minHeight: 0, 
+  container: {
+    width: '100%',
+    flex: '1 1 0',
+    minHeight: 0,
     height: 0,
     display: 'flex',
     flexDirection: 'column' as const,
     overflow: 'hidden',
   },
-  chatContainer: { 
-    flex: '1 1 0', 
-    minHeight: 0, 
+  chatContainer: {
+    flex: '1 1 0',
+    minHeight: 0,
     height: 0,
     margin: 0,
     padding: 0,
@@ -3429,10 +3429,10 @@ const embeddedStyles = embeddedMode ? {
     overflow: 'hidden',
     borderRadius: 0,
   },
-  messages: { 
+  messages: {
     direction: 'rtl' as const,
-    flex: '1 1 0', 
-    minHeight: 0, 
+    flex: '1 1 0',
+    minHeight: 0,
     height: 0,
     overflowY: 'auto' as const,
     overflowX: 'hidden' as const,
@@ -3566,22 +3566,22 @@ const reasoningPanel = shouldShowReasoningPanel ? (
   }
 
 return (
-  <div 
+  <div
     className={`${styles.main} ${isProfessionalConversation ? styles.mainProfessional : ''} ${!sidebarVisible || hideSidebar || minimalMode ? styles.mainFullWidth : ''}`}
     style={embeddedStyles.main}
   >
     {sidebarVisible && !hideSidebar && !minimalMode && (
-      <Sidebar 
-        chatSessions={chatSessions} 
-        onChatSelect={loadChatMessages} 
-        handleLogout={handleLogout} 
-        onNewChat={openNewChat} 
+      <Sidebar
+        chatSessions={chatSessions}
+        onChatSelect={loadChatMessages}
+        handleLogout={handleLogout}
+        onNewChat={openNewChat}
         currentUser={currentUser}
         onToggleSidebar={toggleSidebar}
         variant={isProfessionalConversation ? "professional" : "default"}
       />
     )}
-         <div 
+         <div
            className={`${styles.container} ${!sidebarVisible || hideSidebar || minimalMode ? styles.containerFullWidth : ''}`}
            style={embeddedStyles.container}
          >
@@ -3658,7 +3658,7 @@ return (
           )}
           <div ref={messagesEndRef} />
         </div>
-        
+
         <form
           onSubmit={handleSubmit}
           style={{direction:"rtl"}}
@@ -3678,7 +3678,7 @@ return (
 
             {enableRelationalAlgebraMode && subjectMode === "relational_algebra" && (
               <div className={styles.subjectModeBanner}>
-                מצב אלגברת יחסים פעיל. 
+                מצב אלגברת יחסים פעיל.
               </div>
             )}
 
@@ -3731,7 +3731,7 @@ return (
                   syncComposerPalette(e.target.value, e.target.selectionStart);
                   e.target.style.height = 'auto';
                   e.target.style.height = e.target.scrollHeight + 'px';
-                  
+
                   // Detect user typing for avatar state
                   handleUserTyping();
                 }}
@@ -3781,8 +3781,8 @@ return (
                   }
                 }}
                 placeholder={
-                  isExerciseMode 
-                    ? "הקלד את תשובת ה-SQL שלך כאן…" 
+                  isExerciseMode
+                    ? "הקלד את תשובת ה-SQL שלך כאן…"
                     : enableRelationalAlgebraMode && subjectMode === "relational_algebra"
                       ? "שאל על אלגברת יחסים, המרה מ-SQL, או פירוק לביטוי RA…"
                       : "הקלד כאן…"
@@ -3902,7 +3902,7 @@ return (
                     role="menuitemcheckbox"
                     aria-checked={isThinkingModeEnabled}
                   >
-                    
+
                     <div className={styles.actionMenuItemBody}>
                     <BrainCircuit className={styles.actionMenuItemIcon} size={10} strokeWidth={2} />
                       <span className={styles.actionMenuItemTitle}>מצב חשיבה</span>
@@ -3917,7 +3917,7 @@ return (
                       {isThinkingModeEnabled ? "פועל" : "כבוי"}
                     </span>
                     </div>
-                   
+
                   </button>
 
                   {enableRelationalAlgebraMode && (
@@ -4069,9 +4069,9 @@ return (
             {/* Image Preview */}
             {selectedImage && (
               <div className={styles.imagePreview}>
-                <img 
-                  src={URL.createObjectURL(selectedImage)} 
-                  alt="Preview" 
+                <img
+                  src={URL.createObjectURL(selectedImage)}
+                  alt="Preview"
                   className={styles.previewImage}
                 />
                 <button
@@ -4100,12 +4100,12 @@ return (
         {balanceErrorMessage}
       </div>
     )}
-    
+
     {/* Right Column - Avatar Section */}
     {!hideAvatar && !minimalMode && (
       <div className={`${styles.rightColumn} ${isProfessionalConversation ? styles.rightColumnProfessional : ''}`}>
         {!isHydrated ? (
-          <div 
+          <div
             className={`${styles.avatarHydrationPlaceholder} ${isProfessionalConversation ? styles.avatarHydrationPlaceholderProfessional : ''}`}
             role="status"
             aria-label="טוען אווטאר"
@@ -4192,7 +4192,7 @@ return (
 
             <div className={styles.toggleButtonsContainer}>
               <div className={styles.displayModeToggle}>
-                <button 
+                <button
                   className={`${styles.displayToggleButton} ${displayMode === 'logo' ? styles.logoModeActive : styles.avatarModeActive}`}
                   onClick={() => setDisplayMode(displayMode === 'avatar' ? 'logo' : 'avatar')}
                   title={displayMode === 'avatar' ? 'עבור למצב לוגו' : 'עבור למצב אווטאר'}
@@ -4284,19 +4284,19 @@ return (
             </div>
           )}
         </div>
-        
+
         {currentExercise && (
           <>
             <div className={styles.exerciseContent}>
               <div className={styles.exerciseDifficulty}>
-                דרגת קושי: {currentExercise.difficulty === 'easy' ? 'קל' : currentExercise.difficulty === 'medium' ? 'בינוני' : 'קשה'} 
+                דרגת קושי: {currentExercise.difficulty === 'easy' ? 'קל' : currentExercise.difficulty === 'medium' ? 'בינוני' : 'קשה'}
                 ({currentExercise.points} נקודות)
               </div>
-              
+
               <div className={styles.exerciseQuestion}>
                 {currentExercise.question}
               </div>
-              
+
               <div className={styles.exerciseSqlEditor}>
                 <textarea
                   className={styles.exerciseTextarea}
@@ -4318,7 +4318,7 @@ return (
                   }}
                 />
               </div>
-              
+
               {/* SQL Helper Buttons */}
               <div className={styles.sqlHelperButtons}>
                 <button
@@ -4357,7 +4357,7 @@ return (
                   JOIN
                 </button>
               </div>
-              
+
               <div className={styles.exerciseActions}>
                 <button
                   className={styles.submitExerciseButton}
@@ -4366,7 +4366,7 @@ return (
                 >
                   שלח תשובה
                 </button>
-                
+
                 {showSolutionButton && (
                   <button
                     className={styles.showSolutionButton}
@@ -4376,7 +4376,7 @@ return (
                   </button>
                 )}
               </div>
-              
+
               {exerciseAttempts > 0 && (
                 <div className={styles.exerciseFeedback}>
                   כמעט! נסה לבדוק אם שכחת משהו בשאילתה.

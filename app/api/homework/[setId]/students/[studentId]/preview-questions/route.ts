@@ -17,7 +17,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { setId, studentId } = await params;
     const body = await request.json();
-    
+
     let previews;
 
     if (body.inlineQuestions && Array.isArray(body.inlineQuestions) && body.inlineQuestions.length > 0) {
@@ -35,9 +35,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     } else {
       if (!body.templateIds || !Array.isArray(body.templateIds) || body.templateIds.length === 0) {
         return NextResponse.json(
-          { 
-            success: false, 
-            error: 'Missing or invalid templateIds array' 
+          {
+            success: false,
+            error: 'Missing or invalid templateIds array'
           },
           { status: 400 }
         );
@@ -50,16 +50,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         body.templateIds
       );
     }
-    
-    return NextResponse.json({ 
-      success: true, 
-      data: previews 
+
+    return NextResponse.json({
+      success: true,
+      data: previews
     });
   } catch (error) {
     console.error('Error previewing questions for student:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Failed to preview questions for student',
         details: error instanceof Error ? error.message : 'Unknown error'
       },

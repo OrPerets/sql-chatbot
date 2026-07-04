@@ -200,4 +200,3 @@ This document summarizes high-impact OpenAI platform capabilities that can impro
 - Mean tutoring latency (text and voice separately)
 - Cost per student per week
 - Regression rate after model/prompt changes
-
