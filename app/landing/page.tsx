@@ -5,10 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowUpLeft,
-  BadgeCheck,
+  Bell,
   BookOpenCheck,
-  Clock,
-  Coins,
   MessageCircle,
   ShieldCheck,
 } from "lucide-react";
@@ -32,7 +30,6 @@ const LandingPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [challenge, setChallenge] = useState<ChallengeSummary | null>(null);
-  const [challengeLoading, setChallengeLoading] = useState(false);
 
   useEffect(() => {
     const loadLanding = async () => {
@@ -64,7 +61,6 @@ const LandingPage = () => {
         console.error("Error parsing user data:", error);
       }
 
-      setChallengeLoading(true);
       try {
         const response = await fetch("/api/coins/challenges/me", { cache: "no-store" });
         if (response.ok) {
@@ -77,7 +73,6 @@ const LandingPage = () => {
         console.error("Error loading SQL coin challenge:", error);
         setChallenge(null);
       } finally {
-        setChallengeLoading(false);
         setIsLoading(false);
       }
     };
@@ -86,8 +81,6 @@ const LandingPage = () => {
   }, [router]);
 
   const activeChallenge = Boolean(challenge && (challenge.status === "active" || challenge.status === "pending"));
-  const completedChallenge = challenge?.status === "completed";
-  const inactiveChallenge = challenge?.status === "expired" || challenge?.status === "cancelled";
 
   if (isLoading) {
     return (
@@ -111,12 +104,29 @@ const LandingPage = () => {
           </div>
         </div>
 
-        {isAdmin && (
-          <Link className={styles.headerAdminLink} href="/admin">
-            <ShieldCheck aria-hidden="true" size={18} />
-            ממשק ניהול
-          </Link>
-        )}
+        {(activeChallenge && challenge) || isAdmin ? (
+          <div className={styles.topActions}>
+            {activeChallenge && challenge ? (
+              <Link
+                className={styles.challengeNotification}
+                href={`/coins/challenge/${challenge.id}`}
+                aria-label={`אתגר SQL זמין - ${challenge.questions.length || 3} שאלות`}
+                title="אתגר SQL זמין"
+              >
+                <Bell aria-hidden="true" size={20} />
+                <span className={styles.notificationBadge}>1</span>
+                <span className={styles.notificationText}>אתגר SQL</span>
+              </Link>
+            ) : null}
+
+            {isAdmin && (
+              <Link className={styles.headerAdminLink} href="/admin">
+                <ShieldCheck aria-hidden="true" size={18} />
+                ממשק ניהול
+              </Link>
+            )}
+          </div>
+        ) : null}
       </header>
 
       <main className={styles.shell}>
@@ -141,60 +151,6 @@ const LandingPage = () => {
                 <ArrowUpLeft aria-hidden="true" size={18} />
               </Link>
             </nav>
-
-            <section className={styles.challengeCard} aria-label="אתגר SQL למטבע">
-              {challengeLoading ? (
-                <>
-                  <Clock aria-hidden="true" size={20} />
-                  <div>
-                    <span className={styles.challengeTitle}>בודק אתגר SQL</span>
-                    <span className={styles.challengeText}>טוען מצב אישי...</span>
-                  </div>
-                </>
-              ) : activeChallenge ? (
-                <>
-                  <Coins aria-hidden="true" size={22} />
-                  <div>
-                    <span className={styles.challengeTitle}>אתגר SQL זמין</span>
-                    <span className={styles.challengeText}>
-                      {challenge?.questions.length || 3} שאלות. השלמה מוצלחת מעניקה מטבע אחד.
-                    </span>
-                  </div>
-                  <Link className={styles.challengeLink} href={challenge ? `/coins/challenge/${challenge.id}` : "/landing"}>
-                    לפתיחה
-                    <ArrowUpLeft aria-hidden="true" size={16} />
-                  </Link>
-                </>
-              ) : completedChallenge ? (
-                <>
-                  <BadgeCheck aria-hidden="true" size={22} />
-                  <div>
-                    <span className={styles.challengeTitle}>אתגר SQL הושלם</span>
-                    <span className={styles.challengeText}>
-                      {challenge?.score ? `${challenge.score.correctCount}/${challenge.score.totalQuestions} תשובות נכונות` : "המטבע עודכן במערכת."}
-                    </span>
-                  </div>
-                </>
-              ) : inactiveChallenge ? (
-                <>
-                  <Clock aria-hidden="true" size={22} />
-                  <div>
-                    <span className={styles.challengeTitle}>אין אתגר פעיל</span>
-                    <span className={styles.challengeText}>
-                      האתגר האחרון {challenge?.status === "expired" ? "פג תוקף" : "בוטל"}.
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Coins aria-hidden="true" size={22} />
-                  <div>
-                    <span className={styles.challengeTitle}>אין אתגר מטבע כרגע</span>
-                    <span className={styles.challengeText}>אם המרצה יפתח אתגר אישי, הוא יופיע כאן.</span>
-                  </div>
-                </>
-              )}
-            </section>
           </div>
 
           <div className={styles.visualPanel} aria-label="Michael">
