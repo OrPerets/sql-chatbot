@@ -45,6 +45,9 @@ export async function POST(request: Request) {
       createdBy: adminEmail,
       questionCount: typeof body?.questionCount === 'number' ? body.questionCount : undefined,
       practiceId: typeof body?.practiceId === 'string' && body.practiceId.trim() ? body.practiceId.trim() : undefined,
+      topic: typeof body?.topic === 'string' && body.topic.trim() ? body.topic.trim() : undefined,
+      difficulty:
+        typeof body?.difficulty === 'string' && body.difficulty.trim() ? body.difficulty.trim() : undefined,
     })
 
     return NextResponse.json({ challenge })
@@ -62,6 +65,9 @@ export async function POST(request: Request) {
     }
     if (message.includes('Not enough')) {
       return NextResponse.json({ error: message }, { status: 409 })
+    }
+    if (message.includes('topic and difficulty')) {
+      return NextResponse.json({ error: message }, { status: 400 })
     }
 
     console.error('Error creating SQL coin challenge:', error)

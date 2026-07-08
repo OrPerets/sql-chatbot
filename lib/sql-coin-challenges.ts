@@ -4,6 +4,15 @@ import { isPrivilegedUserRecord, normalizeAcademicPeriodInput, type AcademicPeri
 import { COLLECTIONS, connectToDatabase, executeWithRetry } from '@/lib/database'
 import { logCoinTransaction, updateCoinsBalance } from '@/lib/coins'
 import type { PracticeQueryDoc } from '@/lib/practice'
+import { selectBuiltInSqlCoinChallengeQuestions } from '@/lib/sql-coin-challenge-bank'
+import {
+  getSqlCoinChallengeDifficultyLabel,
+  getSqlCoinChallengeTopicLabel,
+  normalizeSqlCoinChallengeDifficulty,
+  normalizeSqlCoinChallengeTopic,
+  type SqlCoinChallengeDifficulty,
+  type SqlCoinChallengeTopic,
+} from '@/lib/sql-coin-challenge-options'
 import type { UserModel } from '@/lib/users'
 
 export type SqlCoinChallengeStatus = 'pending' | 'active' | 'completed' | 'expired' | 'cancelled'
@@ -12,7 +21,10 @@ export interface SqlCoinChallengeQuestion {
   queryId: string
   practiceId: string
   table?: string
+  topic?: SqlCoinChallengeTopic
+  topicLabel?: string
   difficulty?: string
+  difficultyLabel?: string
   question: string
   answerSql: string
 }
@@ -41,6 +53,11 @@ export interface SqlCoinChallengeDoc {
   year: number
   semester: number
   status: SqlCoinChallengeStatus
+  topic?: SqlCoinChallengeTopic
+  topicLabel?: string
+  difficulty?: SqlCoinChallengeDifficulty
+  difficultyLabel?: string
+  questionSource?: 'built-in-bank' | 'practiceQueries'
   questions: SqlCoinChallengeQuestion[]
   attempts: SqlCoinChallengeAttempt[]
   score?: SqlCoinChallengeScore
@@ -65,6 +82,8 @@ export interface CreateSqlCoinChallengeInput {
   createdBy: string
   questionCount?: number
   practiceId?: string
+  topic?: string
+  difficulty?: string
 }
 
 export interface SubmitSqlCoinChallengeInput {
@@ -258,12 +277,17 @@ export class SqlCoinChallengeService {
     const studentEmail = normalizeEmail(input.studentEmail)
     const createdBy = normalizeEmail(input.createdBy)
     const questionCount = Math.max(1, Math.trunc(input.questionCount || DEFAULT_QUESTION_COUNT))
+    const requestedTopic = normalizeSqlCoinChallengeTopic(input.topic)
+    const requestedDifficulty = normalizeSqlCoinChallengeDifficulty(input.difficulty)
 
     if (!studentEmail) {
       throw new Error('studentEmail is required')
     }
     if (!createdBy) {
       throw new Error('createdBy is required')
+    }
+    if ((input.topic || input.difficulty) && (!requestedTopic || !requestedDifficulty)) {
+      throw new Error('A valid challenge topic and difficulty are required')
     }
 
     const result = await executeWithRetry(async (db) => {
@@ -299,35 +323,44 @@ export class SqlCoinChallengeService {
         return { ok: true as const, challenge: stripAnswers(existing) }
       }
 
-      const questionFilter = input.practiceId ? { practiceId: input.practiceId } : {}
-      const questionDocs = await db
-        .collection<PracticeQueryDoc>(COLLECTIONS.PRACTICE_QUERIES)
-        .find(questionFilter)
-        .sort({ practiceId: 1, _id: 1 })
-        .limit(questionCount)
-        .toArray()
-
-      const questions = questionDocs
-        .map((question) => {
-          const queryId = normalizeText(question._id?.toString())
-          return {
-            queryId,
-            practiceId: normalizeText(question.practiceId),
-            table: normalizeText(question.table) || undefined,
-            difficulty: normalizeText(question.difficulty) || undefined,
-            question: normalizeText(question.question),
-            answerSql: normalizeText(question.answerSql),
-          }
-        })
-        .filter((question) => question.queryId && question.question && question.answerSql)
+      const useBuiltInBank = Boolean(requestedTopic && requestedDifficulty)
+      const questions = useBuiltInBank
+        ? selectBuiltInSqlCoinChallengeQuestions({
+            topic: requestedTopic as SqlCoinChallengeTopic,
+            difficulty: requestedDifficulty as SqlCoinChallengeDifficulty,
+            count: questionCount,
+          })
+        : (await db
+            .collection<PracticeQueryDoc>(COLLECTIONS.PRACTICE_QUERIES)
+            .find(input.practiceId ? { practiceId: input.practiceId } : {})
+            .sort({ practiceId: 1, _id: 1 })
+            .limit(questionCount)
+            .toArray()
+          )
+            .map((question) => {
+              const queryId = normalizeText(question._id?.toString())
+              return {
+                queryId,
+                practiceId: normalizeText(question.practiceId),
+                table: normalizeText(question.table) || undefined,
+                difficulty: normalizeText(question.difficulty) || undefined,
+                question: normalizeText(question.question),
+                answerSql: normalizeText(question.answerSql),
+              }
+            })
+            .filter((question) => question.queryId && question.question && question.answerSql)
 
       if (questions.length < questionCount) {
         return {
           ok: false as const,
-          message: 'Not enough SQL practice questions are available for a coin challenge',
+          message: useBuiltInBank
+            ? 'Not enough SQL coin challenge questions are available for the selected topic and difficulty'
+            : 'Not enough SQL practice questions are available for a coin challenge',
         }
       }
 
+      const topicLabel = requestedTopic ? getSqlCoinChallengeTopicLabel(requestedTopic) : undefined
+      const difficultyLabel = requestedDifficulty ? getSqlCoinChallengeDifficultyLabel(requestedDifficulty) : undefined
       const now = new Date().toISOString()
       const challenge: SqlCoinChallengeDoc = {
         id: generateChallengeId(),
@@ -336,6 +369,11 @@ export class SqlCoinChallengeService {
         year: input.academicPeriod.year,
         semester: input.academicPeriod.semester,
         status: 'active',
+        topic: requestedTopic || undefined,
+        topicLabel,
+        difficulty: requestedDifficulty || undefined,
+        difficultyLabel,
+        questionSource: useBuiltInBank ? 'built-in-bank' : 'practiceQueries',
         questions,
         attempts: [],
         createdBy,

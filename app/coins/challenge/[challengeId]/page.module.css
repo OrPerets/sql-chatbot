@@ -65,6 +65,26 @@
   white-space: nowrap;
 }
 
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.metaRow span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
 .errorBanner,
 .emptyState,
 .completedState {
@@ -124,6 +144,17 @@
   gap: 12px;
   color: #132c68;
   font-weight: 900;
+}
+
+.questionTitleGroup {
+  display: grid;
+  gap: 4px;
+}
+
+.questionTitleGroup small {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .questionText {

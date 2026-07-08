@@ -13,7 +13,9 @@ type ChallengeQuestion = {
   queryId: string;
   practiceId: string;
   table?: string;
+  topicLabel?: string;
   difficulty?: string;
+  difficultyLabel?: string;
   question: string;
 };
 
@@ -30,6 +32,8 @@ type Challenge = {
   studentEmail: string;
   year: number;
   semester: number;
+  topicLabel?: string;
+  difficultyLabel?: string;
   questions: ChallengeQuestion[];
   attempts: ChallengeAttempt[];
   score?: {
@@ -161,6 +165,12 @@ export default function SqlCoinChallengePage() {
             <div className={styles.eyebrow}>אתגר SQL למטבע</div>
             <h1>פתרו 3 שאלות SQL</h1>
             <p>המטבע יינתן רק אחרי שכל התשובות נבדקות ונשמרות כהוכחת השלמה.</p>
+            {challenge?.topicLabel || challenge?.difficultyLabel ? (
+              <div className={styles.metaRow}>
+                {challenge.topicLabel ? <span>{challenge.topicLabel}</span> : null}
+                {challenge.difficultyLabel ? <span>{challenge.difficultyLabel}</span> : null}
+              </div>
+            ) : null}
           </div>
           <div className={styles.statusBadge}>
             <Coins size={18} />
@@ -199,7 +209,14 @@ export default function SqlCoinChallengePage() {
                 return (
                   <article key={question.queryId} className={styles.questionCard}>
                     <div className={styles.questionHeader}>
-                      <span>שאלה {index + 1}</span>
+                      <div className={styles.questionTitleGroup}>
+                        <span>שאלה {index + 1}</span>
+                        {question.topicLabel || question.difficultyLabel || question.table ? (
+                          <small>
+                            {[question.topicLabel, question.difficultyLabel, question.table].filter(Boolean).join(" · ")}
+                          </small>
+                        ) : null}
+                      </div>
                       {attempt ? (
                         <strong className={attempt.correct ? styles.correct : styles.incorrect}>
                           {attempt.correct ? "נכון" : `לא מדויק (${attempt.similarity}%)`}

@@ -70,6 +70,8 @@ describe("SQL coin challenge routes", () => {
         year: 2026,
         semester: 2,
         questionCount: 3,
+        topic: "joins",
+        difficulty: "medium",
       }),
     });
 
@@ -84,6 +86,8 @@ describe("SQL coin challenge routes", () => {
       createdBy: adminEmail,
       questionCount: 3,
       practiceId: undefined,
+      topic: "joins",
+      difficulty: "medium",
     });
   });
 
@@ -130,6 +134,8 @@ describe("SQL coin challenge routes", () => {
       createdBy: adminEmail,
       questionCount: 3,
       practiceId: undefined,
+      topic: undefined,
+      difficulty: undefined,
     });
   });
 

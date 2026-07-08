@@ -217,6 +217,58 @@ describe("SqlCoinChallengeService", () => {
     );
   });
 
+  it("creates a challenge from the built-in bank by selected topic and difficulty", async () => {
+    const service = new SqlCoinChallengeService({} as any);
+
+    usersCollection.findOne.mockResolvedValue({
+      id: "student-1",
+      email: "student@example.com",
+      year: 2026,
+      semester: 2,
+    });
+    challengeCollection.findOne.mockResolvedValue(null);
+    challengeCollection.insertOne.mockResolvedValue({ insertedId: "challenge-object-id" });
+
+    const result = await service.createChallenge({
+      studentEmail: "student@example.com",
+      academicPeriod: { year: 2026, semester: 2 },
+      createdBy: "admin@example.com",
+      questionCount: 3,
+      topic: "joins",
+      difficulty: "medium",
+    });
+
+    expect(practiceQueriesCollection.find).not.toHaveBeenCalled();
+    expect(result.topic).toBe("joins");
+    expect(result.topicLabel).toBe("צירופים");
+    expect(result.difficulty).toBe("medium");
+    expect(result.difficultyLabel).toBe("בינוני");
+    expect(result.questions).toHaveLength(3);
+    expect(result.questions[0]).toMatchObject({
+      practiceId: "sql_coin_challenge_bank",
+      topic: "joins",
+      topicLabel: "צירופים",
+      difficulty: "medium",
+      difficultyLabel: "בינוני",
+    });
+    expect(result.questions[0]).not.toHaveProperty("answerSql");
+    expect(challengeCollection.insertOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        questionSource: "built-in-bank",
+        topic: "joins",
+        topicLabel: "צירופים",
+        difficulty: "medium",
+        difficultyLabel: "בינוני",
+        questions: expect.arrayContaining([
+          expect.objectContaining({
+            answerSql: expect.any(String),
+            queryId: expect.stringMatching(/^bank_joins_medium_/),
+          }),
+        ]),
+      })
+    );
+  });
+
   it("awards one coin once after a completed challenge and ignores duplicate completion", async () => {
     const service = new SqlCoinChallengeService({} as any);
     const completedPendingLedger = {

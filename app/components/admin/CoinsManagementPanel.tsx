@@ -6,6 +6,12 @@ import { Coins, RefreshCw, RotateCcw, Search, Send, Settings2, Trophy, TrendingU
 import { useAdminShell } from "@/app/components/admin/AdminShell";
 import ErrorBanner from "@/app/components/admin/ErrorBanner";
 import { DEFAULT_ADMIN_EMAILS } from "@/lib/admin-emails";
+import {
+  SQL_COIN_CHALLENGE_DIFFICULTIES,
+  SQL_COIN_CHALLENGE_TOPICS,
+  type SqlCoinChallengeDifficulty,
+  type SqlCoinChallengeTopic,
+} from "@/lib/sql-coin-challenge-options";
 import styles from "@/app/admin/coins/page.module.css";
 
 type CoinsFeatureStatus = "ON" | "OFF";
@@ -56,7 +62,19 @@ interface SqlCoinChallengeOverview {
   year: number;
   semester: number;
   status: SqlCoinChallengeStatus;
-  questions: Array<{ queryId: string; question: string; practiceId: string }>;
+  topic?: SqlCoinChallengeTopic;
+  topicLabel?: string;
+  difficulty?: SqlCoinChallengeDifficulty;
+  difficultyLabel?: string;
+  questions: Array<{
+    queryId: string;
+    question: string;
+    practiceId: string;
+    topic?: SqlCoinChallengeTopic;
+    topicLabel?: string;
+    difficulty?: string;
+    difficultyLabel?: string;
+  }>;
   attempts: Array<{ questionId: string; correct: boolean; similarity: number; submittedAt: string }>;
   score?: {
     correctCount: number;
@@ -97,6 +115,12 @@ interface EnrichedUserRow {
   duplicateEmailCount: number;
   duplicateEmailIndex: number;
   isChallengeEligible: boolean;
+}
+
+interface ChallengeDraft {
+  email: string;
+  topic: SqlCoinChallengeTopic | "";
+  difficulty: SqlCoinChallengeDifficulty | "";
 }
 
 function normalizeCoinsConfig(config: CoinsConfig): CoinsConfig {
@@ -189,6 +213,7 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
   const [users, setUsers] = useState<EnrichedUserRow[]>([]);
   const [challenges, setChallenges] = useState<SqlCoinChallengeOverview[]>([]);
   const [selectedChallengeUser, setSelectedChallengeUser] = useState("");
+  const [challengeDraft, setChallengeDraft] = useState<ChallengeDraft | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingAmounts, setPendingAmounts] = useState<Record<string, string>>({});
   const [busyUsers, setBusyUsers] = useState<Record<string, boolean>>({});
@@ -271,6 +296,15 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
   const challengeEligibleUsers = useMemo(() => {
     return users.filter((user) => user.isChallengeEligible);
   }, [users]);
+
+  const challengeDraftUser = useMemo(() => {
+    if (!challengeDraft) {
+      return null;
+    }
+
+    const draftEmail = normalizeEmail(challengeDraft.email);
+    return users.find((user) => normalizeEmail(user.email) === draftEmail) ?? null;
+  }, [challengeDraft, users]);
 
   const hasUnsavedConfigChanges = useMemo(() => {
     if (!config || !savedConfig) {
@@ -511,10 +545,35 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
     }
   };
 
-  const createChallenge = async (emailOverride?: string) => {
+  const openChallengeDialog = (emailOverride?: string) => {
     const email = normalizeEmail(emailOverride || selectedChallengeUser);
     if (!email) {
       setError("יש לבחור סטודנט לאתגר SQL.");
+      return;
+    }
+
+    setError(null);
+    setSuccessMessage(null);
+    setSuccessDetails(null);
+    setChallengeDraft({
+      email,
+      topic: "",
+      difficulty: "",
+    });
+  };
+
+  const createChallenge = async () => {
+    if (!challengeDraft) {
+      return;
+    }
+
+    const email = normalizeEmail(challengeDraft.email);
+    if (!email) {
+      setError("יש לבחור סטודנט לאתגר SQL.");
+      return;
+    }
+    if (!challengeDraft.topic || !challengeDraft.difficulty) {
+      setError("יש לבחור נושא ורמת קושי לפני שליחת האתגר.");
       return;
     }
 
@@ -532,6 +591,8 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
           year: academicPeriod.year,
           semester: academicPeriod.semester,
           questionCount: 3,
+          topic: challengeDraft.topic,
+          difficulty: challengeDraft.difficulty,
         }),
       });
 
@@ -540,9 +601,15 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
         throw new Error(payload.error || "פתיחת אתגר SQL נכשלה.");
       }
 
+      const topicLabel =
+        SQL_COIN_CHALLENGE_TOPICS.find((topic) => topic.value === challengeDraft.topic)?.label ?? challengeDraft.topic;
+      const difficultyLabel =
+        SQL_COIN_CHALLENGE_DIFFICULTIES.find((difficulty) => difficulty.value === challengeDraft.difficulty)?.label ??
+        challengeDraft.difficulty;
       setSuccessMessage("אתגר SQL נפתח לסטודנט");
-      setSuccessDetails(`האתגר זמין עכשיו ב-/landing עבור ${email}.`);
+      setSuccessDetails(`${topicLabel} · ${difficultyLabel} · האתגר זמין עכשיו ב-/landing עבור ${email}.`);
       setSelectedChallengeUser(email);
+      setChallengeDraft(null);
       await loadCoinsData(true);
     } catch (challengeError) {
       console.error("Failed to create SQL coin challenge:", challengeError);
@@ -705,11 +772,11 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
             <button
               type="button"
               className={styles.primaryButton}
-              onClick={() => void createChallenge()}
+              onClick={() => openChallengeDialog()}
               disabled={!selectedChallengeUser || busyChallenges[normalizeEmail(selectedChallengeUser)] === true}
             >
               <Send size={16} />
-              {busyChallenges[normalizeEmail(selectedChallengeUser)] ? "פותח..." : "פתח אתגר"}
+              בחירת אתגר
             </button>
             <div className={styles.challengeMiniStats}>
               <span>{challengeSummary.total} אתגרים במחזור</span>
@@ -952,6 +1019,11 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                                       ? `${challenge.score.correctCount}/${challenge.score.totalQuestions} נכון`
                                       : `${challenge.questions?.length || 3} שאלות`}
                                   </span>
+                                  {challenge.topicLabel || challenge.difficultyLabel ? (
+                                    <span className={styles.challengeMeta}>
+                                      {[challenge.topicLabel, challenge.difficultyLabel].filter(Boolean).join(" · ")}
+                                    </span>
+                                  ) : null}
                                   {challenge.coinLedgerTransactionId ? (
                                     <span className={styles.challengeLedger}>נרשם בלדג׳ר</span>
                                   ) : null}
@@ -972,10 +1044,10 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                                         type="button"
                                         className={styles.inlineAction}
                                         disabled={challengeBusy}
-                                        onClick={() => void createChallenge(user.email)}
+                                        onClick={() => openChallengeDialog(user.email)}
                                       >
                                         <RotateCcw size={14} />
-                                        {challengeBusy ? "פותח..." : "פתח מחדש"}
+                                        בחירה מחדש
                                       </button>
                                     ) : null}
                                   </div>
@@ -990,10 +1062,10 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
                                       type="button"
                                       className={styles.inlineAction}
                                       disabled={challengeBusy}
-                                      onClick={() => void createChallenge(user.email)}
+                                      onClick={() => openChallengeDialog(user.email)}
                                     >
                                       <Send size={14} />
-                                      {challengeBusy ? "פותח..." : "פתח אתגר"}
+                                      בחירת אתגר
                                     </button>
                                   ) : null}
                                 </>
@@ -1063,6 +1135,111 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
           </section>
         </div>
       </div>
+
+      {challengeDraft ? (
+        <div className={styles.modalBackdrop}>
+          <section className={styles.challengeDialog} role="dialog" aria-modal="true" aria-labelledby="challenge-dialog-title">
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void createChallenge();
+              }}
+            >
+              <header className={styles.dialogHeader}>
+                <div>
+                  <div className={styles.challengeEyebrow}>אתגר SQL מותאם</div>
+                  <h2 id="challenge-dialog-title">בחירת נושא ורמת קושי</h2>
+                  <p>
+                    {challengeDraftUser?.name ?? challengeDraft.email}
+                    {" · "}
+                    <span dir="ltr">{challengeDraft.email}</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className={styles.dialogCloseButton}
+                  onClick={() => setChallengeDraft(null)}
+                  disabled={busyChallenges[normalizeEmail(challengeDraft.email)] === true}
+                  aria-label="סגירת חלון בחירת אתגר"
+                >
+                  <XCircle size={20} />
+                </button>
+              </header>
+
+              <div className={styles.dialogBody}>
+                <fieldset className={styles.choiceGroup}>
+                  <legend>נושא</legend>
+                  <div className={styles.topicGrid}>
+                    {SQL_COIN_CHALLENGE_TOPICS.map((topic) => (
+                      <button
+                        key={topic.value}
+                        type="button"
+                        className={`${styles.choiceCard} ${
+                          challengeDraft.topic === topic.value ? styles.choiceCardActive : ""
+                        }`}
+                        aria-pressed={challengeDraft.topic === topic.value}
+                        onClick={() =>
+                          setChallengeDraft((current) =>
+                            current ? { ...current, topic: topic.value } : current
+                          )
+                        }
+                      >
+                        {topic.label}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+
+                <fieldset className={styles.choiceGroup}>
+                  <legend>רמת קושי</legend>
+                  <div className={styles.difficultyGrid}>
+                    {SQL_COIN_CHALLENGE_DIFFICULTIES.map((difficulty) => (
+                      <button
+                        key={difficulty.value}
+                        type="button"
+                        className={`${styles.difficultyButton} ${
+                          challengeDraft.difficulty === difficulty.value ? styles.difficultyButtonActive : ""
+                        }`}
+                        aria-pressed={challengeDraft.difficulty === difficulty.value}
+                        onClick={() =>
+                          setChallengeDraft((current) =>
+                            current ? { ...current, difficulty: difficulty.value } : current
+                          )
+                        }
+                      >
+                        {difficulty.label}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+              </div>
+
+              <footer className={styles.dialogActions}>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() => setChallengeDraft(null)}
+                  disabled={busyChallenges[normalizeEmail(challengeDraft.email)] === true}
+                >
+                  ביטול
+                </button>
+                <button
+                  type="submit"
+                  className={styles.primaryButton}
+                  disabled={
+                    busyChallenges[normalizeEmail(challengeDraft.email)] === true ||
+                    !challengeDraft.topic ||
+                    !challengeDraft.difficulty
+                  }
+                >
+                  <Send size={16} />
+                  {busyChallenges[normalizeEmail(challengeDraft.email)] ? "שולח..." : "שלח אתגר"}
+                </button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      ) : null}
     </>
   );
 }
