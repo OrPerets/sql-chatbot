@@ -1,27 +1,20 @@
 .header {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  right: var(--sidebar-width);
   z-index: var(--z-sticky);
   min-height: var(--header-height);
   border-bottom: 1px solid var(--header-border);
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(14px);
-  transition: right var(--transition-base);
-}
-
-.headerCollapsed {
-  right: var(--sidebar-width-collapsed);
 }
 
 .headerContainer {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.8fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 0.68fr) auto;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--space-4);
   min-height: var(--header-height);
-  padding: var(--space-4) var(--space-6);
+  padding: var(--space-3) var(--space-6);
 }
 
 .headerLead {
@@ -53,7 +46,6 @@
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-1);
-  margin-bottom: 2px;
   color: var(--color-neutral-500);
   font-size: 0.78rem;
 }
@@ -66,7 +58,7 @@
 
 .breadcrumbItem a {
   display: inline-flex;
-  min-height: var(--touch-target-min);
+  min-height: 24px;
   align-items: center;
   color: inherit;
   text-decoration: none;
@@ -91,19 +83,6 @@
   color: var(--color-neutral-950, #0f172a);
   font-size: 1.05rem;
   font-weight: var(--font-semibold);
-}
-
-.pageIntent {
-  display: inline-flex;
-  min-height: 24px;
-  align-items: center;
-  margin-top: 4px;
-  border-radius: 999px;
-  background: rgba(183, 141, 63, 0.14);
-  color: var(--color-secondary-700);
-  padding: 0 var(--space-2);
-  font-size: var(--text-xs);
-  font-weight: var(--font-bold);
 }
 
 .commandArea {
@@ -152,15 +131,15 @@
 .commandItem {
   display: flex;
   width: 100%;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-3);
   border: 0;
   border-bottom: 1px solid var(--color-neutral-100);
   background: transparent;
   color: var(--color-neutral-800);
   cursor: pointer;
-  min-height: 58px;
-  padding: var(--space-3) var(--space-4);
+  min-height: 48px;
+  padding: var(--space-2) var(--space-4);
   text-align: right;
 }
 
@@ -197,15 +176,6 @@
   color: var(--color-neutral-900);
   font-size: var(--text-sm);
   font-weight: var(--font-bold);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.commandDescription {
-  color: var(--color-neutral-500);
-  font-size: 0.76rem;
-  line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -333,13 +303,14 @@
 .userButton {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-lg);
   background: var(--color-neutral-0);
   color: var(--color-neutral-800);
   cursor: pointer;
-  padding: 0.35rem 0.45rem 0.35rem 0.85rem;
+  min-height: var(--touch-target-min);
+  padding: 0.35rem 0.45rem 0.35rem 0.7rem;
 }
 
 .userButton:hover,
@@ -370,11 +341,6 @@
 .userName {
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
-}
-
-.userRole {
-  color: var(--color-neutral-500);
-  font-size: 0.72rem;
 }
 
 .userChevron {
@@ -521,24 +487,13 @@
     grid-template-columns: minmax(0, 1fr) minmax(220px, 0.8fr) auto;
   }
 
-  .periodLabel span {
-    display: none;
-  }
 }
 
 @media (max-width: 1023px) {
-  .header {
-    right: 0;
-  }
-
-  .headerCollapsed {
-    right: 0;
-  }
-
   .headerContainer {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-3);
-    min-height: 158px;
+    min-height: 146px;
   }
 
   .mobileMenuButton {
@@ -563,7 +518,7 @@
 @media (max-width: 640px) {
   .headerContainer {
     padding: var(--space-3);
-    min-height: 150px;
+    min-height: 138px;
   }
 
   .dropdown,

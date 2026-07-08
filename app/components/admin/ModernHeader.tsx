@@ -60,7 +60,6 @@ export default function ModernHeader({
   academicPeriod,
   onAcademicPeriodChange,
   onLogout,
-  isSidebarCollapsed,
   onToggleSidebar,
   onToggleMobileMenu,
 }: ModernHeaderProps) {
@@ -188,7 +187,7 @@ export default function ModernHeader({
   };
 
   return (
-    <header className={`${styles.header} ${isSidebarCollapsed ? styles.headerCollapsed : ""}`}>
+    <header className={styles.header}>
       <div className={styles.headerContainer}>
         <div className={styles.headerLead}>
           <button
@@ -217,14 +216,7 @@ export default function ModernHeader({
               })}
             </div>
 
-            <div>
-              <div className={styles.pageTitle}>{route?.label || "מערכת ניהול"}</div>
-              {route ? (
-                <div className={styles.pageIntent}>
-                  {route.actionLabel || route.shortLabel || "תפעול"}
-                </div>
-              ) : null}
-            </div>
+            <div className={styles.pageTitle}>{route?.label || "מערכת ניהול"}</div>
           </div>
         </div>
 
@@ -261,7 +253,6 @@ export default function ModernHeader({
                       </span>
                       <span className={styles.commandText} title={item.description}>
                         <span className={styles.commandLabel}>{item.label}</span>
-                        <span className={styles.commandDescription}>{item.description}</span>
                       </span>
                     </button>
                   );
@@ -280,7 +271,6 @@ export default function ModernHeader({
           <div className={styles.periodSelector} aria-label="בחירת שנת לימודים וסמסטר">
             <div className={styles.periodLabel}>
               <CalendarDays size={15} />
-              <span>תקופה</span>
               <strong>{academicPeriod.year}/{academicPeriod.semester}</strong>
             </div>
             <input
@@ -378,7 +368,6 @@ export default function ModernHeader({
               </span>
               <span className={styles.userMeta}>
                 <span className={styles.userName}>{currentUser || "מנהל מערכת"}</span>
-                <span className={styles.userRole}>Admin</span>
               </span>
               <ChevronDown size={14} className={styles.userChevron} />
             </button>

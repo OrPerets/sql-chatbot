@@ -683,11 +683,7 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
       <div className={styles.page}>
         <section className={styles.hero}>
           <div>
-            <div className={styles.eyebrow}>מטבעות</div>
             <h1 className={styles.title}>ניהול מטבעות ואתגרי SQL</h1>
-            <p className={styles.subtitle}>
-              ניהול יתרות, חיובי צ׳אט ורמזים, ואתגר SQL אישי שמעניק מטבע אחד רק אחרי הגשה מתועדת.
-            </p>
           </div>
 
           <div className={styles.heroActions}>
@@ -745,9 +741,6 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
           <div className={styles.challengeCopy}>
             <div className={styles.challengeEyebrow}>אתגר SQL למטבע</div>
             <h2>פתיחת אתגר למשתמש מהמחזור הנבחר</h2>
-            <p>
-              האתגר מופיע רק למשתמש שנבחר, בתקופה {academicPeriod.year}/{academicPeriod.semester}, ומעניק מטבע אחד אחרי 3 תשובות נכונות. מנהלים זמינים כאן גם לצורכי בדיקה.
-            </p>
           </div>
           <div className={styles.challengeControls}>
             <label className={styles.challengeSelect}>
@@ -790,7 +783,6 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
             <div className={styles.panelHeader}>
               <div>
                 <h2>הגדרות וחיוב</h2>
-                <p>הפעלה וכיבוי לפי משטח, תמחור נקודתי ויתרת פתיחה למשתמש חדש.</p>
               </div>
               {hasUnsavedConfigChanges ? (
                 <span className={styles.unsavedBadge}>יש שינויים שלא נשמרו</span>
@@ -904,7 +896,6 @@ export default function CoinsManagementPanel({ currentAdminEmail }: CoinsManagem
             <div className={styles.panelHeader}>
               <div>
                 <h2>משתמשים ויתרות</h2>
-                <p>חיפוש מהיר, צפייה בדפוסי שימוש ועדכון יתרה ידני עם כמות מותאמת לכל משתמש.</p>
               </div>
             </div>
 

@@ -23,7 +23,7 @@
   justify-content: space-between;
   gap: var(--space-3);
   border-bottom: 1px solid var(--sidebar-border);
-  padding: var(--space-5);
+  padding: var(--space-4);
 }
 
 .brand {
@@ -55,12 +55,6 @@
   font-weight: var(--font-bold);
 }
 
-.brandSubtitle {
-  margin-top: 2px;
-  color: var(--color-neutral-500);
-  font-size: var(--text-xs);
-}
-
 .collapseButton {
   display: inline-flex;
   min-height: var(--touch-target-min);
@@ -87,11 +81,11 @@
 .navigation {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-5) var(--space-4);
+  padding: var(--space-4) var(--space-4);
 }
 
 .navigationSection + .navigationSection {
-  margin-top: var(--space-5);
+  margin-top: var(--space-4);
 }
 
 .sectionLabel {
@@ -127,11 +121,12 @@
 .navLink {
   position: relative;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-3);
   border: 1px solid transparent;
   border-radius: var(--radius-lg);
-  padding: var(--space-3);
+  min-height: 42px;
+  padding: var(--space-2) var(--space-3);
   color: var(--color-neutral-700);
   text-decoration: none;
   transition: background var(--transition-base), color var(--transition-base), border-color var(--transition-base);
@@ -162,7 +157,6 @@
   min-width: 1.125rem;
   flex: 0 0 auto;
   justify-content: center;
-  padding-top: 1px;
 }
 
 .activeMarker {
@@ -177,10 +171,7 @@
 }
 
 .navLinkBody {
-  display: flex;
   min-width: 0;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .navLinkLabel {
@@ -188,27 +179,12 @@
   font-weight: var(--font-bold);
 }
 
-.navLinkDescription {
-  color: var(--color-neutral-500);
-  font-size: 0.72rem;
-  line-height: 1.35;
-  display: block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.navLinkActive .navLinkDescription {
-  color: var(--brand-primary);
-}
-
 .sidebarFooter {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
   border-top: 1px solid var(--sidebar-border);
-  padding: var(--space-4);
+  padding: var(--space-3);
 }
 
 .profileCard {
@@ -218,7 +194,7 @@
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-lg);
   background: var(--color-neutral-0);
-  padding: var(--space-3);
+  padding: var(--space-2) var(--space-3);
 }
 
 .profileAvatar {
@@ -241,11 +217,6 @@
   color: var(--color-neutral-900);
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
-}
-
-.profileRole {
-  color: var(--color-neutral-500);
-  font-size: var(--text-xs);
 }
 
 .footerButton {

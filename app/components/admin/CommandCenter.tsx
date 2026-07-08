@@ -347,7 +347,6 @@ export default function CommandCenter() {
           <div className={styles.panelHeader}>
             <div>
               <h2 className={styles.panelTitle}>פעולות מהירות</h2>
-              <p className={styles.panelCaption}>קיצורים למהלך שיעור, בדיקה ותמיכה.</p>
             </div>
           </div>
 
@@ -366,7 +365,6 @@ export default function CommandCenter() {
                     </span>
                     <span>
                       <span className={styles.quickActionTitle}>{action.label}</span>
-                      <span className={styles.quickActionDescription}>{action.description}</span>
                     </span>
                     <ArrowUpRight size={15} className={styles.quickActionArrow} />
                   </button>
@@ -380,7 +378,6 @@ export default function CommandCenter() {
                   </span>
                   <span>
                     <span className={styles.quickActionTitle}>{action.label}</span>
-                    <span className={styles.quickActionDescription}>{action.description}</span>
                   </span>
                   <ArrowUpRight size={15} className={styles.quickActionArrow} />
                 </Link>
@@ -393,7 +390,6 @@ export default function CommandCenter() {
           <div className={styles.panelHeader}>
             <div>
               <h2 className={styles.panelTitle}>מצב מערכת</h2>
-              <p className={styles.panelCaption}>המצבים שמשפיעים על הסטודנטים עכשיו.</p>
             </div>
           </div>
 
@@ -401,7 +397,6 @@ export default function CommandCenter() {
             <div className={styles.systemRow}>
               <span>
                 <span className={styles.systemLabel}>Michael</span>
-                <span className={styles.systemDescription}>זמינות עוזר AI</span>
               </span>
               <span className={overview?.statuses.michaelEnabled ? styles.statusOn : styles.statusOff}>
                 {overview?.statuses.michaelEnabled ? "פעיל" : "כבוי"}
@@ -411,7 +406,6 @@ export default function CommandCenter() {
             <div className={styles.systemRow}>
               <span>
                 <span className={styles.systemLabel}>מטבעות</span>
-                <span className={styles.systemDescription}>מודולי חיוב פעילים</span>
               </span>
               <span className={getActiveCoinModuleCount(overview) > 0 ? styles.statusOn : styles.statusOff}>
                 {formatCoinModuleSummary(overview, loading)}
@@ -421,7 +415,6 @@ export default function CommandCenter() {
             <div className={styles.systemRow}>
               <span>
                 <span className={styles.systemLabel}>Runtime</span>
-                <span className={styles.systemDescription}>מודל פעיל</span>
               </span>
               <span className={styles.statusNeutral}>{overview?.statuses.runtimeModel || "..."}</span>
             </div>
@@ -433,7 +426,6 @@ export default function CommandCenter() {
         <div className={styles.panelHeader}>
           <div>
             <h2 className={styles.panelTitle}>מדדי עבודה</h2>
-            <p className={styles.panelCaption}>קנה מידה לפני כניסה למסך עמוק.</p>
           </div>
         </div>
 
@@ -447,7 +439,6 @@ export default function CommandCenter() {
                 </span>
                 <span className={styles.metricValue}>{card.value}</span>
                 <span className={styles.metricLabel}>{card.label}</span>
-                <span className={styles.metricDetail}>{card.detail}</span>
                 <span className={styles.metricBar} aria-hidden="true">
                   <span style={{ width: `${clampPercent(card.rawValue, maxStatusValue)}%` }} />
                 </span>
@@ -461,7 +452,6 @@ export default function CommandCenter() {
         <div className={styles.panelHeader}>
           <div>
             <h2 className={styles.panelTitle}>ניווט לפי משימה</h2>
-            <p className={styles.panelCaption}>מסכים מקובצים לפי כוונת עבודה.</p>
           </div>
         </div>
 
@@ -472,7 +462,6 @@ export default function CommandCenter() {
               <section key={bucket.id} className={styles.bucketSection}>
                 <div className={styles.bucketHeader}>
                   <h3 className={styles.bucketTitle}>{bucket.label}</h3>
-                  <p className={styles.bucketDescription}>{bucket.description}</p>
                 </div>
 
                 <div className={styles.tileGrid}>
@@ -494,7 +483,6 @@ export default function CommandCenter() {
                           ) : null}
                         </div>
                         <h4 className={styles.tileTitle}>{route.label}</h4>
-                        <p className={styles.tileDescription}>{route.description}</p>
                         <span className={styles.tileReason}>
                           <CheckCircle2 size={14} />
                           {route.actionLabel || route.whyOpen}

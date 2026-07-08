@@ -10,15 +10,15 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--space-4);
 }
 
 .hero {
   display: flex;
   justify-content: space-between;
-  gap: var(--space-5);
-  align-items: flex-start;
-  padding: var(--space-6);
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-4);
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-xl);
   background:
@@ -28,29 +28,10 @@
   box-shadow: 0 16px 36px rgba(15, 23, 42, 0.06);
 }
 
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 0 var(--space-3);
-  border-radius: 999px;
-  background: rgba(36, 92, 115, 0.1);
-  color: var(--brand-primary);
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-
 .title {
-  margin: 8px 0 12px;
-  font-size: clamp(1.8rem, 4vw, 2.5rem);
-  line-height: 1.1;
-}
-
-.subtitle {
   margin: 0;
-  max-width: 760px;
-  line-height: 1.7;
-  color: var(--color-neutral-600);
+  font-size: clamp(1.35rem, 3vw, 1.9rem);
+  line-height: 1.1;
 }
 
 .heroActions {
@@ -143,34 +124,24 @@
   grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
   gap: 18px;
   align-items: center;
-  padding: 22px;
+  padding: 18px;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-xl);
   background: #ffffff;
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
 }
 
-.challengeCopy {
-  display: grid;
-  gap: 8px;
-}
-
 .challengeEyebrow {
   color: var(--brand-primary);
   font-size: 0.82rem;
   font-weight: 800;
+  margin-bottom: 6px;
 }
 
 .challengeCopy h2 {
   margin: 0;
   color: #0f172a;
   font-size: 1.18rem;
-}
-
-.challengeCopy p {
-  margin: 0;
-  color: #64748b;
-  line-height: 1.6;
 }
 
 .challengeControls {

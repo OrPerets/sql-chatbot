@@ -49,7 +49,6 @@ export default function Sidebar({
             </div>
             <div className={styles.brandText}>
               <div className={styles.brandTitle}>מסוף ניהול</div>
-              <div className={styles.brandSubtitle}>SQL Chatbot</div>
             </div>
           </div>
         ) : (
@@ -89,11 +88,6 @@ export default function Sidebar({
                 {routes.map((route) => {
                   const Icon = route.icon;
                   const isActive = activeRoute?.id === route.id;
-                  const compactMeta =
-                    route.shortLabel && route.shortLabel !== route.label
-                      ? route.shortLabel
-                      : route.actionLabel;
-
                   return (
                     <Link
                       key={route.id}
@@ -112,9 +106,6 @@ export default function Sidebar({
                       {!isCollapsed ? (
                         <span className={styles.navLinkBody}>
                           <span className={styles.navLinkLabel}>{route.label}</span>
-                          {compactMeta ? (
-                            <span className={styles.navLinkDescription}>{compactMeta}</span>
-                          ) : null}
                         </span>
                       ) : null}
                     </Link>
@@ -134,7 +125,6 @@ export default function Sidebar({
           {!isCollapsed ? (
             <div className={styles.profileBody}>
               <div className={styles.profileName}>{currentUser || "מנהל מערכת"}</div>
-              <div className={styles.profileRole}>הרשאת ניהול מלאה</div>
             </div>
           ) : null}
         </div>

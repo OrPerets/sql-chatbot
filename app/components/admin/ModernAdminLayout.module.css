@@ -39,7 +39,6 @@
 
 .contentWrapper {
   min-height: 100vh;
-  padding-top: var(--header-height);
 }
 
 .pageContent {
@@ -70,9 +69,6 @@
     padding: var(--space-5) var(--space-4) var(--space-8);
   }
 
-  .contentWrapper {
-    padding-top: 158px;
-  }
 }
 
 @media (max-width: 640px) {
@@ -80,7 +76,4 @@
     padding: var(--space-4) var(--space-3) var(--space-6);
   }
 
-  .contentWrapper {
-    padding-top: 150px;
-  }
 }
