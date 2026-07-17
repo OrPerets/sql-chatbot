@@ -255,6 +255,18 @@
   box-shadow: 0 16px 34px rgba(19, 44, 104, 0.12);
 }
 
+.container .learningAction {
+  min-width: 238px;
+  color: #12315f;
+  border-color: rgba(14, 149, 189, 0.28);
+  background: rgba(228, 247, 252, 0.9);
+  box-shadow: 0 16px 34px rgba(14, 149, 189, 0.14);
+}
+
+.learningAction:hover {
+  box-shadow: 0 22px 42px rgba(14, 149, 189, 0.2);
+}
+
 .primaryAction:hover {
   transform: translateY(-2px);
   border-color: rgba(19, 44, 104, 0.34);

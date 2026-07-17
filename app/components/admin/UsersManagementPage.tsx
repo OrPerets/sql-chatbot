@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Coins, KeyRound, PencilLine, Plus, RefreshCw, Search, UserPlus, Users } from "lucide-react";
 
+import { ACADEMIC_SEMESTER_OPTIONS } from "@/lib/academic-period";
 import { useAdminShell } from "./AdminShell";
 import type { Class } from "./types";
 import styles from "./UsersManagementPage.module.css";
@@ -602,8 +603,11 @@ export default function UsersManagementPage() {
                       setUserForm((current) => ({ ...current, semester: Number(event.target.value) }))
                     }
                   >
-                    <option value={1}>1</option>
-                    <option value={2}>2</option>
+                    {ACADEMIC_SEMESTER_OPTIONS.map(({ value, label }) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

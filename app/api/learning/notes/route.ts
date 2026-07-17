@@ -16,7 +16,7 @@ type NotesQuery = {
 };
 
 const isValidTargetType = (value: string | null): value is LearningNoteTargetType =>
-  value === 'pdf' || value === 'topic';
+  value === 'pdf' || value === 'topic' || value === 'video';
 
 const getQuery = (request: NextRequest): NotesQuery | null => {
   const { searchParams } = new URL(request.url);

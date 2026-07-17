@@ -10,6 +10,20 @@ export const DEFAULT_ACADEMIC_PERIOD: AcademicPeriod = {
   semester: 2,
 };
 
+export const ACADEMIC_SEMESTER_OPTIONS = [
+  { value: 1, label: "A" },
+  { value: 2, label: "B" },
+  { value: 3, label: "C" },
+] as const;
+
+export function getAcademicSemesterLabel(semester: number): string {
+  return ACADEMIC_SEMESTER_OPTIONS.find((option) => option.value === semester)?.label ?? String(semester);
+}
+
+export function formatAcademicPeriodLabel(period: AcademicPeriod): string {
+  return `${period.year}/${getAcademicSemesterLabel(period.semester)}`;
+}
+
 const PRIVILEGED_ROLES = ["admin", "instructor", "teacher", "builder"];
 
 function parseNumericValue(value: string | null): number | null {

@@ -16,7 +16,11 @@ import {
   UserCircle,
 } from "lucide-react";
 
-import type { AcademicPeriod } from "@/lib/academic-period";
+import {
+  ACADEMIC_SEMESTER_OPTIONS,
+  formatAcademicPeriodLabel,
+  type AcademicPeriod,
+} from "@/lib/academic-period";
 import {
   getAdminBreadcrumbs,
   getAdminCommandItems,
@@ -271,7 +275,7 @@ export default function ModernHeader({
           <div className={styles.periodSelector} aria-label="בחירת שנת לימודים וסמסטר">
             <div className={styles.periodLabel}>
               <CalendarDays size={15} />
-              <strong>{academicPeriod.year}/{academicPeriod.semester}</strong>
+              <strong>{formatAcademicPeriodLabel(academicPeriod)}</strong>
             </div>
             <input
               className={styles.periodYearInput}
@@ -283,15 +287,16 @@ export default function ModernHeader({
               aria-label="שנת לימודים"
             />
             <div className={styles.semesterSegment} role="group" aria-label="סמסטר">
-              {[1, 2].map((semester) => (
+              {ACADEMIC_SEMESTER_OPTIONS.map(({ value, label }) => (
                 <button
-                  key={semester}
+                  key={value}
                   type="button"
-                  className={academicPeriod.semester === semester ? styles.semesterActive : ""}
-                  onClick={() => handleSemesterChange(semester)}
-                  aria-pressed={academicPeriod.semester === semester}
+                  className={academicPeriod.semester === value ? styles.semesterActive : ""}
+                  onClick={() => handleSemesterChange(value)}
+                  aria-label={`סמסטר ${label}`}
+                  aria-pressed={academicPeriod.semester === value}
                 >
-                  {semester}
+                  {label}
                 </button>
               ))}
             </div>

@@ -7,6 +7,7 @@ import {
   ArrowUpLeft,
   Bell,
   BookOpenCheck,
+  Clapperboard,
   MessageCircle,
   ShieldCheck,
 } from "lucide-react";
@@ -148,6 +149,14 @@ const LandingPage = () => {
               >
                 <BookOpenCheck aria-hidden="true" size={22} />
                 <span>תרגילי בית</span>
+                <ArrowUpLeft aria-hidden="true" size={18} />
+              </Link>
+              <Link
+                className={`${styles.primaryAction} ${styles.learningAction}`}
+                href="/virtual-learning"
+              >
+                <Clapperboard aria-hidden="true" size={22} />
+                <span>סביבת למידה וירטואלית</span>
                 <ArrowUpLeft aria-hidden="true" size={18} />
               </Link>
             </nav>

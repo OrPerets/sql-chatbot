@@ -2,7 +2,7 @@ import { ObjectId } from 'mongodb';
 
 import { COLLECTIONS, executeWithRetry } from '@/lib/database';
 
-export type LearningNoteTargetType = 'pdf' | 'topic';
+export type LearningNoteTargetType = 'pdf' | 'topic' | 'video';
 
 export interface LearningNote {
   _id?: ObjectId;
