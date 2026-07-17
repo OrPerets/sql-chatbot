@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, useReducer } 
 import styles from "./chat.module.css";
 import "./mobile-optimizations.css";
 import Markdown from "react-markdown";
-import { ThumbsUp, ThumbsDown, ClipboardCopy, Plus, Sparkles, ImagePlus, Braces, BarChart3, ChevronDown, BrainCircuit, ArrowUp, X } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ClipboardCopy, Plus, Sparkles, ImagePlus, Braces, BarChart3, ChevronDown, BrainCircuit, ArrowUp, X, LockKeyhole } from 'lucide-react';
 import Link from 'next/link';
 import Sidebar from './sidebar';
 import { useRouter } from 'next/navigation';
@@ -3892,69 +3892,22 @@ return (
                 <div className={styles.actionMenu} role="menu">
                   <button
                     type="button"
-                    className={styles.actionMenuItem}
-                    onClick={() => {
-                      setIsActionMenuOpen(false);
-                      setIsThinkingModeEnabled((previous) => !previous);
-                    }}
-                    disabled={inputDisabled || imageProcessing}
-                    title={isThinkingModeEnabled ? "כיבוי מצב חשיבה" : "הפעלת מצב חשיבה"}
-                    role="menuitemcheckbox"
-                    aria-checked={isThinkingModeEnabled}
+                    className={`${styles.actionMenuItem} ${styles.actionMenuItemRestricted}`}
+                    disabled
+                    title="זמין למשתמשים מורשים בלבד"
+                    role="menuitem"
+                    aria-disabled="true"
                   >
-
                     <div className={styles.actionMenuItemBody}>
-                    <BrainCircuit className={styles.actionMenuItemIcon} size={10} strokeWidth={2} />
+                      <BrainCircuit className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
                       <span className={styles.actionMenuItemTitle}>מצב חשיבה</span>
-                      <span className={styles.actionMenuItemDescription}>
-                        {isThinkingModeEnabled ? "תשובות עם תהליך חשיבה" : "תשובות מהירות יותר"}
+                      <span className={styles.actionMenuItemDescription}>זמין למשתמשים מורשים בלבד</span>
+                      <span className={`${styles.actionMenuItemBadge} ${styles.actionMenuItemBadgeLocked}`}>
+                        <LockKeyhole size={11} strokeWidth={2.3} aria-hidden="true" />
+                        מורשים בלבד
                       </span>
-                      <span
-                      className={`${styles.actionMenuItemBadge} ${
-                        isThinkingModeEnabled ? styles.actionMenuItemBadgeActive : styles.actionMenuItemBadgeInactive
-                      }`}
-                    >
-                      {isThinkingModeEnabled ? "פועל" : "כבוי"}
-                    </span>
                     </div>
-
                   </button>
-
-                  {enableRelationalAlgebraMode && (
-                    <button
-                      type="button"
-                      className={styles.actionMenuItem}
-                      onClick={() => {
-                        setIsActionMenuOpen(false);
-                        setSubjectMode((previous) =>
-                          previous === "relational_algebra" ? "sql" : "relational_algebra"
-                        );
-                      }}
-                      disabled={inputDisabled || imageProcessing}
-                      title="הפעלת מצב אלגברת יחסים"
-                      role="menuitemcheckbox"
-                      aria-checked={subjectMode === "relational_algebra"}
-                    >
-                      <div className={styles.actionMenuItemBody}>
-                        <span className={styles.actionMenuItemIconText}>π</span>
-                        <span className={styles.actionMenuItemTitle}>אלגברת יחסים</span>
-                        <span className={styles.actionMenuItemDescription}>
-                          {subjectMode === "relational_algebra"
-                            ? "מייקל יסביר בעזרת σ, π, ⋈"
-                            : "מעבר להכוונה באלגברת יחסים"}
-                        </span>
-                        <span
-                          className={`${styles.actionMenuItemBadge} ${
-                            subjectMode === "relational_algebra"
-                              ? styles.actionMenuItemBadgeActive
-                              : styles.actionMenuItemBadgeInactive
-                          }`}
-                        >
-                          {subjectMode === "relational_algebra" ? "פועל" : "כבוי"}
-                        </span>
-                      </div>
-                    </button>
-                  )}
 
                   {isSqlPracticeEnabled && (
                     <button
@@ -4028,22 +3981,20 @@ return (
 
                   <button
                     type="button"
-                    className={styles.actionMenuItem}
-                    onClick={() => {
-                      setIsActionMenuOpen(false);
-                      router.push('/visualizer');
-                    }}
-                    title="המחשת שאילתה"
+                    className={`${styles.actionMenuItem} ${styles.actionMenuItemRestricted}`}
+                    disabled
+                    title="זמין למשתמשים מורשים בלבד"
                     role="menuitem"
+                    aria-disabled="true"
                   >
                     <div className={styles.actionMenuItemBody}>
                       <BarChart3 className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
                       <span className={styles.actionMenuItemTitle}>המחשת שאילתה</span>
-                      <span className={styles.actionMenuItemDescription}>תרשים ויזואלי של תוצאות השאילתה</span>
-                      <span
-                        className={`${styles.actionMenuItemBadge} ${styles.actionMenuItemBadgePlaceholder}`}
-                        aria-hidden="true"
-                      />
+                      <span className={styles.actionMenuItemDescription}>זמין למשתמשים מורשים בלבד</span>
+                      <span className={`${styles.actionMenuItemBadge} ${styles.actionMenuItemBadgeLocked}`}>
+                        <LockKeyhole size={11} strokeWidth={2.3} aria-hidden="true" />
+                        מורשים בלבד
+                      </span>
                     </div>
                   </button>
                 </div>

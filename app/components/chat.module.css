@@ -2207,6 +2207,19 @@
   cursor: not-allowed;
 }
 
+.actionMenuItemRestricted:disabled {
+  opacity: 1;
+  color: #64748b;
+  background: rgba(248, 250, 252, 0.82);
+  border-color: rgba(226, 232, 240, 0.8);
+}
+
+.actionMenuItemRestricted .actionMenuItemTitle,
+.actionMenuItemRestricted .actionMenuItemDescription,
+.actionMenuItemRestricted .actionMenuItemIcon {
+  color: #64748b;
+}
+
 .actionMenuItemIcon {
   display: inline-flex;
   align-items: center;
@@ -2295,6 +2308,15 @@
 .actionMenuItemBadgeInactive {
   background: rgba(148, 163, 184, 0.16);
   color: #475569;
+}
+
+.actionMenuItemBadgeLocked {
+  gap: 4px;
+  min-width: 0;
+  padding: 4px 7px;
+  color: #475569;
+  background: rgba(148, 163, 184, 0.16);
+  white-space: nowrap;
 }
 
 .actionMenuItemBadgePlaceholder {
