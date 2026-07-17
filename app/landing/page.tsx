@@ -101,7 +101,7 @@ const LandingPage = () => {
           <img className={styles.logoImage} src="/bot.png" alt="מייקל" />
           <div className={styles.brandText}>
             <span className={styles.brandTitle}>Michael</span>
-            <span className={styles.brandSubtitle}>SQL Learning Lab</span>
+            <span className={styles.brandSubtitle}>SQL ASSISTANT</span>
           </div>
         </div>
 
@@ -134,30 +134,30 @@ const LandingPage = () => {
         <section className={styles.hero} aria-labelledby="landing-title">
           <div className={styles.heroCopy}>
             <h1 id="landing-title" className={styles.title}>
-              מייקל - העוזר האישי שלך
+              מייקל
             </h1>
 
             <nav className={styles.primaryActions} aria-label="פעולות מרכזיות">
               <Link className={styles.primaryAction} href="/entities/basic-chat">
-                <MessageCircle aria-hidden="true" size={22} />
-                <span>מייקל</span>
-                <ArrowUpLeft aria-hidden="true" size={18} />
+                <MessageCircle aria-hidden="true" size={24} />
+                <span className={styles.actionLabel}>מייקל</span>
+                <ArrowUpLeft aria-hidden="true" size={20} />
               </Link>
               <Link
                 className={`${styles.primaryAction} ${styles.secondaryAction}`}
                 href="/homework"
               >
-                <BookOpenCheck aria-hidden="true" size={22} />
-                <span>תרגילי בית</span>
-                <ArrowUpLeft aria-hidden="true" size={18} />
+                <BookOpenCheck aria-hidden="true" size={24} />
+                <span className={styles.actionLabel}>תרגילי בית</span>
+                <ArrowUpLeft aria-hidden="true" size={20} />
               </Link>
               <Link
                 className={`${styles.primaryAction} ${styles.learningAction}`}
                 href="/virtual-learning"
               >
-                <Clapperboard aria-hidden="true" size={22} />
-                <span>סביבת למידה וירטואלית</span>
-                <ArrowUpLeft aria-hidden="true" size={18} />
+                <Clapperboard aria-hidden="true" size={24} />
+                <span className={styles.actionLabel}>סביבת למידה וירטואלית</span>
+                <ArrowUpLeft aria-hidden="true" size={20} />
               </Link>
             </nav>
           </div>

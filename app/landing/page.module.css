@@ -188,14 +188,14 @@
 .shell {
   position: relative;
   z-index: 1;
-  width: min(1180px, calc(100% - 40px));
+  width: min(1340px, calc(100% - 40px));
   margin: 0 auto;
   padding: 42px 0 54px;
 }
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(360px, 1.08fr);
+  grid-template-columns: minmax(650px, 1.25fr) minmax(380px, 0.75fr);
   gap: 34px;
   align-items: center;
   min-height: 510px;
@@ -209,36 +209,37 @@
 }
 
 .title {
-  max-width: 10ch;
+  max-width: 100%;
   margin: 0;
   color: var(--ink);
-  font-size: 4.4rem;
+  font-size: 5.2rem;
   font-weight: 900;
   line-height: 0.98;
   letter-spacing: 0;
 }
 
 .primaryActions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
   gap: 12px;
-  margin-top: 28px;
+  margin-top: 32px;
 }
 
 .container .primaryAction {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 20px;
   align-items: center;
-  justify-content: center;
-  min-height: 52px;
-  min-width: 156px;
-  gap: 10px;
+  min-width: 0;
+  min-height: 70px;
+  gap: 12px;
   border: 1px solid rgba(19, 44, 104, 0.2);
-  border-radius: 8px;
-  padding: 0 18px;
+  border-radius: 12px;
+  padding: 0 16px;
   color: #ffffff;
   background: linear-gradient(135deg, #173a83 0%, #1d4ed8 54%, #0e95bd 100%);
   box-shadow: 0 20px 42px rgba(29, 78, 216, 0.24);
-  font-size: 1rem;
+  font-size: 1.02rem;
   font-weight: 850;
   line-height: 1;
   text-decoration: none;
@@ -249,6 +250,13 @@
     border-color 180ms ease;
 }
 
+.actionLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+}
+
 .container .secondaryAction {
   color: var(--blue-deep);
   background: rgba(255, 255, 255, 0.88);
@@ -256,7 +264,6 @@
 }
 
 .container .learningAction {
-  min-width: 238px;
   color: #12315f;
   border-color: rgba(14, 149, 189, 0.28);
   background: rgba(228, 247, 252, 0.9);
@@ -557,9 +564,9 @@
   }
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1080px) {
   .shell {
-    width: min(100% - 28px, 720px);
+    width: min(100% - 28px, 820px);
     padding-top: 26px;
   }
 
@@ -574,7 +581,7 @@
   }
 
   .primaryActions {
-    justify-content: flex-start;
+    width: 100%;
   }
 
   .title {
@@ -587,6 +594,12 @@
   }
 
   .workspaceGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .primaryActions {
     grid-template-columns: 1fr;
   }
 }
@@ -634,7 +647,7 @@
   }
 
   .title {
-    font-size: 2.7rem;
+    font-size: 3.15rem;
     line-height: 1.03;
   }
 
@@ -644,9 +657,10 @@
     margin-top: 24px;
   }
 
-  .primaryAction {
+  .container .primaryAction {
     width: 100%;
     min-width: 0;
+    min-height: 66px;
   }
 
   .visualPanel {
