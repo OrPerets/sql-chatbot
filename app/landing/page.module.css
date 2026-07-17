@@ -232,16 +232,16 @@
   align-items: center;
   min-width: 0;
   min-height: 70px;
-  gap: 12px;
+  gap: 6px;
   border: 1px solid rgba(19, 44, 104, 0.2);
   border-radius: 12px;
-  padding: 0 16px;
+  padding: 0 6px;
   color: #ffffff;
   background: linear-gradient(135deg, #173a83 0%, #1d4ed8 54%, #0e95bd 100%);
   box-shadow: 0 20px 42px rgba(29, 78, 216, 0.24);
-  font-size: 1.02rem;
+  font-size: 1.18rem;
   font-weight: 850;
-  line-height: 1;
+  line-height: 1.1;
   text-decoration: none;
   white-space: nowrap;
   transition:
