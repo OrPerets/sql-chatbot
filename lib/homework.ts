@@ -9,6 +9,7 @@ import type {
   PaginatedResponse 
 } from '@/app/homework/types';
 import type { HomeworkSetModel } from './models';
+import { normalizeHomeworkDateTime } from './homework-date-utils';
 
 const DEFAULT_ENTRY_MODE: HomeworkEntryMode = 'listed';
 
@@ -44,12 +45,15 @@ function normalizeHomeworkCreateInput(
   homeworkData: Omit<HomeworkSet, 'id' | 'createdAt' | 'updatedAt'>
 ): Omit<HomeworkSetModel, '_id' | 'id' | 'createdAt' | 'updatedAt'> {
   const now = new Date().toISOString();
-  const availableUntil = homeworkData.availableUntil || homeworkData.dueAt || now;
-  const availableFrom = homeworkData.availableFrom || now;
+  const availableUntil = normalizeHomeworkDateTime(
+    homeworkData.availableUntil || homeworkData.dueAt,
+  ) || now;
+  const availableFrom = normalizeHomeworkDateTime(homeworkData.availableFrom) || now;
+  const dueAt = normalizeHomeworkDateTime(homeworkData.dueAt) || availableUntil;
 
   return {
     ...homeworkData,
-    dueAt: homeworkData.dueAt || availableUntil,
+    dueAt,
     availableFrom,
     availableUntil,
     entryMode: homeworkData.entryMode || DEFAULT_ENTRY_MODE,
@@ -59,12 +63,23 @@ function normalizeHomeworkCreateInput(
 function normalizeHomeworkUpdateInput(
   updates: Partial<Omit<HomeworkSet, 'id' | 'createdAt'>>
 ): Partial<Omit<HomeworkSetModel, '_id' | 'id' | 'createdAt' | 'updatedAt'>> {
-  const normalizedUpdates: Partial<Omit<HomeworkSetModel, '_id' | 'id' | 'createdAt' | 'updatedAt'>> = { ...updates };
+  const normalizedUpdates: Partial<Omit<HomeworkSetModel, '_id' | 'id' | 'createdAt' | 'updatedAt'>> = {
+    ...updates,
+    ...(updates.availableFrom !== undefined
+      ? { availableFrom: normalizeHomeworkDateTime(updates.availableFrom) }
+      : {}),
+    ...(updates.availableUntil !== undefined
+      ? { availableUntil: normalizeHomeworkDateTime(updates.availableUntil) }
+      : {}),
+    ...(updates.dueAt !== undefined
+      ? { dueAt: normalizeHomeworkDateTime(updates.dueAt) }
+      : {}),
+  };
 
   if (updates.availableUntil && !updates.dueAt) {
-    normalizedUpdates.dueAt = updates.availableUntil;
+    normalizedUpdates.dueAt = normalizedUpdates.availableUntil;
   } else if (updates.dueAt && !updates.availableUntil) {
-    normalizedUpdates.availableUntil = updates.dueAt;
+    normalizedUpdates.availableUntil = normalizedUpdates.dueAt;
   }
 
   if (updates.entryMode === undefined) {
