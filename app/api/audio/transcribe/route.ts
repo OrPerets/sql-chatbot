@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { getVoiceRuntimeConfig, isVoiceFeatureEnabled } from '@/lib/openai/voice-config';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -7,13 +8,14 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
+    const voiceConfig = getVoiceRuntimeConfig();
     console.log('Transcription API called');
     // Feature flag guard
-    const featureVoiceEnabled = process.env.FEATURE_VOICE === '1';
+    const featureVoiceEnabled = isVoiceFeatureEnabled();
     if (!featureVoiceEnabled) {
       return NextResponse.json({ error: 'Voice feature disabled' }, { status: 404 });
     }
-    
+
     // Check if OpenAI API key is configured
     if (!process.env.OPENAI_API_KEY) {
       console.error('OPENAI_API_KEY not found in environment variables');
@@ -22,7 +24,7 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    
+
     const formData = await request.formData();
     const audioFile = formData.get('audio') as File;
 
@@ -35,22 +37,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Convert File to form data for OpenAI API
-    const openaiFormData = new FormData();
-    openaiFormData.append('file', audioFile);
-    openaiFormData.append('model', 'whisper-1');
-    openaiFormData.append('language', 'he'); // Hebrew language preference
-
-    console.log('Calling OpenAI Whisper API...');
+    console.log('Calling OpenAI transcription API...');
     const transcription = await openai.audio.transcriptions.create({
       file: audioFile,
-      model: 'whisper-1',
+      model: voiceConfig.chained.transcriptionModel,
       language: 'he', // Hebrew support
       response_format: 'json',
     });
 
     console.log('Transcription successful:', transcription.text);
     return NextResponse.json({
+      text: transcription.text,
       transcription: transcription.text,
     });
 
@@ -61,4 +58,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

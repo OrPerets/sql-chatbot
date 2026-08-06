@@ -3,7 +3,8 @@
 ## Snapshot metadata
 - **Date:** 2026-02-03
 - **Scope:** Sprint 0 baseline before Responses API cutover
-- **Mode default:** `OPENAI_API_MODE=assistants`
+- **Historical mode default at snapshot time:** `OPENAI_API_MODE=assistants`
+- **Current recommendation:** `OPENAI_API_MODE=responses`
 
 ## Baseline test commands
 - `npm run test:api`
@@ -37,4 +38,5 @@
 - Added API mode flag helper:
   - `lib/openai/api-mode.ts`
 - Added env defaults:
-  - `.env.example` includes `OPENAI_API_MODE="assistants"` and `OPENAI_ASSISTANT_ID`.
+  - At Sprint 0 time, `.env.example` still pointed at Assistants-mode compatibility.
+  - Current repo defaults have since been updated to Responses-first runtime config.

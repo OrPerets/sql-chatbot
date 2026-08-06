@@ -13,7 +13,7 @@ jest.mock("@/app/openai", () => ({
 }));
 
 jest.mock("@/app/agent-config", () => ({
-  getAgentModel: () => "gpt-4.1-mini",
+  getAgentModel: () => "gpt-5.4-mini",
   getAgentInstructions: () => "Test instructions",
   getAgentTools: () => [{ type: "function", name: "get_course_week_context" }],
 }));

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { isVoiceFeatureEnabled } from '@/lib/openai/voice-config';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -7,7 +8,7 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    const featureVoiceEnabled = process.env.FEATURE_VOICE === '1';
+    const featureVoiceEnabled = isVoiceFeatureEnabled();
     if (!featureVoiceEnabled) {
       return NextResponse.json({ error: 'Voice feature disabled' }, { status: 404 });
     }

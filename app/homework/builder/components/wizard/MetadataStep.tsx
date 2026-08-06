@@ -1,6 +1,7 @@
 "use client";
 
 import { useHomeworkLocale } from "@/app/homework/context/HomeworkLocaleProvider";
+import type { HomeworkType } from "@/app/homework/types";
 import styles from "./Wizard.module.css";
 import type { MetadataDraft, WizardStepId } from "./types";
 
@@ -44,6 +45,19 @@ export function MetadataStep({ value, onChange, onNext, isInitializing }: Metada
               onChange={(event) => onChange({ ...value, courseId: event.target.value })}
               placeholder={t("builder.metadata.coursePlaceholder")}
             />
+          </div>
+        </div>
+        <div className={styles.fieldRow}>
+          <div className={styles.field}>
+            <label htmlFor="homeworkType">סוג מטלה</label>
+            <select
+              id="homeworkType"
+              value={value.homeworkType ?? "sql"}
+              onChange={(event) => onChange({ ...value, homeworkType: event.target.value as HomeworkType })}
+            >
+              <option value="sql">SQL</option>
+              <option value="relational_algebra">אלגברת יחסים</option>
+            </select>
           </div>
         </div>
         <div className={styles.fieldRow}>

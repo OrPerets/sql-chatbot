@@ -631,6 +631,8 @@ export function StudentEntryClient({ forcedSetId }: StudentEntryClientProps) {
               </div>
             )}
 
+            {/* {studentId ? <TutoringPreferencesCard studentId={studentId} /> : null} */}
+
             {/* Action buttons */}
             <div className={styles.buttonGroup}>
               <button className={styles.buttonSecondary} onClick={handleBack} disabled={isStarting}>

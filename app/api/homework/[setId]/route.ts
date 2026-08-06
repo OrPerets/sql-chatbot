@@ -6,8 +6,13 @@ import {
   publishHomeworkSet,
 } from "@/lib/homework";
 import { getHomeworkAvailabilityInfo } from "@/lib/deadline-utils";
+import {
+  getHomeworkAccessOverride,
+  toStrictPersonalAccessWindow,
+} from "@/lib/homework-access-overrides";
 import { getUsersService } from "@/lib/users";
 import type { HomeworkSet } from "@/app/homework/types";
+import type { HomeworkPersonalAccessWindow } from "@/lib/deadline-utils";
 
 interface RouteParams {
   params: Promise<{ setId: string }>;
@@ -17,8 +22,12 @@ function isElevatedRole(role: string | null): boolean {
   return role === "builder" || role === "admin" || role === "instructor";
 }
 
-function buildStudentAccessContext(homeworkSet: HomeworkSet, userEmail: string | null) {
-  const availability = getHomeworkAvailabilityInfo(homeworkSet, userEmail);
+function buildStudentAccessContext(
+  homeworkSet: HomeworkSet,
+  userEmail: string | null,
+  overrideWindow?: HomeworkPersonalAccessWindow | null,
+) {
+  const availability = getHomeworkAvailabilityInfo(homeworkSet, userEmail, undefined, overrideWindow);
 
   return {
     published: homeworkSet.published,
@@ -72,8 +81,10 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     const elevated = isElevatedRole(role);
-    const availability = getHomeworkAvailabilityInfo(homeworkSet, userEmail);
-    const studentAccess = buildStudentAccessContext(homeworkSet, userEmail);
+    const accessOverride = await getHomeworkAccessOverride(setId, userEmail);
+    const overrideWindow = toStrictPersonalAccessWindow(accessOverride);
+    const availability = getHomeworkAvailabilityInfo(homeworkSet, userEmail, undefined, overrideWindow);
+    const studentAccess = buildStudentAccessContext(homeworkSet, userEmail, overrideWindow);
 
     if (!elevated) {
       if (!homeworkSet.published || homeworkSet.visibility === "archived" || homeworkSet.entryMode === "hidden") {

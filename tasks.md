@@ -1,589 +1,605 @@
-# Homework Module Upgrade Plan
+# Personalization Refinement Review
 
 ## Goal
-להפוך את מודול ה־`homework` למערכת יציבה, נוחה לניהול, ותומכת בכמה תרגילי בית פתוחים במקביל, עם חלונות זמינות ברורים, מסלולי כניסה ייעודיים, ותצוגת runner ברורה יותר לסטודנטים.
 
-המסמך הזה מתמקד ביישום מעשי בתוך הקוד הקיים, ולא רק בתיאור מוצר. הוא מתייחס במיוחד לאזורים הבאים:
-- `app/homework/start`
-- `app/homework/runner/[setId]`
-- `app/homework/builder`
-- `app/api/homework`
-- `lib/homework.ts`
-- `app/homework/types.ts`
-- בדיקות ב־`__tests__` ו־`tests/e2e`
+Make personalization in the SQL chatbot materially more precise, more believable, and more useful to both students and admins.
 
----
+The current system already has the right broad ingredients:
 
-## Product Decisions To Lock Before Coding
+- student profiles
+- conversation summaries
+- issue detection
+- recommendation generation
+- quiz generation
+- admin monitoring
 
-### 1. Dedicated student entry path per homework
-החלטה מומלצת:
-- להשאיר את ` /homework/start ` כדף מרכזי שמציג את כל התרגילים הזמינים כרגע.
-- להוסיף נתיב ייעודי ` /homework/start/[setId] ` עבור קישור ישיר לתרגיל ספציפי.
-- כל תרגיל יקבל לינק קבוע שאפשר לשתף עם הסטודנטים.
+But today it still behaves more like a coarse risk-labeling system than a truly personalized learning system.
 
-למה:
-- פותר את הבעיה של "אפשר רק תרגיל אחד".
-- מאפשר לפתוח כמה תרגילים במקביל.
-- לא שוברים לינקים קיימים אם שומרים תאימות ל־`?setId=...`.
+## High-Level Assessment
 
-### 2. Availability window
-לכל Homework Set חייבים להיות:
-- `availableFrom`
-- `availableUntil`
+From a product and UX perspective, the personalization stack currently has five major weaknesses:
 
-כלל זמינות:
-- לפני `availableFrom` התרגיל לא זמין לסטודנט.
-- בין `availableFrom` ל־`availableUntil` התרגיל זמין.
-- אחרי `availableUntil` התרגיל לא זמין.
+1. Signal integrity is not reliable enough yet.
+2. The learner model is too coarse and threshold-based.
+3. Most personalization is hidden in backend logic or admin screens instead of being felt by the student.
+4. The system collects almost no explicit student intent, goals, or preference corrections.
+5. There is almost no validation loop to prove whether a personalization decision helped.
 
-החלטה מומלצת:
-- `dueAt` יהפוך לשדה legacy בלבד או יוחלף לחלוטין ב־`availableUntil`.
-- אם יש תלות קיימת ב־`dueAt`, לשמור תאימות זמנית ולמפות:
-  - `availableUntil ?? dueAt`
+## Critical Evidence From Current Code
 
-### 3. Question content model
-לכל שאלה צריך להיות מפורש:
-- `prompt`: מה השאלה עצמה
-- `expectedOutputDescription`: מה הפלט הרצוי
+- `app/api/admin/students/calculate-profiles/route.ts` mixes `ObjectId`, string ids, and email identifiers in one flow. It reads using `user._id.toString()` but updates using raw `user._id`, while profile creation stores `userId` as string. This likely makes recalculation partially or fully ineffective.
+- `lib/activity-tracker.ts` builds `$inc` and `$addToSet` style updates, then writes them through `$set`. That means activity-based profile updates are structurally wrong and can silently corrupt metrics instead of incrementing them.
+- `lib/student-preferences.ts` supports only four preference keys. That is too narrow for real tutoring personalization.
+- `lib/personalization.ts` relies heavily on keyword inference, simple thresholds, and a small static topic map. This is useful as a fallback, but not sufficient as the main personalization engine.
+- `lib/personalization.ts` generates “personalized” quizzes from static topic templates instead of grounding them in the student’s exact misconception, current dataset, and course progression.
+- `app/components/admin/StudentProfiles.tsx` gives admins labels and counters, but not enough evidence, confidence, traceability, or controls to refine personalization quality.
+- `__tests__/homework/runner-personalization.test.tsx` explicitly verifies that the runner does not show personalization UI. That means the student-facing experience currently does not expose the system’s best personalization outputs.
+- `app/components/student/ImprovementDashboard.tsx` and `app/components/student/AIAnalysisFeedback.tsx` exist but are not mounted anywhere, so student-facing improvement feedback is currently orphaned.
 
-לא להסתפק בשדה חופשי אחד.
+## Why Precision Is Weak Today
 
-### 4. Homework-level data structure explanation
-ההסבר על מבנה הנתונים צריך להיות זמין גם בתוך ה־runner, לא רק ב־`/homework/start`.
+Using a scientific critical-thinking lens, the current system has four validity problems:
 
-החלטה מומלצת:
-- לשמור את ההסבר ברמת ה־Homework Set או Dataset linkage, ולא רק כטקסט חופשי בתצוגת פתיחה.
-- להציג אותו בפאנל הימני מעל רשימת הטבלאות ב־runner.
+- Construct validity problem: `knowledgeScore` compresses a multidimensional learner into one bucket.
+- Measurement bias problem: several signals are inferred from rough proxies like message count, keyword matches, or severity counts instead of validated mastery evidence.
+- Identity confounding problem: different services alternate between email, string id, and `ObjectId`.
+- Feedback-loop problem: the system records states, but barely measures whether a recommendation changed student outcomes.
 
----
+## Target Personalization Architecture
 
-## Current Gaps In The Existing Code
+```mermaid
+flowchart LR
+  A["Student signals<br/>attempts, errors, time, hints, chat, choices"] --> B["Unified learner state"]
+  B --> C["Mastery model by topic and skill"]
+  B --> D["Preference and goal model"]
+  B --> E["Confidence and freshness scoring"]
+  C --> F["Recommendation engine"]
+  D --> F
+  E --> F
+  F --> G["Student-facing next step"]
+  F --> H["Admin evidence console"]
+  G --> I["Outcome tracking"]
+  H --> I
+  I --> B
+```
 
-### Data model gaps
-- ב־`app/homework/types.ts` יש `dueAt` אך אין `availableFrom` / `availableUntil`.
-- אין שדה מסודר עבור `expectedOutputDescription` ברמת שאלה.
-- יש `backgroundStory`, אבל אין הבחנה ברורה בין:
-  - intro / overview
-  - dataset structure explanation
-  - student instructions
+## Prioritized Task List
 
-### Access control gaps
-- ב־`lib/deadline-utils.ts` הפונקציה `isHomeworkAccessible()` כרגע תמיד מחזירה `true`.
-- אין אכיפה אמיתית של חלון זמן.
-- אין סטטוס ברור של homework מסוג:
-  - draft
-  - scheduled
-  - open
-  - closed
-  - archived
+## P0: Fix Data Integrity Before Tuning Personalization
 
-### Student entry gaps
-- `StudentEntryClient.tsx` עדיין עובד סביב set selection בסיסי ו־query param.
-- אין route ייעודי לכל תרגיל.
-- הסינון של תרגילים פתוחים/סגורים חלקי בלבד ומבוסס על `published`.
+### [x] Task 1: Normalize learner identity across all personalization systems
 
-### Runner UX gaps
-- ב־runner אין הצגה ברורה של:
-  - הסבר על מבנה הנתונים
-  - prompt של השאלה
-  - expected output נפרד וברור
-- נדרש לחדד את המידע שמופיע באזור העליון של העמודה המרכזית.
+Problem:
+The codebase uses `studentId`, `userId`, email, and `ObjectId` interchangeably. This is the biggest blocker to trustworthy personalization.
 
-### Builder/Admin gaps
-- ב־builder יש כרגע `dueAt`, אבל לא טווח זמינות מלא.
-- חסר מסך ניהול טוב לראות כמה תרגילים פתוחים במקביל.
-- חסרות ולידציות פרסום חזקות לפני publish.
+Do:
 
----
+- Define one canonical learner key for all analytics and personalization writes. Recommendation: use the internal user id string everywhere, and keep email as an attribute only.
+- Add a resolver layer that converts email or `ObjectId` input into the canonical string id at boundaries only.
+- Migrate `student_profiles`, `student_preferences`, `student_activities`, analysis records, quiz results, and personalization analytics to the same identifier.
+- Add defensive logging for identifier mismatches.
 
-## Sprint 1: Data Model And Backend Contracts
+Files to start with:
 
-### Objective
-להניח בסיס יציב ב־types, persistence ו־API כדי לאפשר כמה תרגילים פתוחים במקביל עם חלונות זמינות אמיתיים.
+- `app/api/admin/students/calculate-profiles/route.ts`
+- `lib/student-profiles.ts`
+- `lib/personalization.ts`
+- `lib/ai-analysis-engine.ts`
+- `lib/request-auth.ts`
+- `lib/users.ts`
 
-### Tasks
+Acceptance:
 
-#### 1. Extend HomeworkSet schema
-לעדכן את `app/homework/types.ts` ואת המודלים בשרת כך של־HomeworkSet יהיו:
-- `availableFrom: string`
-- `availableUntil: string`
-- `slug?: string` או להשתמש ב־`setId` כנתיב canonical
-- `entryMode?: "direct" | "listed" | "hidden"`
-- `dataStructureNotes?: string`
+- A profile recalculation updates the same student document every time.
+- Personalization bundle, admin view, AI analysis, quizzes, and auth all resolve the same learner.
 
-DONE:
-- הוחלט להשתמש ב־`setId` כנתיב canonical, ללא `slug` בשלב זה.
-- נוספו שדות availability / entry mode / data structure notes בצורה backward-compatible ב־types ובמודלי השרת.
-- נוספו fallback-ים לרשומות ישנות (`availableUntil ?? dueAt`, ו־`availableFrom` מתוך `createdAt` או ברירת מחדל בטוחה).
+Status:
 
-#### 2. Extend Question schema
-לעדכן את `Question` ב־`app/homework/types.ts`:
-- להשאיר `prompt`
-- להשאיר/לצמצם `instructions`
-- להוסיף `expectedOutputDescription: string`
+- Done on 2026-04-01.
+- Implemented a canonical learner-id resolver, normalization at personalization/auth boundaries, and legacy-id migration for `student_profiles`, `student_preferences`, `student_activities`, `analysis_results`, `learning_quiz_results`, and personalization analytics actor ids.
 
-DONE:
-- נוסף `expectedOutputDescription` לשכבת ה־Question וה־API של יצירת שאלות.
-- בוצע fallback לרשומות ישנות כדי שלא יישברו שאלות קיימות.
-- ההבחנה שנקבעה במימוש:
-  - `prompt` = נוסח המשימה
-  - `expectedOutputDescription` = מבנה/תיאור הפלט המצופה
-  - `instructions` = הנחיות משלימות בלבד
+### [x] Task 2: Repair activity tracking updates
 
-#### 3. Update persistence layer
-לעדכן את `lib/homework.ts` ואת כל mapping השכבות:
-- create
-- read
-- update
-- list
+Problem:
+`lib/activity-tracker.ts` currently writes increment-like objects inside `$set`, which makes the stored metrics unreliable.
 
-DONE:
-- שכבת ה־persistence עודכנה כך שכל השדות החדשים נשמרים ונשלפים ב־create/read/update/list.
-- נוספה שכבת normalization ל־HomeworkSet ול־Question עבור migration logic ורשומות legacy.
-- נשמרה תאימות ל־sets קיימים דרך `dueAt` כשדה legacy ממופה ל־`availableUntil`.
+Do:
 
-#### 4. Replace deadline-only logic with availability window logic
-לעדכן `lib/deadline-utils.ts`:
-- להחליף `isHomeworkAccessible(dueAt, userEmail)` למודל שעובד עם:
-  - `availableFrom`
-  - `availableUntil`
-  - הארכות פרטניות אם עדיין צריך
+- Replace the current update builder with real Mongo update operators: `$inc`, `$set`, `$addToSet`, `$max`, and `$push` where appropriate.
+- Add regression tests for chat, homework, practice, and help-request activity writes.
+- Backfill or repair corrupted profile metric fields if any bad objects were already written.
 
-DONE:
-- נוספו הפונקציות:
-  - `getAvailabilityState(homework, userEmail)`
-  - `isHomeworkAccessible(homework, userEmail)`
-  - `getAvailabilityMessage(homework, userEmail)`
-  - `getHomeworkAvailabilityInfo(homework, userEmail)`
-- הוגדרו states:
-  - `upcoming`
-  - `open`
-  - `closed`
-- נשמרה תמיכה בהארכות פרטניות על סוף חלון הזמינות.
+Files to start with:
 
-#### 5. Update API contracts
-לעדכן:
-- `app/api/homework/route.ts`
-- `app/api/homework/[setId]/route.ts`
+- `lib/activity-tracker.ts`
+- `lib/data-collection-hooks.ts`
+- related tests under `__tests__/`
 
-DONE:
-- `GET /api/homework` מחזיר availability metadata לכל set.
-- `GET /api/homework/[setId]` אוכף גישה לסטודנט לפי חלון זמן, published/archived ו־entry mode.
-- builder/admin/instructor עוקפים חסימות זמן וגישה של סטודנטים.
-- נוסף filter של `availableOnly=true` עבור "רק תרגילים זמינים כרגע".
+Acceptance:
 
-### Acceptance Criteria
-- [x] אפשר לשמור Homework Set עם `availableFrom` ו־`availableUntil`.
-- [x] ה־API מחזיר סטטוס זמינות עקבי.
-- [x] Homework סגור אינו נגיש לסטודנט דרך ה־API.
-- [x] Homework עתידי אינו נגיש לסטודנט לפני זמן הפתיחה.
+- Repeated activities produce monotonic metric growth.
+- No profile field stores operator objects as actual values.
 
----
+Status:
 
-## Sprint 2: Student Entry Flow And Multi-Homework Support
+- Done on 2026-04-01.
+- Replaced malformed `$set` payloads with real Mongo operators, added repair logic for corrupted metric fields, and added regression tests covering chat, homework, practice, and help-request writes.
 
-### Objective
-לאפשר כמה תרגילים פתוחים בו־זמנית, עם כניסה דרך דף רשימה ודרך לינק ישיר.
+### [x] Task 3: Repair profile recalculation logic
 
-### Tasks
+Problem:
+The recalculation route is conceptually useful, but the current implementation is brittle and likely inconsistent because it mixes identifiers and uses very rough derived values.
 
-#### 1. Add dedicated route for specific homework
-להוסיף:
-- `app/homework/start/[setId]/page.tsx`
+Do:
 
-DONE:
-- לטעון את התרגיל הספציפי לפי `setId`.
-- להציג הודעת מצב אם התרגיל:
-  - טרם נפתח
-  - נסגר
-  - לא פורסם
-  - לא נמצא
-- לשמר flow של login ואז entry ל־runner.
+- Fix the id mismatch in recalculation.
+- Remove fake derived metrics such as `correctAnswers: Math.round(totalQuestions * 0.8)`.
+- Split recalculation into:
+  1. raw signal aggregation
+  2. learner-state derivation
+  3. profile snapshot persistence
+- Store the source evidence and timestamp for every derived field.
 
-Implementation notes:
-- נוסף route ייעודי `app/homework/start/[setId]/page.tsx`.
-- ה־route טוען את `StudentEntryClient` במצב direct-entry לפי `setId`.
-- העמוד מציג הודעת מצב מפורטת עבור:
-  - homework עתידי
-  - homework סגור
-  - homework לא זמין לסטודנטים
-  - homework שלא נמצא
-- כאשר homework פתוח, ה־flow נשאר: login -> מסך פתיחה/הנחיות -> runner.
+Files to start with:
 
-#### 2. Upgrade `/homework/start`
-לעדכן `app/homework/start/page.tsx` + `app/homework/StudentEntryClient.tsx`
+- `app/api/admin/students/calculate-profiles/route.ts`
+- `lib/student-profiles.ts`
 
-DONE:
-- להפוך את הדף לרשימת תרגילים זמינים כרגע.
-- להציג לכל כרטיס:
-  - שם התרגיל
-  - קורס
-  - חלון זמינות
-  - סטטוס: נפתח בקרוב / פתוח / נסגר
-  - כפתור כניסה
-- אם יש רק תרגיל אחד פתוח, לא להניח שהוא היחיד בעולם; עדיין להציג מודל אחיד.
+Acceptance:
 
-Implementation notes:
-- `StudentEntryClient` הוסב ממסך בחירה ישן למסך רשימת מטלות עם כרטיסים.
-- כל כרטיס מציג:
-  - שם המטלה
-  - קורס
-  - חלון זמינות
-  - מספר שאלות
-  - סטטוס זמינות
-  - כפתור מעבר לעמוד הייעודי
-- הסדר ברשימה הוא:
-  - open
-  - upcoming
-  - closed
-- גם אם יש רק תרגיל אחד פתוח, עדיין מוצג אותו מודל רשימה אחיד.
+- Admin recalculation produces reproducible snapshots.
+- Every major profile field can be traced back to source evidence.
 
-#### 3. Keep backward compatibility
-DONE:
-- לתמוך זמנית גם ב־`/homework/start?setId=...`.
-- להפנות בהמשך ל־route החדש.
+Status:
 
-Implementation notes:
-- `app/homework/start/page.tsx` תומך זמנית ב־`?setId=...`.
-- בקשה כזו עושה redirect מיידי ל־`/homework/start/[setId]`.
-- redirect-ים מתוך ה־runner עודכנו גם הם ל־route החדש.
+- Done on 2026-04-01.
+- Rebuilt recalculation into explicit raw aggregation, learner-state derivation, and profile snapshot persistence with evidence metadata and timestamped source traces for major derived fields.
 
-#### 4. Clarify student-facing messaging
-DONE:
-- אם homework עוד לא נפתח, להראות תאריך פתיחה מדויק.
-- אם homework נסגר, להראות תאריך סגירה מדויק.
-- להציג תאריכים בפורמט עברי ברור.
+## P1: Replace Coarse Buckets With a Real Learner Model
 
-Implementation notes:
-- הודעות החסימה לסטודנט נשענות על ה־availability message מה־API.
-- חלונות הזמינות מוצגים בפורמט `he-IL` עם תאריך ושעה.
-- בעמוד הישיר של מטלה סגורה/עתידית מוצגת גם הודעת מצב וגם חלון הזמינות.
+### Task 4: Evolve from one `knowledgeScore` into topic mastery + confidence
 
-### Acceptance Criteria
-- [x] יכולים להיות כמה Homework Sets published/open במקביל.
-- [x] לכל אחד יש לינק ייעודי עובד.
-- [x] `/homework/start` מציג רשימה אמיתית של available homeworks.
-- [x] סטודנט לא נכנס בטעות לתרגיל סגור/עתידי.
+Problem:
+A single four-level score is too blunt for tutoring decisions.
 
----
+Do:
 
-## Sprint 3: Runner Information Architecture
+- Keep `knowledgeScore` only as a summary label for dashboards.
+- Introduce per-topic mastery records, for example:
+  - topic
+  - estimated mastery 0-1
+  - confidence 0-1
+  - evidence count
+  - last evidence time
+  - trend
+  - strongest error types
+- Expand beyond the current topic set so the model matches the actual SQL curriculum.
+- Weight recent evidence more heavily than old evidence.
 
-### Objective
-לשפר את חוויית הסטודנט בתוך ` /homework/runner/[setId] ` כך שהמידע הקריטי יופיע במקום הנכון.
+Suggested model areas:
 
-### Tasks
+- selection and projection
+- filtering
+- sorting
+- joins
+- grouping and aggregation
+- subqueries
+- set operations
+- null handling
+- schema comprehension
+- debugging
+- relational algebra
+- exam-speed fluency
 
-#### 1. Add homework data structure explanation above tables
-לעדכן:
+Files to start with:
+
+- `lib/student-profiles.ts`
+- `lib/personalization.ts`
+- `lib/ai-analysis-engine.ts`
+
+Acceptance:
+
+- Two students can share the same high-level bucket but still receive different next steps based on topic mastery.
+- Recommendations explain which evidence drove the recommendation.
+
+Status:
+
+- Done on 2026-04-01.
+- Added a topic-level learner model with mastery, confidence, evidence counts, freshness-aware weighting, trends, and strongest error types; kept `knowledgeScore` as a summary label while recommendations now rank by topic mastery evidence.
+
+### Task 5: Expand the preference model from 4 keys into a real tutoring profile
+
+Problem:
+Current preferences are too narrow and mostly passive.
+
+Do:
+
+- Add structured preference and intent fields such as:
+  - preferred language
+  - explanation style
+  - example density
+  - step-by-step tolerance
+  - confidence level
+  - pace preference
+  - desired challenge level
+  - exam focus vs homework completion
+  - preferred hint style
+  - preferred correction style
+  - self-reported weak topics
+  - accessibility needs
+- Separate stable preferences from temporary session goals.
+- Let students edit these values explicitly.
+- Store confidence and source for each preference.
+
+Files to start with:
+
+- `lib/student-preferences.ts`
+- `lib/openai/tools.ts`
+- student onboarding and settings surfaces
+
+Acceptance:
+
+- The assistant can adapt tone, depth, pacing, and hint format based on stored student choices.
+- Students can correct the system when it personalizes badly.
+
+Status:
+
+- Done on 2026-04-01.
+- Expanded the preference schema with stable preferences plus session goals, added confidence/scope metadata, widened the tutoring tool schema, exposed authenticated student preference APIs, and mounted a student-editable tutoring-preferences card in the homework entry flow.
+
+### Task 6: Replace keyword-only topic inference with evidence fusion
+
+Problem:
+Current topic/weakness inference is largely based on keyword matching and severity thresholds.
+
+Do:
+
+- Fuse multiple evidence sources per topic:
+  - rubric misses
+  - SQL execution failure types
+  - retry loops
+  - hint timing
+  - time-to-first-success
+  - chat intent patterns
+  - AI analysis topic mapping
+  - quiz outcomes
+- Distinguish concept weakness from speed weakness, confidence weakness, and schema-reading weakness.
+- Add freshness decay and source reliability weights.
+- Track “unknown / insufficient evidence” explicitly instead of guessing.
+
+Files to start with:
+
+- `lib/personalization.ts`
+- `lib/ai-analysis.ts`
+- `lib/ai-analysis-engine.ts`
+- submission and analytics models
+
+Acceptance:
+
+- Weakness detection is no longer dependent on text keywords alone.
+- The system can say “low confidence” when evidence is weak.
+
+Status:
+
+- Done on 2026-04-01.
+- Replaced the old keyword-only topic model with evidence fusion across submissions, analytics, hint timing, retries, quiz outcomes, AI analysis, and self-reported weaknesses, including reliability/freshness decay and explicit insufficient-evidence handling.
+
+## P1: Make Recommendations Actually Personalized
+
+### Task 7: Ground recommendations in the exact misconception, not only the topic
+
+Problem:
+The current recommendation engine can say “review JOIN logic,” but it does not model why the student failed joins.
+
+Do:
+
+- Add misconception categories such as:
+  - wrong join predicate
+  - missing join condition
+  - grouping before filtering
+  - aggregate without grouping
+  - alias confusion
+  - null misunderstanding
+  - output-column mismatch
+  - schema navigation failure
+- Use these categories in recommendations, hints, and quizzes.
+- Generate rationale in student language, not only admin language.
+
+Files to start with:
+
+- `lib/personalization.ts`
+- `lib/ai-analysis.ts`
+- `lib/comment-bank.ts`
+
+Acceptance:
+
+- Recommendation copy references the actual error pattern, not only the broad topic.
+
+Status:
+
+- Done on 2026-04-01.
+- Added a shared misconception taxonomy, propagated exact misconception signals from failed attempts into recommendations, normalized comment categories to the same vocabulary, and changed recommendation copy to explain the concrete SQL mistake in student-facing language.
+
+### Task 8: Replace static “personalized quiz” templates with grounded remediation
+
+Problem:
+The current quiz generation is topic-based but mostly static. It does not feel personal enough.
+
+Do:
+
+- Generate quiz items from:
+  - the exact failed question structure
+  - the same dataset or a minimally varied sibling dataset
+  - the same misconception with slightly reduced complexity
+  - one transfer question to test real learning
+- Sequence quiz questions as:
+  1. diagnose
+  2. repair
+  3. transfer
+  4. confidence-check
+- Make the output depend on homework context, deadline pressure, and student preference.
+
+Files to start with:
+
+- `lib/personalization.ts`
+- `app/api/homework/[setId]/personalization/route.ts`
+- quiz generation services
+
+Acceptance:
+
+- Personalized quizzes differ meaningfully across students with different error histories.
+- Quiz questions reference the student’s real failure context.
+
+Status:
+
+- Done on 2026-04-01.
+- Replaced the old topic-template quiz flow with a grounded diagnose/repair/transfer/confidence sequence that uses the student’s failed question context, detected misconception, current homework scope, deadline pressure, and study preferences.
+
+### Task 9: Reintroduce a student-facing personalization surface
+
+Problem:
+Personalization exists in backend logic but the runner currently hides it.
+
+Do:
+
+- Add a student-facing “What Michael recommends next” card in the runner or study flow.
+- Show:
+  - one primary next step
+  - why it is recommended
+  - which skill is weak
+  - estimated effort
+  - expected payoff
+- Add soft controls:
+  - “This is helpful”
+  - “Not relevant”
+  - “Too easy”
+  - “Too hard”
+  - “Show me another path”
+- Use the existing hidden/orphaned improvement surfaces as inspiration, but redesign them into a more focused, lower-friction experience.
+
+Files to start with:
+
 - `app/homework/runner/[setId]/RunnerClient.tsx`
-- `app/homework/runner/[setId]/InstructionsSection.tsx`
+- `app/homework/services/personalizationService.ts`
+- `app/components/student/ImprovementDashboard.tsx`
+- `app/components/student/AIAnalysisFeedback.tsx`
+- `__tests__/homework/runner-personalization.test.tsx`
 
-DONE:
-- להציג בפאנל הימני, מעל רשימת הטבלאות:
-  - `dataStructureNotes` או equivalent
-- אם אין הסבר ייעודי, להשתמש fallback מתוך `backgroundStory`.
-- להפריד ויזואלית בין:
-  - הסבר על מבנה הנתונים
-  - רשימת הטבלאות
+Acceptance:
 
-Implementation notes:
-- נוסף בלוק "מבנה הנתונים" מעל טבלאות הדוגמה בתוך ה־runner.
-- הבלוק משתמש קודם ב־`dataStructureNotes`, ואם הוא חסר מבצע fallback ל־`backgroundStory`.
-- לטבלאות נוספה כותרת נפרדת כך שההבחנה בין הסבר מבני לבין נתוני הדוגמה ברורה יותר.
+- Students can see and respond to personalization in context.
+- Acceptance and dismissal events are tracked.
 
-#### 2. Redesign question header area in center column
-DONE:
-- בחלק העליון של העמודה המרכזית להציג בבירור:
-  - מספר שאלה
-  - `prompt`
-  - `expectedOutputDescription`
-  - instructions משלימות אם קיימות
-- ה־progress bar לא אמור להיות המקום היחיד לטקסט המשימה.
-- ליצור layout עקבי בין כל השאלות.
+Status:
 
-Implementation notes:
-- אזור הכותרת במרכז הוסב לגריד של כרטיסי מידע קבועים לכל שאלה.
-- כל שאלה מציגה כעת באופן עקבי:
-  - מספר שאלה
-  - נוסח המשימה (`prompt`)
-  - תיאור הפלט המצופה (`expectedOutputDescription`)
-  - הנחיות משלימות אם קיימות
-- ה־stepper נשאר רכיב ניווט בלבד.
+- Done on 2026-04-01.
+- Added an in-runner “What Michael recommends next” card with weak-skill, rationale, effort, payoff, misconception copy, soft feedback controls, alternate-path cycling, and analytics tracking for shown, acceptance, and dismissal-style feedback events.
 
-#### 3. Improve question metadata model in UI
-DONE:
-- להפסיק להעמיס את כל התוכן לתוך `instructions`.
-- לבנות קומפוננטות קטנות:
-  - `QuestionPromptCard`
-  - `ExpectedOutputCard`
-  - `QuestionTipsCard` אם צריך
+## P2: Improve Admin Precision and Oversight
 
-Implementation notes:
-- נוספו קומפוננטות ייעודיות עבור `prompt`, `expected output` ו־`tips`.
-- ה־runner בונה כעת את אזור המידע של השאלה מתוך קומפוננטות קטנות וברורות במקום בלוק טקסט יחיד.
+### [x] Task 10: Turn the admin profile screen into an evidence console, not a label table
 
-#### 4. Improve empty/fallback states
-DONE:
-- אם חסר `expectedOutputDescription`, להציג placeholder ברור למרצה במצב preview/builder.
-- לסטודנט לא להציג UI שבור או ריק.
+Problem:
+The current admin table shows buckets, counts, and generic metrics, but not enough evidence to refine personalization quality.
 
-Implementation notes:
-- כאשר `expectedOutputDescription` חסר, נעשה fallback לסכמת התוצאה אם קיימת.
-- במצב `student-demo` מוצג placeholder ברור יותר שמאותת למרצה שחסר תיאור פלט מפורש.
-- לסטודנט מוצג טקסט fallback שימושי במקום אזור ריק.
+Do:
 
-### Acceptance Criteria
-- [x] הסטודנט רואה בצד ימין גם הסבר על מבנה הנתונים וגם טבלאות.
-- [x] הסטודנט רואה במרכז למעלה גם את השאלה וגם את תיאור הפלט הרצוי.
-- [x] כל שאלה נראית עקבית וברורה יותר.
+- Add an expandable student evidence drawer with:
+  - top weak skills with confidence
+  - recent failed attempts
+  - hint usage patterns
+  - chat-derived misconceptions
+  - recent recommendation history
+  - whether those recommendations helped
+- Add admin actions:
+  - confirm weakness
+  - dismiss false positive
+  - set temporary intervention
+  - mark student goal
+  - force recalibration
+- Replace “issue count” as the dominant signal with a clearer pedagogical summary.
 
----
+Files to start with:
 
-## Sprint 4: Builder UX And Instructor Workflow
+- `app/components/admin/StudentProfiles.tsx`
+- `app/api/admin/students/[studentId]/route.ts`
+- supporting admin APIs
 
-### Objective
-להפוך את ה־builder לכלי נוח לניהול אינטנסיבי של כמה תרגילים במקביל לאורך הסמסטר.
+Acceptance:
 
-### Tasks
+- An admin can answer “why is this student marked as struggling?” from one screen.
+- Admin corrections feed back into the learner model.
 
-#### 1. Add availability fields to builder metadata
-לעדכן:
-- `app/homework/builder/components/wizard/types.ts`
-- `app/homework/builder/components/wizard/MetadataStep.tsx`
-- `app/homework/builder/components/wizard/PublishStep.tsx`
+Status:
 
-DONE:
-- להחליף `dueAt` ב־:
-  - `availableFrom`
-  - `availableUntil`
-- להוסיף ולידציה:
-  - start < end
-  - אי אפשר publish בלי חלון תקין
+- Done on 2026-04-01.
+- Replaced the old admin label table with an evidence console drawer that surfaces weak-skill evidence, failed attempts, hint patterns, chat-derived misconceptions, recommendation history, issue traceability, and admin actions for confirming or dismissing signals, setting interventions and goals, and forcing recalibration.
 
-Implementation notes:
-- שכבת ה־draft של ה־builder הוסבה ל־`availableFrom` / `availableUntil`, תוך שמירה על `dueAt` רק כ־payload legacy לשרת.
-- נוספה ולידציית client-side שמונעת התקדמות/פרסום כאשר חלון הזמינות חסר או לא תקין.
-- מסך הפרסום מציג כעת את חלון הזמינות במקום תאריך הגשה יחיד.
+### [x] Task 11: Add confidence, freshness, and traceability to every personalization output
 
-#### 2. Add data structure explanation field in builder
-DONE:
-- לאפשר למרצה להגדיר בנפרד:
-  - intro / overview
-  - data structure notes
-- להציג preview של איך זה ייראה ב־runner.
+Problem:
+The current system often presents outputs as facts, even when evidence is thin.
 
-Implementation notes:
-- נוספה ב־metadata שדה נפרד עבור `dataStructureNotes`.
-- ב־metadata step נוסף preview מובנה שמראה את ההבחנה בין פתיח המטלה לבין פאנל "מבנה הנתונים" ב־runner.
-- תצוגת ה־preview של המטלה מציגה עכשיו גם את הפתיח וגם את הסבר מבנה הנתונים כפי שהסטודנט יראה אותם.
+Do:
 
-#### 3. Improve question authoring
-DONE:
-- לחייב לכל שאלה:
-  - `prompt`
-  - `expectedOutputDescription`
-- להבדיל בטופס העריכה בין:
-  - מה הסטודנט צריך לעשות
-  - מה הפלט שהוא צריך לקבל
-  - הנחיות נוספות
+- Add confidence and freshness metadata to:
+  - student profile fields
+  - recommendations
+  - issue detections
+  - mastery signals
+- Show “last updated from” and “based on” evidence in admin UI.
+- Down-rank stale or low-confidence recommendations.
 
-Implementation notes:
-- `QuestionDraft` עודכן כך שיכלול `expectedOutputDescription`.
-- טופס יצירת השאלות הופרד בפועל לשלושה אזורים: ניסוח המשימה, תיאור הפלט הצפוי, והנחיות משלימות.
-- המעבר קדימה והפרסום נחסמים כאשר חסר `prompt`, חסר `expectedOutputDescription`, או אין ניקוד תקין.
+Files to start with:
 
-#### 4. Improve builder dashboard
-לעדכן `app/homework/builder/page.tsx` ואולי גם `app/admin/homework/page.tsx`
+- `lib/personalization.ts`
+- `lib/student-profiles.ts`
+- admin components
 
-DONE:
-- להוסיף עמודות/פילטרים:
-  - upcoming
-  - open
-  - closed
-  - archived
-- להציג:
-  - start date
-  - end date
-  - direct link
-  - count submissions
-- לאפשר copy link לתרגיל.
+Acceptance:
 
-Implementation notes:
-- לוח הבנייה עבר לסינון לפי סטטוסי availability אמיתיים: `draft`, `upcoming`, `open`, `closed`, `archived`.
-- כל כרטיס מציג כעת תאריך פתיחה, תאריך סגירה, ספירת הגשות, ציון ממוצע וקישור ישיר לכניסת הסטודנט.
-- נוסף כפתור העתקת קישור ישיר ל־`/homework/start/[setId]`.
+- Low-confidence signals are visibly different from strong ones.
+- Admins can distinguish between stale and current learner state.
 
-#### 5. Publish safety checks
-DONE:
-- לפני publish לבצע validation summary:
-  - יש חלון זמינות תקין
-  - יש dataset / tables
-  - לכל שאלה יש prompt
-  - לכל שאלה יש expected output
-  - אין question בלי ניקוד
+Status:
 
-Implementation notes:
-- נוספה שכבת validation מרוכזת ל־builder שמייצרת `blockers` ו־`warnings` לפני פרסום.
-- מסך ה־wizard ומסך ה־publish הייעודי משתמשים באותה בדיקת בטיחות כדי למנוע publish לא תקין.
-- נוספו בדיקות unit חדשות ל־validation של sprint 4.
+- Done on 2026-04-01.
+- Added shared confidence and freshness metadata for profile evidence, topic mastery, recommendations, and issue detections; exposed “based on” traceability in the admin console; and down-ranked stale or low-confidence recommendations before ranking them.
 
-### Acceptance Criteria
-- [x] מרצה יכול לנהל כמה תרגילים במקביל בלי בלבול.
-- [x] ברור מה פתוח עכשיו, מה עתידי ומה נסגר.
-- [x] ברור מה הסטודנטים יראו בכל תרגיל.
+## P2: Capture Real Student Intent Earlier
 
----
+### Task 12: Add a calibration + goals step after login and before homework start
 
-## Sprint 5: Tests, Migration, And Hardening
+Problem:
+The entry flow currently gets the student into the homework, but captures almost nothing about current intent.
 
-### Objective
-לסגור פינות כדי שהמודול יוכל לשמש בעומס אמיתי לאורך סמסטר.
+Do:
 
-### Tasks
+- Add a lightweight optional calibration panel in `StudentEntryClient`:
+  - “What do you want help with today?”
+  - “How confident do you feel?”
+  - “Do you want concise hints or detailed steps?”
+  - “Are you preparing for homework completion or exam practice?”
+- Store answers as session goals plus durable preferences when appropriate.
+- Keep it fast and skippable.
 
-#### 1. Unit tests
-להוסיף/לעדכן:
-- `__tests__/homework/homeworkStore.test.ts`
-- tests חדשים ל־availability logic
+Files to start with:
 
-DONE:
-- בדיקות ל־open/upcoming/closed.
-- בדיקות ל־fallback של `dueAt`.
-- בדיקות ל־multi-homework listing.
+- `app/homework/StudentEntryClient.tsx`
+- `lib/student-preferences.ts`
 
-Implementation notes:
-- `__tests__/lib/deadline-utils.test.ts` הורחב כדי לכסות `upcoming`, `open`, `closed`, fallback של `dueAt`, ו־fallback של `createdAt`.
-- `__tests__/homework/homeworkStore.test.ts` הורחב כדי לוודא ששכבת ה־mock store שומרת availability fields, `entryMode` ו־`expectedOutputDescription`.
-- נוסף גם `__tests__/lib/homework-migration.test.ts` כדי לכסות את ה־backfill logic של migration לנתוני homework legacy.
+Acceptance:
 
-#### 2. API tests
-DONE:
-- לבדוק שסטודנט לא מקבל Homework מחוץ לחלון הזמן.
-- לבדוק ש־builder כן יכול לטעון לצורך preview/edit.
+- The system has explicit session intent before making recommendations.
 
-Implementation notes:
-- `__tests__/api/homework.route.test.ts` מכסה כעת:
-  - חסימה לסטודנט עבור homework עתידי
-  - חסימה לסטודנט עבור homework סגור
-  - גישת builder ל־preview/edit גם כאשר homework מחוץ לחלון הזמן
-  - החזרת `studentAccess` context כדי להסביר למרצה למה סטודנט חסום
+## P3: Add Closed-Loop Measurement
 
-#### 3. E2E tests
-לעדכן/להוסיף:
-- `tests/e2e/homework-runner.spec.ts`
-- `tests/e2e/homework-grading.spec.ts`
+### Task 13: Measure whether personalization helped
 
-DONE:
-- תרחיש של שני תרגילים פתוחים במקביל.
-- תרחיש של homework עתידי.
-- תרחיש של homework סגור.
-- תרחיש שבו ב־runner מופיעים:
-  - data structure notes
-  - prompt
-  - expected output
+Problem:
+The platform can store recommendations, but it does not yet prove outcome improvement.
 
-Implementation notes:
-- `tests/e2e/homework-runner.spec.ts` הורחב עם mocks ל־`/api/homework` ו־`/api/homework/[setId]` כדי לבדוק באופן דטרמיניסטי:
-  - רשימת מטלות עם כמה סטטוסים במקביל
-  - direct-entry עבור homework עתידי/סגור
-  - נוכחות אזורי `מבנה הנתונים`, `מה צריך לעשות?`, `מה אמור להתקבל?`
-- `tests/e2e/homework-grading.spec.ts` נשאר smoke test עבור מסך grading כדי לצמצם regression בזרימת המרצה.
+Do:
 
-#### 4. Data migration / seed backfill
-DONE:
-- לקבוע default values ל־homeworks קיימים.
-- לכתוב סקריפט migration אם צריך.
-- לוודא שלא נעלמים תרגילים ישנים מהדשבורד.
+- Track for every recommendation:
+  - shown
+  - accepted
+  - ignored
+  - dismissed as irrelevant
+  - completed
+  - led to improved next attempt
+- Compare outcome deltas:
+  - score lift
+  - time-to-success
+  - attempt reduction
+  - hint reduction
+  - student confidence shift
+- Store per-recommendation-type win rates.
 
-Implementation notes:
-- נוסף helper ייעודי ב־`lib/homework-migration.ts` ליצירת ערכי backfill עקביים עבור:
-  - `availableFrom`
-  - `availableUntil`
-  - `dueAt`
-  - `entryMode`
-- נוסף סקריפט `scripts/backfill-homework-availability.ts` עם dry-run כברירת מחדל ו־`--write` לעדכון בפועל.
-- שכבת ה־mock store הוקשחה כדי לשמר את שדות Sprint 1-4 גם בנתוני seed/mock, וכך למנוע "היעלמות" מטלות ישנות בגלל רשומות חלקיות.
+Files to start with:
 
-#### 5. Observability and admin support
-DONE:
-- לשפר לוגים עבור access denied בגלל חלון זמן.
-- להקל על debugging של "למה הסטודנט לא רואה את התרגיל".
+- `app/api/homework/[setId]/personalization/analytics/route.ts`
+- `app/homework/services/personalizationService.ts`
+- recommendation UI
 
-Implementation notes:
-- `app/api/homework/[setId]/route.ts` לוגם כעת denied access עם `reason` ו־context מובנה.
-- תגובת ה־API כוללת גם `studentAccess` context שמאפשר למרצה/בונה להבין אם החסימה נובעת מ:
-  - availability window
-  - unpublished
-  - archived
-  - hidden entry mode
+Acceptance:
 
-### Acceptance Criteria
-- [x] יש כיסוי בדיקות למסלולים הקריטיים.
-- [x] אין regression בכניסה, ריצה והגשה.
-- [x] אפשר להסביר בקלות למה תרגיל זמין או לא זמין.
+- The team can answer which personalization interventions actually work.
 
----
+### Task 14: Run offline evaluation on historical student data
 
-## Cross-Cutting Refactors
+Problem:
+Before tuning prompts or heuristics, the team needs a repeatable evaluation set.
 
-### A. Normalize terminology
-להחליט על שמות עקביים:
-- `availableFrom` / `availableUntil`
-- `dataStructureNotes`
-- `expectedOutputDescription`
+Do:
 
-לא לערבב כמה שמות שונים לאותו רעיון.
+- Create an offline evaluation harness with historical attempts and outcomes.
+- Score personalization quality on:
+  - topic identification accuracy
+  - misconception accuracy
+  - recommendation usefulness
+  - false-positive rate
+  - calibration quality
+- Use expert-labeled samples from instructors for benchmark comparison.
 
-### B. Separate student content layers
-להפריד בין:
-- overview של התרגיל
-- הסבר על מבנה הנתונים
-- prompt של שאלה
-- expected output של שאלה
-- instructions משלימות
+Files to start with:
 
-### C. Reduce hidden logic in free-text fields
-כרגע יש יותר מדי לוגיקה שנשענת על טקסט חופשי, כולל transform מיוחד ב־`StudentEntryClient.tsx`.
+- `scripts/`
+- `__tests__/lib/personalization.test.ts`
+- analysis exports
 
-TODO:
-- לצמצם hardcoded transforms.
-- להעביר תוכן מובנה לשדות מפורשים.
-- לשמור parsing fallback רק לנתונים ישנים.
+Acceptance:
 
----
+- Changes to personalization logic can be evaluated before rollout.
 
-## Suggested Implementation Order
+## UX Design Direction
 
-1. Types + DB/service layer
-2. Availability utilities + API enforcement
-3. Dedicated start route + listing of multiple open homeworks
-4. Runner UI restructuring
-5. Builder metadata/question forms
-6. Dashboard improvements
-7. Tests + migration
+If this system is upgraded, the personalization UI should feel editorial and instructional, not like generic SaaS analytics.
 
----
+Recommendation:
 
-## Definition Of Done
+- student view: calm, focused, lightweight, confidence-building
+- admin view: dense evidence, strong hierarchy, fast scanability
+- avoid: generic “AI insight cards” and vague motivational text
+- emphasize: one clear next step, one explicit reason, one visible confidence level
 
-העבודה תיחשב גמורה רק אם כל הסעיפים הבאים מתקיימים:
-- יש תמיכה בכמה תרגילי בית פתוחים במקביל.
-- לכל תרגיל יש לינק ייעודי עובד.
-- לכל תרגיל יש זמן פתיחה וזמן סגירה אמיתיים ומאוכפים.
-- ב־runner מופיע הסבר מבנה הנתונים מעל הטבלאות.
-- בכל שאלה מופיעים גם נוסח השאלה וגם תיאור הפלט הרצוי.
-- builder מאפשר לנהל את כל זה בלי לעקוף ידנית את המערכת.
-- יש בדיקות שמכסות את התרחישים הקריטיים.
+## Suggested Delivery Order
 
----
+### Phase 1
 
-## Nice To Have After Core Delivery
+- Task 1
+- Task 2
+- Task 3
 
-- `slug` אנושי לתרגיל, לא רק `setId`
-- duplicate homework / clone previous semester
-- bulk schedule publish
-- archive automation אחרי סיום חלון
-- תצוגת calendar של חלונות תרגילים
-- preview as student מתוך builder
+### Phase 2
+
+- Task 4
+- Task 5
+- Task 6
+
+### Phase 3
+
+- Task 7
+- Task 8
+- Task 9
+
+### Phase 4
+
+- Task 10
+- Task 11
+- Task 12
+- Task 13
+- Task 14
+
+## Short Conclusion
+
+The system should not be treated as “missing personalization.” It already has a lot of scaffolding.
+
+The real problem is that the current scaffolding is:
+
+- partially inconsistent at the data layer
+- too heuristic at the learner-model layer
+- too hidden at the student experience layer
+- too weak at the validation layer
+
+If the team fixes those four things in order, personalization can move from “interesting internal logic” to something that students actually experience as accurate, helpful, and personal.

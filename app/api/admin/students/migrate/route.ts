@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { connectToDatabase, executeWithRetry, COLLECTIONS } from '@/lib/database'
+import { AdminAuthError, requireAdmin } from '@/lib/admin-auth'
+import { executeWithRetry, COLLECTIONS } from '@/lib/database'
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin(request)
     const result = await executeWithRetry(async (db) => {
       // Get all users from the users collection
       const users = await db.collection(COLLECTIONS.USERS).find({}).toArray()
@@ -89,6 +91,13 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
+    if (error instanceof AdminAuthError) {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden' },
+        { status: 403 }
+      )
+    }
+
     console.error('Error migrating student profiles:', error)
     return NextResponse.json(
       { 

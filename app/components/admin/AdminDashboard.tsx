@@ -15,7 +15,8 @@ import {
   ArrowUp,
   LogOut,
   User,
-  Brain
+  Brain,
+  Coins
 } from 'lucide-react';
 import styles from './AdminDashboard.module.css';
 
@@ -88,6 +89,14 @@ const externalCards = [
     route: '/admin/mcp-michael',
     color: 'indigo',
     action: 'route'
+  },
+  {
+    id: 'coins',
+    title: 'מטבעות',
+    description: 'ניהול הגדרות, חיובים ויתרות משתמשים',
+    icon: Coins,
+    color: 'yellow',
+    action: 'tab'
   },
   {
     id: 'model-management',

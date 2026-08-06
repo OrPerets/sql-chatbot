@@ -10,7 +10,7 @@ const TokenVisibilityToggle: React.FC<TokenVisibilityToggleProps> = ({ isVisible
   return (
     <div className={styles.tokenVisibilityToggle}>
       <label>
-        מטבעות וירטואלים
+        חיוב צ׳אט ראשי
         <div className={styles.toggle}>
           <input
             type="checkbox"
@@ -19,12 +19,15 @@ const TokenVisibilityToggle: React.FC<TokenVisibilityToggleProps> = ({ isVisible
               const newValue = e.target.checked;
               onToggle(newValue);
               try {
+                const storedUser = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
+                const adminEmail = storedUser ? JSON.parse(storedUser)?.email : null;
                 await fetch(`/api/users/coins`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
+                    ...(adminEmail ? { 'x-user-email': String(adminEmail).toLowerCase() } : {}),
                   },
-                  body: JSON.stringify({ newStatus: newValue ? 'ON' : 'OFF' })
+                  body: JSON.stringify({ config: { modules: { mainChat: newValue } } })
                 });
               } catch (error) {
                 console.error('Error updating token visibility:', error);

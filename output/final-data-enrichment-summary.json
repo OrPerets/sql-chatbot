@@ -1,0 +1,239 @@
+{
+  "generatedAt": "2026-04-26T15:01:25.038Z",
+  "dbName": "experiment",
+  "examPrepSetId": "697b602f8d8cd886902367b1",
+  "inputFinalCsv": "/Users/orperetz/Documents/shenkar/sql-chatbot/output/final-data.csv",
+  "inputForecastXlsx": "/Users/orperetz/Documents/מחקרים/מייקל-חיזוי/outputs/true_data/optimized_forecast/student_actual_vs_forecast.xlsx",
+  "outputCsv": "/Users/orperetz/Documents/shenkar/sql-chatbot/output/final-data-enriched.csv",
+  "outputXlsx": "/Users/orperetz/Documents/shenkar/sql-chatbot/output/final-data-enriched.xlsx",
+  "rowCount": 55,
+  "columnCount": 440,
+  "sourceCounts": {
+    "baseRows": 55,
+    "forecastRows": 55,
+    "users": 98,
+    "submissions": 55,
+    "questionAnalytics": 563,
+    "chatSessions": 273,
+    "chatMessages": 1119,
+    "studentProfiles": 24,
+    "studentActivities": 12327,
+    "conversationSummaries": 0,
+    "learningSummaries": 0,
+    "learningQuizResults": 0,
+    "coins": 241,
+    "userPoints": 1
+  },
+  "questionMap": [
+    {
+      "prefix": "q01",
+      "id": "69ae6d648c7968984419bbe6",
+      "points": 10,
+      "recordCount": 96,
+      "prompt": "הציגו את כל סבבי הדיבייט שמתקיימים בשבועיים הקרובים יחד עם מספר המשתתפים המאושרים לכל סבב. כללו רק הרשמות בסטטוס 'approved'. מיינו לפי תאריך הסבב מהקרוב לרחוק."
+    },
+    {
+      "prefix": "q02",
+      "id": "69ae6d648c7968984419bbe8",
+      "points": 10,
+      "recordCount": 60,
+      "prompt": "הציגו את המשתתפים אשר לא רשומים לאף סבב דיבייט, כאשר שמות המשתתפים מוצגים בשרשור של שם פרטי ושם משפחה בעמודה אחת. מיינו בסדר יורד עפ״י השם המלא."
+    },
+    {
+      "prefix": "q03",
+      "id": "69ae6d648c7968984419bbea",
+      "points": 10,
+      "recordCount": 56,
+      "prompt": "הציגו לכל סבב דיבייט את הציון הגבוה ביותר ואת הציון הנמוך ביותר ואת מספר המשתתפים שנשפטו. הציגו רק סבבים שיש להם תוצאות. מיינו לפי מזהה סבב."
+    },
+    {
+      "prefix": "q04",
+      "id": "69ae6d648c7968984419bbec",
+      "points": 10,
+      "recordCount": 52,
+      "prompt": "הציגו את ממוצע הציון לכל בית ספר בכל נושא דיבייט, יחד עם מספר המשתתפים שנשפטו. הציגו רק בתי ספר עם לפחות 3 משתתפים. מיינו לפי בית ספר ולאחר מכן לפי קוד נושא."
+    },
+    {
+      "prefix": "q05",
+      "id": "69ae6d648c7968984419bbee",
+      "points": 10,
+      "recordCount": 50,
+      "prompt": "הציגו את המשתתפים שהשתתפו ביותר מסבב דיבייט אחד, כולל מספר הסבבים וממוצע הציון שלהם. חשבו לפי סבבים שונים שהמשתתף נרשם אליהם. הציגו רק משתתפים עם יותר מסבב אחד."
+    },
+    {
+      "prefix": "q06",
+      "id": "69ae6d648c7968984419bbf0",
+      "points": 10,
+      "recordCount": 47,
+      "prompt": "הציגו רק את 2 סבבי הדיבייט הארוכים ביותר שהתקיימו באולם 'North Hall' או שמשכם מעל 120 דקות. מיינו לפי משך הסבב מהארוך לקצר."
+    },
+    {
+      "prefix": "q07",
+      "id": "69ae6d648c7968984419bbf2",
+      "points": 10,
+      "recordCount": 47,
+      "prompt": "הציגו את רשימת המשתתפים עם סטטוס הרשמה 'waitlist' יחד עם פרטי סבב הדיבייט. מיינו לפי תאריך הסבב ולאחר מכן לפי שם משפחה."
+    },
+    {
+      "prefix": "q08",
+      "id": "69ae6d648c7968984419bbf4",
+      "points": 10,
+      "recordCount": 45,
+      "prompt": "הציגו את המשתתפים שנרשמו לסבב דיבייט אך עדיין לא קיבלו ציון. כללו רק הרשמות מאושרות. הציגו את המשתתף, פרטי הסבב וסטטוס הרשמה."
+    },
+    {
+      "prefix": "q09",
+      "id": "69ae6d648c7968984419bbf6",
+      "points": 15,
+      "recordCount": 44,
+      "prompt": "הציגו את המשתתפים שקיבלו ציון גבוה מהממוצע הכולל של כל הציונים במערכת. השתמשו בתת-שאילתה לחישוב הממוצע הכולל. הציגו מזהה משתתף, שם מלא, ציון וממוצע כללי. מיינו לפי ציון יורד."
+    },
+    {
+      "prefix": "q10",
+      "id": "69ae6d648c7968984419bbf8",
+      "points": 15,
+      "recordCount": 44,
+      "prompt": "הציגו רשימת משתתפים עם השם המלא בפורמט 'משפחה, פרטי' (שרשור שם משפחה, פסיק ורווח, שם פרטי) ואורך השם המלא בתווים. מיינו לפי שם משפחה ואז לפי שם פרטי."
+    },
+    {
+      "prefix": "q11",
+      "id": "69ae6d648c7968984419bbfa",
+      "points": 15,
+      "recordCount": 43,
+      "prompt": "הציגו טבלה שמקשרת משתתפים, סבבי דיבייט ותוצאות: שם המשתתף (שרשור פרטי ומשפחה), קוד הנושא, תאריך הסבב, האולם והציון. כללו רק משתתפים שקיבלו ציון. השתמשו ב-JOIN בין הטבלאות הרלוונטיות. מיינו לפי שם משתתף ולפי תאריך סבב."
+    },
+    {
+      "prefix": "q12",
+      "id": "698b4f0c9127ccacc0c7d980",
+      "points": "",
+      "recordCount": 70,
+      "prompt": ""
+    },
+    {
+      "prefix": "q13",
+      "id": "698b4f0c9127ccacc0c7d982",
+      "points": "",
+      "recordCount": 39,
+      "prompt": ""
+    },
+    {
+      "prefix": "q14",
+      "id": "698b4f0c9127ccacc0c7d984",
+      "points": "",
+      "recordCount": 35,
+      "prompt": ""
+    },
+    {
+      "prefix": "q15",
+      "id": "698b4f0c9127ccacc0c7d986",
+      "points": "",
+      "recordCount": 30,
+      "prompt": ""
+    },
+    {
+      "prefix": "q16",
+      "id": "698b4f0c9127ccacc0c7d988",
+      "points": "",
+      "recordCount": 25,
+      "prompt": ""
+    },
+    {
+      "prefix": "q17",
+      "id": "698b4f0c9127ccacc0c7d98a",
+      "points": "",
+      "recordCount": 24,
+      "prompt": ""
+    },
+    {
+      "prefix": "q18",
+      "id": "698b4f0d9127ccacc0c7d98c",
+      "points": "",
+      "recordCount": 21,
+      "prompt": ""
+    },
+    {
+      "prefix": "q19",
+      "id": "698b4f0d9127ccacc0c7d992",
+      "points": "",
+      "recordCount": 20,
+      "prompt": ""
+    },
+    {
+      "prefix": "q20",
+      "id": "698b4f0d9127ccacc0c7d994",
+      "points": "",
+      "recordCount": 17,
+      "prompt": ""
+    },
+    {
+      "prefix": "q21",
+      "id": "698b4f0d9127ccacc0c7d996",
+      "points": "",
+      "recordCount": 16,
+      "prompt": ""
+    },
+    {
+      "prefix": "q22",
+      "id": "698b4f0d9127ccacc0c7d998",
+      "points": "",
+      "recordCount": 14,
+      "prompt": ""
+    },
+    {
+      "prefix": "q23",
+      "id": "698b4f0d9127ccacc0c7d99a",
+      "points": "",
+      "recordCount": 15,
+      "prompt": ""
+    },
+    {
+      "prefix": "q24",
+      "id": "699a9d3dc4d0873cc4107214",
+      "points": "",
+      "recordCount": 12,
+      "prompt": ""
+    },
+    {
+      "prefix": "q25",
+      "id": "698b4f0d9127ccacc0c7d99c",
+      "points": "",
+      "recordCount": 9,
+      "prompt": ""
+    },
+    {
+      "prefix": "q26",
+      "id": "69ad6855099705cdf2905bc1",
+      "points": "",
+      "recordCount": 3,
+      "prompt": ""
+    },
+    {
+      "prefix": "q27",
+      "id": "69ad6855099705cdf2905bc3",
+      "points": "",
+      "recordCount": 2,
+      "prompt": ""
+    },
+    {
+      "prefix": "q28",
+      "id": "69ad6855099705cdf2905bc5",
+      "points": "",
+      "recordCount": 2,
+      "prompt": ""
+    },
+    {
+      "prefix": "q29",
+      "id": "69ad6855099705cdf2905bc7",
+      "points": "",
+      "recordCount": 2,
+      "prompt": ""
+    },
+    {
+      "prefix": "q30",
+      "id": "69ad6855099705cdf2905bc9",
+      "points": "",
+      "recordCount": 1,
+      "prompt": ""
+    }
+  ]
+}

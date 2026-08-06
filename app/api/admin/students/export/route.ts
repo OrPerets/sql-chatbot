@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { connectToDatabase, executeWithRetry, COLLECTIONS } from '@/lib/database'
+import { AdminAuthError, requireAdmin } from '@/lib/admin-auth'
+import { executeWithRetry, COLLECTIONS } from '@/lib/database'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAdmin(request)
     const { searchParams } = new URL(request.url)
     const format = searchParams.get('format') || 'json'
     const includeActivities = searchParams.get('includeActivities') === 'true'
@@ -53,6 +55,13 @@ export async function GET(request: NextRequest) {
     }
 
   } catch (error) {
+    if (error instanceof AdminAuthError) {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden' },
+        { status: 403 }
+      )
+    }
+
     console.error('Error exporting student profiles:', error)
     return NextResponse.json(
       { 

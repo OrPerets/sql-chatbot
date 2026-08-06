@@ -313,8 +313,7 @@ describe('AIAnalysisService', () => {
 
       const result = aiService['extractTopicAreas'](questionWithJoin);
 
-      expect(result).toContain('JOIN');
-      expect(result).toContain('SELECT');
+      expect(result).toContain('JOIN logic');
     });
 
     it('should extract GROUP BY topics', () => {
@@ -326,8 +325,7 @@ describe('AIAnalysisService', () => {
 
       const result = aiService['extractTopicAreas'](questionWithGroupBy);
 
-      expect(result).toContain('GROUP BY');
-      expect(result).toContain('SELECT');
+      expect(result).toContain('Grouping and aggregation');
     });
 
     it('should return GENERAL SQL for questions without specific keywords', () => {
@@ -339,7 +337,7 @@ describe('AIAnalysisService', () => {
 
       const result = aiService['extractTopicAreas'](genericQuestion);
 
-      expect(result).toContain('GENERAL SQL');
+      expect(result).toContain('General SQL');
     });
   });
 

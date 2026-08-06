@@ -1,0 +1,37 @@
+{
+  "collection": "chatMessages",
+  "createdAt": "2026-05-27T05:49:57.465Z",
+  "operation": "archive-and-delete-streaming-bug-partial-assistant-messages",
+  "dbName": "experiment",
+  "queryWindow": {
+    "start": "2026-05-27T05:00:00.000Z",
+    "end": "2026-05-27T05:30:00.000Z"
+  },
+  "selectionRule": "For each chatId in the window, sort by timestamp/_id, split consecutive assistant messages by user messages, keep the last assistant doc in each run, archive/delete earlier assistant docs only.",
+  "countsBefore": {
+    "totalInWindow": 14364,
+    "assistantInWindow": 14298,
+    "userInWindow": 66,
+    "chatIds": 12,
+    "assistantRunsKept": 66,
+    "selectedForDelete": 14232
+  },
+  "archive": {
+    "file": "/Users/orperetz/Documents/shenkar/sql-chatbot/exports/chatMessages-archive/chatMessages-streaming-bug-partials-2026-05-27T05-49-34-982Z.jsonl.gz",
+    "count": 14232,
+    "gzipBytes": 376322,
+    "sha256UncompressedJsonl": "cd39c7e52c2e66857dacb58a4c5f1e646a111afcf6efc174297589f5c5490579",
+    "firstTimestamp": "2026-05-27T05:06:52.060Z",
+    "lastTimestamp": "2026-05-27T05:29:54.376Z"
+  },
+  "deletion": {
+    "requested": true,
+    "deletedDocuments": 14232,
+    "remainingSelectedIds": 0
+  },
+  "countsAfter": {
+    "totalInWindow": 132,
+    "assistantInWindow": 66,
+    "userInWindow": 66
+  }
+}

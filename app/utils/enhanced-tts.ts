@@ -5,6 +5,8 @@
 // import { contextAwareVoice, VoiceIntelligenceOptions } from './context-aware-voice';
 // import { voiceAnalytics } from './voice-analytics';
 // import { voiceTextSanitizer, SanitizationConfig, VoiceTextSanitizer } from './voice-text-sanitizer';
+import { isVoiceFeatureEnabled } from '@/lib/openai/voice-config';
+import type { SpeechIntent } from './avatar-speech-controller';
 
 // Temporary interfaces to prevent compilation errors
 interface AudioProcessingOptions {
@@ -69,6 +71,7 @@ export interface TTSOptions {
   progressiveMode?: boolean; // New option for progressive speech
   emotion?: 'happy' | 'sad' | 'excited' | 'calm' | 'neutral'; // Voice emotion parameters
   contentType?: 'sql' | 'explanation' | 'question' | 'feedback' | 'general'; // Content-type awareness
+  speechIntent?: SpeechIntent;
   audioProcessing?: AudioProcessingOptions; // Audio processing options
   contextAwareness?: boolean; // Enable context-aware voice intelligence
   voiceIntelligenceOptions?: VoiceIntelligenceOptions; // Voice intelligence options
@@ -77,6 +80,144 @@ export interface TTSOptions {
   onStart?: () => void;
   onEnd?: () => void;
   onError?: (error: Error) => void;
+}
+
+export type TTSFailureCode =
+  | 'VOICE_DISABLED'
+  | 'INVALID_REQUEST'
+  | 'OPENAI_API_KEY_MISSING'
+  | 'TTS_GENERATION_FAILED';
+
+export interface TTSFailureResponse {
+  ok: false;
+  enabled: boolean;
+  code: TTSFailureCode;
+  message: string;
+  retryable: boolean;
+  details?: string;
+}
+
+export class TTSServiceError extends Error {
+  failure: TTSFailureResponse;
+
+  constructor(failure: TTSFailureResponse) {
+    super(failure.message);
+    this.name = 'TTSServiceError';
+    this.failure = failure;
+  }
+}
+
+const SQL_SPEECH_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bCOUNT\s*\(\s*\*\s*\)/gi, 'count all rows'],
+  [/\bAVG\b/gi, 'average'],
+  [/\bSUM\b/gi, 'sum'],
+  [/\bMIN\b/gi, 'minimum'],
+  [/\bMAX\b/gi, 'maximum'],
+  [/\bSELECT\b/gi, 'select'],
+  [/\bFROM\b/gi, 'from'],
+  [/\bWHERE\b/gi, 'where'],
+  [/\bJOIN\b/gi, 'join'],
+  [/\bLEFT JOIN\b/gi, 'left join'],
+  [/\bRIGHT JOIN\b/gi, 'right join'],
+  [/\bGROUP BY\b/gi, 'group by'],
+  [/\bORDER BY\b/gi, 'order by'],
+  [/\bHAVING\b/gi, 'having'],
+  [/!=/g, ' not equal to '],
+  [/>=/g, ' greater than or equal to '],
+  [/<=/g, ' less than or equal to '],
+  [/<>/g, ' not equal to '],
+  [/\*/g, ' star '],
+];
+
+const QUESTION_MARKERS = ['why', 'how', 'what', 'can you', 'איך', 'למה', 'מה'];
+
+export function isTTSFailureResponse(value: unknown): value is TTSFailureResponse {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<TTSFailureResponse>;
+  return candidate.ok === false && typeof candidate.code === 'string' && typeof candidate.message === 'string';
+}
+
+export function detectSpeechContentType(
+  text: string,
+  intent?: SpeechIntent
+): NonNullable<TTSOptions['contentType']> {
+  if (/\b(select|from|where|join|group by|order by|having|count\s*\()/i.test(text)) {
+    return 'sql';
+  }
+
+  switch (intent?.intent) {
+    case 'question':
+      return 'question';
+    case 'error':
+    case 'confirmation':
+      return 'feedback';
+    case 'summary':
+    case 'explain':
+      return 'explanation';
+    default:
+      return 'general';
+  }
+}
+
+export function mapSpeechIntentToProsody(
+  intent?: SpeechIntent
+): Pick<TTSOptions, 'speed' | 'pitch' | 'emotion' | 'contentType'> {
+  switch (intent?.intent) {
+    case 'error':
+      return { speed: 0.9, pitch: 0.95, emotion: 'calm', contentType: 'feedback' };
+    case 'summary':
+      return { speed: 1.02, pitch: 0.98, emotion: 'calm', contentType: 'explanation' };
+    case 'explain':
+      return { speed: 0.96, pitch: 0.99, emotion: 'calm', contentType: 'explanation' };
+    case 'greeting':
+      return { speed: 1.04, pitch: 1.05, emotion: 'happy', contentType: 'general' };
+    case 'question':
+      return { speed: 0.98, pitch: 1.04, emotion: 'calm', contentType: 'question' };
+    case 'confirmation':
+      return { speed: 1.0, pitch: 1.06, emotion: 'happy', contentType: 'feedback' };
+    case 'uncertainty':
+      return { speed: 0.92, pitch: 0.97, emotion: 'calm', contentType: 'general' };
+    default:
+      return { speed: 0.98, pitch: 1.0, emotion: 'neutral', contentType: 'general' };
+  }
+}
+
+export function normalizeSpeechText(text: string, speechIntent?: SpeechIntent): string {
+  const isHebrew = /[\u0590-\u05FF]/.test(text);
+  const confidence = speechIntent?.confidence ?? 0.9;
+  let normalized = text.trim();
+
+  normalized = normalized
+    .replace(/```[\s\S]*?```/g, ' code example. ')
+    .replace(/\s+/g, ' ');
+
+  if (detectSpeechContentType(normalized, speechIntent) === 'sql') {
+    SQL_SPEECH_REPLACEMENTS.forEach(([pattern, replacement]) => {
+      normalized = normalized.replace(pattern, replacement);
+    });
+  }
+
+  normalized = normalized
+    .replace(/([:;])\s*/g, '$1 ')
+    .replace(/([.?!])\s*/g, '$1  ')
+    .replace(/,\s*/g, ', ');
+
+  if (speechIntent?.intent === 'question' || QUESTION_MARKERS.some((marker) => normalized.toLowerCase().includes(marker))) {
+    normalized = normalized.replace(/\?+/g, '? ');
+  }
+
+  if ((speechIntent?.intent === 'uncertainty' || confidence < 0.55) && !/^\s*(let me think|hmm|תן לי לחשוב|אממ)/i.test(normalized)) {
+    normalized = `${isHebrew ? 'תן לי לחשוב רגע. ' : 'Let me think for a second. '}${normalized}`;
+  }
+
+  if (speechIntent?.intent === 'summary' && !/^\s*(in short|to sum up|בקיצור|לסיכום)/i.test(normalized)) {
+    normalized = `${isHebrew ? 'לסיכום, ' : 'In short, '}${normalized}`;
+  }
+
+  return normalized.replace(/\s+/g, ' ').trim();
 }
 
 // IndexedDB cache interface
@@ -212,9 +353,11 @@ class EnhancedTTSService {
   constructor() {
     if (typeof window !== 'undefined') {
       this.speechSynthesis = window.speechSynthesis;
-      this.initializeIndexedDB();
-      this.startBackgroundCacheWarming();
-      this.startPerformanceMonitoring();
+      if (process.env.NODE_ENV !== 'test') {
+        this.initializeIndexedDB();
+        this.startBackgroundCacheWarming();
+        this.startPerformanceMonitoring();
+      }
     }
   }
 
@@ -227,7 +370,7 @@ class EnhancedTTSService {
 
     try {
       const request = indexedDB.open('TTSAudioCache', 1);
-      
+
       request.onerror = () => {
         this.dlog('Failed to open IndexedDB for TTS cache');
       };
@@ -240,7 +383,7 @@ class EnhancedTTSService {
 
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
-        
+
         if (!db.objectStoreNames.contains('audioCache')) {
           const store = db.createObjectStore('audioCache', { keyPath: 'id' });
           store.createIndex('timestamp', 'timestamp', { unique: false });
@@ -268,7 +411,7 @@ class EnhancedTTSService {
           // Update access statistics
           result.accessCount++;
           result.lastAccessed = Date.now();
-          
+
           // Update in background
           this.updateCacheEntryStats(cacheKey, result);
           resolve(result.audioData);
@@ -369,7 +512,7 @@ class EnhancedTTSService {
     getAllRequest.onsuccess = () => {
       const entries = getAllRequest.result as AudioCacheEntry[];
       const now = Date.now();
-      
+
       entries.forEach(entry => {
         if (now - entry.timestamp > this.maxCacheAge) {
           store.delete(entry.id);
@@ -406,31 +549,31 @@ class EnhancedTTSService {
 
   private async warmCacheWithPhrases(phrases: string[]): Promise<void> {
     this.dlog('Starting background cache warming...');
-    
+
     for (const phrase of phrases) {
       try {
         const cacheKey = this.getCacheKey(phrase, { voice: 'onyx', speed: 1.0 });
-        
+
         // Check if already cached
         const existing = await this.getFromIndexedDBCache(cacheKey);
         if (existing) continue;
 
         // Generate and cache
         const audioUrl = await this.generateOpenAITTS(phrase, { voice: 'onyx', speed: 1.0 });
-        
+
         // Convert blob URL to ArrayBuffer for storage
         const response = await fetch(audioUrl);
         const audioData = await response.arrayBuffer();
-        
+
         await this.storeInIndexedDBCache(cacheKey, audioData, phrase, 'onyx', 1.0);
-        
+
         // Small delay to avoid overwhelming the system
         await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
         this.dlog('Failed to warm cache for phrase:', phrase, error);
       }
     }
-    
+
     this.dlog('Background cache warming completed');
   }
 
@@ -446,7 +589,7 @@ class EnhancedTTSService {
   // Record performance metrics
   private recordMetrics(metrics: TTSPerformanceMetrics): void {
     this.performanceMetrics.push(metrics);
-    
+
     // Log performance summary every 10 requests
     if (this.performanceMetrics.length % 10 === 0) {
       this.logPerformanceSummary();
@@ -483,12 +626,12 @@ class EnhancedTTSService {
   async testAudioPlayback(): Promise<boolean> {
     try {
       this.dlog('🎵 Testing audio playback capability...');
-      
+
       // Create a silent audio element to test autoplay
       const testAudio = new Audio();
       testAudio.src = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQ4AAAA='; // Silent 1 second WAV
       testAudio.volume = 0.01; // Almost silent
-      
+
       const playPromise = testAudio.play();
       if (playPromise !== undefined) {
         await playPromise;
@@ -496,7 +639,7 @@ class EnhancedTTSService {
         this.audioUnlocked = true;
         return true;
       }
-      
+
       return false;
     } catch (error) {
       if (this.isDebug()) console.warn('⚠️ Audio playback test failed:', error);
@@ -519,10 +662,10 @@ class EnhancedTTSService {
   // Select best voice based on language and preferences
   private selectVoice(language: 'en' | 'he', options: TTSOptions): string {
     const { voice, characterStyle, humanize } = options;
-    
+
     // For Hebrew text, always use Nova (best Hebrew pronunciation)
     if (language === 'he') {
-      console.log('🇮🇱 Hebrew text detected - forcing nova voice for optimal pronunciation');
+      this.dlog('Hebrew text detected - forcing nova voice for optimal pronunciation');
       return 'nova';
     }
 
@@ -569,60 +712,60 @@ class EnhancedTTSService {
     } catch (error) {
       this.circuitBreakerState.failures++;
       this.circuitBreakerState.lastFailure = Date.now();
-      
+
       // Open circuit after 3 failures
       if (this.circuitBreakerState.failures >= 3) {
         this.circuitBreakerState.isOpen = true;
         this.dlog(`Circuit breaker opened for ${operationName} after ${this.circuitBreakerState.failures} failures`);
       }
-      
+
       throw error;
     }
   }
 
   // Exponential backoff retry mechanism
   private async retryWithBackoff<T>(
-    operation: () => Promise<T>, 
-    maxRetries: number = 3, 
+    operation: () => Promise<T>,
+    maxRetries: number = 3,
     baseDelay: number = 1000
   ): Promise<T> {
     let lastError: Error;
-    
+
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         return await operation();
       } catch (error) {
         lastError = error as Error;
-        
+
         if (attempt === maxRetries) {
           break;
         }
-        
+
         const delay = baseDelay * Math.pow(2, attempt);
         this.dlog(`Retry attempt ${attempt + 1}/${maxRetries} failed, waiting ${delay}ms:`, error);
-        
+
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
-    
+
     throw lastError!;
   }
 
   // Generate speech using OpenAI TTS with enhanced error handling and caching
   private async generateOpenAITTS(text: string, options: TTSOptions): Promise<string> {
     const startTime = Date.now();
-    
+
     // Client-side feature flag guard
-    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_VOICE_ENABLED !== '1') {
+    if (typeof window !== 'undefined' && !isVoiceFeatureEnabled()) {
       throw new Error('Voice feature disabled');
     }
-    
+
     const language = this.detectLanguage(text);
     const selectedVoice = this.selectVoice(language, options);
-    
+
     // Create request key for client-side deduplication
     const requestKey = `${text}_${selectedVoice}_${options.speed || 1.0}_${options.enhanceProsody !== false}_${options.characterStyle || 'university_ta'}`;
-    
+
     // Try IndexedDB cache first
     const cacheKey = this.getCacheKey(text, { ...options, voice: selectedVoice });
     const cachedAudio = await this.getFromIndexedDBCache(cacheKey);
@@ -630,7 +773,7 @@ class EnhancedTTSService {
       this.dlog('🗄️ EnhancedTTS: IndexedDB cache hit for audio');
       const audioUrl = URL.createObjectURL(new Blob([cachedAudio], { type: 'audio/mpeg' }));
       this.audioCache.set(cacheKey, audioUrl);
-      
+
       // Record metrics
       this.recordMetrics({
         responseTime: Date.now() - startTime,
@@ -638,10 +781,10 @@ class EnhancedTTSService {
         audioSize: cachedAudio.byteLength,
         timestamp: Date.now()
       });
-      
+
       return audioUrl;
     }
-    
+
     // Try memory cache
     if (this.audioCache.has(cacheKey)) {
       this.dlog('🗄️ EnhancedTTS: Memory cache hit for audio');
@@ -659,21 +802,21 @@ class EnhancedTTSService {
       this.dlog('🔄 Client-side: Duplicate TTS request detected - reusing pending promise');
       return await this.pendingRequests.get(requestKey)!;
     }
-    
+
     this.dlog(`🎤 Generating OpenAI TTS: voice=${selectedVoice}, language=${language}`);
-    
+
     // Create the promise and store it
     const requestPromise = (async (): Promise<string> => {
       try {
         // Wait for available request slot
         await this.waitForRequestSlot();
-        
+
         const result = await this.executeWithCircuitBreaker(async () => {
           return await this.retryWithBackoff(async () => {
             const base = process.env.NEXT_PUBLIC_SERVER_BASE || '';
             const primaryUrl = `${base}/api/audio/tts`;
             this.dlog('🔈 TTS fetch →', primaryUrl);
-            
+
             let response = await fetch(primaryUrl, {
               method: 'POST',
               headers: {
@@ -687,49 +830,41 @@ class EnhancedTTSService {
                 enhance_prosody: options.enhanceProsody !== false,
                 character_style: options.characterStyle || 'university_ta',
                 emotion: options.emotion || 'neutral',
-                content_type: options.contentType || 'general'
+                content_type: options.contentType || 'general',
+                speech_intent: options.speechIntent || null,
               }),
             });
-            
-            // Handle disabled feature gracefully (200 with enabled: false) - don't retry
-            if (response.status === 200) {
-              const responseData = await response.json().catch(() => ({}));
-              if (responseData.enabled === false) {
-                this.dlog('⚠️ Voice feature is disabled, skipping TTS');
-                throw new Error('Voice feature disabled');
-              }
+
+            const primaryFailure = await this.extractFailureResponse(response);
+            if (primaryFailure) {
+              throw new TTSServiceError(primaryFailure);
             }
-            
+
             // Fallback to local route if server base failed
             if (!response.ok) {
               this.dlog('⚠️ TTS primary failed status:', response.status);
-              try {
-                const localUrl = `/api/audio/tts`;
-                this.dlog('🔁 Trying local TTS →', localUrl);
-                response = await fetch(localUrl, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    text,
-                    voice: selectedVoice,
-                    speed: options.speed || 1.0,
-                    format: 'mp3',
-                    enhance_prosody: options.enhanceProsody !== false,
-                    character_style: options.characterStyle || 'university_ta',
-                    emotion: options.emotion || 'neutral',
-                    content_type: options.contentType || 'general'
-                  }),
-                });
-                
-                // Check if local also returns disabled
-                if (response.status === 200) {
-                  const responseData = await response.json().catch(() => ({}));
-                  if (responseData.enabled === false) {
-                    this.dlog('⚠️ Voice feature is disabled, skipping TTS');
-                    throw new Error('Voice feature disabled');
-                  }
-                }
-              } catch {}
+              const localUrl = `/api/audio/tts`;
+              this.dlog('🔁 Trying local TTS →', localUrl);
+              response = await fetch(localUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  text,
+                  voice: selectedVoice,
+                  speed: options.speed || 1.0,
+                  format: 'mp3',
+                  enhance_prosody: options.enhanceProsody !== false,
+                  character_style: options.characterStyle || 'university_ta',
+                  emotion: options.emotion || 'neutral',
+                  content_type: options.contentType || 'general',
+                  speech_intent: options.speechIntent || null,
+                }),
+              });
+
+              const localFailure = await this.extractFailureResponse(response);
+              if (localFailure) {
+                throw new TTSServiceError(localFailure);
+              }
             }
 
             if (!response.ok) {
@@ -745,24 +880,24 @@ class EnhancedTTSService {
         if (!audioBlob || audioBlob.size === 0) {
           throw new Error('Empty audio received from TTS endpoint');
         }
-        
+
         const audioUrl = URL.createObjectURL(audioBlob);
         this.dlog(`✅ OpenAI TTS audio generated: ${audioBlob.size} bytes`);
-        
+
         // Cache in both memory and IndexedDB
         this.audioCache.set(cacheKey, audioUrl);
-        
+
         // Process audio if options are provided
         let processedAudioArrayBuffer = await audioBlob.arrayBuffer();
         // Temporarily disabled due to import issues
         // if (options.audioProcessing && audioProcessor.isAudioProcessingSupported()) {
         //   try {
         //     const { processedAudio, metrics } = await audioProcessor.processAudio(
-        //       processedAudioArrayBuffer, 
+        //       processedAudioArrayBuffer,
         //       options.audioProcessing
         //     );
         //     processedAudioArrayBuffer = processedAudio;
-            
+
         //     this.dlog('Audio processing completed:', {
         //       originalSize: audioBlob.size,
         //       processedSize: processedAudioArrayBuffer.byteLength,
@@ -778,7 +913,7 @@ class EnhancedTTSService {
         this.storeInIndexedDBCache(cacheKey, processedAudioArrayBuffer, text, selectedVoice, options.speed || 1.0).catch(err => {
           this.dlog('Failed to store in IndexedDB cache:', err);
         });
-        
+
         // Record metrics
         this.recordMetrics({
           responseTime: Date.now() - startTime,
@@ -799,7 +934,7 @@ class EnhancedTTSService {
         //   emotion: options.emotion || 'neutral',
         //   contentType: options.contentType || 'general'
         // });
-        
+
         return audioUrl;
       } catch (error) {
         // Record error metrics
@@ -820,7 +955,7 @@ class EnhancedTTSService {
         //   textLength: text.length,
         //   userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'server'
         // });
-        
+
         throw error;
       } finally {
         // Clean up pending request and release request slot
@@ -828,7 +963,7 @@ class EnhancedTTSService {
         this.releaseRequestSlot();
       }
     })();
-    
+
     // Store the promise
     this.pendingRequests.set(requestKey, requestPromise);
     return await requestPromise;
@@ -851,7 +986,7 @@ class EnhancedTTSService {
 
   private releaseRequestSlot(): void {
     this.activeRequests--;
-    
+
     if (this.requestQueue.length > 0) {
       const next = this.requestQueue.shift();
       this.activeRequests++;
@@ -866,12 +1001,11 @@ class EnhancedTTSService {
     }
 
     const language = this.detectLanguage(text);
-    
+
     // Clean text for browser TTS
-    const cleanText = text
+    const cleanText = normalizeSpeechText(text, options.speechIntent)
       .replace(/\*\*(.*?)\*\*/g, '$1')
       .replace(/\*(.*?)\*/g, '$1')
-      .replace(/```[\s\S]*?```/g, ' code block ')
       .replace(/😊|😀|😃|😄|😁|😆|😅|🤣|😂|🙂|🙃|😉|😇|🥰|😍|🤩|😘|😗|😚|😙|😋|😛|😜|🤪|😝|🤑|🤗|🤭|🤫|🤔|🤐|🤨|😐|😑|😶|😏|😒|🙄|😬|🤥|😌|😔|😪|🤤|😴|😷|🤒|🤕|🤢|🤮|🤧|🥵|🥶|🥴|😵|🤯|🤠|🥳|😎|🤓|🧐|🚀|⚡|💡|🎯|🎓|✨|👍|👎|👏|🔧|🛠️|📝|📊|💻|⭐|🎉|🔥|💪|🏆|📈|🎪/g, '')
       .replace(/\s+/g, ' ')
       .trim();
@@ -886,22 +1020,22 @@ class EnhancedTTSService {
     // Select browser voice
     const voices = this.speechSynthesis.getVoices();
     let selectedVoice = null;
-    
+
     if (language === 'he') {
-      selectedVoice = voices.find(voice => 
+      selectedVoice = voices.find(voice =>
         voice.lang.includes('he') || voice.lang.includes('iw') ||
-        voice.name.toLowerCase().includes('carmit') || 
+        voice.name.toLowerCase().includes('carmit') ||
         voice.name.toLowerCase().includes('hebrew')
       );
     } else {
       // Prefer male voices for university TA character
       selectedVoice = voices.find(voice => {
         const name = voice.name.toLowerCase();
-        return name.includes('alex') || name.includes('daniel') || 
+        return name.includes('alex') || name.includes('daniel') ||
                name.includes('thomas') || name.includes('male');
       });
     }
-    
+
     if (selectedVoice) {
       this.currentUtterance.voice = selectedVoice;
     }
@@ -914,7 +1048,7 @@ class EnhancedTTSService {
 
       this.currentUtterance.onend = () => resolve();
       this.currentUtterance.onerror = (event) => reject(new Error(`Speech error: ${event.error}`));
-      
+
       this.speechSynthesis!.speak(this.currentUtterance);
     });
   }
@@ -940,16 +1074,24 @@ class EnhancedTTSService {
     }
 
     // Apply context-aware voice intelligence if enabled
-    let processedText = text;
-    let enhancedOptions = { ...options };
-    
+    const prosodyPreset = mapSpeechIntentToProsody(options.speechIntent);
+    let processedText = normalizeSpeechText(text, options.speechIntent);
+    let enhancedOptions: TTSOptions = {
+      ...prosodyPreset,
+      ...options,
+      speed: options.speed ?? prosodyPreset.speed,
+      pitch: options.pitch ?? prosodyPreset.pitch,
+      emotion: options.emotion ?? prosodyPreset.emotion,
+      contentType: options.contentType ?? detectSpeechContentType(processedText, options.speechIntent),
+    };
+
     // Temporarily disabled due to import issues
     // if (options.contextAwareness !== false) {
-    //   const contextResult = contextAwareVoice.processTextForVoice(text, 
-    //     contextAwareVoice.analyzeContext(text), 
+    //   const contextResult = contextAwareVoice.processTextForVoice(text,
+    //     contextAwareVoice.analyzeContext(text),
     //     options.voiceIntelligenceOptions
     //   );
-    //   
+    //
     //   processedText = contextResult.processedText;
     //   enhancedOptions = {
     //     ...options,
@@ -958,7 +1100,7 @@ class EnhancedTTSService {
     //     emotion: contextResult.voiceParameters.emotion as any,
     //     contentType: contextResult.voiceParameters.emotion as any
     //   };
-    //   
+    //
     //   this.dlog('🧠 Context-aware processing applied:', {
     //     originalLength: text.length,
     //     processedLength: processedText.length,
@@ -985,23 +1127,23 @@ class EnhancedTTSService {
         preservePunctuation: true,
         maxLength: 5000
       };
-      
-      const sanitizationConfig = options.textSanitization ? 
-        { ...defaultSanitizationConfig, ...options.textSanitization } : 
+
+      const sanitizationConfig = options.textSanitization ?
+        { ...defaultSanitizationConfig, ...options.textSanitization } :
         defaultSanitizationConfig;
-      
+
       const sanitizer = new VoiceTextSanitizer(sanitizationConfig);
       const sanitizationResult = sanitizer.sanitizeText(processedText);
-      
+
       // Safety check: if sanitized text is empty or too short, use original text
-      if (sanitizationResult.sanitizedText.trim().length === 0 || 
+      if (sanitizationResult.sanitizedText.trim().length === 0 ||
           sanitizationResult.sanitizedText.trim().length < 10) {
         this.dlog('⚠️ Sanitized text too short, using original text');
-        processedText = text; // Use original text as fallback
+        processedText = normalizeSpeechText(text, options.speechIntent);
       } else {
         processedText = sanitizationResult.sanitizedText;
       }
-      
+
       this.dlog('🧹 Text sanitization applied:', {
         originalLength: text.length,
         processedLength: processedText.length,
@@ -1075,7 +1217,7 @@ class EnhancedTTSService {
     // Calculate what to speak
     let textToSpeak = '';
     const fullText = this.streamingText;
-    
+
     if (this.lastSpokenPosition === 0) {
       // First chunk - speak everything we have so far
       textToSpeak = fullText;
@@ -1118,20 +1260,20 @@ class EnhancedTTSService {
         this.resetProgressiveState();
         return;
       }
-      
+
       // Update position BEFORE playing to prevent duplicate processing
       const spokenUpTo = fullText.length;
-      
+
       // Mark generation as complete but still speaking
       this.isGeneratingAudio = false;
-      
+
       await this.playAudioUrl(audioUrl!, {
         ...this.currentOptions,
         onEnd: () => {
           this.dlog('🎤 PROGRESSIVE TTS: Chunk completed, updating position');
           this.isCurrentlySpeaking = false;
           this.lastSpokenPosition = spokenUpTo;
-          
+
           // Check if there's more content to speak
           if (this.progressiveMode && this.streamingText.length > spokenUpTo) {
             this.dlog('🔄 PROGRESSIVE TTS: More content available, scheduling next chunk');
@@ -1166,7 +1308,7 @@ class EnhancedTTSService {
     if (this.progressiveTimeout) {
       clearTimeout(this.progressiveTimeout);
     }
-    
+
     this.progressiveTimeout = setTimeout(() => {
       if (this.progressiveMode && !this.isCurrentlySpeaking) {
         this.speakProgressiveChunk();
@@ -1181,7 +1323,7 @@ class EnhancedTTSService {
     this.lastSpokenPosition = 0;
     this.currentOptions = null;
     this.isGeneratingAudio = false;
-    
+
     if (this.progressiveTimeout) {
       clearTimeout(this.progressiveTimeout);
       this.progressiveTimeout = null;
@@ -1210,22 +1352,25 @@ class EnhancedTTSService {
 
     // Set global speech lock
     this.globalSpeechLock = true;
-    
+
     // Set timeout to automatically release lock (safety mechanism)
     this.globalTimeout = setTimeout(() => {
-      console.log('⏰ Enhanced TTS: Auto-releasing speech lock after timeout');
+      this.dlog('Enhanced TTS: Auto-releasing speech lock after timeout');
       this.globalSpeechLock = false;
     }, 30000); // 30 second timeout
 
     try {
       this.isCurrentlySpeaking = true;
-      
+
       if (options.useOpenAI !== false) {
         this.dlog('🎯 Enhanced TTS: Using OpenAI TTS for high-quality speech');
         try {
           const audioUrl = await this.generateOpenAITTS(text, options);
           await this.playAudioUrl(audioUrl, options);
         } catch (e) {
+          if (e instanceof TTSServiceError && !e.failure.retryable) {
+            throw e;
+          }
           if (this.isDebug()) console.warn('⚠️ OpenAI TTS failed, falling back to browser TTS', e);
           await this.generateBrowserTTS(text, options);
         }
@@ -1233,7 +1378,7 @@ class EnhancedTTSService {
         this.dlog('🎯 Enhanced TTS: Using browser TTS fallback');
         await this.generateBrowserTTS(text, options);
       }
-      
+
     } catch (error) {
       if (this.isDebug()) console.error('❌ Enhanced TTS: Speech failed:', error);
       options.onError?.(error instanceof Error ? error : new Error(String(error)));
@@ -1253,19 +1398,19 @@ class EnhancedTTSService {
     return new Promise((resolve, reject) => {
       this.currentAudio = new Audio(audioUrl);
       this.currentAudio.volume = options.volume || 0.9;
-      
+
       // Add slight delay before starting to ensure audio is loaded
       this.currentAudio.preload = 'auto';
-      
+
       // Track audio loading state
       let audioLoaded = false;
       let playbackStarted = false;
-      
+
       this.currentAudio.onloadedmetadata = () => {
         this.dlog('🎵 Enhanced TTS: Audio metadata loaded, duration:', this.currentAudio?.duration);
         audioLoaded = true;
       };
-      
+
       const fireStart = (() => {
         let fired = false;
         return () => {
@@ -1300,7 +1445,7 @@ class EnhancedTTSService {
       this.currentAudio.onplay = () => {
         fireStart();
       };
-      
+
       this.currentAudio.onended = () => {
         this.dlog('🎵 Enhanced TTS: Audio playback completed naturally');
         // Add a small delay before cleanup to ensure the last bit of audio is heard
@@ -1309,30 +1454,64 @@ class EnhancedTTSService {
           resolve();
         }, 100);
       };
-      
+
       // Handle potential interruptions
       this.currentAudio.onpause = () => {
         if (!this.currentAudio?.ended) {
           if (this.isDebug()) console.warn('⚠️ Enhanced TTS: Audio was paused unexpectedly');
         }
       };
-      
+
       // Load the audio
       this.currentAudio.load();
     });
   }
 
+  private async extractFailureResponse(response: Response): Promise<TTSFailureResponse | null> {
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      return null;
+    }
+
+    const payload = await response
+      .clone()
+      .json()
+      .catch(() => null);
+
+    return isTTSFailureResponse(payload) ? payload : null;
+  }
+
   // Stop current speech
-  stop(): void {
+  stop(fadeOutMs = 0): void {
     this.dlog('🛑 Enhanced TTS: Stop requested');
-    
+
     // Reset progressive state
     this.resetProgressiveState();
-    
+
     // Stop current audio
     if (this.currentAudio) {
-      this.currentAudio.pause();
-      this.currentAudio.currentTime = 0;
+      const audio = this.currentAudio;
+      if (fadeOutMs > 0) {
+        const startVolume = audio.volume;
+        const fadeSteps = Math.max(4, Math.floor(fadeOutMs / 30));
+        const fadeInterval = Math.max(16, Math.floor(fadeOutMs / fadeSteps));
+        let step = 0;
+
+        const timer = window.setInterval(() => {
+          step += 1;
+          const nextVolume = startVolume * Math.max(0, 1 - step / fadeSteps);
+          audio.volume = nextVolume;
+          if (step >= fadeSteps) {
+            window.clearInterval(timer);
+            audio.pause();
+            audio.currentTime = 0;
+            audio.volume = startVolume;
+          }
+        }, fadeInterval);
+      } else {
+        audio.pause();
+        audio.currentTime = 0;
+      }
       this.currentAudio = null;
     }
 
@@ -1350,13 +1529,13 @@ class EnhancedTTSService {
   // Force unlock the global speech lock
   private releaseLock(reason: string): void {
     this.dlog(`🔓 EnhancedTTS: Releasing global lock - ${reason}`);
-    
+
     // Clear safety timeout
     if (this.globalTimeout) {
       clearTimeout(this.globalTimeout);
       this.globalTimeout = null;
     }
-    
+
     // Reset global flags
     this.isCurrentlySpeaking = false;
     this.globalSpeechLock = false;
@@ -1374,7 +1553,7 @@ class EnhancedTTSService {
     const audioSpeaking = !!(this.currentAudio && !this.currentAudio.paused);
     const synthSpeaking = !!(this.speechSynthesis && this.speechSynthesis.speaking);
     const globallyLocked = this.globalSpeechLock || this.isCurrentlySpeaking;
-    
+
     return audioSpeaking || synthSpeaking || globallyLocked;
   }
 
@@ -1402,7 +1581,7 @@ class EnhancedTTSService {
       activeRequests: this.activeRequests,
       pendingRequests: this.requestQueue.length
     };
-    
+
     return { summary, recent };
   }
 
@@ -1411,7 +1590,7 @@ class EnhancedTTSService {
     // Revoke blob URLs to free memory
     this.audioCache.forEach(url => URL.revokeObjectURL(url));
     this.audioCache.clear();
-    
+
     // Clear IndexedDB cache
     if (this.indexedDBCache) {
       const transaction = this.indexedDBCache.transaction(['audioCache'], 'readwrite');
@@ -1422,7 +1601,7 @@ class EnhancedTTSService {
         clearRequest.onerror = () => resolve();
       });
     }
-    
+
     this.dlog('Audio cache cleared (memory and IndexedDB)');
   }
 
@@ -1430,59 +1609,59 @@ class EnhancedTTSService {
   async healthCheck(): Promise<{ status: 'healthy' | 'degraded' | 'unhealthy'; details: any }> {
     const metrics = this.getPerformanceMetrics();
     const { summary } = metrics;
-    
+
     let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
     const details: any = {};
-    
+
     // Check response time
     if (summary.avgResponseTime > 3000) {
       status = 'degraded';
       details.slowResponse = true;
     }
-    
+
     // Check error rate
     if (summary.errorRate > 10) {
       status = 'unhealthy';
       details.highErrorRate = true;
     }
-    
+
     // Check cache hit rate
     if (summary.cacheHitRate < 30) {
       details.lowCacheHitRate = true;
       if (status === 'healthy') status = 'degraded';
     }
-    
+
     // Check circuit breaker
     if (this.circuitBreakerState.isOpen) {
       status = 'unhealthy';
       details.circuitBreakerOpen = true;
     }
-    
+
     // Check IndexedDB availability
     details.indexedDBAvailable = !!this.indexedDBCache;
     details.activeRequests = summary.activeRequests;
     details.pendingRequests = summary.pendingRequests;
-    
+
     return { status, details };
   }
 
   // Streaming audio for large text blocks
   async generateStreamingAudio(
-    text: string, 
+    text: string,
     options: TTSOptions = {},
     onChunkReady: (audioUrl: string, chunkIndex: number) => void
   ): Promise<void> {
     const maxChunkSize = 500; // Characters per chunk
     const chunks = this.splitTextIntoChunks(text, maxChunkSize);
-    
+
     this.dlog(`Generating streaming audio for ${chunks.length} chunks`);
-    
+
     for (let i = 0; i < chunks.length; i++) {
       try {
         const chunkText = chunks[i];
         const audioUrl = await this.generateOpenAITTS(chunkText, options);
         onChunkReady(audioUrl, i);
-        
+
         // Small delay between chunks to prevent overwhelming
         if (i < chunks.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 100));
@@ -1499,7 +1678,7 @@ class EnhancedTTSService {
     const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
     const chunks: string[] = [];
     let currentChunk = '';
-    
+
     for (const sentence of sentences) {
       if (currentChunk.length + sentence.length > maxChunkSize && currentChunk.length > 0) {
         chunks.push(currentChunk.trim());
@@ -1508,11 +1687,11 @@ class EnhancedTTSService {
         currentChunk += (currentChunk ? '. ' : '') + sentence;
       }
     }
-    
+
     if (currentChunk.trim().length > 0) {
       chunks.push(currentChunk.trim());
     }
-    
+
     return chunks;
   }
 
@@ -1532,11 +1711,11 @@ class EnhancedTTSService {
     ];
 
     this.dlog('Pre-generating common phrases...');
-    
+
     for (const phrase of commonPhrases) {
       try {
         const cacheKey = this.getCacheKey(phrase, { voice: 'onyx', speed: 1.0 });
-        
+
         // Skip if already cached
         const existing = await this.getFromIndexedDBCache(cacheKey);
         if (existing) continue;
@@ -1549,7 +1728,7 @@ class EnhancedTTSService {
             this.dlog(`Failed to pre-generate phrase: "${phrase}"`, error);
           }
         }, Math.random() * 5000); // Stagger requests
-        
+
       } catch (error) {
         this.dlog(`Failed to pre-generate phrase: "${phrase}"`, error);
       }
@@ -1560,7 +1739,7 @@ class EnhancedTTSService {
   async addBackgroundAmbiance(type: 'classroom' | 'library' | 'office' = 'classroom'): Promise<void> {
     // This could be enhanced to add subtle background sounds
     // For now, we'll just adjust the voice parameters slightly
-    console.log(`Adding ${type} ambiance effect`);
+    this.dlog(`Adding ${type} ambiance effect`);
   }
 }
 
@@ -1569,7 +1748,7 @@ export const enhancedTTS = new EnhancedTTSService();
 
 // Utility function for easy usage
 export async function speakWithMichael(
-  text: string, 
+  text: string,
   options: TTSOptions = {}
 ): Promise<void> {
   const defaultOptions: TTSOptions = {
@@ -1592,6 +1771,6 @@ export async function speakWithMichael(
     },
     ...options
   };
-  
+
   return enhancedTTS.speak(text, defaultOptions);
-} 
+}

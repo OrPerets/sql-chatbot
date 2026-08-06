@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, 
-  BookOpen, 
-  Database, 
+import {
+  Users,
+  BookOpen,
+  Database,
   Activity,
   Plus,
   BarChart3,
@@ -49,8 +49,8 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
 
   // Calculate dashboard statistics
   useEffect(() => {
-    const activeUsers = users.filter(user => 
-      user.lastActivity && 
+    const activeUsers = users.filter(user =>
+      user.lastActivity &&
       new Date(user.lastActivity) > new Date(Date.now() - 24 * 60 * 60 * 1000)
     ).length;
 
@@ -101,17 +101,17 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
               עדכון אחרון: {formatTime(currentTime)}
             </div>
           </div>
-          
+
           <div className={styles.welcomeActions}>
-            <button 
+            <button
               className={styles.actionButton}
               onClick={() => onNavigate('users')}
             >
               <Plus size={18} />
               <span> ניהול משתמשים </span>
             </button>
-            
-            <button 
+
+            <button
               className={styles.actionButtonSecondary}
               onClick={() => onNavigate('settings')}
             >
@@ -123,17 +123,17 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
       </div>
 
 
-    
-  
+
+
       {/* System Tools Section */}
       <div className={styles.quickActionsSection}>
         <h3 className={styles.sectionTitle}>🔧 כלי מערכת</h3>
         <p className={styles.sectionDescription}>
           כלים מתקדמים לניהול המערכת, ניטור ביצועים ותחזוקה
         </p>
-        
+
         <div className={styles.quickActionsGrid}>
-          <div 
+          <div
             className={styles.quickAction}
             onClick={() => onNavigate('users')}
           >
@@ -147,7 +147,7 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
             </div>
           </div>
 
-          <div 
+          <div
             className={styles.quickAction}
             onClick={() => onNavigate('settings')}
           >
@@ -161,9 +161,9 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
             </div>
           </div>
 
-          <div 
+          <div
             className={styles.quickAction}
-            onClick={() => window.open('/admin/datasets', '_blank')}
+            onClick={() => window.location.assign('/admin/datasets')}
           >
             <div className={styles.quickActionIcon}>
               <Database size={24} />
@@ -175,9 +175,23 @@ const ModernDashboard: React.FC<ModernDashboardProps> = ({
             </div>
           </div>
 
-          <div 
+          <div
             className={styles.quickAction}
-            onClick={() => window.open('/admin/templates', '_blank')}
+            onClick={() => onNavigate('coins')}
+          >
+            <div className={styles.quickActionIcon}>
+              <Award size={24} />
+            </div>
+            <div className={styles.quickActionContent}>
+              <h4>מטבעות</h4>
+              <p>הפעלת חיובים, תמחור לפי משטח וניהול יתרות משתמשים</p>
+              <span className={styles.actionBadge}>תפעולי</span>
+            </div>
+          </div>
+
+          <div
+            className={styles.quickAction}
+            onClick={() => window.location.assign('/admin/templates')}
           >
             <div className={styles.quickActionIcon}>
               <BookOpen size={24} />

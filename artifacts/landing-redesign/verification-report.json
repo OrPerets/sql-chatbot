@@ -1,0 +1,292 @@
+{
+  "checkedAt": "2026-06-29T08:37:02.330Z",
+  "base": "http://127.0.0.1:3000",
+  "screenshots": {
+    "desktopShot": "/Users/orperetz/Documents/shenkar/sql-chatbot/artifacts/landing-redesign/landing-desktop-nonadmin.png",
+    "mobileShot": "/Users/orperetz/Documents/shenkar/sql-chatbot/artifacts/landing-redesign/landing-mobile-390-nonadmin.png",
+    "adminShot": "/Users/orperetz/Documents/shenkar/sql-chatbot/artifacts/landing-redesign/landing-desktop-admin.png"
+  },
+  "results": [
+    {
+      "name": "unauthenticated redirect",
+      "ok": true,
+      "details": {
+        "url": "http://127.0.0.1:3000/"
+      }
+    },
+    {
+      "name": "landing title visible",
+      "ok": true,
+      "details": {}
+    },
+    {
+      "name": "non-admin hides admin",
+      "ok": true,
+      "details": {}
+    },
+    {
+      "name": "visual query disabled",
+      "ok": true,
+      "details": {}
+    },
+    {
+      "name": "michael link target",
+      "ok": true,
+      "details": {}
+    },
+    {
+      "name": "homework link target",
+      "ok": true,
+      "details": {}
+    },
+    {
+      "name": "desktop no horizontal overflow",
+      "ok": true,
+      "details": {
+        "sw": 1440,
+        "cw": 1440
+      }
+    },
+    {
+      "name": "desktop screenshot saved",
+      "ok": true,
+      "details": {
+        "path": "/Users/orperetz/Documents/shenkar/sql-chatbot/artifacts/landing-redesign/landing-desktop-nonadmin.png"
+      }
+    },
+    {
+      "name": "keyboard focus order skips disabled query",
+      "ok": true,
+      "details": {
+        "focusedInteractive": [
+          {
+            "tag": "A",
+            "interactive": true,
+            "text": "מייקל",
+            "href": "/entities/basic-chat",
+            "disabled": false,
+            "outline": "solid",
+            "outlineWidth": "3px"
+          },
+          {
+            "tag": "A",
+            "interactive": true,
+            "text": "תרגילי בית",
+            "href": "/homework",
+            "disabled": false,
+            "outline": "solid",
+            "outlineWidth": "3px"
+          },
+          {
+            "tag": "A",
+            "interactive": true,
+            "text": "מייקלשיחה ופתרוןכניסה",
+            "href": "/entities/basic-chat",
+            "disabled": false,
+            "outline": "solid",
+            "outlineWidth": "3px"
+          },
+          {
+            "tag": "A",
+            "interactive": true,
+            "text": "תרגילי ביתתרגול והגשהפתיחה",
+            "href": "/homework",
+            "disabled": false,
+            "outline": "solid",
+            "outlineWidth": "3px"
+          },
+          {
+            "tag": "A",
+            "interactive": true,
+            "text": "מייקל",
+            "href": "/entities/basic-chat",
+            "disabled": false,
+            "outline": "solid",
+            "outlineWidth": "3px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "focus visible outline present",
+      "ok": true,
+      "details": {
+        "focusedInteractive": [
+          {
+            "tag": "A",
+            "interactive": true,
+            "text": "מייקל",
+            "href": "/entities/basic-chat",
+            "disabled": false,
+            "outline": "solid",
+            "outlineWidth": "3px"
+          },
+          {
+            "tag": "A",
+            "interactive": true,
+            "text": "תרגילי בית",
+            "href": "/homework",
+            "disabled": false,
+            "outline": "solid",
+            "outlineWidth": "3px"
+          },
+          {
+            "tag": "A",
+            "interactive": true,
+            "text": "מייקלשיחה ופתרוןכניסה",
+            "href": "/entities/basic-chat",
+            "disabled": false,
+            "outline": "solid",
+            "outlineWidth": "3px"
+          },
+          {
+            "tag": "A",
+            "interactive": true,
+            "text": "תרגילי ביתתרגול והגשהפתיחה",
+            "href": "/homework",
+            "disabled": false,
+            "outline": "solid",
+            "outlineWidth": "3px"
+          },
+          {
+            "tag": "A",
+            "interactive": true,
+            "text": "מייקל",
+            "href": "/entities/basic-chat",
+            "disabled": false,
+            "outline": "solid",
+            "outlineWidth": "3px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "keyboard focus order starts with primary actions",
+      "ok": true,
+      "details": {
+        "focusedInteractive": [
+          {
+            "tag": "A",
+            "interactive": true,
+            "text": "מייקל",
+            "href": "/entities/basic-chat",
+            "disabled": false,
+            "outline": "solid",
+            "outlineWidth": "3px"
+          },
+          {
+            "tag": "A",
+            "interactive": true,
+            "text": "תרגילי בית",
+            "href": "/homework",
+            "disabled": false,
+            "outline": "solid",
+            "outlineWidth": "3px"
+          },
+          {
+            "tag": "A",
+            "interactive": true,
+            "text": "מייקלשיחה ופתרוןכניסה",
+            "href": "/entities/basic-chat",
+            "disabled": false,
+            "outline": "solid",
+            "outlineWidth": "3px"
+          },
+          {
+            "tag": "A",
+            "interactive": true,
+            "text": "תרגילי ביתתרגול והגשהפתיחה",
+            "href": "/homework",
+            "disabled": false,
+            "outline": "solid",
+            "outlineWidth": "3px"
+          },
+          {
+            "tag": "A",
+            "interactive": true,
+            "text": "מייקל",
+            "href": "/entities/basic-chat",
+            "disabled": false,
+            "outline": "solid",
+            "outlineWidth": "3px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Michael click route",
+      "ok": true,
+      "details": {
+        "url": "http://127.0.0.1:3000/entities/basic-chat"
+      }
+    },
+    {
+      "name": "Homework click route",
+      "ok": true,
+      "details": {
+        "url": "http://127.0.0.1:3000/homework"
+      }
+    },
+    {
+      "name": "mobile screenshot saved",
+      "ok": true,
+      "details": {
+        "path": "/Users/orperetz/Documents/shenkar/sql-chatbot/artifacts/landing-redesign/landing-mobile-390-nonadmin.png"
+      }
+    },
+    {
+      "name": "mobile no horizontal overflow",
+      "ok": true,
+      "details": {
+        "sw": 390,
+        "cw": 390
+      }
+    },
+    {
+      "name": "mobile primary touch targets >=44px",
+      "ok": true,
+      "details": {}
+    },
+    {
+      "name": "admin sees admin panel",
+      "ok": true,
+      "details": {}
+    },
+    {
+      "name": "admin link target",
+      "ok": true,
+      "details": {}
+    },
+    {
+      "name": "admin screenshot saved",
+      "ok": true,
+      "details": {
+        "path": "/Users/orperetz/Documents/shenkar/sql-chatbot/artifacts/landing-redesign/landing-desktop-admin.png"
+      }
+    },
+    {
+      "name": "admin downstream guard after click",
+      "ok": true,
+      "details": {
+        "finalUrl": "http://127.0.0.1:3000/login",
+        "note": "Landing href is /admin; admin shell redirects fake sessions through /login via /api/admin/session."
+      }
+    },
+    {
+      "name": "prefers-reduced-motion disables bot animation",
+      "ok": true,
+      "details": {
+        "botAnimationName": "none",
+        "linkTransition": "0s"
+      }
+    },
+    {
+      "name": "prefers-reduced-motion disables link transitions",
+      "ok": true,
+      "details": {
+        "botAnimationName": "none",
+        "linkTransition": "0s"
+      }
+    }
+  ]
+}

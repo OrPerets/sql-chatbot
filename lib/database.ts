@@ -295,6 +295,8 @@ export const COLLECTIONS = {
   USER_FORMS: 'UserForms',
   STATUS: 'Status',
   COINS_STATUS: 'CoinsStatus',
+  COINS_LEDGER: 'CoinsLedger',
+  SQL_COIN_CHALLENGES: 'SqlCoinChallenges',
   PRACTICE_TABLES: 'practiceTables',
   PRACTICE_QUERIES: 'practiceQueries',
   PRACTICE_ATTEMPTS: 'practiceAttempts',
@@ -305,11 +307,19 @@ export const COLLECTIONS = {
   // Sprint 2: Student Profiles Management System
   STUDENT_PROFILES: 'student_profiles',
   STUDENT_ACTIVITIES: 'student_activities',
+  STUDENT_PREFERENCES: 'student_preferences',
   CONVERSATION_SUMMARIES: 'conversation_summaries',
+  STUDENT_NOTES: 'student_notes',
+  LEARNING_SUMMARIES: 'learning_summaries',
+  LEARNING_QUIZZES: 'learning_quizzes',
+  LEARNING_QUIZ_RESULTS: 'learning_quiz_results',
   // Security collections
   RATE_LIMITS: 'rate_limits',
   IP_RATE_LIMITS: 'ip_rate_limits',
   SECURITY_EVENTS: 'security_events',
   // Submitted students tracking (for PDF report delivery)
   SUBMITTED: 'submitted',
+  EXTRA_TIME_ACCOMMODATIONS: 'exam_extra_time_accommodations',
+  HOMEWORK_ACCESS_OVERRIDES: 'homework_access_overrides',
+  HOMEWORK_SUBMISSION_ARCHIVES: 'homework_submission_archives',
 } as const;

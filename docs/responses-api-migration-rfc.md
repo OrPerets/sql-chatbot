@@ -4,7 +4,8 @@
 - **Owner:** Platform team
 - **Date:** 2026-02-03
 - **Phase:** Sprint 0 (discovery + safety rails)
-- **Decision:** Keep production default on Assistants API until Responses parity gates pass.
+- **Historical decision at RFC time:** Keep production default on Assistants API until Responses parity gates pass.
+- **Current state:** Michael is now Responses-first. Assistants routes remain temporary compatibility aliases only.
 
 ## Goals
 - Introduce a stable v2 route surface under `/api/responses/*`.
@@ -38,7 +39,7 @@
   - `/api/responses/messages` for message + model stream.
   - `/api/responses/files` for file/vector support.
 - **Mode switch**
-  - `OPENAI_API_MODE=assistants|responses` (default `assistants`).
+  - `OPENAI_API_MODE=assistants|responses` (historical Sprint 0 default was `assistants`; current default is `responses`).
   - Old `/api/assistants/*` remains active as compatibility layer until cutover.
 - **Future adapter (Sprint 1+)**
   - Shared Responses client adapter and tool loop.
@@ -66,10 +67,10 @@
    - Mitigation: baseline doc + follow-up p95/error metrics collection per route.
 5. **Rollback complexity**  
    - Risk: mixed-mode bugs during rollout.  
-   - Mitigation: single env flag rollback (`OPENAI_API_MODE=assistants`) with no schema changes in Sprint 0.
+   - Mitigation at Sprint 0 time: single env flag rollback (`OPENAI_API_MODE=assistants`) with no schema changes.
 
 ## Rollback Plan
-- Immediate rollback path: set `OPENAI_API_MODE=assistants` and redeploy.
+- Compatibility rollback path: set `OPENAI_API_MODE=assistants` and redeploy only if Responses runtime validation is failing.
 - Keep `/api/assistants/*` unchanged during Sprint 0–3 to guarantee fast fallback.
 - Do not remove assistant IDs/env vars until Sprint 5 completion criteria are met.
 

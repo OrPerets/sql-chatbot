@@ -3,6 +3,11 @@ import { connectToDatabase, COLLECTIONS } from './database';
 import { generateId } from './models';
 import type { AnalysisResult, AnalysisRequest } from './ai-analysis';
 import type { AnalysisResultModel } from './models';
+import {
+  buildLearnerIdentifierQuery,
+  normalizeLearnerRecords,
+  resolveLearnerIdentityFromDb,
+} from '@/lib/learner-identity';
 
 /**
  * Analysis Service for managing AI analysis results
@@ -22,10 +27,17 @@ export class AnalysisService {
    * Save analysis result to database
    */
   async saveAnalysisResult(analysis: AnalysisResult): Promise<AnalysisResult> {
+    const identity = await resolveLearnerIdentityFromDb(
+      this.db,
+      analysis.studentId,
+      'analysis-service.saveAnalysisResult'
+    );
+    await normalizeLearnerRecords(this.db, identity, 'analysis-service.saveAnalysisResult');
+
     const analysisModel: AnalysisResultModel = {
       id: analysis.id,
       submissionId: analysis.submissionId,
-      studentId: analysis.studentId,
+      studentId: identity.canonicalId,
       homeworkSetId: analysis.homeworkSetId,
       analysisType: analysis.analysisType,
       status: analysis.status,
@@ -38,7 +50,10 @@ export class AnalysisService {
       .collection<AnalysisResultModel>(COLLECTIONS.ANALYSIS_RESULTS)
       .insertOne(analysisModel);
 
-    return analysis;
+    return {
+      ...analysis,
+      studentId: identity.canonicalId,
+    };
   }
 
   /**
@@ -96,7 +111,14 @@ export class AnalysisService {
    * Get analysis results for a student
    */
   async getAnalysisResultsForStudent(studentId: string, homeworkSetId?: string): Promise<AnalysisResult[]> {
-    const query: any = { studentId };
+    const identity = await resolveLearnerIdentityFromDb(
+      this.db,
+      studentId,
+      'analysis-service.getAnalysisResultsForStudent'
+    );
+    await normalizeLearnerRecords(this.db, identity, 'analysis-service.getAnalysisResultsForStudent');
+
+    const query: any = buildLearnerIdentifierQuery('studentId', identity);
     if (homeworkSetId) {
       query.homeworkSetId = homeworkSetId;
     }

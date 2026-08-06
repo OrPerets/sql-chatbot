@@ -1,5 +1,6 @@
 "use client";
 
+import AdminShell from "@/app/components/admin/AdminShell";
 import { useMemo, useState } from "react";
 import { AlertCircle, FileText, Loader2, Sparkles, Upload } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -112,7 +113,8 @@ export default function AdminExamGeneratorPage() {
   };
 
   return (
-    <div className={styles.container} dir="rtl">
+    <AdminShell>
+      <div className={styles.container} dir="rtl">
       <div className={styles.header}>
         <h1>יצירת מבחן</h1>
         <p>
@@ -194,6 +196,7 @@ export default function AdminExamGeneratorPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AdminShell>
   );
 }
