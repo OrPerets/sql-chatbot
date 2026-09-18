@@ -2,6 +2,7 @@
 
 An AI-powered SQL teaching assistant platform designed to help students master database queries through interactive learning, personalized homework assignments, and intelligent AI analysis.
 
+
 ## Project Overview
 
 Michael is a comprehensive web-based learning platform that provides:
