@@ -11,13 +11,13 @@ import { sendEmail } from '../app/utils/email-service'
 config({ path: resolve(process.cwd(), '.env.local') })
 config({ path: resolve(process.cwd(), '.env') })
 
-// Usage: npx tsx scripts/resend-emails-to-all-submissions-with-feedback.ts <homeworkSetId> [--exclude-student <email>]
+// Usage: npx tsx scripts/resend-emails-to-all-submissions-with-feedback.ts <homeworkSetId> [--exclude-student <email>]...
 async function resendEmailsToAllSubmissionsWithFeedback() {
   const args = process.argv.slice(2)
 
   if (args.length === 0) {
     console.log('Usage:')
-    console.log('  npx tsx scripts/resend-emails-to-all-submissions-with-feedback.ts <homeworkSetId> [--exclude-student <email>]')
+    console.log('  npx tsx scripts/resend-emails-to-all-submissions-with-feedback.ts <homeworkSetId> [--exclude-student <email>]...')
     console.log('\nExample:')
     console.log('  npx tsx scripts/resend-emails-to-all-submissions-with-feedback.ts 693d8a930a7ebe39f7099c88')
     console.log('  npx tsx scripts/resend-emails-to-all-submissions-with-feedback.ts 693d8a930a7ebe39f7099c88 --exclude-student rotemtzubara1@gmail.com')
@@ -25,9 +25,10 @@ async function resendEmailsToAllSubmissionsWithFeedback() {
   }
 
   const homeworkSetId = args[0]
-  const excludeStudentEmail = args.includes('--exclude-student')
-    ? args[args.indexOf('--exclude-student') + 1]
-    : null
+  const excludeStudentEmails = args
+    .map((arg, index) => arg === '--exclude-student' ? args[index + 1] : null)
+    .filter((email): email is string => Boolean(email))
+    .map(email => email.toLowerCase())
 
   // Check SMTP configuration
   const requiredEnvVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM']
@@ -44,8 +45,10 @@ async function resendEmailsToAllSubmissionsWithFeedback() {
   console.log(`   Port: ${process.env.SMTP_PORT}`)
   console.log(`   From: ${process.env.SMTP_FROM}\n`)
 
-  if (excludeStudentEmail) {
-    console.log(`🚫 Excluding student: ${excludeStudentEmail}\n`)
+  if (excludeStudentEmails.length > 0) {
+    console.log(`🚫 Excluding students:`)
+    excludeStudentEmails.forEach(email => console.log(`   - ${email}`))
+    console.log('')
   }
 
   try {
@@ -74,14 +77,21 @@ async function resendEmailsToAllSubmissionsWithFeedback() {
       process.exit(0)
     }
 
-    // Get excluded user ID if provided
-    let excludedUserId: string | null = null
-    if (excludeStudentEmail) {
+    // Get excluded user IDs if provided.
+    const excludedUserIds = new Set<string>()
+    const excludedEmails = new Set(excludeStudentEmails)
+    for (const excludeStudentEmail of excludeStudentEmails) {
       const excludedUser = await usersService.findUserByIdOrEmail(excludeStudentEmail)
       if (excludedUser) {
-        excludedUserId = excludedUser._id.toString()
-        console.log(`🚫 Excluding user ID: ${excludedUserId}\n`)
+        excludedUserIds.add(excludedUser._id.toString())
+        if (excludedUser.email) {
+          excludedEmails.add(excludedUser.email.toLowerCase())
+        }
+        console.log(`🚫 Excluding user ID: ${excludedUser._id.toString()} (${excludedUser.email || excludeStudentEmail})`)
       }
+    }
+    if (excludeStudentEmails.length > 0) {
+      console.log('')
     }
 
     // Process each submission
@@ -94,8 +104,8 @@ async function resendEmailsToAllSubmissionsWithFeedback() {
       const submissionId = submissionDoc._id.toString()
       const studentId = submissionDoc.studentId
 
-      // Skip excluded student
-      if (excludedUserId && (studentId === excludedUserId || studentId === excludeStudentEmail)) {
+      // Skip excluded student by stored id or direct email.
+      if (excludedUserIds.has(studentId) || excludedEmails.has(String(studentId).toLowerCase())) {
         console.log(`⏭️  [${i + 1}/${submissions.length}] Skipping excluded student: ${studentId}`)
         skippedCount++
         continue
@@ -111,6 +121,12 @@ async function resendEmailsToAllSubmissionsWithFeedback() {
         if (!user || !user.email) {
           console.error(`   ❌ Could not find user email for studentId: ${studentId}`)
           failureCount++
+          continue
+        }
+
+        if (excludedUserIds.has(user._id.toString()) || excludedEmails.has(user.email.toLowerCase())) {
+          console.log(`⏭️  [${i + 1}/${submissions.length}] Skipping excluded student: ${user.email}`)
+          skippedCount++
           continue
         }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { openai } from "@/app/openai";
 import { extractOutputText } from "@/lib/openai/responses-client";
 import { getCurrentWeekContextNormalized } from "@/lib/content";
+import { getModelForRole } from "@/lib/openai/model-registry";
 import {
   getAllowedConceptsForWeek,
   getForbiddenConceptsForWeek,
@@ -184,7 +185,7 @@ export async function POST(request: NextRequest) {
     await waitForVectorStoreFiles(vectorStoreId, vectorFileIds);
 
     const response = await (openai as any).responses.create({
-      model: "gpt-4.1-mini",
+      model: getModelForRole("examGeneration"),
       instructions: BASE_SYSTEM_INSTRUCTIONS,
       tools: [{ type: "file_search", vector_store_ids: [vectorStoreId] }],
       input: [

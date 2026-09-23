@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { enhancedTTS } from '@/app/utils/enhanced-tts';
+import { isVoiceFeatureEnabled } from '@/lib/openai/voice-config';
 
 export async function GET(request: NextRequest) {
   try {
-    const featureVoiceEnabled = process.env.FEATURE_VOICE === '1';
+    const featureVoiceEnabled = isVoiceFeatureEnabled();
     
     if (!featureVoiceEnabled) {
       return NextResponse.json({ 

@@ -1,10 +1,265 @@
 import { Db } from 'mongodb'
 import { connectToDatabase, executeWithRetry, COLLECTIONS } from './database'
+import {
+  buildAcademicPeriodUserQuery,
+  type AcademicPeriod,
+} from '@/lib/academic-period'
 
 export interface CoinDoc {
   _id?: any
   user: string
   coins: number
+}
+
+export type CoinsFeatureStatus = 'ON' | 'OFF'
+
+export type CoinChargeReason =
+  | 'main_chat_message'
+  | 'sql_practice_open'
+  | 'sql_coin_challenge_completed'
+  | 'homework_hint_open'
+  | 'admin_adjustment_add'
+  | 'admin_adjustment_reduce'
+
+export type CoinChargeSource = 'main_chat' | 'sql_practice' | 'sql_challenge' | 'homework' | 'admin'
+
+export interface CoinTransaction {
+  _id?: any
+  user: string
+  delta: number
+  reason: CoinChargeReason
+  source: CoinChargeSource
+  metadata?: Record<string, unknown>
+  createdAt: Date
+  createdBy?: string
+}
+
+export interface CoinsModulesConfig {
+  mainChat: boolean
+  homeworkHints: boolean
+  sqlPractice: boolean
+}
+
+export interface CoinsCostsConfig {
+  mainChatMessage: number
+  sqlPracticeOpen: number
+  homeworkHintOpen: number
+}
+
+export interface CoinsConfigDoc {
+  sid: 'admin'
+  status: CoinsFeatureStatus
+  messageCost: number
+  starterBalance: number
+  costs: CoinsCostsConfig
+  modules: CoinsModulesConfig
+  updatedAt: Date
+  updatedBy?: string
+}
+
+export interface CoinsConfigPatch {
+  status?: CoinsConfigDoc['status']
+  messageCost?: CoinsConfigDoc['messageCost']
+  starterBalance?: CoinsConfigDoc['starterBalance']
+  costs?: Partial<CoinsCostsConfig>
+  modules?: Partial<CoinsModulesConfig>
+}
+
+interface CoinsStatusCollectionDoc {
+  _id?: any
+  sid?: string
+  status?: unknown
+  messageCost?: unknown
+  starterBalance?: unknown
+  costs?: unknown
+  modules?: unknown
+  updatedAt?: unknown
+  updatedBy?: unknown
+}
+
+export const DEFAULT_MESSAGE_COST = 1
+export const DEFAULT_STARTER_BALANCE = 20
+export const DEFAULT_STATUS: CoinsFeatureStatus = 'OFF'
+export const DEFAULT_SQL_PRACTICE_COST = 0
+export const DEFAULT_HOMEWORK_HINT_COST = 1
+export const DEFAULT_MODULES: CoinsModulesConfig = {
+  mainChat: false,
+  homeworkHints: false,
+  sqlPractice: false,
+}
+const COINS_CONFIG_SID = 'admin' as const
+
+const CHARGE_REASON_TO_SOURCE: Record<CoinChargeReason, CoinChargeSource> = {
+  main_chat_message: 'main_chat',
+  sql_practice_open: 'sql_practice',
+  sql_coin_challenge_completed: 'sql_challenge',
+  homework_hint_open: 'homework',
+  admin_adjustment_add: 'admin',
+  admin_adjustment_reduce: 'admin',
+}
+
+function normalizeNumber(value: unknown, fallback: number, { minimum = 0 } = {}): number {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= minimum) {
+    return value
+  }
+  return fallback
+}
+
+function normalizeCoinUser(value: unknown): string {
+  return typeof value === 'string' ? value.trim().toLowerCase() : ''
+}
+
+function normalizeModules(value: unknown): CoinsModulesConfig {
+  const modules = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+  return {
+    mainChat: modules.mainChat === true,
+    homeworkHints: modules.homeworkHints === true,
+    sqlPractice: false,
+  }
+}
+
+function mergeModulesConfig(
+  current: CoinsModulesConfig,
+  value: CoinsConfigPatch['modules']
+): CoinsModulesConfig {
+  const modules = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+  return {
+    mainChat: modules.mainChat === undefined ? current.mainChat : modules.mainChat === true,
+    homeworkHints:
+      modules.homeworkHints === undefined ? current.homeworkHints : modules.homeworkHints === true,
+    sqlPractice: false,
+  }
+}
+
+function normalizeCosts(value: unknown, messageCost: unknown): CoinsCostsConfig {
+  const costs = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+  const normalizedMainChatCost = normalizeNumber(
+    costs.mainChatMessage,
+    normalizeNumber(messageCost, DEFAULT_MESSAGE_COST)
+  )
+
+  return {
+    mainChatMessage: normalizedMainChatCost,
+    sqlPracticeOpen: DEFAULT_SQL_PRACTICE_COST,
+    homeworkHintOpen: normalizeNumber(costs.homeworkHintOpen, DEFAULT_HOMEWORK_HINT_COST),
+  }
+}
+
+function mergeCostsConfig(
+  current: CoinsCostsConfig,
+  value: CoinsConfigPatch['costs']
+): CoinsCostsConfig {
+  const costs = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+  return {
+    mainChatMessage:
+      costs.mainChatMessage === undefined
+        ? current.mainChatMessage
+        : normalizeNumber(costs.mainChatMessage, current.mainChatMessage),
+    sqlPracticeOpen:
+      costs.sqlPracticeOpen === undefined
+        ? DEFAULT_SQL_PRACTICE_COST
+        : DEFAULT_SQL_PRACTICE_COST,
+    homeworkHintOpen:
+      costs.homeworkHintOpen === undefined
+        ? current.homeworkHintOpen
+        : normalizeNumber(costs.homeworkHintOpen, current.homeworkHintOpen),
+  }
+}
+
+// Missing CoinsStatus admin config is treated as OFF with default costs/balances.
+function normalizeCoinsConfig(doc?: CoinsStatusCollectionDoc | null): CoinsConfigDoc {
+  const hasExplicitModules = Boolean(doc?.modules && typeof doc.modules === 'object')
+  const modules = normalizeModules(doc?.modules)
+  if (!hasExplicitModules && doc?.status === 'ON') {
+    modules.mainChat = true
+  }
+  const costs = normalizeCosts(doc?.costs, doc?.messageCost)
+  const starterBalance = normalizeNumber(doc?.starterBalance, DEFAULT_STARTER_BALANCE)
+  const updatedAt = doc?.updatedAt instanceof Date ? doc.updatedAt : new Date(0)
+  const updatedBy = typeof doc?.updatedBy === 'string' ? doc.updatedBy : undefined
+  const normalizedStatus: CoinsFeatureStatus = hasExplicitModules
+    ? modules.mainChat
+      ? 'ON'
+      : 'OFF'
+    : doc?.status === 'ON'
+      ? 'ON'
+      : DEFAULT_STATUS
+
+  return {
+    sid: COINS_CONFIG_SID,
+    status: normalizedStatus,
+    messageCost: costs.mainChatMessage,
+    starterBalance,
+    costs,
+    modules,
+    updatedAt,
+    updatedBy,
+  }
+}
+
+function normalizeCoinDoc(doc: Partial<CoinDoc> | null | undefined, fallbackUser: string): CoinDoc {
+  const coins = typeof doc?.coins === 'number' && Number.isFinite(doc.coins)
+    ? Math.max(0, doc.coins)
+    : 0
+
+  return {
+    user: normalizeCoinUser(doc?.user) || fallbackUser,
+    coins,
+  }
+}
+
+function normalizeTransaction(doc: Partial<CoinTransaction> | null | undefined): CoinTransaction | null {
+  if (!doc || typeof doc.user !== 'string') {
+    return null
+  }
+
+  const user = normalizeCoinUser(doc.user)
+  if (!user) {
+    return null
+  }
+
+  return {
+    user,
+    delta: typeof doc.delta === 'number' && Number.isFinite(doc.delta) ? doc.delta : 0,
+    reason:
+      typeof doc.reason === 'string' && doc.reason in CHARGE_REASON_TO_SOURCE
+        ? (doc.reason as CoinChargeReason)
+        : 'admin_adjustment_add',
+    source:
+      typeof doc.source === 'string' &&
+      ['main_chat', 'sql_practice', 'sql_challenge', 'homework', 'admin'].includes(doc.source)
+        ? (doc.source as CoinChargeSource)
+        : 'admin',
+    metadata:
+      doc.metadata && typeof doc.metadata === 'object'
+        ? (doc.metadata as Record<string, unknown>)
+        : undefined,
+    createdAt: doc.createdAt instanceof Date ? doc.createdAt : new Date(0),
+    createdBy: normalizeCoinUser(doc.createdBy) || undefined,
+  }
+}
+
+type ChargeResult = { ok: true } | { ok: false; balance: number; required: number }
+
+export interface CoinsAdminOverview {
+  config: CoinsConfigDoc
+  users: Array<
+    CoinDoc & {
+      totalSpent: number
+      usageCount: number
+      usageByReason: Partial<Record<CoinChargeReason, number>>
+      lastActivity: string | null
+    }
+  >
+  summary: {
+    totalUsers: number
+    totalBalance: number
+    totalTransactions: number
+    totalSpent: number
+    usageByReason: Partial<Record<CoinChargeReason, number>>
+    usageBySource: Partial<Record<CoinChargeSource, number>>
+    lastActivity: string | null
+  }
 }
 
 export class CoinsService {
@@ -15,11 +270,46 @@ export class CoinsService {
   }
 
   async updateCoinsBalance(users: string[], amount: number) {
+    const normalizedAmount = typeof amount === 'number' && Number.isFinite(amount) ? Math.trunc(amount) : 0
+    const uniqueUsers = [...new Set(users.map(normalizeCoinUser).filter(Boolean))]
+    if (uniqueUsers.length === 0 || normalizedAmount === 0) {
+      return { matchedCount: 0, modifiedCount: 0, upsertedCount: 0 }
+    }
+
     return executeWithRetry(async (db) => {
-      const result = await db
-        .collection<CoinDoc>(COLLECTIONS.COINS)
-        .updateMany({ user: { $in: users } }, { $inc: { coins: amount } })
-      return { matchedCount: result.matchedCount, modifiedCount: result.modifiedCount }
+      const collection = db.collection<CoinDoc>(COLLECTIONS.COINS)
+      const results = await Promise.all(
+        uniqueUsers.map((user) =>
+          collection.updateOne(
+            { user },
+            [
+              {
+                $set: {
+                  user,
+                  coins: {
+                    $max: [
+                      0,
+                      {
+                        $add: [
+                          { $ifNull: ['$coins', 0] },
+                          normalizedAmount,
+                        ],
+                      },
+                    ],
+                  },
+                },
+              },
+            ] as any,
+            { upsert: true }
+          )
+        )
+      )
+
+      return {
+        matchedCount: results.reduce((sum, result) => sum + result.matchedCount, 0),
+        modifiedCount: results.reduce((sum, result) => sum + result.modifiedCount, 0),
+        upsertedCount: results.reduce((sum, result) => sum + result.upsertedCount, 0),
+      }
     })
   }
 
@@ -29,18 +319,358 @@ export class CoinsService {
     })
   }
 
-  async getCoinsStatus(): Promise<any[]> {
+  async getCoinTransactions(): Promise<CoinTransaction[]> {
     return executeWithRetry(async (db) => {
-      return db.collection(COLLECTIONS.COINS_STATUS).find({}).toArray()
+      const docs = await db.collection<CoinTransaction>(COLLECTIONS.COINS_LEDGER).find({}).toArray()
+      return docs
+        .map((doc) => normalizeTransaction(doc))
+        .filter((doc): doc is CoinTransaction => Boolean(doc))
     })
   }
 
+  async getCoinsStatus(): Promise<any[]> {
+    const config = await this.getCoinsConfig()
+    return [config]
+  }
+
   async setCoinsStatus(val: any) {
+    const status = val === 'ON' ? 'ON' : 'OFF'
+    return this.setCoinsConfig({ status, modules: { mainChat: status === 'ON' } })
+  }
+
+  async getCoinsConfig(): Promise<CoinsConfigDoc> {
     return executeWithRetry(async (db) => {
-      return db
-        .collection(COLLECTIONS.COINS_STATUS)
-        .updateOne({ sid: 'admin' }, { $set: { status: val } }, { upsert: true })
+      const doc = await db
+        .collection<CoinsStatusCollectionDoc>(COLLECTIONS.COINS_STATUS)
+        .findOne({ sid: COINS_CONFIG_SID })
+      return normalizeCoinsConfig(doc)
     })
+  }
+
+  async setCoinsConfig(partial: CoinsConfigPatch, updatedBy?: string) {
+    const current = await this.getCoinsConfig()
+    const mergedModules = mergeModulesConfig(current.modules, partial.modules)
+    const mergedCosts = mergeCostsConfig(current.costs, partial.costs)
+
+    if (partial.messageCost !== undefined) {
+      mergedCosts.mainChatMessage = normalizeNumber(partial.messageCost, DEFAULT_MESSAGE_COST)
+    }
+
+    const resolvedStatus: CoinsFeatureStatus =
+      partial.status !== undefined ? (partial.status === 'ON' ? 'ON' : 'OFF') : mergedModules.mainChat ? 'ON' : 'OFF'
+
+    if (partial.status !== undefined && partial.modules?.mainChat === undefined) {
+      mergedModules.mainChat = resolvedStatus === 'ON'
+    }
+
+    const nextConfig: CoinsConfigDoc = {
+      sid: COINS_CONFIG_SID,
+      status: mergedModules.mainChat ? 'ON' : 'OFF',
+      messageCost: normalizeNumber(mergedCosts.mainChatMessage, DEFAULT_MESSAGE_COST),
+      starterBalance: normalizeNumber(
+        partial.starterBalance ?? current.starterBalance,
+        DEFAULT_STARTER_BALANCE
+      ),
+      costs: {
+        mainChatMessage: normalizeNumber(mergedCosts.mainChatMessage, DEFAULT_MESSAGE_COST),
+        sqlPracticeOpen: normalizeNumber(mergedCosts.sqlPracticeOpen, DEFAULT_SQL_PRACTICE_COST),
+        homeworkHintOpen: normalizeNumber(
+          mergedCosts.homeworkHintOpen,
+          DEFAULT_HOMEWORK_HINT_COST
+        ),
+      },
+      modules: mergedModules,
+      updatedAt: new Date(),
+      updatedBy: normalizeCoinUser(updatedBy) || current.updatedBy,
+    }
+    const { sid: _sid, ...persistedConfig } = nextConfig
+
+    await executeWithRetry(async (db) => {
+      return db.collection(COLLECTIONS.COINS_STATUS).updateOne(
+        { sid: COINS_CONFIG_SID },
+        {
+          $set: persistedConfig,
+          $setOnInsert: { sid: COINS_CONFIG_SID },
+        },
+        { upsert: true }
+      )
+    })
+
+    return nextConfig
+  }
+
+  async getOrCreateUserBalance(email: string): Promise<CoinDoc> {
+    const user = normalizeCoinUser(email)
+    if (!user) {
+      throw new Error('email is required')
+    }
+
+    const config = await this.getCoinsConfig()
+    return executeWithRetry(async (db) => {
+      const result = await db.collection<CoinDoc>(COLLECTIONS.COINS).findOneAndUpdate(
+        { user },
+        { $setOnInsert: { user, coins: config.starterBalance } },
+        { upsert: true, returnDocument: 'after' }
+      )
+      return normalizeCoinDoc(result, user)
+    })
+  }
+
+  async getUserBalance(email: string): Promise<CoinDoc> {
+    const user = normalizeCoinUser(email)
+    if (!user) {
+      return { user: '', coins: 0 }
+    }
+
+    return executeWithRetry(async (db) => {
+      const doc = await db.collection<CoinDoc>(COLLECTIONS.COINS).findOne({ user })
+      // Canonical no-row representation: return zero balance without inserting.
+      return normalizeCoinDoc(doc, user)
+    })
+  }
+
+  async logCoinTransaction(entry: {
+    user: string
+    delta: number
+    reason: CoinChargeReason
+    metadata?: Record<string, unknown>
+    createdBy?: string
+  }) {
+    const user = normalizeCoinUser(entry.user)
+    if (!user) {
+      throw new Error('user is required')
+    }
+
+    const transaction: CoinTransaction = {
+      user,
+      delta: entry.delta,
+      reason: entry.reason,
+      source: CHARGE_REASON_TO_SOURCE[entry.reason],
+      metadata: entry.metadata,
+      createdAt: new Date(),
+      createdBy: normalizeCoinUser(entry.createdBy) || undefined,
+    }
+
+    return executeWithRetry(async (db) => {
+      return db.collection<CoinTransaction>(COLLECTIONS.COINS_LEDGER).insertOne(transaction)
+    })
+  }
+
+  private async chargeAction(
+    email: string,
+    moduleKey: keyof CoinsModulesConfig,
+    costKey: keyof CoinsCostsConfig,
+    reason: CoinChargeReason,
+    metadata?: Record<string, unknown>
+  ): Promise<ChargeResult> {
+    const config = await this.getCoinsConfig()
+    if (!config.modules[moduleKey]) {
+      return { ok: true }
+    }
+
+    const required = normalizeNumber(config.costs[costKey], DEFAULT_MESSAGE_COST)
+
+    if (required <= 0) {
+      return { ok: true }
+    }
+
+    const user = normalizeCoinUser(email)
+    if (!user) {
+      return { ok: false, balance: 0, required }
+    }
+
+    await this.getOrCreateUserBalance(user)
+
+    const updated = await executeWithRetry(async (db) => {
+      return db.collection<CoinDoc>(COLLECTIONS.COINS).findOneAndUpdate(
+        { user, coins: { $gte: required } },
+        { $inc: { coins: -required } },
+        { returnDocument: 'after' }
+      )
+    })
+
+    if (!updated) {
+      const current = await this.getUserBalance(user)
+      return { ok: false, balance: current.coins, required }
+    }
+
+    await this.logCoinTransaction({
+      user,
+      delta: -required,
+      reason,
+      metadata,
+    })
+
+    return { ok: true }
+  }
+
+  async chargeMainChatMessage(email: string, metadata?: Record<string, unknown>): Promise<ChargeResult> {
+    return this.chargeAction(email, 'mainChat', 'mainChatMessage', 'main_chat_message', metadata)
+  }
+
+  async chargeSqlPracticeOpen(email: string, metadata?: Record<string, unknown>): Promise<ChargeResult> {
+    return this.chargeAction(email, 'sqlPractice', 'sqlPracticeOpen', 'sql_practice_open', metadata)
+  }
+
+  async chargeHomeworkHintOpen(email: string, metadata?: Record<string, unknown>): Promise<ChargeResult> {
+    return this.chargeAction(email, 'homeworkHints', 'homeworkHintOpen', 'homework_hint_open', metadata)
+  }
+
+  async chargeMichaelMessage(email: string): Promise<ChargeResult> {
+    return this.chargeMainChatMessage(email)
+  }
+
+  async adjustBalanceAdmin(users: string[], delta: number, adminEmail?: string) {
+    const normalizedDelta = typeof delta === 'number' && Number.isFinite(delta) ? Math.trunc(delta) : 0
+    const uniqueUsers = [...new Set(users.map(normalizeCoinUser).filter(Boolean))]
+    const normalizedAdminEmail = normalizeCoinUser(adminEmail) || undefined
+    if (uniqueUsers.length === 0 || normalizedDelta === 0) {
+      return { matchedCount: 0, modifiedCount: 0 }
+    }
+
+    if (normalizedDelta > 0) {
+      const result = await this.updateCoinsBalance(uniqueUsers, normalizedDelta)
+
+      await Promise.all(
+        uniqueUsers.map((user) =>
+          this.logCoinTransaction({
+            user,
+            delta: normalizedDelta,
+            reason: 'admin_adjustment_add',
+            createdBy: normalizedAdminEmail,
+          })
+        )
+      )
+
+      return result
+    }
+
+    let modifiedCount = 0
+
+    await Promise.all(
+      uniqueUsers.map(async (user) => {
+        const currentBalance = await this.getUserBalance(user)
+        const currentCoins = Math.max(0, currentBalance.coins)
+        const safeDelta = Math.max(normalizedDelta, -currentCoins)
+
+        if (safeDelta === 0) {
+          return
+        }
+
+        await executeWithRetry(async (db) => {
+          return db.collection<CoinDoc>(COLLECTIONS.COINS).updateOne(
+            { user },
+            { $inc: { coins: safeDelta } }
+          )
+        })
+
+        modifiedCount += 1
+
+        await this.logCoinTransaction({
+          user,
+          delta: safeDelta,
+          reason: 'admin_adjustment_reduce',
+          createdBy: normalizedAdminEmail,
+        })
+      })
+    )
+
+    return {
+      matchedCount: uniqueUsers.length,
+      modifiedCount,
+    }
+  }
+
+  async getAdminOverview(academicPeriod?: AcademicPeriod | null): Promise<CoinsAdminOverview> {
+    const [config, users, transactions] = await Promise.all([
+      this.getCoinsConfig(),
+      this.getAllCoins(),
+      this.getCoinTransactions(),
+    ])
+
+    const scopedUserEmails = academicPeriod
+      ? await executeWithRetry(async (db) => {
+          const scopedUsers = await db
+            .collection(COLLECTIONS.USERS)
+            .find(buildAcademicPeriodUserQuery(academicPeriod) as any, { projection: { email: 1 } })
+            .toArray()
+          return new Set(scopedUsers.map((user: any) => normalizeCoinUser(user.email)).filter(Boolean))
+        })
+      : null
+
+    const scopedCoins = scopedUserEmails
+      ? users.filter((user) => scopedUserEmails.has(normalizeCoinUser(user.user)))
+      : users
+    const scopedTransactions = scopedUserEmails
+      ? transactions.filter((transaction) => scopedUserEmails.has(normalizeCoinUser(transaction.user)))
+      : transactions
+
+    const usageByReason: Partial<Record<CoinChargeReason, number>> = {}
+    const usageBySource: Partial<Record<CoinChargeSource, number>> = {}
+    const perUser = new Map<
+      string,
+      {
+        totalSpent: number
+        usageCount: number
+        usageByReason: Partial<Record<CoinChargeReason, number>>
+        lastActivity: Date | null
+      }
+    >()
+    let lastActivity: Date | null = null
+    let totalSpent = 0
+
+    for (const transaction of scopedTransactions) {
+      usageByReason[transaction.reason] = (usageByReason[transaction.reason] || 0) + 1
+      usageBySource[transaction.source] = (usageBySource[transaction.source] || 0) + 1
+
+      if (!lastActivity || transaction.createdAt > lastActivity) {
+        lastActivity = transaction.createdAt
+      }
+
+      const current = perUser.get(transaction.user) || {
+        totalSpent: 0,
+        usageCount: 0,
+        usageByReason: {},
+        lastActivity: null,
+      }
+
+      current.usageByReason[transaction.reason] = (current.usageByReason[transaction.reason] || 0) + 1
+      current.usageCount += 1
+      if (transaction.delta < 0) {
+        current.totalSpent += Math.abs(transaction.delta)
+        totalSpent += Math.abs(transaction.delta)
+      }
+      if (!current.lastActivity || transaction.createdAt > current.lastActivity) {
+        current.lastActivity = transaction.createdAt
+      }
+
+      perUser.set(transaction.user, current)
+    }
+
+    const enrichedUsers = scopedCoins.map((user) => {
+      const stats = perUser.get(user.user)
+      return {
+        ...user,
+        totalSpent: stats?.totalSpent || 0,
+        usageCount: stats?.usageCount || 0,
+        usageByReason: stats?.usageByReason || {},
+        lastActivity: stats?.lastActivity ? stats.lastActivity.toISOString() : null,
+      }
+    })
+
+    return {
+      config,
+      users: enrichedUsers,
+      summary: {
+        totalUsers: scopedCoins.length,
+        totalBalance: scopedCoins.reduce((sum, user) => sum + user.coins, 0),
+        totalTransactions: scopedTransactions.length,
+        totalSpent,
+        usageByReason,
+        usageBySource,
+        lastActivity: lastActivity ? lastActivity.toISOString() : null,
+      },
+    }
   }
 }
 
@@ -64,6 +694,11 @@ export async function getAllCoins() {
   return service.getAllCoins()
 }
 
+export async function getCoinsAdminOverview(academicPeriod?: AcademicPeriod | null) {
+  const service = await getCoinsService()
+  return service.getAdminOverview(academicPeriod)
+}
+
 export async function getCoinsStatus() {
   const service = await getCoinsService()
   return service.getCoinsStatus()
@@ -74,4 +709,52 @@ export async function setCoinsStatus(val: any) {
   return service.setCoinsStatus(val)
 }
 
+export async function getCoinsConfig() {
+  const service = await getCoinsService()
+  return service.getCoinsConfig()
+}
 
+export async function setCoinsConfig(partial: CoinsConfigPatch, updatedBy?: string) {
+  const service = await getCoinsService()
+  return service.setCoinsConfig(partial, updatedBy)
+}
+
+export async function getOrCreateUserBalance(email: string) {
+  const service = await getCoinsService()
+  return service.getOrCreateUserBalance(email)
+}
+
+export async function getUserBalance(email: string) {
+  const service = await getCoinsService()
+  return service.getUserBalance(email)
+}
+
+export async function chargeMichaelMessage(email: string) {
+  const service = await getCoinsService()
+  return service.chargeMichaelMessage(email)
+}
+
+export async function chargeMainChatMessage(email: string, metadata?: Record<string, unknown>) {
+  const service = await getCoinsService()
+  return service.chargeMainChatMessage(email, metadata)
+}
+
+export async function chargeSqlPracticeOpen(email: string, metadata?: Record<string, unknown>) {
+  const service = await getCoinsService()
+  return service.chargeSqlPracticeOpen(email, metadata)
+}
+
+export async function chargeHomeworkHintOpen(email: string, metadata?: Record<string, unknown>) {
+  const service = await getCoinsService()
+  return service.chargeHomeworkHintOpen(email, metadata)
+}
+
+export async function logCoinTransaction(entry: Parameters<CoinsService['logCoinTransaction']>[0]) {
+  const service = await getCoinsService()
+  return service.logCoinTransaction(entry)
+}
+
+export async function adjustBalanceAdmin(users: string[], delta: number, adminEmail?: string) {
+  const service = await getCoinsService()
+  return service.adjustBalanceAdmin(users, delta, adminEmail)
+}

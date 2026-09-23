@@ -203,6 +203,7 @@ export default function ExamPrepAnalyticsPage() {
     if (!data?.students?.length) return;
     const headers = [
       "studentId",
+      "email",
       "studentName",
       "studentIdNumber",
       "status",
@@ -229,6 +230,7 @@ export default function ExamPrepAnalyticsPage() {
     ];
     const rows = data.students.map((s) => [
       s.studentId,
+      s.email ?? "",
       s.studentName ?? "",
       s.studentIdNumber ?? "",
       s.status,

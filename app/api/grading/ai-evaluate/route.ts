@@ -3,7 +3,7 @@ import { getSubmissionSummaries, getSubmissionById, gradeSubmission } from "@/li
 import { getQuestionsByHomeworkSet } from "@/lib/questions";
 import { getHomeworkSetById } from "@/lib/homework";
 import { evaluateSubmission, type AIGradingInput, type BulkGradingResult } from "@/lib/ai-grading";
-import type { Question, Submission, SqlAnswer } from "@/app/homework/types";
+import type { HomeworkType, Question, Submission, SqlAnswer } from "@/app/homework/types";
 import { getAnswerText, hasAnswerText } from "@/app/homework/utils/answers";
 
 interface AIEvaluateRequest {
@@ -41,7 +41,8 @@ export async function POST(request: Request) {
     }
 
     const homeworkSet = await getHomeworkSetById(homeworkSetId);
-    const answerType = homeworkSet?.homeworkType === "relational_algebra" ? "relational_algebra" : "sql";
+    const hwType: HomeworkType = homeworkSet?.homeworkType === "relational_algebra" ? "relational_algebra" : "sql";
+    const answerType = hwType;
     console.log("[AI Grading] Answer type:", answerType);
 
     // Get all questions for this homework set
@@ -128,7 +129,6 @@ export async function POST(request: Request) {
           }
           const studentSql = getAnswerText(sqlAnswer);
 
-          // Combine question instructions with additional grading instructions if provided
           let combinedInstructions = question.instructions;
           if (additionalGradingInstructions?.trim()) {
             combinedInstructions = `${question.instructions}\n\n## הנחיות נוספות להערכה\n${additionalGradingInstructions.trim()}`;
@@ -155,6 +155,8 @@ export async function POST(request: Request) {
                   rows: sqlAnswer.resultPreview.rows as Array<Record<string, unknown>>,
                 }
               : undefined,
+            homeworkType: hwType,
+            studentExpression: sqlAnswer.expression,
           });
         }
 

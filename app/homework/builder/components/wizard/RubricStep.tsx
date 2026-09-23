@@ -104,12 +104,16 @@ export function RubricStep({ questions, onChange, onBack, onNext }: RubricStepPr
         <div className={styles.list}>
           {questions.map((question, index) => {
             const totalWeight = question.rubric.reduce((sum, criterion) => sum + criterion.weight, 0);
+            const parameterized = (question.parameterMode ?? (question.parameters?.length ? "parameterized" : "static")) === "parameterized";
             return (
               <article key={question.id} className={styles.card}>
                 <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
                     <h4>{t("builder.rubric.question")} {index + 1}</h4>
                     <p className={styles.mutedText}>{question.prompt.slice(0, 120) || t("builder.rubric.untitledPrompt")}</p>
+                    <p className={styles.mutedText}>
+                      {parameterized ? `שאלה פרמטרית • ${(question.parameters ?? []).length} פרמטרים` : "שאלה רגילה"}
+                    </p>
                   </div>
                   <button type="button" className={styles.smallButton} onClick={() => handleApplyToAll(question.id)}>
                     {t("builder.rubric.applyToAll")}

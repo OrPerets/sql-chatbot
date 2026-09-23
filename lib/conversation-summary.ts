@@ -1,8 +1,9 @@
 import { Db, ObjectId } from 'mongodb'
 import { connectToDatabase, executeWithRetry, COLLECTIONS } from './database'
 import OpenAI from 'openai'
+import { getModelForRole } from '@/lib/openai/model-registry'
 
-const DEFAULT_ANALYSIS_MODEL = process.env.OPENAI_MODEL || 'gpt-5-mini'
+const DEFAULT_ANALYSIS_MODEL = process.env.OPENAI_SUMMARY_MODEL || getModelForRole('conversationSummary')
 const DEFAULT_MAX_MESSAGES = 80
 const DEFAULT_MAX_CHARS_PER_MESSAGE = 1200
 const DEFAULT_MAX_TOTAL_CHARS = 48000

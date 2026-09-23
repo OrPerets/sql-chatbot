@@ -4,7 +4,7 @@ export const mockSteps: QueryStep[] = [
   {
     id: 'step-select',
     title: '1. Load source tables',
-    summary: 'Start with Students and Enrollments tables.',
+    summary: 'Start with customers and orders tables.',
     narration:
       'We begin by loading the source tables into memory so we can reference them throughout the query.',
     caption: 'Load the input tables that the query will read.',
@@ -17,33 +17,33 @@ export const mockSteps: QueryStep[] = [
     quiz: {
       id: 'quiz-select',
       question: 'Which tables are we pulling rows from at the start?',
-      answer: 'Students and Enrollments are the two source tables loaded for this query.',
+      answer: 'customers and orders are the two source tables loaded for this query.',
       hint: 'Check the table names in the step title.'
     },
     nodes: [
       {
-        id: 'students',
-        label: 'Students',
+        id: 'customers',
+        label: 'customers',
         kind: 'table',
         data: {
-          columns: ['id', 'name'],
+          columns: ['id', 'full_name', 'city'],
           rows: [
-            { id: 1, name: 'Ada' },
-            { id: 2, name: 'Linus' },
-            { id: 3, name: 'Grace' }
+            { id: 1, full_name: 'Maya Cohen', city: 'Tel Aviv' },
+            { id: 2, full_name: 'Daniel Levi', city: 'Haifa' },
+            { id: 3, full_name: 'Noa Mizrahi', city: 'Jerusalem' }
           ]
         }
       },
       {
-        id: 'enrollments',
-        label: 'Enrollments',
+        id: 'orders',
+        label: 'orders',
         kind: 'table',
         data: {
-          columns: ['student_id', 'course'],
+          columns: ['customer_id', 'product_id', 'status'],
           rows: [
-            { student_id: 1, course: 'SQL 101' },
-            { student_id: 2, course: 'Databases' },
-            { student_id: 4, course: 'Intro to CS' }
+            { customer_id: 1, product_id: 101, status: 'delivered' },
+            { customer_id: 2, product_id: 102, status: 'processing' },
+            { customer_id: 4, product_id: 101, status: 'cancelled' }
           ]
         }
       }
@@ -54,14 +54,14 @@ export const mockSteps: QueryStep[] = [
         label: 'Highlight input tables',
         style: 'highlight',
         durationMs: 700,
-        targetNodeIds: ['students', 'enrollments']
+        targetNodeIds: ['customers', 'orders']
       }
     ]
   },
   {
     id: 'step-join',
     title: '2. Match rows (INNER JOIN)',
-    summary: 'Pair rows where Students.id = Enrollments.student_id.',
+    summary: 'Pair rows where customers.id = orders.customer_id.',
     narration:
       'An INNER JOIN keeps only the rows where the join keys match, producing combined rows for matching students.',
     caption: 'Match rows on the join keys and build combined rows.',
@@ -88,66 +88,66 @@ export const mockSteps: QueryStep[] = [
         kind: 'join',
         detail: 'מתאימים סטודנטים עם הקורסים שלהם לפי מפתח החיבור.',
         joinType: 'INNER',
-        joinCondition: 'Students.id = Enrollments.student_id',
+        joinCondition: 'customers.id = orders.customer_id',
         leftSource: {
-          tableName: 'Students',
-          columns: ['id', 'name'],
+          tableName: 'customers',
+          columns: ['id', 'full_name'],
           rows: [
-            { id: 1, name: 'Ada' },
-            { id: 2, name: 'Linus' },
-            { id: 3, name: 'Grace' }
+            { id: 1, full_name: 'Maya Cohen' },
+            { id: 2, full_name: 'Daniel Levi' },
+            { id: 3, full_name: 'Noa Mizrahi' }
           ],
           matchedRowIndices: [0, 1],
           joinColumn: 'id'
         },
         rightSource: {
-          tableName: 'Enrollments',
-          columns: ['student_id', 'course'],
+          tableName: 'orders',
+          columns: ['customer_id', 'product_id'],
           rows: [
-            { student_id: 1, course: 'SQL 101' },
-            { student_id: 2, course: 'Databases' },
-            { student_id: 4, course: 'Intro to CS' }
+            { customer_id: 1, product_id: 101 },
+            { customer_id: 2, product_id: 102 },
+            { customer_id: 4, product_id: 101 }
           ],
           matchedRowIndices: [0, 1],
-          joinColumn: 'student_id'
+          joinColumn: 'customer_id'
         },
         pairs: [
           {
             id: 'pair-1',
-            left: 'Students[0]: id=1',
-            right: 'Enrollments[0]: student_id=1',
+            left: 'customers[0]: id=1',
+            right: 'orders[0]: customer_id=1',
             matched: true,
             leftRowIndex: 0,
             rightRowIndex: 0,
-            explanation: 'מתאים Ada (id=1) עם הקורס SQL 101 (student_id=1)'
+            explanation: 'מתאים Maya Cohen (id=1) להזמנה (customer_id=1)'
           },
           {
             id: 'pair-2',
-            left: 'Students[1]: id=2',
-            right: 'Enrollments[1]: student_id=2',
+            left: 'customers[1]: id=2',
+            right: 'orders[1]: customer_id=2',
             matched: true,
             leftRowIndex: 1,
             rightRowIndex: 1,
-            explanation: 'מתאים Linus (id=2) עם הקורס Databases (student_id=2)'
+            explanation: 'מתאים Daniel Levi (id=2) להזמנה (customer_id=2)'
           },
           {
             id: 'pair-3',
-            left: 'Students[2]: id=3',
+            left: 'customers[2]: id=3',
             right: 'אין התאמה',
             matched: false,
             leftRowIndex: 2,
-            explanation: 'Grace (id=3) אין רישום בטבלת Enrollments - נשמט מהתוצאה'
+            explanation: 'Noa Mizrahi (id=3) אין רישום בטבלת orders - נשמט מהתוצאה'
           }
         ],
         data: {
-          columns: ['Students.id', 'Students.name', 'Enrollments.student_id', 'Enrollments.course'],
+          columns: ['customers.id', 'customers.full_name', 'orders.customer_id', 'orders.product_id'],
           rows: [
-            { 'Students.id': 1, 'Students.name': 'Ada', 'Enrollments.student_id': 1, 'Enrollments.course': 'SQL 101' },
+            { 'customers.id': 1, 'customers.full_name': 'Maya Cohen', 'orders.customer_id': 1, 'orders.product_id': 101 },
             {
-              'Students.id': 2,
-              'Students.name': 'Linus',
-              'Enrollments.student_id': 2,
-              'Enrollments.course': 'Databases'
+              'customers.id': 2,
+              'customers.full_name': 'Daniel Levi',
+              'orders.customer_id': 2,
+              'orders.product_id': 102
             }
           ],
           rowStates: ['matched', 'matched']
@@ -180,7 +180,7 @@ export const mockSteps: QueryStep[] = [
     quiz: {
       id: 'quiz-project',
       question: 'Which columns make it into the final result?',
-      answer: 'Only name and course are included in the projection.',
+      answer: 'Only full_name and product_id are included in the projection.',
       hint: 'Look at the highlighted columns.'
     },
     nodes: [
@@ -189,12 +189,12 @@ export const mockSteps: QueryStep[] = [
         label: 'Final Result',
         kind: 'projection',
         data: {
-          columns: ['name', 'course'],
+          columns: ['full_name', 'product_id'],
           rows: [
-            { name: 'Ada', course: 'SQL 101' },
-            { name: 'Linus', course: 'Databases' }
+            { full_name: 'Maya Cohen', product_id: 101 },
+            { full_name: 'Daniel Levi', product_id: 102 }
           ],
-          highlightColumns: ['name', 'course']
+          highlightColumns: ['full_name', 'product_id']
         }
       }
     ],

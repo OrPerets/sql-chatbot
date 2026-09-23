@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, Save, Check, AlertCircle, Settings, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Calendar, Save, Check, AlertCircle, Settings, RefreshCw, Database, Eye, FileText } from 'lucide-react';
 import styles from './McpMichaelPage.module.css';
 
 interface WeeklyContent {
@@ -25,6 +25,16 @@ const McpMichaelPage: React.FC = () => {
   const [saveStatus, setSaveStatus] = useState<{ [week: number]: 'success' | 'error' | null }>({});
   const [error, setError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
+
+  const savedWeeksCount = useMemo(
+    () => weeklyContent.filter((week) => week.content.trim().length > 0).length,
+    [weeklyContent]
+  );
+
+  const currentWeekContent = useMemo(
+    () => weeklyContent.find((week) => week.week === currentWeek)?.content.trim() || '',
+    [currentWeek, weeklyContent]
+  );
 
   // Initialize 14 weeks of content
   const initializeWeeklyContent = () => {
@@ -239,7 +249,7 @@ const McpMichaelPage: React.FC = () => {
   if (loading) {
     return (
       <div className={styles.loadingContainer}>
-        <RefreshCw className={styles.spinner} />
+        <RefreshCw className={styles.spinner} size={22} />
         <p>טוען נתונים...</p>
       </div>
     );
@@ -247,9 +257,27 @@ const McpMichaelPage: React.FC = () => {
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>ניהול תוכן שבועי - MCP מייקל</h1>
-        <p className={styles.subtitle}>הגדרת תוכן לפי שבועות לשיפור תגובות המערכת</p>
+      <div className={styles.heroPanel}>
+        <div className={styles.heroText}>
+          <span className={styles.eyebrow}>
+            <Database size={15} />
+            כלי מערכת
+          </span>
+          <h1 className={styles.title}>MCP Michael</h1>
+          <p className={styles.subtitle}>
+            ניהול קונטקסט שבועי עבור Michael, כדי שהעוזר יתאים את התשובות לחומר שנלמד בפועל בקורס.
+          </p>
+        </div>
+        <div className={styles.heroActions}>
+          <button className={styles.secondaryButton} onClick={previewAssistantContext}>
+            <Eye size={17} />
+            תצוגת הקשר
+          </button>
+          <button className={styles.secondaryButton} onClick={loadData}>
+            <RefreshCw size={17} />
+            רענון
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -266,10 +294,34 @@ const McpMichaelPage: React.FC = () => {
         </div>
       )}
 
-      <div className={styles.semesterSection}>
-        <div className={styles.semesterHeader}>
-          <Settings size={20} />
-          <h3>הגדרות סמסטר</h3>
+      <div className={styles.overviewGrid}>
+        <div className={styles.overviewCard}>
+          <Calendar className={styles.overviewIcon} size={21} />
+          <span className={styles.overviewLabel}>שבוע נוכחי</span>
+          <strong className={styles.overviewValue}>{currentWeek}</strong>
+        </div>
+        <div className={styles.overviewCard}>
+          <FileText className={styles.overviewIcon} size={21} />
+          <span className={styles.overviewLabel}>שבועות עם תוכן</span>
+          <strong className={styles.overviewValue}>{savedWeeksCount}/14</strong>
+        </div>
+        <div className={`${styles.overviewCard} ${currentWeekContent ? styles.overviewCardOk : styles.overviewCardWarning}`}>
+          <Check className={styles.overviewIcon} size={21} />
+          <span className={styles.overviewLabel}>קונטקסט השבוע</span>
+          <strong className={styles.overviewValue}>{currentWeekContent ? 'מוכן' : 'חסר'}</strong>
+        </div>
+      </div>
+
+      <div className={styles.settingsPanel}>
+        <div className={styles.panelHeader}>
+          <div>
+            <div className={styles.panelTitleRow}>
+              <Settings size={18} />
+              <h2>הגדרות סמסטר</h2>
+            </div>
+            <p>תאריך ההתחלה קובע את טווחי השבועות ואת השבוע הפעיל עבור Michael.</p>
+          </div>
+          <span className={styles.statusPill}>שבוע {currentWeek}</span>
         </div>
         <div className={styles.semesterControls}>
           <label htmlFor="semesterStart" className={styles.label}>
@@ -282,13 +334,21 @@ const McpMichaelPage: React.FC = () => {
             onChange={(e) => handleSemesterStartChange(e.target.value)}
             className={styles.dateInput}
           />
-          <span className={styles.currentWeekIndicator}>
-            שבוע נוכחי: {currentWeek}
-          </span>
         </div>
       </div>
 
-      <div className={styles.tableContainer}>
+      <div className={styles.contentPanel}>
+        <div className={styles.panelHeader}>
+          <div>
+            <div className={styles.panelTitleRow}>
+              <Calendar size={18} />
+              <h2>תוכן שבועי</h2>
+            </div>
+            <p>עריכה ישירה של ההקשר שיישלח לפונקציית הקורס של העוזר.</p>
+          </div>
+        </div>
+
+        <div className={styles.tableContainer}>
         <table className={styles.weeklyTable}>
           <thead>
             <tr>
@@ -305,19 +365,19 @@ const McpMichaelPage: React.FC = () => {
                 key={week.week} 
                 className={`${styles.tableRow} ${week.week === currentWeek ? styles.currentWeek : ''}`}
               >
-                <td className={styles.weekCell}>
+                <td className={styles.weekCell} data-label="שבוע">
                   <span className={styles.weekNumber}>{week.week}</span>
                   {week.week === currentWeek && (
                     <span className={styles.currentBadge}>נוכחי</span>
                   )}
                 </td>
-                <td className={styles.dateCell}>
+                <td className={styles.dateCell} data-label="תאריכים">
                   <div className={styles.dateRange}>
                     <Calendar size={16} />
                     <span>{week.dateRange || 'לא זמין'}</span>
                   </div>
                 </td>
-                <td className={styles.contentCell}>
+                <td className={styles.contentCell} data-label="תוכן">
                   <textarea
                     value={week.content}
                     onChange={(e) => handleContentChange(week.week, e.target.value)}
@@ -326,13 +386,13 @@ const McpMichaelPage: React.FC = () => {
                     rows={3}
                   />
                 </td>
-                <td className={styles.updatedCell}>
+                <td className={styles.updatedCell} data-label="עודכן">
                   <div className={styles.updatedMeta}>
                     <span>{week.updatedAt ? new Date(week.updatedAt).toLocaleString('he-IL') : '—'}</span>
                     {week.updatedBy && <span> · {week.updatedBy}</span>}
                   </div>
                 </td>
-                <td className={styles.actionsCell}>
+                <td className={styles.actionsCell} data-label="פעולות">
                   <button
                     onClick={() => saveWeeklyContent(week.week, week.content)}
                     disabled={saving[week.week]}
@@ -362,6 +422,7 @@ const McpMichaelPage: React.FC = () => {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div className={styles.footer}>
@@ -369,6 +430,7 @@ const McpMichaelPage: React.FC = () => {
           המערכת תשתמש בתוכן השבוע הנוכחי כדי לשפר את התגובות של המייקל
         </p>
         <button className={styles.previewButton} onClick={previewAssistantContext}>
+          <Eye size={17} />
           תצוגה מקדימה של ההקשר לעוזר
         </button>
       </div>

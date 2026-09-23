@@ -7,15 +7,26 @@ const options = {
   'reset_password': 'איפוס סיסמה'
 };
 
+const balanceActions = ['add_balance', 'reduce_balance'];
+
 interface BulkActionsProps {
   selectedUsers: string[];
+  adminEmail?: string | null;
   onSuccess: () => void;
   onError: (message: string) => void;
 }
 
-const BulkActions: React.FC<BulkActionsProps> = ({ selectedUsers, onSuccess, onError }) => {
+const BulkActions: React.FC<BulkActionsProps> = ({ selectedUsers, adminEmail, onSuccess, onError }) => {
   const [actionType, setActionType] = React.useState('');
   const [balanceAmount, setBalanceAmount] = React.useState('');
+
+  const getAdminHeaders = (baseHeaders: Record<string, string> = {}) => {
+    if (!adminEmail) return baseHeaders;
+    return {
+      ...baseHeaders,
+      'x-user-email': adminEmail,
+    };
+  };
 
   const handleAction = async () => {
     try {
@@ -23,7 +34,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({ selectedUsers, onSuccess, onE
         onError('Please select an action');
         return;
       }
-      if (['add_balance', 'reduce_balance', 'set_balance'].includes(actionType) && !balanceAmount) {
+      if (balanceActions.includes(actionType) && !balanceAmount) {
         onError('Please enter an amount');
         return;
       }
@@ -39,12 +50,16 @@ const BulkActions: React.FC<BulkActionsProps> = ({ selectedUsers, onSuccess, onE
         });
       } else {
         let amount = parseInt(balanceAmount, 10);
+        if (!Number.isFinite(amount) || amount <= 0) {
+          onError('Please enter a positive amount');
+          return;
+        }
         if (actionType === 'reduce_balance') amount = -amount;
         const response = await fetch(`/api/users/coins`, {
           method: 'POST',
-          headers: {
+          headers: getAdminHeaders({
             'Content-Type': 'application/json',
-          },
+          }),
           body: JSON.stringify({ users: selectedUsers, amount })
         });
 
@@ -78,7 +93,7 @@ const BulkActions: React.FC<BulkActionsProps> = ({ selectedUsers, onSuccess, onE
         ))}
       </select>
       
-      {Object.keys(options).includes(actionType) && (
+      {balanceActions.includes(actionType) && (
         <input
           type="number"
           value={balanceAmount}

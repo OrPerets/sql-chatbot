@@ -1,4 +1,5 @@
 import OpenAI from 'openai'
+import { getModelForRole } from '@/lib/openai/model-registry'
 
 /**
  * AI-powered grading service for SQL homework submissions
@@ -9,7 +10,7 @@ export interface AIGradingInput {
   questionId: string
   questionPrompt: string
   questionInstructions: string
-  referenceSql: string | undefined  // starterSql field contains the reference solution
+  referenceSql: string | undefined
   answerType?: 'sql' | 'relational_algebra'
   expectedSchema: Array<{ column: string; type: string }>
   maxPoints: number
@@ -19,6 +20,8 @@ export interface AIGradingInput {
     columns: string[]
     rows: Array<Record<string, unknown>>
   } | undefined
+  homeworkType?: 'sql' | 'relational_algebra'
+  studentExpression?: string
 }
 
 export interface AIGradingResult {
@@ -50,14 +53,15 @@ const AI_GRADING_VERBOSE = process.env.AI_GRADING_VERBOSE !== 'false'
  * Evaluate a single student SQL answer using AI
  */
 export async function evaluateAnswer(input: AIGradingInput): Promise<AIGradingResult> {
-  const prompt = buildEvaluationPrompt(input)
-  const systemPrompt = input.answerType === 'relational_algebra'
+  const answerType = input.answerType ?? input.homeworkType ?? 'sql'
+  const prompt = buildEvaluationPrompt({ ...input, answerType })
+  const systemPrompt = answerType === 'relational_algebra'
     ? buildRelationalAlgebraSystemPrompt()
     : buildSqlSystemPrompt()
-  
+
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: getModelForRole('aiGrading'),
       messages: [
         {
           role: 'system',
@@ -396,7 +400,7 @@ export async function generateSolution(input: AISolutionInput): Promise<AISoluti
   
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: getModelForRole('aiGrading'),
       messages: [
         {
           role: 'system',

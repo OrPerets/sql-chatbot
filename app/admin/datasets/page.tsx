@@ -3,24 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  Plus, 
-  Save, 
   ArrowLeft, 
   Database, 
   Table, 
-  Columns, 
-  List, 
   Edit3, 
-  Trash2, 
   Eye,
   Zap,
   RotateCcw,
   CheckCircle,
   AlertCircle,
   Clock,
-  BarChart3
 } from 'lucide-react';
-import AdminLayout from '@/app/components/admin/AdminLayout';
+import AdminShell from '@/app/components/admin/AdminShell';
 import styles from './datasets.module.css';
 
 interface Dataset {
@@ -66,7 +60,7 @@ interface DataGenerationConfig {
   };
 }
 
-const DatasetsPage: React.FC = () => {
+const DatasetsContent: React.FC = () => {
   const router = useRouter();
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -92,6 +86,7 @@ const DatasetsPage: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [validationResult, setValidationResult] = useState<{ valid: boolean; issues: string[] } | null>(null);
   const [generatedDataPreview, setGeneratedDataPreview] = useState<any>(null);
+  const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Load datasets
   const loadDatasets = async () => {
@@ -127,6 +122,7 @@ const DatasetsPage: React.FC = () => {
     if (!selectedDataset) return;
 
     setIsGenerating(true);
+    setNotice(null);
     try {
       const response = await fetch(`/api/datasets/${selectedDataset.id}/expand`, {
         method: 'POST',
@@ -138,15 +134,15 @@ const DatasetsPage: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        alert(`Data generation started! Generation ID: ${data.generationId}`);
+        setNotice({ type: 'success', text: `יצירת הנתונים התחילה. מזהה: ${data.generationId}` });
         loadGenerationStatuses(selectedDataset.id);
       } else {
         const error = await response.json();
-        alert(`Error: ${error.error}`);
+        setNotice({ type: 'error', text: error.error || 'התחלת יצירת הנתונים נכשלה.' });
       }
     } catch (error) {
       console.error('Error starting generation:', error);
-      alert('Error starting data generation');
+      setNotice({ type: 'error', text: 'התחלת יצירת הנתונים נכשלה.' });
     } finally {
       setIsGenerating(false);
     }
@@ -156,7 +152,7 @@ const DatasetsPage: React.FC = () => {
   const rollbackGeneration = async () => {
     if (!selectedDataset) return;
 
-    if (!confirm('Are you sure you want to rollback the generated data?')) {
+    if (!confirm('להחזיר את הדאטה-סט למצב הקודם?')) {
       return;
     }
 
@@ -166,15 +162,15 @@ const DatasetsPage: React.FC = () => {
       });
 
       if (response.ok) {
-        alert('Dataset rolled back successfully');
+        setNotice({ type: 'success', text: 'מסד הנתונים הוחזר למצב הקודם.' });
         loadGenerationStatuses(selectedDataset.id);
       } else {
         const error = await response.json();
-        alert(`Error: ${error.error}`);
+        setNotice({ type: 'error', text: error.error || 'החזרה למצב קודם נכשלה.' });
       }
     } catch (error) {
       console.error('Error rolling back:', error);
-      alert('Error rolling back dataset');
+      setNotice({ type: 'error', text: 'החזרה למצב קודם נכשלה.' });
     }
   };
 
@@ -187,6 +183,7 @@ const DatasetsPage: React.FC = () => {
       if (response.ok) {
         const result = await response.json();
         setValidationResult(result);
+        setNotice({ type: result.valid ? 'success' : 'error', text: result.valid ? 'הנתונים עברו אימות.' : 'נמצאו בעיות בנתונים.' });
       }
     } catch (error) {
       console.error('Error validating data:', error);
@@ -204,11 +201,11 @@ const DatasetsPage: React.FC = () => {
         setGeneratedDataPreview(result);
       } else {
         const error = await response.json();
-        alert(`Error: ${error.message || 'Failed to load preview'}`);
+        setNotice({ type: 'error', text: error.message || 'טעינת התצוגה המקדימה נכשלה.' });
       }
     } catch (error) {
       console.error('Error previewing generated data:', error);
-      alert('Error loading generated data preview');
+      setNotice({ type: 'error', text: 'טעינת התצוגה המקדימה נכשלה.' });
     }
   };
 
@@ -218,6 +215,7 @@ const DatasetsPage: React.FC = () => {
     setShowExpansionPanel(true);
     loadGenerationStatuses(dataset.id);
     setValidationResult(null);
+    setNotice(null);
   };
 
   // Load datasets on mount
@@ -237,12 +235,7 @@ const DatasetsPage: React.FC = () => {
   }, [selectedDataset, generationStatuses]);
 
   return (
-    <AdminLayout
-      activeTab="datasets"
-      onTabChange={() => {}}
-      currentUser={null}
-      onLogout={() => {}}
-    >
+    <>
       <div className={styles.container}>
         <div className={styles.header}>
           <button 
@@ -259,6 +252,12 @@ const DatasetsPage: React.FC = () => {
         </div>
 
         <div className={styles.content}>
+          {notice ? (
+            <div className={`${styles.notice} ${notice.type === 'success' ? styles.noticeSuccess : styles.noticeError}`}>
+              {notice.text}
+            </div>
+          ) : null}
+
           {/* Datasets List */}
           <div className={styles.datasetsSection}>
             <div className={styles.sectionHeader}>
@@ -292,14 +291,14 @@ const DatasetsPage: React.FC = () => {
                         <button
                           onClick={() => handleDatasetSelect(dataset)}
                           className={styles.actionButton}
-                          title="Expand Dataset"
+                          title="הרחב דאטה-סט"
                         >
                           <Zap size={16} />
                         </button>
                         <button
                           onClick={() => router.push(`/admin/databases`)}
                           className={styles.actionButton}
-                          title="Edit"
+                          title="ערוך סכמה"
                         >
                           <Edit3 size={16} />
                         </button>
@@ -609,8 +608,14 @@ const DatasetsPage: React.FC = () => {
           )}
         </div>
       </div>
-    </AdminLayout>
+    </>
   );
 };
 
-export default DatasetsPage;
+export default function DatasetsPage() {
+  return (
+    <AdminShell>
+      <DatasetsContent />
+    </AdminShell>
+  );
+}

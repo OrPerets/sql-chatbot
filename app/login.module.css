@@ -1,393 +1,486 @@
 .loginContainer {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background: radial-gradient(circle, #2a8ad8, #002e67);
-}
+  --ink: #0b1220;
+  --muted: #4b5b75;
+  --quiet: #738099;
+  --line: rgba(27, 58, 111, 0.14);
+  --line-strong: rgba(27, 58, 111, 0.24);
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-strong: rgba(255, 255, 255, 0.94);
+  --blue: #1d4ed8;
+  --blue-deep: #132c68;
+  --cyan: #0e95bd;
+  --focus: #f59e0b;
 
-.errorMessage {
-  color: red;
-  margin-top: 1rem;
-  text-align: center;
-}
-
-.avatarContainer {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 2rem;
+  min-height: 100vh;
+  overflow-x: hidden;
+  direction: rtl;
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica",
+    "Arial", sans-serif;
+  background:
+    linear-gradient(135deg, rgba(249, 252, 255, 0.98) 0%, rgba(232, 242, 255, 0.92) 50%, rgba(255, 255, 255, 0.98) 100%),
+    #f7fbff;
 }
 
-.animatedAvatarWrapper {
-  position: relative;
-  width: 180px;
-  height: 180px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: radial-gradient(circle at center, 
-    rgba(255, 255, 255, 0.9) 0%, 
-    rgba(248, 250, 252, 0.8) 50%, 
-    rgba(226, 232, 240, 0.6) 100%);
-  backdrop-filter: blur(20px);
-  box-shadow: 
-    0 20px 60px rgba(59, 130, 246, 0.2),
-    0 8px 24px rgba(59, 130, 246, 0.15),
-    inset 0 2px 4px rgba(255, 255, 255, 0.4);
-  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: welcomeFloat 4s ease-in-out infinite;
+.backgroundLayer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(29, 78, 216, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(29, 78, 216, 0.08) 1px, transparent 1px),
+    linear-gradient(135deg, rgba(14, 149, 189, 0.1), transparent 44%);
+  background-size: 42px 42px, 42px 42px, 100% 100%;
+  mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, 0.8) 54%, transparent 100%);
 }
 
-.botImage {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-  filter: brightness(1.1) contrast(1.05) saturate(1.1);
-  transition: transform 0.3s ease;
-  z-index: 2;
-  position: relative;
-  padding: 15px;
-  box-sizing: border-box;
-}
-
-.breathingEffect {
-  position: absolute;
-  top: -15px;
-  left: -15px;
-  right: -15px;
-  bottom: -15px;
-  border-radius: 50%;
-  background: radial-gradient(circle at center,
-    transparent 60%,
-    rgba(59, 130, 246, 0.15) 70%,
-    rgba(59, 130, 246, 0.08) 80%,
-    transparent 90%);
-  animation: breathingGlow 3s ease-in-out infinite;
-  z-index: 0;
-}
-
-.welcomeGlow {
-  position: absolute;
-  top: -20px;
-  left: -20px;
-  right: -20px;
-  bottom: -20px;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  background: linear-gradient(45deg, 
-    rgba(59, 130, 246, 0.4), 
-    rgba(168, 85, 247, 0.4), 
-    rgba(34, 197, 94, 0.4),
-    rgba(239, 68, 68, 0.4)) border-box;
-  mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  animation: welcomeRotate 8s linear infinite;
-  opacity: 0.6;
-  z-index: 1;
-}
-
-.logoWrapper {
+.topBar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
-  margin-bottom: 1.5rem;
-  font-size: 22px;
-  width: 50%;
-  height: 25%;
+  justify-content: space-between;
+  min-height: 72px;
+  padding: 14px 28px;
+  border-bottom: 1px solid rgba(29, 78, 216, 0.12);
+  background: rgba(248, 251, 255, 0.74);
+  backdrop-filter: blur(18px);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 
 .logoImage {
-  width: 50px;
-  height: 50px;
-  margin-right: 1rem;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(19, 44, 104, 0.14);
+  border-radius: 50%;
+  padding: 2px;
+  background:
+    radial-gradient(circle at 50% 44%, #ffffff 0 58%, rgba(226, 242, 255, 0.88) 59% 100%);
+  object-fit: cover;
+  filter: drop-shadow(0 10px 22px rgba(19, 44, 104, 0.18));
 }
 
-.assistantName {
-  text-align: left;
+.brandText {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
 }
 
-.assistantTitle {
-  color: #e5eefd;
-  margin: 0;
-  font-size: 2.5rem;
-  font-weight: bold;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+.brandTitle {
+  color: var(--blue-deep);
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: 0;
 }
 
-.assistantSubtitle {
-  color: #e5eefd;
-  margin: 0;
-  font-size: 1.2rem;
-  opacity: 0.9;
+.brandSubtitle {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
-.welcomeMessage {
-  color: #e5eefd;
-  margin: 10px 0 0 0;
-  font-size: 1rem;
-  opacity: 0.8;
-  font-style: italic;
+.shenkarBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--blue-deep);
+  font-size: 0.98rem;
+  font-weight: 900;
+  letter-spacing: 0;
 }
 
-@keyframes welcomeFloat {
-  0%, 100% {
-    transform: translateY(0) scale(1);
-  }
-  50% {
-    transform: translateY(-8px) scale(1.02);
-  }
+.shenkarLogoTile {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 1px solid rgba(19, 44, 104, 0.18);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #173a83 0%, #1d4ed8 58%, #0e95bd 100%);
+  box-shadow: 0 12px 26px rgba(19, 44, 104, 0.14);
 }
 
-@keyframes breathingGlow {
-  0%, 100% {
-    opacity: 0.6;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.1);
-  }
+.shenkarLogo {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
 }
 
-@keyframes welcomeRotate {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+.shell {
+  position: relative;
+  z-index: 1;
+  width: min(520px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 112px 0 58px;
+}
+
+.hero {
+  display: grid;
+  place-items: center;
 }
 
 .loginCard {
-  background-color: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: relative;
   width: 100%;
-  max-width: 400px;
-  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 26px;
+  background: var(--surface);
+  box-shadow:
+    0 24px 52px rgba(19, 44, 104, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  text-align: right;
+}
+
+.loginCard::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(14, 149, 189, 0.09), transparent 54%);
+}
+
+.cardHeader,
+.form,
+.errorMessage,
+.helperText,
+.loginCard > h2 {
+  position: relative;
+  z-index: 1;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.botImage {
+  width: 58px;
+  height: 58px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(29, 78, 216, 0.14);
+  border-radius: 50%;
+  padding: 3px;
+  background: #ffffff;
+  object-fit: cover;
+  filter: drop-shadow(0 12px 22px rgba(19, 44, 104, 0.16));
 }
 
 .title {
-  text-align: center;
-  color: #333;
-  margin-bottom: 1.5rem;
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.6rem;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.helperText {
+  margin: 10px 0 20px;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: right;
 }
 
 .form {
   display: flex;
   flex-direction: column;
+  gap: 14px;
 }
 
 .inputGroup {
   position: relative;
-  margin-bottom: 1rem;
 }
 
 .input {
   width: 100%;
-  padding: 0.75rem;
-  padding-left: 2.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  min-height: 52px;
+  border: 1px solid rgba(19, 44, 104, 0.18);
+  border-radius: 8px;
+  padding: 0 46px 0 14px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  font: inherit;
   font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.input::placeholder {
+  color: var(--quiet);
+}
+
+.input:disabled {
+  color: var(--muted);
+  background: rgba(226, 232, 240, 0.56);
 }
 
 .input:focus {
   outline: none;
-  border-color: #4a90e2;
+  border-color: rgba(29, 78, 216, 0.42);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.1);
 }
 
 .iconWrapper {
   position: absolute;
-  left: 0.75rem;
   top: 50%;
+  right: 16px;
+  display: inline-flex;
   transform: translateY(-50%);
-  color: #666;
+  color: var(--blue);
+  pointer-events: none;
 }
 
 .button {
-  background-color: #4a90e2;
-  color: white;
-  padding: 0.75rem;
-  border: none;
-  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  gap: 10px;
+  border: 1px solid rgba(19, 44, 104, 0.2);
+  border-radius: 8px;
+  padding: 0 18px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #173a83 0%, #1d4ed8 54%, #0e95bd 100%);
+  box-shadow: 0 20px 42px rgba(29, 78, 216, 0.24);
+  font: inherit;
   font-size: 1rem;
+  font-weight: 850;
+  line-height: 1;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    opacity 180ms ease;
 }
 
-.button:hover {
-  background-color: #3a7cbd;
+.button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(19, 44, 104, 0.34);
+  box-shadow: 0 26px 50px rgba(29, 78, 216, 0.28);
 }
 
-/* Added this for the admin-interface: Styles for the admin login button, using a different color scheme to distinguish it from the regular login button */
-.adminButton {
-  background-color: #6c757d;
-  color: white;
-  padding: 0.75rem;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
+.button:disabled {
+  cursor: progress;
+  opacity: 0.72;
+}
+
+.secondaryButton {
+  margin-top: 0;
+  color: var(--blue-deep);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 16px 34px rgba(19, 44, 104, 0.12);
+}
+
+.textButton {
+  align-self: center;
+  border: 0;
+  padding: 4px 8px;
+  color: var(--blue-deep);
+  background: transparent;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 850;
+  text-decoration: underline;
+  text-underline-offset: 4px;
   cursor: pointer;
-  transition: background-color 0.3s;
-  margin-top: 0.5rem;
-  width: 100%;
 }
 
-.adminButton:hover {
-  background-color: #5a6268;
+.button:focus-visible,
+.textButton:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+}
+
+.errorMessage {
+  margin-top: 16px;
+  border: 1px solid rgba(185, 28, 28, 0.2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #991b1b;
+  background: rgba(254, 226, 226, 0.82);
+  font-size: 0.92rem;
+  font-weight: 800;
+  text-align: center;
 }
 
 .loadingOverlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle, #2a8ad8, #002e67);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  inset: 0;
   z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: rgba(247, 251, 255, 0.74);
+  backdrop-filter: blur(10px);
+}
+
+.loadingSpinner {
+  animation: spin 900ms linear infinite;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(11, 18, 32, 0.48);
+  backdrop-filter: blur(8px);
+}
+
+.modalCard {
+  width: min(100%, 420px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 26px;
+  background: var(--surface-strong);
+  box-shadow: 0 24px 60px rgba(11, 18, 32, 0.22);
+  text-align: right;
+}
+
+.modalCard h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.modalActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.feedbackMessage {
+  margin-top: 15px;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.feedbackError {
+  border: 1px solid rgba(185, 28, 28, 0.18);
+  color: #7f1d1d;
+  background: rgba(254, 226, 226, 0.84);
+}
+
+.feedbackSuccess {
+  border: 1px solid rgba(21, 128, 61, 0.18);
+  color: #14532d;
+  background: rgba(220, 252, 231, 0.84);
 }
 
 @keyframes spin {
-  100% {
+  to {
     transform: rotate(360deg);
   }
 }
 
-.loadingSpinner {
-  animation: spin 1s linear infinite;}
-
-/* Login Mode Selection Styles */
-.loginModeContainer {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-  padding: 0.25rem;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  direction: rtl;
-}
-
-.loginModeButton {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  border: none;
-  border-radius: 6px;
-  background-color: transparent;
-  color: #6b7280;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  direction: rtl;
-}
-
-.loginModeButton:hover {
-  background-color: #e5e7eb;
-  color: #374151;
-}
-
-.loginModeActive {
-  background-color: #4a90e2 !important;
-  color: white !important;
-  box-shadow: 0 2px 4px rgba(74, 144, 226, 0.2);
-}
-
-.loginModeActive:hover {
-  background-color: #3b82f6 !important;
-}
-
-/* Mobile Responsiveness for Login Page */
-@media (max-width: 768px) {
-  .loginContainer {
-    padding: 1rem;
-  }
-
-  .logoWrapper {
-    flex-direction: column;
-    text-align: center;
-    margin-bottom: 1rem;
-  }
-
-  .avatarContainer {
-    margin-right: 0;
-    margin-bottom: 1rem;
-  }
-
-  .animatedAvatarWrapper {
-    width: 150px;
-    height: 150px;
-  }
-
-  .assistantTitle {
-    font-size: 2rem;
-  }
-
-  .assistantSubtitle {
-    font-size: 1rem;
+@media (max-width: 900px) {
+  .shell {
+    width: min(100% - 28px, 520px);
+    padding-top: 70px;
   }
 
   .loginCard {
-    max-width: 100%;
-    padding: 1.5rem;
-  }
-
-  .loginModeContainer {
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 0.5rem;
-  }
-
-  .loginModeButton {
-    padding: 1rem;
-    font-size: 1rem;
+    max-width: none;
   }
 }
 
-@media (max-width: 480px) {
-  .loginContainer {
-    padding: 0.5rem;
+@media (max-width: 560px) {
+  .topBar {
+    min-height: 64px;
+    padding: 10px 14px;
   }
 
-  .animatedAvatarWrapper {
-    width: 120px;
-    height: 120px;
+  .logoImage {
+    width: 44px;
+    height: 44px;
   }
 
-  .assistantTitle {
-    font-size: 1.75rem;
+  .brandSubtitle {
+    display: none;
   }
 
-  .assistantSubtitle {
-    font-size: 0.9rem;
+  .shenkarText {
+    display: none;
   }
 
-  .loginCard {
-    padding: 1rem;
+  .shenkarLogoTile {
+    width: 44px;
+    height: 44px;
   }
 
-  .title {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
+  .shenkarLogo {
+    width: 29px;
+    height: 29px;
   }
 
+  .shell {
+    width: calc(100% - 24px);
+    padding: 56px 0 36px;
+  }
+
+  .loginCard,
+  .modalCard {
+    padding: 20px;
+  }
+
+  .cardHeader {
+    margin-bottom: 20px;
+  }
+
+  .botImage {
+    width: 52px;
+    height: 52px;
+  }
+
+  .modalActions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button,
   .input {
-    padding: 1rem;
-    font-size: 1rem;
+    transition: none;
   }
 
-  .button {
-    padding: 1rem;
-    font-size: 1rem;
+  .button:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .loadingSpinner {
+    animation: none;
   }
 }

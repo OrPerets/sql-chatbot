@@ -6,10 +6,9 @@ import { resolveHomeworkLocale } from "./context/locale";
 export default async function HomeworkLayout({ children }: { children: ReactNode }) {
   const headerList = await headers();
   const cookieStore = await cookies();
-  const acceptLanguage = headerList.get("accept-language") ?? "";
   const headerLocale = headerList.get("x-michael-locale");
   const cookieLocale = cookieStore.get("michael-locale")?.value ?? null;
-  const initialLocale = resolveHomeworkLocale(cookieLocale ?? headerLocale ?? acceptLanguage);
+  const initialLocale = resolveHomeworkLocale(cookieLocale ?? headerLocale ?? "he");
 
   return <HomeworkLayoutClient initialLocale={initialLocale}>{children}</HomeworkLayoutClient>;
 }

@@ -1,11 +1,18 @@
-import { SHARED_TOOL_SCHEMAS } from "@/lib/openai/tools";
+import { getDefaultTutorModel } from "@/lib/openai/model-registry";
+import {
+  MichaelToolDefinition,
+  MichaelToolContext,
+  ToolCatalogEntry,
+  getToolCatalog,
+  getToolSchemas,
+} from "@/lib/openai/tools";
 
-const DEFAULT_MODEL = "gpt-5-mini";
+const DEFAULT_MODEL = getDefaultTutorModel();
 
 export type AgentConfig = {
   model: string;
   instructions: string;
-  tools: typeof SHARED_TOOL_SCHEMAS;
+  tools: MichaelToolDefinition[];
   featureFlags: {
     apiMode: "assistants" | "responses";
     useHomeworkSqlMode: boolean;
@@ -27,7 +34,7 @@ export const agentConfig: AgentConfig = {
 Always keep explanations clear, practical, and student-friendly.
 When SQL curriculum timing matters, use get_course_week_context before giving SQL examples.
 Prefer safe educational examples and avoid destructive SQL.`,
-  tools: SHARED_TOOL_SCHEMAS,
+  tools: getToolSchemas({ context: "main_chat" }),
   featureFlags: {
     apiMode: process.env.OPENAI_API_MODE === "assistants" ? "assistants" : "responses",
     useHomeworkSqlMode: process.env.HOMEWORK_SQL_MODE === "true",
@@ -49,6 +56,18 @@ export function getAgentInstructions(): string {
 
 export function getAgentTools() {
   return agentConfig.tools;
+}
+
+export function getAgentToolsForContext(context: MichaelToolContext) {
+  return getToolSchemas({ context });
+}
+
+export function getAgentToolCatalog(context?: MichaelToolContext): ToolCatalogEntry[] {
+  return getToolCatalog({
+    context,
+    includeExperimental: true,
+    includeDisabled: true,
+  });
 }
 
 export function getCompatibilityAssistantId(): string {

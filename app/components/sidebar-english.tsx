@@ -18,16 +18,27 @@ type SidebarProps = {
   onToggleSidebar?: () => void;
 };
 
+const formatSessionDate = (timestamp: number) => {
+  if (!Number.isFinite(timestamp)) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })
+    .format(new Date(timestamp))
+    .replace(/\//g, "-");
+};
+
 const SidebarEnglish: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, handleLogout, onNewChat, currentUser, onToggleSidebar }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
+  const userInitial = currentUser?.charAt(0)?.toUpperCase() ?? "J";
 
   const toggleMenu = () => {
     setIsMenuOpen((prev) => !prev);
-  };
-
-  const closeMenu = () => {
-    setIsMenuOpen(false);
   };
 
   // Hardcoded sample chat sessions for demo
@@ -42,14 +53,15 @@ const SidebarEnglish: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, ha
   return (
     <div className={styles.sidebar}>
       <div className={styles.header}>
-            <div
+            <button
+              type="button"
               className={styles.userIcon}
               title="User Menu"
               onClick={toggleMenu}
               aria-label="User Icon"
             >
-              J
-            </div>
+              {userInitial}
+            </button>
         <h2 className={styles.sidebarTitle}>Previous Chats</h2>
         <div className={styles.headerButtons}>
           {/* Close Button */}
@@ -89,10 +101,11 @@ const SidebarEnglish: React.FC<SidebarProps> = ({ chatSessions, onChatSelect, ha
                 onChatSelect(session._id);
               }}
               className={`${styles.sidebarLink} ${
-                pathname === `/chat/${session._id}` ? styles.active : ''
+                pathname === `/chat/${session._id}` ? styles.sidebarLinkActive : ""
               }`}
             >
-              {session.title}
+              <span className={styles.sessionTitle}>{session.title}</span>
+              <span className={styles.sessionDate}>{formatSessionDate(session.lastMessageTimestamp)}</span>
             </Link>
           </li>
         ))}

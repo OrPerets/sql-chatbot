@@ -29,6 +29,8 @@ const OPERATOR_GROUPS: OperatorGroup[] = [
       { symbol: "⋈", title: "צירוף טבעי (Natural Join)" },
       { symbol: "⟕", title: "צירוף שמאלי (Left Join)" },
       { symbol: "⟖", title: "צירוף ימני (Right Join)" },
+      { symbol: "⋉", title: "חצי-צירוף שמאלי (Left Semi-Join)" },
+      { symbol: "⋊", title: "חצי-צירוף ימני (Right Semi-Join)" },
       { symbol: "⟗", title: "צירוף מלא (Full Outer Join)" },
       { symbol: "⋈θ", title: "צירוף תטא (Theta Join)", insert: "⋈_{}" },
       { symbol: "×", title: "מכפלה קרטזית (Cartesian Product)" },
@@ -51,9 +53,19 @@ const OPERATOR_GROUPS: OperatorGroup[] = [
       { symbol: "¬", title: "שלילה (NOT)" },
       { symbol: "≥", title: "גדול-שווה" },
       { symbol: "≤", title: "קטן-שווה" },
+      { symbol: "≠", title: "שונה" },
       { symbol: "=", title: "שווה" },
       { symbol: ">", title: "גדול" },
       { symbol: "<", title: "קטן" },
+    ],
+  },
+  {
+    label: "מבנה",
+    operators: [
+      { symbol: "()", title: "סוגריים", insert: "()" },
+      { symbol: "_{}", title: "תנאי/רשימה", insert: "_{}" },
+      { symbol: "←", title: "חץ שמאלה (השמה)" },
+      { symbol: ",", title: "פסיק (הפרדה)" },
     ],
   },
 ];

@@ -434,8 +434,10 @@ export class TemplateSystem {
       homeworkSetId,
       variables: variableValues,
       prompt: this.substituteVariables(template.template, variableValues, template.variables),
-      instructions: template.instructions || '',
-      starterSql: template.starterSql,
+      instructions: this.substituteVariables(template.instructions || '', variableValues, template.variables),
+      starterSql: template.starterSql
+        ? this.substituteVariables(template.starterSql, variableValues, template.variables)
+        : template.starterSql,
       expectedResultSchema: template.expectedResultSchema || [],
       gradingRubric: template.gradingRubric || [],
       datasetId: template.datasetId,

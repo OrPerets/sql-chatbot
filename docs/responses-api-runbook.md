@@ -27,7 +27,7 @@ curl -X POST http://localhost:3000/api/responses/messages \
 
 3. Admin runtime validation:
 ```bash
-curl -X POST http://localhost:3000/api/assistants/test \
+curl -X POST http://localhost:3000/api/responses/runtime/validate \
   -H "Content-Type: application/json" \
   -d '{"testType":"basic"}'
 ```
@@ -49,7 +49,7 @@ Track during rollout:
 Use runtime config rollback endpoint:
 
 ```bash
-curl -X POST http://localhost:3000/api/assistants/rollback \
+curl -X POST http://localhost:3000/api/responses/runtime/rollback \
   -H "Content-Type: application/json" \
   -d '{"reason":"responses rollout regression"}'
 ```
@@ -60,7 +60,13 @@ If needed, temporarily set:
 OPENAI_API_MODE=assistants
 ```
 
-Then redeploy and verify admin tests again.
+Then redeploy and verify runtime validation again. This fallback is compatibility-only and should not be treated as the steady-state deployment mode.
+
+## Voice stance
+
+- Production voice mode is `chained`.
+- Direct Realtime usage is `realtime_experimental` only and must stay behind backend-controlled configuration.
+- Use backend-issued voice config and keep the GA Realtime credential flow separate from the chained production path.
 
 ## Post-incident checklist
 

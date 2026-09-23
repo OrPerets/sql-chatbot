@@ -1,8 +1,13 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styles from './VoiceModeCircle.module.css';
-import { enhancedTTS, TTSOptions } from '../utils/enhanced-tts';
+import {
+  DEFAULT_AVATAR_RENDER_CONFIG,
+  type AvatarRenderConfig,
+  type GesturePlan,
+  type SpeechControllerStatus,
+} from '../utils/avatar-speech-controller';
 
 interface VoiceModeCircleProps {
   state?: 'idle' | 'speaking' | 'listening' | 'thinking' | 'userWriting';
@@ -10,10 +15,16 @@ interface VoiceModeCircleProps {
   text?: string;
   onSpeakingStart?: () => void;
   onSpeakingEnd?: () => void;
-  audioData?: Uint8Array; // Real-time audio data for visualization
-  voiceActivityLevel?: number; // Voice activity level (0-100)
+  audioData?: Uint8Array;
+  voiceActivityLevel?: number;
   enableAccessibility?: boolean;
+  speechStatus?: SpeechControllerStatus;
+  gesturePlan?: GesturePlan | null;
+  renderConfig?: AvatarRenderConfig;
+  onPrimaryAction?: () => void;
 }
+
+const MAX_WAVE_SAMPLES = 48;
 
 const VoiceModeCircle: React.FC<VoiceModeCircleProps> = ({
   state = 'idle',
@@ -24,20 +35,42 @@ const VoiceModeCircle: React.FC<VoiceModeCircleProps> = ({
   audioData,
   voiceActivityLevel = 0,
   enableAccessibility = true,
+  speechStatus = 'idle',
+  gesturePlan = null,
+  renderConfig = DEFAULT_AVATAR_RENDER_CONFIG,
+  onPrimaryAction,
 }) => {
   const circleRef = useRef<HTMLDivElement>(null);
-  const animationRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>();
-  
-  // State for touch interactions and animations
+  const previousSpeakingRef = useRef(false);
+
   const [isPressed, setIsPressed] = useState(false);
   const [touchStartTime, setTouchStartTime] = useState<number>(0);
   const [currentVoiceLevel, setCurrentVoiceLevel] = useState<number>(0);
-  const [waveformData, setWaveformData] = useState<number[]>([]);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [lastSpokenText, setLastSpokenText] = useState<string>('');
-  const speakingInProgress = useRef<boolean>(false);
+
+  const mergedRenderConfig = useMemo(
+    () => ({
+      ...DEFAULT_AVATAR_RENDER_CONFIG,
+      ...renderConfig,
+    }),
+    [renderConfig]
+  );
+
+  const visualState = speechStatus === 'speaking' || speechStatus === 'preparing' ? 'speaking' : state;
+  const isSpeaking = visualState === 'speaking';
+  const sampledAudio = useMemo(() => {
+    if (!audioData || audioData.length === 0) {
+      return null;
+    }
+
+    if (audioData.length <= MAX_WAVE_SAMPLES) {
+      return audioData;
+    }
+
+    const step = Math.ceil(audioData.length / MAX_WAVE_SAMPLES);
+    return audioData.filter((_, index) => index % step === 0).slice(0, MAX_WAVE_SAMPLES);
+  }, [audioData]);
 
   const getSizeStyle = () => {
     const sizes = {
@@ -49,7 +82,7 @@ const VoiceModeCircle: React.FC<VoiceModeCircleProps> = ({
   };
 
   const getStateClass = () => {
-    switch (state) {
+    switch (visualState) {
       case 'speaking':
         return styles.speaking;
       case 'listening':
@@ -63,366 +96,225 @@ const VoiceModeCircle: React.FC<VoiceModeCircleProps> = ({
     }
   };
 
-  // Real-time waveform visualization
   const drawWaveform = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !audioData) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
+    if (!canvas || !sampledAudio || !isSpeaking) {
+      return;
+    }
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      return;
+    }
+
     const width = canvas.width;
     const height = canvas.height;
     const centerY = height / 2;
-    
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
-    
-    // Set up gradient for waveform
-    const gradient = ctx.createLinearGradient(0, 0, 0, height);
-    gradient.addColorStop(0, 'rgba(59, 130, 246, 0.8)');
+    context.clearRect(0, 0, width, height);
+
+    const gradient = context.createLinearGradient(0, 0, 0, height);
+    gradient.addColorStop(0, 'rgba(59, 130, 246, 0.7)');
     gradient.addColorStop(0.5, 'rgba(99, 102, 241, 1)');
-    gradient.addColorStop(1, 'rgba(139, 92, 246, 0.8)');
-    
-    ctx.strokeStyle = gradient;
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    
-    // Draw waveform
-    ctx.beginPath();
-    const sliceWidth = width / audioData.length;
+    gradient.addColorStop(1, 'rgba(16, 185, 129, 0.72)');
+    context.strokeStyle = gradient;
+    context.lineWidth = 2;
+    context.lineCap = 'round';
+
+    const sliceWidth = width / sampledAudio.length;
     let x = 0;
-    
-    for (let i = 0; i < audioData.length; i++) {
-      const v = audioData[i] / 128.0;
-      const y = v * centerY;
-      
-      if (i === 0) {
-        ctx.moveTo(x, centerY + y);
+    context.beginPath();
+
+    for (let index = 0; index < sampledAudio.length; index += 1) {
+      const amplitude = ((sampledAudio[index] ?? 128) - 128) / 128;
+      const intensity = 1 + (gesturePlan?.intensity ?? 0.35);
+      const y = centerY + amplitude * (centerY * 0.8) * intensity;
+
+      if (index === 0) {
+        context.moveTo(x, y);
       } else {
-        ctx.lineTo(x, centerY + y);
+        context.lineTo(x, y);
       }
-      
       x += sliceWidth;
     }
-    
-    ctx.stroke();
-    
-    // Continue animation
+
+    context.stroke();
     animationFrameRef.current = requestAnimationFrame(drawWaveform);
-  }, [audioData]);
-  
-  // Update voice activity level with smooth animation
+  }, [gesturePlan?.intensity, isSpeaking, sampledAudio]);
+
   useEffect(() => {
-    const targetLevel = voiceActivityLevel;
-    const currentLevel = currentVoiceLevel;
-    const diff = targetLevel - currentLevel;
-    
-    if (Math.abs(diff) > 1) {
-      const increment = diff * 0.1; // Smooth transition
-      setCurrentVoiceLevel(prev => prev + increment);
+    const speakingNow = speechStatus === 'speaking' || speechStatus === 'preparing';
+    if (speakingNow && !previousSpeakingRef.current) {
+      onSpeakingStart?.();
     }
-  }, [voiceActivityLevel, currentVoiceLevel]);
-  
-  // Start/stop waveform animation based on state
+    if (!speakingNow && previousSpeakingRef.current) {
+      onSpeakingEnd?.();
+    }
+    previousSpeakingRef.current = speakingNow;
+  }, [onSpeakingEnd, onSpeakingStart, speechStatus]);
+
   useEffect(() => {
-    if ((state === 'listening' || state === 'speaking') && audioData) {
+    const targetLevel =
+      sampledAudio && isSpeaking
+        ? Math.min(100, voiceActivityLevel + Math.round((gesturePlan?.intensity ?? 0.4) * 20))
+        : voiceActivityLevel;
+
+    const frame = window.setTimeout(() => {
+      setCurrentVoiceLevel((previous) => previous + (targetLevel - previous) * 0.22);
+    }, 40);
+
+    return () => {
+      window.clearTimeout(frame);
+    };
+  }, [gesturePlan?.intensity, isSpeaking, sampledAudio, voiceActivityLevel]);
+
+  useEffect(() => {
+    if (isSpeaking && sampledAudio) {
       drawWaveform();
-    } else if (animationFrameRef.current) {
+      return () => {
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
+      };
+    }
+
+    if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
-    
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [state, audioData, drawWaveform]);
-  
-  // Touch and gesture handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
-    e.preventDefault();
+
+    return undefined;
+  }, [drawWaveform, isSpeaking, sampledAudio]);
+
+  const handleTouchStart = (event: React.TouchEvent) => {
+    event.preventDefault();
     setIsPressed(true);
     setTouchStartTime(Date.now());
-    
-    // Add haptic feedback if available
-    if ('vibrate' in navigator) {
-      navigator.vibrate(50);
-    }
   };
-  
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    e.preventDefault();
-    setIsPressed(false);
-    
-    const touchDuration = Date.now() - touchStartTime;
-    
-    // Handle different touch gestures
-    if (touchDuration < 200) {
-      // Quick tap - toggle voice mode
-      handleQuickTap();
-    } else if (touchDuration > 1000) {
-      // Long press - open voice settings
-      handleLongPress();
-    }
-  };
-  
-  const handleQuickTap = () => {
-    // Quick tap functionality - toggle speech
-    console.log('🎤 VoiceModeCircle Quick tap detected:', {
-      isSpeaking,
-      hasText: !!text,
-      textLength: text?.length || 0,
-      textPreview: text?.substring(0, 50) + '...'
-    });
-    
-    if (isSpeaking) {
-      // Stop current speech
-      console.log('🎤 VoiceModeCircle Stopping current speech');
-      enhancedTTS.stop();
-      setIsSpeaking(false);
-      onSpeakingEnd?.();
-    } else if (text && text.trim()) {
-      // Start speaking
-      console.log('🎤 VoiceModeCircle Starting speech manually');
-      speakText(text);
-    } else {
-      console.log('🎤 VoiceModeCircle No text to speak');
-    }
-  };
-  
-  const handleLongPress = () => {
-    // Long press functionality - could open settings
-    console.log('Long press detected');
-    // Add haptic feedback for long press
-    if ('vibrate' in navigator) {
-      navigator.vibrate([100, 50, 100]);
-    }
-  };
-  
-  // Speech functionality
-  const speakText = useCallback(async (textToSpeak: string) => {
-    if (!textToSpeak?.trim() || speakingInProgress.current) return;
-    
-    console.log('🎤 VoiceModeCircle starting speech:', textToSpeak.substring(0, 50) + '...');
-    
-    try {
-      speakingInProgress.current = true;
-      setIsSpeaking(true);
-      setLastSpokenText(textToSpeak);
-      onSpeakingStart?.();
-      
-      const ttsOptions: TTSOptions = {
-        voice: 'echo',
-        speed: 1.0,
-        volume: 0.9,
-        useOpenAI: true,
-        characterStyle: 'university_ta',
-        enhanceProsody: true,
-      };
-      
-      await enhancedTTS.speak(textToSpeak, ttsOptions);
-      
-      console.log('🎤 VoiceModeCircle speech completed');
-      
-    } catch (error) {
-      console.error('💥 VoiceModeCircle speech failed:', error);
-    } finally {
-      speakingInProgress.current = false;
-      setIsSpeaking(false);
-      onSpeakingEnd?.();
-    }
-  }, [onSpeakingStart, onSpeakingEnd]);
-  
-  // Auto-speak when state becomes speaking and we have text
-  useEffect(() => {
-    console.log('🎤 VoiceModeCircle state/text change:', {
-      state,
-      hasText: !!text,
-      textLength: text?.length || 0,
-      textPreview: text?.substring(0, 50) + '...',
-      lastSpokenText: lastSpokenText?.substring(0, 30) + '...',
-      speakingInProgress: speakingInProgress.current,
-      isSpeaking
-    });
-    
-    if (state === 'speaking' && text && text.trim() && text !== lastSpokenText && !speakingInProgress.current) {
-      console.log('🎤 VoiceModeCircle auto-speaking new text:', text.substring(0, 50) + '...');
-      speakText(text);
-    }
-    
-    // Stop speaking if state changes away from speaking
-    if (state !== 'speaking' && isSpeaking) {
-      console.log('🎤 VoiceModeCircle stopping speech due to state change');
-      enhancedTTS.stop();
-      setIsSpeaking(false);
-      speakingInProgress.current = false;
-    }
-  }, [state, text, lastSpokenText, speakText, isSpeaking]);
-  
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (speakingInProgress.current) {
-        enhancedTTS.stop();
-      }
-    };
-  }, []);
 
-  // Keyboard navigation handler
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      handleQuickTap();
+  const handleTouchEnd = (event: React.TouchEvent) => {
+    event.preventDefault();
+    setIsPressed(false);
+    const touchDuration = Date.now() - touchStartTime;
+    if (touchDuration < 450) {
+      onPrimaryAction?.();
     }
   };
-  
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onPrimaryAction?.();
+    }
+  };
+
   const getStateIcon = () => {
-    switch (state) {
+    switch (visualState) {
       case 'speaking':
-        return (
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-            <line x1="12" y1="19" x2="12" y2="23"/>
-            <line x1="8" y1="23" x2="16" y2="23"/>
-          </svg>
-        );
       case 'listening':
         return (
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-            <line x1="12" y1="19" x2="12" y2="23"/>
-            <line x1="8" y1="23" x2="16" y2="23"/>
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            <line x1="12" y1="19" x2="12" y2="23" />
+            <line x1="8" y1="23" x2="16" y2="23" />
           </svg>
         );
       case 'thinking':
         return (
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
-            <line x1="9" y1="9" x2="9.01" y2="9"/>
-            <line x1="15" y1="9" x2="15.01" y2="9"/>
+            <circle cx="12" cy="12" r="10" />
+            <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+            <line x1="9" y1="9" x2="9.01" y2="9" />
+            <line x1="15" y1="9" x2="15.01" y2="9" />
           </svg>
         );
       case 'userWriting':
         return (
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
-            <path d="m15 5 4 4"/>
+            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+            <path d="m15 5 4 4" />
           </svg>
         );
       default:
         return (
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-            <line x1="12" y1="19" x2="12" y2="23"/>
-            <line x1="8" y1="23" x2="16" y2="23"/>
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4l3 3" />
           </svg>
         );
     }
   };
 
-  useEffect(() => {
-    if (state === 'speaking' && onSpeakingStart) {
-      onSpeakingStart();
-    } else if (state !== 'speaking' && onSpeakingEnd) {
-      onSpeakingEnd();
-    }
-  }, [state, onSpeakingStart, onSpeakingEnd]);
-
-  // Get ARIA label for accessibility
   const getAriaLabel = () => {
-    const stateLabels = {
-      idle: 'Voice mode idle, ready to interact',
-      speaking: `Speaking: ${text?.substring(0, 50) || 'Assistant is speaking'}`,
-      listening: 'Listening for voice input',
-      thinking: 'Processing your request',
-      userWriting: 'User is typing'
-    };
-    return stateLabels[state] || 'Voice mode active';
-  };
-  
-  // Get voice activity indicator bars
-  const getVoiceActivityBars = () => {
-    const bars = [];
-    const barCount = 8;
-    const baseHeight = 4;
-    
-    for (let i = 0; i < barCount; i++) {
-      const height = baseHeight + (currentVoiceLevel / 100) * (20 - baseHeight) * Math.random();
-      bars.push(
-        <div
-          key={i}
-          className={styles.voiceActivityBar}
-          style={{
-            height: `${height}px`,
-            animationDelay: `${i * 0.1}s`,
-            opacity: currentVoiceLevel > 10 ? 1 : 0.3
-          }}
-        />
-      );
+    if (isSpeaking) {
+      return `Assistant speaking${text ? `: ${text.substring(0, 50)}` : ''}`;
     }
-    return bars;
+    if (visualState === 'thinking') {
+      return 'Assistant is thinking';
+    }
+    if (visualState === 'listening') {
+      return 'Listening for voice input';
+    }
+    if (visualState === 'userWriting') {
+      return 'User is typing';
+    }
+    return 'Voice circle idle';
   };
-  
+
+  const activityBarCount = mergedRenderConfig.motionProfile === 'expressive' ? 8 : 6;
+
   return (
-    <div 
+    <div
       ref={circleRef}
       className={`${styles.voiceCircle} ${getStateClass()} ${isPressed ? styles.pressed : ''}`}
-      style={{ ...getSizeStyle(), cursor: 'pointer' }}
+      style={{ ...getSizeStyle(), cursor: onPrimaryAction ? 'pointer' : 'default' }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      onClick={handleQuickTap}
+      onClick={() => onPrimaryAction?.()}
       onKeyDown={handleKeyDown}
-      tabIndex={enableAccessibility ? 0 : -1}
-      role={enableAccessibility ? 'button' : undefined}
+      tabIndex={enableAccessibility && onPrimaryAction ? 0 : -1}
+      role={enableAccessibility && onPrimaryAction ? 'button' : undefined}
       aria-label={enableAccessibility ? getAriaLabel() : undefined}
-      aria-pressed={enableAccessibility ? (state === 'speaking' || state === 'listening') : undefined}
+      aria-pressed={enableAccessibility ? isSpeaking : undefined}
     >
-      {/* Main circle background */}
       <div className={styles.circleBackground}>
-        {/* Animated rings */}
-        <div ref={animationRef} className={styles.animationRings}>
+        <div className={styles.animationRings}>
           <div className={styles.ring1}></div>
           <div className={styles.ring2}></div>
           <div className={styles.ring3}></div>
         </div>
-        
-        {/* Real-time waveform canvas */}
-        {(state === 'listening' || state === 'speaking') && (
+
+        {isSpeaking && sampledAudio && (
           <canvas
             ref={canvasRef}
             className={styles.waveformCanvas}
-            width={200}
-            height={60}
+            width={140}
+            height={54}
             aria-hidden="true"
           />
         )}
-        
-        {/* Voice activity level indicators */}
-        {state === 'listening' && (
+
+        {visualState === 'listening' && (
           <div className={styles.voiceActivityIndicator}>
-            {getVoiceActivityBars()}
+            {Array.from({ length: activityBarCount }).map((_, index) => {
+              const height = 6 + (currentVoiceLevel / 100) * (20 - 6) * ((index + 2) / activityBarCount);
+              return (
+                <div
+                  key={`activity-${index}`}
+                  className={styles.voiceActivityBar}
+                  style={{
+                    height: `${height}px`,
+                    animationDelay: `${index * 0.08}s`,
+                    opacity: currentVoiceLevel > 8 ? 1 : 0.35,
+                  }}
+                />
+              );
+            })}
           </div>
         )}
-        
-        {/* Center icon */}
-        <div className={styles.centerIcon}>
-          {getStateIcon()}
-          
-          {/* Voice level text for accessibility */}
-          {enableAccessibility && currentVoiceLevel > 0 && (
-            <span className={styles.srOnly}>
-              Voice activity level: {Math.round(currentVoiceLevel)}%
-            </span>
-          )}
-        </div>
-        
-        {/* Sound waves for listening state */}
-        {state === 'listening' && (
+
+        <div className={styles.centerIcon}>{getStateIcon()}</div>
+
+        {visualState === 'listening' && (
           <div className={styles.soundWaves}>
             <div className={styles.wave1}></div>
             <div className={styles.wave2}></div>
@@ -430,27 +322,24 @@ const VoiceModeCircle: React.FC<VoiceModeCircleProps> = ({
             <div className={styles.wave4}></div>
           </div>
         )}
-        
-        {/* Ripple effects for speaking state */}
-        {state === 'speaking' && (
+
+        {isSpeaking && (
           <div className={styles.rippleEffects}>
             <div className={styles.ripple1}></div>
             <div className={styles.ripple2}></div>
             <div className={styles.ripple3}></div>
           </div>
         )}
-        
-        {/* Thinking animation */}
-        {state === 'thinking' && (
+
+        {visualState === 'thinking' && (
           <div className={styles.thinkingDots}>
             <div className={styles.dot1}></div>
             <div className={styles.dot2}></div>
             <div className={styles.dot3}></div>
           </div>
         )}
-        
-        {/* Pulsing animation during speech generation */}
-        {state === 'speaking' && (
+
+        {isSpeaking && (
           <div className={styles.speechPulse}>
             <div className={styles.pulse1}></div>
             <div className={styles.pulse2}></div>
@@ -458,18 +347,16 @@ const VoiceModeCircle: React.FC<VoiceModeCircleProps> = ({
           </div>
         )}
       </div>
-      
-      {/* Touch interaction feedback */}
+
       {isPressed && (
         <div className={styles.touchFeedback} aria-hidden="true">
           <div className={styles.touchRipple}></div>
         </div>
       )}
-      
-      {/* State description for screen readers */}
+
       {enableAccessibility && (
         <div className={styles.srOnly} aria-live="polite">
-          Current state: {state}. Voice activity: {Math.round(currentVoiceLevel)}%
+          Current state: {visualState}. Voice activity: {Math.round(currentVoiceLevel)}%
         </div>
       )}
     </div>

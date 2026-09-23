@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { AdminAuthError, requireAdmin } from '@/lib/admin-auth'
 import { getStudentProfilesService } from '@/lib/student-profiles'
 
 export async function GET(
@@ -6,6 +7,7 @@ export async function GET(
   context: { params: Promise<{ studentId: string }> }
 ) {
   try {
+    await requireAdmin(_request)
     const params = await context.params
     const { studentId } = params
 
@@ -28,6 +30,13 @@ export async function GET(
     })
 
   } catch (error) {
+    if (error instanceof AdminAuthError) {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden' },
+        { status: 403 }
+      )
+    }
+
     console.error('Error fetching student issues:', error)
     return NextResponse.json(
       { 

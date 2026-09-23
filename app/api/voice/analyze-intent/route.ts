@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { getVoiceRuntimeConfig, isVoiceFeatureEnabled } from '@/lib/openai/voice-config';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -7,7 +8,8 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    const featureVoiceEnabled = process.env.FEATURE_VOICE === '1';
+    const voiceConfig = getVoiceRuntimeConfig();
+    const featureVoiceEnabled = isVoiceFeatureEnabled();
     if (!featureVoiceEnabled) {
       return NextResponse.json({ error: 'Voice feature disabled' }, { status: 404 });
     }
@@ -26,17 +28,10 @@ export async function POST(request: NextRequest) {
       // Convert audio buffer back to blob for Whisper API
       const audioBlob = new Blob([new Uint8Array(audioBuffer)], { type: 'audio/webm' });
       
-      // Create form data for Whisper API
-      const formData = new FormData();
-      formData.append('file', audioBlob, 'audio.webm');
-      formData.append('model', 'whisper-1');
-      formData.append('language', 'auto'); // Auto-detect Hebrew/English
-      formData.append('response_format', 'json');
-
       // Transcribe audio
       const transcription = await openai.audio.transcriptions.create({
         file: audioBlob as any,
-        model: 'whisper-1',
+        model: voiceConfig.chained.transcriptionModel,
         language: 'auto' as any,
         response_format: 'json'
       });

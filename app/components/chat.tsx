@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, useReducer } from "react";
 import styles from "./chat.module.css";
 import "./mobile-optimizations.css";
 import Markdown from "react-markdown";
-import { ThumbsUp, ThumbsDown, ClipboardCopy, Plus, Sparkles, ImagePlus, Braces, BarChart3, ChevronDown } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ClipboardCopy, Plus, Sparkles, ImagePlus, Braces, BarChart3, ChevronDown, BrainCircuit, ArrowUp, X, LockKeyhole } from 'lucide-react';
 import Link from 'next/link';
 import Sidebar from './sidebar';
 import { useRouter } from 'next/navigation';
@@ -19,14 +19,42 @@ import VoiceModeCircle from "./VoiceModeCircle";
 import StaticLogoMode from "./StaticLogoMode";
 // import { AvatarIcon, MicIcon } from "./AvatarToggleIcons";
 // import Avatar3DErrorBoundary from "./michael-3d-visual-wrapper";
-// import { enhancedTTS } from "@/app/utils/enhanced-tts";
+import { enhancedTTS, type TTSOptions } from "@/app/utils/enhanced-tts";
 // import AvatarInteractionManager from "./AvatarInteractionManager";
 import { analyzeMessage } from "../utils/sql-query-analyzer";
 // import { avatarAnalytics } from "../utils/avatar-analytics";
 import PracticeModal from "./PracticeModal";
-import type { ResponseStreamEvent, SqlTutorResponse } from "@/lib/openai/contracts";
+import type {
+  ComposerDirective,
+  RelationalAlgebraTutorResponse,
+  ResponseCitation,
+  ResponseStreamEvent,
+  ResponseTurnMetadata,
+  SqlTutorResponse,
+  TutorResponse,
+  TutorSubjectMode,
+} from "@/lib/openai/contracts";
+import { isVoiceFeatureEnabled } from "@/lib/openai/voice-config";
+import {
+  buildGesturePlan,
+  DEFAULT_AVATAR_RENDER_CONFIG,
+  inferSpeechIntent,
+  initialSpeechControllerState,
+  speechControllerReducer,
+  type AvatarMode,
+  type GesturePlan,
+  type SpeechIntent,
+  type SpeechUtterance,
+} from "../utils/avatar-speech-controller";
 
 export const maxDuration = 50;
+
+const isDev = process.env.NODE_ENV === "development";
+const logDebug = (...args: unknown[]) => {
+  if (isDev) {
+    console.log(...args);
+  }
+};
 
 // Replace external base with internal routes
 const SAVE = "/api/chat/save"; // not used directly; message saving goes via chat sessions endpoint
@@ -38,7 +66,8 @@ type MessageProps = {
   feedback?: "like" | "dislike" | null;
   onFeedback?: (feedback: "like" | "dislike" | null) => void;
   hasImage?: boolean;
-  tutorResponse?: SqlTutorResponse | null;
+  tutorResponse?: TutorResponse | null;
+  conversationVariant?: "default" | "professional";
 };
 
 type ClientFunctionToolCall = {
@@ -51,22 +80,145 @@ type ClientFunctionToolCall = {
 
 type StreamFailureKind = "tool_timeout" | "invalid_function_args" | "stream_interruption" | "generic";
 
+type ComposerCommandId =
+  | "thinking"
+  | "algebra"
+  | "sql"
+  | ComposerDirective;
+
+type ComposerCommandKind = "persistent" | "one_shot";
+
+type ComposerCommandGroup = "modes" | "shortcuts";
+
+type ComposerCommandDefinition = {
+  id: ComposerCommandId;
+  token: `@${string}`;
+  label: string;
+  description: string;
+  group: ComposerCommandGroup;
+  kind: ComposerCommandKind;
+  aliases: string[];
+  icon: React.ComponentType<{
+    className?: string;
+    size?: string | number;
+    strokeWidth?: string | number;
+  }>;
+};
+
+type ComposerTokenContext = {
+  query: string;
+  start: number;
+  end: number;
+};
+
 type ChatMessage = {
   role: "user" | "assistant" | "code";
   text: string;
   feedback?: "like" | "dislike" | null;
   hasImage?: boolean;
-  tutorResponse?: SqlTutorResponse | null;
+  tutorResponse?: TutorResponse | null;
+  structuredContent?: Record<string, unknown> | null;
+  citations?: ResponseCitation[];
+  metadata?: ResponseTurnMetadata | null;
 };
+
+const COMPOSER_COMMANDS: ComposerCommandDefinition[] = [
+  {
+    id: "thinking",
+    token: "@thinking",
+    label: "מצב חשיבה",
+    description: "מפעיל תשובות עם תהליך חשיבה גלוי",
+    group: "modes",
+    kind: "persistent",
+    aliases: ["thinking", "reasoning", "חשיבה"],
+    icon: BrainCircuit,
+  },
+  {
+    id: "algebra",
+    token: "@algebra",
+    label: "אלגברת יחסים",
+    description: "מעביר את השיחה למצב σ, π, ⋈",
+    group: "modes",
+    kind: "persistent",
+    aliases: ["algebra", "ra", "relational", "אלגברה", "יחסים"],
+    icon: Braces,
+  },
+  {
+    id: "sql",
+    token: "@sql",
+    label: "מצב SQL",
+    description: "מחזיר להסבר ושיח רגיל ב-SQL",
+    group: "modes",
+    kind: "persistent",
+    aliases: ["sql", "query", "שאילתה"],
+    icon: BarChart3,
+  },
+  {
+    id: "personalize",
+    token: "@personalize",
+    label: "התאמה אישית",
+    description: "מה כדאי לי ללמוד לפי הטעויות שלי",
+    group: "shortcuts",
+    kind: "one_shot",
+    aliases: ["personalize", "personal", "tailor", "אישי", "התאמה"],
+    icon: Sparkles,
+  },
+  {
+    id: "explain",
+    token: "@explain",
+    label: "הסבר שלב-שלב",
+    description: "מבקש פירוק ברור ומדורג של הפתרון",
+    group: "shortcuts",
+    kind: "one_shot",
+    aliases: ["explain", "steps", "step", "הסבר", "שלבים"],
+    icon: ClipboardCopy,
+  },
+  {
+    id: "optimize",
+    token: "@optimize",
+    label: "שיפור שאילתה",
+    description: "מתמקד בביצועים, קריאות וניסוח טוב יותר",
+    group: "shortcuts",
+    kind: "one_shot",
+    aliases: ["optimize", "performance", "improve", "ביצועים", "שפר"],
+    icon: BarChart3,
+  },
+  {
+    id: "mistakes",
+    token: "@mistakes",
+    label: "איתור טעויות",
+    description: "מתמקד בשגיאות אפשריות ואיך לתקן אותן",
+    group: "shortcuts",
+    kind: "one_shot",
+    aliases: ["mistakes", "errors", "bugs", "טעויות", "שגיאות"],
+    icon: ThumbsDown,
+  },
+];
+
+const COMPOSER_COMMAND_BY_TOKEN = new Map(
+  COMPOSER_COMMANDS.map((command) => [command.token.toLowerCase(), command])
+);
 
 // Add these types
 type ChatSession = {
   _id: string;
   title: string;
   lastMessageTimestamp: number;
+  openaiState?: {
+    sessionId?: string | null;
+    lastResponseId?: string | null;
+    canonicalStateStrategy: "previous_response_id";
+    store?: boolean;
+    truncation?: string | null;
+    promptCacheKey?: string | null;
+    safetyIdentifier?: string | null;
+    updatedAt: string | Date;
+  };
 };
 
 type HomeworkChatContext = {
+  homeworkSetId?: string;
+  studentId?: string;
   homeworkTitle: string;
   backgroundStory?: string;
   tables: Array<{
@@ -90,9 +242,97 @@ type HomeworkChatContext = {
   studentTableData?: Record<string, any[]>;
 };
 
-const UserMessage = ({ text }: { text: string }) => {
-  return <div className={styles.userMessage}>{text}</div>;
+type CoinsConfigClientResponse = {
+  status?: "ON" | "OFF";
+  modules?: {
+    mainChat?: boolean;
+    homeworkHints?: boolean;
+    sqlPractice?: boolean;
+  };
+  costs?: {
+    mainChatMessage?: number;
+    sqlPracticeOpen?: number;
+    homeworkHintOpen?: number;
+  };
 };
+
+type InsufficientCoinsClientBody = {
+  error?: string;
+  message?: string;
+  balance?: number;
+  required?: number;
+};
+
+const UserMessage = ({
+  text,
+  conversationVariant = "default",
+}: {
+  text: string;
+  conversationVariant?: "default" | "professional";
+}) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [copyTooltipText, setCopyTooltipText] = useState("העתק הודעה");
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const copyMessageToClipboard = () => {
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        setCopyTooltipText("הועתק בהצלחה");
+        if (copyTimeoutRef.current) {
+          clearTimeout(copyTimeoutRef.current);
+        }
+        copyTimeoutRef.current = setTimeout(() => {
+          setCopyTooltipText("העתק הודעה");
+        }, 3000);
+      })
+      .catch((error) => {
+        console.error("Failed to copy user message:", error);
+      });
+  };
+
+  return (
+    <div className={`${styles.messageRow} ${styles.userMessageRow} ${conversationVariant === "professional" ? styles.messageRowProfessional : ""}`}>
+      <div className={`${styles.userMessage} ${conversationVariant === "professional" ? styles.userMessageProfessional : ""}`}>
+        <span className={styles.userMessageText}>{text}</span>
+        <div className={styles.userMessageActions}>
+          <button
+            type="button"
+            onClick={copyMessageToClipboard}
+            className={`${styles.feedbackButton} ${styles.copyButton} ${styles.userCopyButton}`}
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+            aria-label="העתק הודעת משתמש"
+            title="העתק הודעה"
+          >
+            <ClipboardCopy size={16} />
+            {showTooltip && (
+              <div className={styles.tooltip}>{copyTooltipText}</div>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const isRelationalAlgebraTutorResponse = (
+  value: TutorResponse | null | undefined
+): value is RelationalAlgebraTutorResponse =>
+  Boolean(
+    value &&
+      typeof value === "object" &&
+      "steps" in value &&
+      Array.isArray((value as RelationalAlgebraTutorResponse).steps)
+  );
+
 const AssistantMessage = ({
   text,
   feedback = null,
@@ -100,14 +340,17 @@ const AssistantMessage = ({
   tutorResponse,
   autoPlaySpeech,
   onPlayMessage,
+  conversationVariant = "default",
 }: {
   text: string;
   feedback: "like" | "dislike" | null;
   onFeedback?: (feedback: "like" | "dislike" | null) => void;
-  tutorResponse?: SqlTutorResponse | null;
+  tutorResponse?: TutorResponse | null;
   autoPlaySpeech?: boolean;
   onPlayMessage?: () => void;
+  conversationVariant?: "default" | "professional";
 }) => {
+  const isProfessional = conversationVariant === "professional";
   const [activeFeedback, setActiveFeedback] = useState(feedback);
   const [showTooltip, setShowTooltip] = useState(false);
   const [showPlayTooltip, setShowPlayTooltip] = useState(false);  // Separate state for play button tooltip
@@ -139,7 +382,7 @@ const AssistantMessage = ({
   };
 
   const handlePlayMessage = () => {
-    console.log('🔊 handlePlayMessage called', {
+    logDebug('🔊 handlePlayMessage called', {
       onPlayMessage: !!onPlayMessage,
       text: text?.substring(0, 50) + '...',
       autoPlaySpeech,
@@ -157,7 +400,6 @@ const AssistantMessage = ({
   };
 
   const copyToClipboard = (textToCopy) => {
-    console.log(1)
     navigator.clipboard.writeText(textToCopy)
       .then(() => {
         setCopied(true); // Show "Copied!" tooltip
@@ -166,7 +408,7 @@ const AssistantMessage = ({
         }
         tooltipTimeoutRef.current = setTimeout(() => {
           setCopied(false); // Hide tooltip after delay
-        }, 2000); 
+        }, 2000);
       })
       .catch((err) => console.error("Failed to copy text: ", err));
   };
@@ -204,11 +446,11 @@ const renderers = {
   ),
   code: ({ node, inline, className, children, ...props }) => {
     const code = Array.isArray(children) ? children.join("") : children;
-    
+
     if (inline) {
       return <code className={styles.inlineCode} {...props}>{children}</code>;
     }
-    
+
     if (className === "language-sql") {
       return (
         <div className={styles.sqlCodeContainer}>
@@ -235,7 +477,7 @@ const renderers = {
         </div>
       );
     }
-    
+
     // Generic code block
     return (
       <div className={styles.codeBlock}>
@@ -266,9 +508,59 @@ const renderers = {
       </div>
     );
   };
+
+  const renderRelationalAlgebraTutorResponse = (response: RelationalAlgebraTutorResponse) => {
+    const mistakes =
+      response.commonMistakes?.length > 0
+        ? response.commonMistakes.map((mistake) => `- ${mistake}`).join("\n")
+        : "—";
+    const examples =
+      response.examples?.length > 0
+        ? response.examples
+            .map(
+              (example) =>
+                `**${example.concept}**\nSQL: \`${example.sqlExample}\`\nRA: \`${example.relationalAlgebraExample}\`\n${example.note}`
+            )
+            .join("\n\n")
+        : "—";
+
+    return (
+      <div className={styles.tutorResponse}>
+        {renderTutorSection("סיכום", response.summary || "—")}
+        {renderTutorSection("ביטוי אלגברת יחסים", `\`\`\`\n${response.relationalAlgebraExpression}\n\`\`\``)}
+        <div className={styles.tutorSection}>
+          <h4 className={styles.tutorSectionTitle}>שלבים</h4>
+          <div className={styles.raSteps}>
+            {response.steps.map((step, index) => (
+              <div key={`${step.operator}-${index}`} className={styles.raStepCard}>
+                <div className={styles.raStepHeader}>
+                  <span className={styles.raStepIndex}>{index + 1}</span>
+                  <div>
+                    <div className={styles.raStepTitle}>{step.title}</div>
+                    <div className={styles.raStepMeta}>
+                      <span className={styles.raStepSymbol}>{step.symbol}</span>
+                      <span>{step.operator}</span>
+                    </div>
+                  </div>
+                </div>
+                <pre className={styles.raStepExpression}>{step.expression}</pre>
+                <Markdown components={renderers}>{step.explanation}</Markdown>
+                {step.sqlEquivalent ? (
+                  <div className={styles.raStepSqlEquivalent}>SQL: {step.sqlEquivalent}</div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+        {renderTutorSection("טעויות נפוצות", mistakes)}
+        {renderTutorSection("דוגמאות רלוונטיות", examples)}
+        {renderTutorSection("הערת תחום", response.scopeNote || "—")}
+      </div>
+    );
+  };
 const copyQueryToClipboard = (text) => {
   // Regular expression to find SQL queries within ```sql ... ``` blocks
-  const sqlRegex = /```sql\s*([\s\S]*?)\s*```/gi; 
+  const sqlRegex = /```sql\s*([\s\S]*?)\s*```/gi;
   let extractedQueries = [];
   let match;
 
@@ -285,7 +577,6 @@ const copyQueryToClipboard = (text) => {
   }
   navigator.clipboard.writeText(queriesToCopy)
       .then(() => {
-        console.log("SQL queries copied to clipboard:\n", queriesToCopy);
         setCopiedText("הועתק בהצלחה");
         setTimeout(() => {
           setCopiedText("העתק שאילתה");
@@ -296,16 +587,26 @@ const copyQueryToClipboard = (text) => {
       });
 };
   const copyTextSource = tutorResponse
-    ? `\`\`\`sql\n${tutorResponse.query}\n\`\`\``
+    ? isRelationalAlgebraTutorResponse(tutorResponse)
+      ? `\`\`\`\n${tutorResponse.relationalAlgebraExpression}\n\`\`\``
+      : `\`\`\`sql\n${tutorResponse.query}\n\`\`\``
     : text;
 
   return (
-    <div className={styles.assistantMessage}>
-      <div className={styles.messageContent}>
-        {tutorResponse ? renderTutorResponse(tutorResponse) : <Markdown components={renderers}>{compactText}</Markdown>}
-      </div>
-      <div className={styles.feedbackButtons}>
-        {!autoPlaySpeech && (
+    <div className={`${styles.messageRow} ${styles.assistantMessageRow} ${isProfessional ? styles.messageRowProfessional : ""}`}>
+      <div className={`${styles.assistantMessage} ${isProfessional ? styles.assistantMessageProfessional : ""}`}>
+        <div className={styles.messageContent}>
+          {tutorResponse ? (
+            isRelationalAlgebraTutorResponse(tutorResponse) ? (
+              renderRelationalAlgebraTutorResponse(tutorResponse)
+            ) : (
+              renderTutorResponse(tutorResponse)
+            )
+          ) : (
+            <Markdown components={renderers}>{compactText}</Markdown>
+          )}
+        </div>
+        <div className={styles.feedbackButtons}>
           <button
             onClick={handlePlayMessage}
             className={`${styles.feedbackButton} ${styles.playMessageButton}`}
@@ -323,47 +624,56 @@ const copyQueryToClipboard = (text) => {
               <div className={styles.tooltip}>{playTooltipText}</div>
             )}
           </button>
-        )}
-        <button
-          onClick={handleLike}
-          className={`${styles.feedbackButton} ${activeFeedback === "like" ? styles.positive : ""}`}
-          style={{
-            marginLeft: "-1%"
-          }}
-        >
-          {activeFeedback === "like" ? <ThumbsUp width="80%" height="80%" color="green" fill="green" /> : <ThumbsUp width="80%" height="80%" />}
-        </button>
-        <button
-          onClick={handleDislike}
-          className={`${styles.feedbackButton} ${activeFeedback === "dislike" ? styles.negative : ""}`}
-        >
-          {activeFeedback === "dislike" ? <ThumbsDown width="80%" height="80%" color="red" fill="red" /> : <ThumbsDown width="80%" height="80%" />}
-        </button>
-        <button
-          onClick={() => copyQueryToClipboard(copyTextSource)} // Keep this for general copying
-          className={`${styles.feedbackButton} ${styles.copyButton}`}
-          onMouseEnter={() => setShowTooltip(true)}
-          onMouseLeave={() => setShowTooltip(false)}
-          // style={{ opacity: extractedQuery ? 0.5 : 1 }} // Dim if SQL-specific copy exists
-        >
-          <ClipboardCopy />
-          {showTooltip && (
-            <div className={styles.tooltip}>{copiedText}</div>
-          )}
-        </button>
+          <button
+            onClick={handleLike}
+            className={`${styles.feedbackButton} ${activeFeedback === "like" ? styles.positive : ""}`}
+            style={{
+              marginLeft: "-1%"
+            }}
+          >
+            {activeFeedback === "like" ? <ThumbsUp width="80%" height="80%" color="green" fill="green" /> : <ThumbsUp width="80%" height="80%" />}
+          </button>
+          <button
+            onClick={handleDislike}
+            className={`${styles.feedbackButton} ${activeFeedback === "dislike" ? styles.negative : ""}`}
+          >
+            {activeFeedback === "dislike" ? <ThumbsDown width="80%" height="80%" color="red" fill="red" /> : <ThumbsDown width="80%" height="80%" />}
+          </button>
+          <button
+            onClick={() => copyQueryToClipboard(copyTextSource)}
+            className={`${styles.feedbackButton} ${styles.copyButton}`}
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+          >
+            <ClipboardCopy />
+            {showTooltip && (
+              <div className={styles.tooltip}>{copiedText}</div>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
 };
-const CodeMessage = ({ text }: { text: string }) => {
+const CodeMessage = ({
+  text,
+  conversationVariant = "default",
+}: {
+  text: string;
+  conversationVariant?: "default" | "professional";
+}) => {
+  const isProfessional = conversationVariant === "professional";
+
   return (
-    <div className={styles.codeMessage}>
-      {text.split("\n").map((line, index) => (
-        <div key={index}>
-          <span>{`${index + 1}. `}</span>
-          {line}
-        </div>
-      ))}
+    <div className={`${styles.messageRow} ${styles.assistantMessageRow} ${isProfessional ? styles.messageRowProfessional : ""}`}>
+      <div className={`${styles.codeMessage} ${isProfessional ? styles.codeMessageProfessional : ""}`}>
+        {text.split("\n").map((line, index) => (
+          <div key={index}>
+            <span>{`${index + 1}. `}</span>
+            {line}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
@@ -377,10 +687,11 @@ const Message = ({
   tutorResponse,
   autoPlaySpeech,
   onPlayMessage,
+  conversationVariant = "default",
 }: MessageProps & { autoPlaySpeech?: boolean; onPlayMessage?: () => void }) => {
   switch (role) {
     case "user":
-      return <UserMessage text={text} />;
+      return <UserMessage text={text} conversationVariant={conversationVariant} />;
     case "assistant":
       return (
         <AssistantMessage
@@ -390,10 +701,11 @@ const Message = ({
           tutorResponse={tutorResponse}
           autoPlaySpeech={autoPlaySpeech}
           onPlayMessage={onPlayMessage}
+          conversationVariant={conversationVariant}
         />
       );
     case "code":
-      return <CodeMessage text={text} />;
+      return <CodeMessage text={text} conversationVariant={conversationVariant} />;
     default:
       return null;
   }
@@ -411,6 +723,10 @@ type ChatProps = {
   minimalMode?: boolean;
   homeworkContext?: HomeworkChatContext | null;
   embeddedMode?: boolean;
+  enableRelationalAlgebraMode?: boolean;
+  enableComposerCommands?: boolean;
+  initialSubjectMode?: TutorSubjectMode;
+  conversationVariant?: "default" | "professional";
 };
 
 const Chat = ({
@@ -423,9 +739,19 @@ const Chat = ({
   minimalMode = false,
   homeworkContext = null,
   embeddedMode = false,
+  enableRelationalAlgebraMode = false,
+  enableComposerCommands = false,
+  initialSubjectMode = "sql",
+  conversationVariant = "default",
 }: ChatProps) => {
   void functionCallHandler;
+  const isProfessionalConversation = conversationVariant === "professional";
   const [userInput, setUserInput] = useState("");
+  const [pendingComposerDirectives, setPendingComposerDirectives] = useState<ComposerDirective[]>([]);
+  const [isComposerPaletteOpen, setIsComposerPaletteOpen] = useState(false);
+  const [composerQuery, setComposerQuery] = useState("");
+  const [highlightedComposerCommandIndex, setHighlightedComposerCommandIndex] = useState(0);
+  const [composerTokenContext, setComposerTokenContext] = useState<ComposerTokenContext | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputDisabled, setInputDisabled] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -433,60 +759,54 @@ const Chat = ({
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imageProcessing, setImageProcessing] = useState(false);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+  const [subjectMode, setSubjectMode] = useState<TutorSubjectMode>(initialSubjectMode);
   const [sessionId, setSessionId] = useState("");
   const [previousResponseId, setPreviousResponseId] = useState("");
   const sessionIdRef = useRef("");
   const createSessionPromiseRef = useRef<Promise<string> | null>(null);
+  const currentChatIdRef = useRef<string | null>(initialChatId);
+  const createChatPromiseRef = useRef<Promise<string | null> | null>(null);
   const [user, setUser] = useState(null);
   const [authResolved, setAuthResolved] = useState(false);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
-  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
-  const currentChatIdRef = useRef<string | null>(null);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(initialChatId);
   const [isDone, setIsDone] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  
+
   // Avatar interaction system - DISABLED
   const avatarRef = useRef(null);
   const [enableAvatarInteractions, setEnableAvatarInteractions] = useState(false); // DISABLED
   const [enableSQLGestureMapping, setEnableSQLGestureMapping] = useState(false); // DISABLED
   const [enableAnalytics, setEnableAnalytics] = useState(false); // DISABLED
-  // Added for query cost estimation feature
-  const [estimatedCost, setEstimatedCost] = useState(0);
+  const [mainChatMessageCost, setMainChatMessageCost] = useState(1);
   const [currentBalance, setCurrentBalance] = useState(0);
   const [balanceError, setBalanceError] = useState(false);
+  const [balanceErrorMessage, setBalanceErrorMessage] = useState<string | null>(null);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [isTokenBalanceVisible, setIsTokenBalanceVisible] = useState(false);
+  const [isSqlPracticeEnabled, setIsSqlPracticeEnabled] = useState(true);
+  const [practiceOpenCost, setPracticeOpenCost] = useState(0);
   const [loadingMessages, setLoadingMessages] = useState(false); // Add loading state
   const [sqlTutorModalOpen, setSqlTutorModalOpen] = useState(false);
   const [sqlTutorOperation, setSqlTutorOperation] = useState<"create" | "insert">("create");
   const [sqlTutorTableName, setSqlTutorTableName] = useState("");
   const [sqlTutorColumns, setSqlTutorColumns] = useState("");
-  // Add audio and speech state
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
-  const [autoPlaySpeech, setAutoPlaySpeech] = useState(false);
+  const autoPlaySpeech = false;
   // Environment variables - these are available at build time
   const enableAvatar = process.env.NEXT_PUBLIC_AVATAR_ENABLED === '1' || process.env.NODE_ENV === 'development';
-  const enableVoice = process.env.NEXT_PUBLIC_VOICE_ENABLED === '1' || process.env.NODE_ENV === 'development';
-  
+  const enableVoice = isVoiceFeatureEnabled();
+
   // Add avatar mode state with localStorage persistence
-  const [avatarMode, setAvatarMode] = useState<'avatar' | 'voice'>('avatar');
+  const [avatarMode, setAvatarMode] = useState<AvatarMode>('avatar3d');
 
   // Add hydration state to prevent layout shift
   const [isHydrated, setIsHydrated] = useState(false);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
+  const composerPaletteRef = useRef<HTMLDivElement | null>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [isThinkingModeEnabled, setIsThinkingModeEnabled] = useState(true);
-  
-  // Debug logging for production
-  useEffect(() => {
-    console.log('🔧 Avatar Debug Info:', {
-      enableAvatar,
-      enableVoice,
-      NEXT_PUBLIC_AVATAR_ENABLED: process.env.NEXT_PUBLIC_AVATAR_ENABLED,
-      NODE_ENV: process.env.NODE_ENV,
-      isHydrated
-    });
-  }, [enableAvatar, enableVoice, isHydrated]);
 
   useEffect(() => {
     if (!isActionMenuOpen) {
@@ -504,7 +824,7 @@ const Chat = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isActionMenuOpen]);
-  
+
   // Add display mode state for avatar/logo toggle
   const [displayMode, setDisplayMode] = useState<'avatar' | 'logo'>('avatar');
 
@@ -522,11 +842,15 @@ const Chat = ({
       if (savedDisplayMode === 'logo' || savedDisplayMode === 'avatar') {
         setDisplayMode(savedDisplayMode);
       }
-      
+
       // Load saved avatar mode
       const savedAvatarMode = localStorage.getItem('avatarMode');
-      if (savedAvatarMode === 'voice' || savedAvatarMode === 'avatar') {
+      if (savedAvatarMode === 'voiceCircle' || savedAvatarMode === 'avatar3d' || savedAvatarMode === 'none') {
         setAvatarMode(savedAvatarMode);
+      } else if (savedAvatarMode === 'voice') {
+        setAvatarMode('voiceCircle');
+      } else if (savedAvatarMode === 'avatar') {
+        setAvatarMode('avatar3d');
       }
 
       const savedThinkingMode = localStorage.getItem('thinkingModeEnabled');
@@ -551,6 +875,16 @@ const Chat = ({
     }
   }, [isHydrated, isThinkingModeEnabled]);
 
+  useEffect(() => {
+    if (isThinkingModeEnabled) {
+      return;
+    }
+    setReasoningLogs([]);
+    setReasoningDraft("");
+    reasoningDraftRef.current = "";
+    setIsReasoningCollapsed(false);
+  }, [isThinkingModeEnabled]);
+
   // Add sidebar visibility state
   // Check if we're on mobile to default sidebar to closed
   const [sidebarVisible, setSidebarVisible] = useState(() => {
@@ -560,12 +894,10 @@ const Chat = ({
     }
     return true; // Default to open during SSR
   });
-  // Add speech timeout for debouncing
-  // Add state to track when assistant message is complete and ready for speech
-  const [isAssistantMessageComplete, setIsAssistantMessageComplete] = useState(false);
-  const [shouldSpeak, setShouldSpeak] = useState(false);
-  const [lastSpokenMessageId, setLastSpokenMessageId] = useState<string>("");
-  const [currentAssistantMessageId, setCurrentAssistantMessageId] = useState<string>("");
+  const [speechController, speechDispatch] = useReducer(
+    speechControllerReducer,
+    initialSpeechControllerState
+  );
 
   const getStoredUser = useCallback(() => {
     if (typeof window === "undefined") return null;
@@ -579,30 +911,24 @@ const Chat = ({
     }
   }, []);
 
-  useEffect(() => {
-    currentChatIdRef.current = currentChatId;
-  }, [currentChatId]);
-
-  // Add state for progressive speech
-  const [streamingText, setStreamingText] = useState<string>("");
-  const [hasStartedSpeaking, setHasStartedSpeaking] = useState(false);
+  const [currentAssistantMessageId, setCurrentAssistantMessageId] = useState<string>("");
   const streamingTextRef = useRef<string>("");
   const assistantPersistTextRef = useRef<string>("");
-  const assistantPersistSessionIdRef = useRef<string | null>(null);
-  const assistantPersistSavedRef = useRef(false);
   const progressiveSpeechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const speechDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const speechControllerRef = useRef(initialSpeechControllerState);
+  const lastSpeechPlaybackKeyRef = useRef<string>("");
+  const activeTutorSubjectModeRef = useRef<TutorSubjectMode>(subjectMode);
   const [reasoningLogs, setReasoningLogs] = useState<string[]>([]);
   const [reasoningDraft, setReasoningDraft] = useState("");
   const [isReasoningCollapsed, setIsReasoningCollapsed] = useState(false);
   const reasoningDraftRef = useRef("");
   const tutorRawResponseRef = useRef("");
-  
-  // Add state for manual speech playback
-  const [isManualSpeech, setIsManualSpeech] = useState(false);
 
   // State for user typing detection
   const [isUserTyping, setIsUserTyping] = useState(false);
   const userTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const balanceErrorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Exercise-related state
   const [currentExercise, setCurrentExercise] = useState(null);
@@ -617,6 +943,280 @@ const Chat = ({
   // Practice-related state
   const [showPracticeModal, setShowPracticeModal] = useState(false);
   const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
+  const [openingPractice, setOpeningPractice] = useState(false);
+
+  useEffect(() => {
+    activeTutorSubjectModeRef.current = subjectMode;
+  }, [subjectMode]);
+
+  const persistentComposerChips = useMemo(
+    () =>
+      [
+        isThinkingModeEnabled
+          ? {
+              key: "thinking",
+              label: "מצב חשיבה פעיל",
+              onRemove: () => setIsThinkingModeEnabled(false),
+            }
+          : null,
+        enableRelationalAlgebraMode
+          ? {
+              key: subjectMode,
+              label: subjectMode === "relational_algebra" ? "מצב אלגברת יחסים" : "מצב SQL",
+              onRemove:
+                subjectMode === "relational_algebra" ? () => setSubjectMode("sql") : undefined,
+            }
+          : null,
+      ].filter(Boolean) as Array<{
+        key: string;
+        label: string;
+        onRemove?: () => void;
+      }>,
+    [enableRelationalAlgebraMode, isThinkingModeEnabled, subjectMode]
+  );
+
+  const pendingComposerCommandDefinitions = useMemo(
+    () =>
+      pendingComposerDirectives
+        .map((directive) =>
+          COMPOSER_COMMANDS.find((command) => command.id === directive && command.kind === "one_shot")
+        )
+        .filter(Boolean) as ComposerCommandDefinition[],
+    [pendingComposerDirectives]
+  );
+
+  const filteredComposerCommands = useMemo(() => {
+    if (!enableComposerCommands) {
+      return [];
+    }
+
+    const normalizedQuery = composerQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return COMPOSER_COMMANDS;
+    }
+
+    return COMPOSER_COMMANDS.filter((command) => {
+      const haystack = [command.token.slice(1), command.label, ...command.aliases]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalizedQuery);
+    });
+  }, [composerQuery, enableComposerCommands]);
+
+  const groupedComposerCommands = useMemo(
+    () =>
+      [
+        {
+          key: "modes" as const,
+          label: "Modes",
+          commands: filteredComposerCommands.filter((command) => command.group === "modes"),
+        },
+        {
+          key: "shortcuts" as const,
+          label: "Shortcuts",
+          commands: filteredComposerCommands.filter((command) => command.group === "shortcuts"),
+        },
+      ].filter((group) => group.commands.length > 0),
+    [filteredComposerCommands]
+  );
+
+  const syncComposerTextareaHeight = useCallback(() => {
+    if (!composerInputRef.current) {
+      return;
+    }
+
+    composerInputRef.current.style.height = "auto";
+    composerInputRef.current.style.height = `${composerInputRef.current.scrollHeight}px`;
+  }, []);
+
+  const resolveComposerTokenContext = useCallback(
+    (value: string, caretPosition: number | null | undefined): ComposerTokenContext | null => {
+      if (!enableComposerCommands || typeof caretPosition !== "number") {
+        return null;
+      }
+
+      let tokenStart = caretPosition;
+      while (tokenStart > 0 && !/\s/.test(value[tokenStart - 1])) {
+        tokenStart -= 1;
+      }
+
+      let tokenEnd = caretPosition;
+      while (tokenEnd < value.length && !/\s/.test(value[tokenEnd])) {
+        tokenEnd += 1;
+      }
+
+      const fullToken = value.slice(tokenStart, tokenEnd);
+      if (!fullToken.startsWith("@")) {
+        return null;
+      }
+
+      return {
+        query: value.slice(tokenStart + 1, caretPosition).toLowerCase(),
+        start: tokenStart,
+        end: tokenEnd,
+      };
+    },
+    [enableComposerCommands]
+  );
+
+  const syncComposerPalette = useCallback(
+    (value: string, caretPosition: number | null | undefined) => {
+      const nextContext = resolveComposerTokenContext(value, caretPosition);
+      setComposerTokenContext(nextContext);
+      setComposerQuery(nextContext?.query || "");
+      setIsComposerPaletteOpen(Boolean(nextContext));
+      setHighlightedComposerCommandIndex(0);
+    },
+    [resolveComposerTokenContext]
+  );
+
+  const focusComposerInput = useCallback(
+    (nextValue?: string, caretPosition?: number) => {
+      window.requestAnimationFrame(() => {
+        if (!composerInputRef.current) {
+          return;
+        }
+
+        composerInputRef.current.focus();
+        if (typeof caretPosition === "number") {
+          composerInputRef.current.setSelectionRange(caretPosition, caretPosition);
+        }
+        syncComposerTextareaHeight();
+        if (typeof nextValue === "string") {
+          syncComposerPalette(nextValue, caretPosition ?? composerInputRef.current.selectionStart);
+        }
+      });
+    },
+    [syncComposerPalette, syncComposerTextareaHeight]
+  );
+
+  const closeComposerPalette = useCallback(() => {
+    setIsComposerPaletteOpen(false);
+    setComposerQuery("");
+    setComposerTokenContext(null);
+    setHighlightedComposerCommandIndex(0);
+  }, []);
+
+  const applyPersistentComposerCommand = useCallback(
+    (commandId: ComposerCommandId) => {
+      if (commandId === "thinking") {
+        setIsThinkingModeEnabled(true);
+        return;
+      }
+
+      if (commandId === "algebra") {
+        setSubjectMode("relational_algebra");
+        return;
+      }
+
+      if (commandId === "sql") {
+        setSubjectMode("sql");
+      }
+    },
+    []
+  );
+
+  const removeComposerTokenFromInput = useCallback(
+    (value: string, tokenContext: ComposerTokenContext) => {
+      const before = value.slice(0, tokenContext.start);
+      const after = value.slice(tokenContext.end);
+      const shouldCollapseSingleSpace =
+        before.endsWith(" ") && after.startsWith(" ") && !before.endsWith("\n") && !after.startsWith("\n");
+      const normalizedAfter = shouldCollapseSingleSpace ? after.slice(1) : after;
+      return {
+        nextValue: `${before}${normalizedAfter}`,
+        nextCaretPosition: before.length,
+      };
+    },
+    []
+  );
+
+  const insertComposerCommand = useCallback(
+    (command: ComposerCommandDefinition) => {
+      if (!composerTokenContext) {
+        return;
+      }
+
+      const { nextValue, nextCaretPosition } = removeComposerTokenFromInput(userInput, composerTokenContext);
+
+      if (command.kind === "persistent") {
+        applyPersistentComposerCommand(command.id);
+      } else {
+        setPendingComposerDirectives((previous) =>
+          previous.includes(command.id as ComposerDirective)
+            ? previous
+            : [...previous, command.id as ComposerDirective]
+        );
+      }
+
+      setUserInput(nextValue);
+      focusComposerInput(nextValue, nextCaretPosition);
+    },
+    [
+      applyPersistentComposerCommand,
+      composerTokenContext,
+      focusComposerInput,
+      removeComposerTokenFromInput,
+      userInput,
+    ]
+  );
+
+  useEffect(() => {
+    if (!isComposerPaletteOpen) {
+      return;
+    }
+
+    const handlePointerDownOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (composerPaletteRef.current?.contains(target) || composerInputRef.current?.contains(target)) {
+        return;
+      }
+      closeComposerPalette();
+    };
+
+    document.addEventListener("mousedown", handlePointerDownOutside);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDownOutside);
+    };
+  }, [closeComposerPalette, isComposerPaletteOpen]);
+
+  useEffect(() => {
+    if (highlightedComposerCommandIndex < filteredComposerCommands.length) {
+      return;
+    }
+    setHighlightedComposerCommandIndex(0);
+  }, [filteredComposerCommands.length, highlightedComposerCommandIndex]);
+
+  const activeAvatarMode = useMemo<AvatarMode>(() => {
+    if (!enableAvatar || displayMode !== 'avatar') {
+      return 'none';
+    }
+    return avatarMode;
+  }, [avatarMode, displayMode, enableAvatar]);
+
+  const displayUserName = useMemo(() => {
+    if (typeof currentUser !== "string") {
+      return "משתמש";
+    }
+
+    const trimmedValue = currentUser.trim();
+    if (!trimmedValue) {
+      return "משתמש";
+    }
+
+    const [namePart] = trimmedValue.split("@");
+    return namePart || trimmedValue;
+  }, [currentUser]);
+
+  const userInitial = displayUserName.charAt(0).toUpperCase();
+
+  useEffect(() => {
+    speechControllerRef.current = speechController;
+  }, [speechController]);
+
+  useEffect(() => {
+    speechDispatch({ type: 'SET_AVATAR_MODE', mode: activeAvatarMode });
+  }, [activeAvatarMode]);
 
   const formattedHomeworkContext = useMemo(() => {
     if (!homeworkContext) return null;
@@ -668,45 +1268,23 @@ const Chat = ({
     return parts.join("\n\n");
   }, [homeworkContext]);
 
-  // Memoized avatar state calculation to prevent multiple renders
   const avatarState = useMemo(() => {
-    // Priority order: thinking > listening > speaking > userWriting > idle
-    const currentState = isThinking ? 'thinking' 
-                        : isRecording ? 'listening' 
-                        : (enableAvatar && enableVoice && shouldSpeak && isAssistantMessageComplete) ? 'speaking'
+    const currentState = isThinking ? 'thinking'
+                        : isRecording ? 'listening'
+                        : (enableVoice && activeAvatarMode !== 'none' && (speechController.status === 'speaking' || speechController.status === 'preparing')) ? 'speaking'
                         : isUserTyping ? 'userWriting'
                         : 'idle';
-    console.log('🎭 Avatar state calculation:', {
-      isThinking,
-      isRecording,
-      shouldSpeak,
-      autoPlaySpeech,
-      isAssistantMessageComplete,
-      isUserTyping,
-      calculatedState: currentState,
-      textLength: lastAssistantMessage?.length || 0
-    });
     return currentState;
   }, [
+    activeAvatarMode,
+    enableVoice,
     isThinking,
     isRecording,
-    shouldSpeak,
-    autoPlaySpeech,
-    isAssistantMessageComplete,
     isUserTyping,
-    lastAssistantMessage?.length,
-    enableAvatar,
-    enableVoice
+    speechController.status,
   ]);
 
   const router = useRouter();
-
-  // Added for query cost estimation: Calculates cost based on input length using GPT-4 pricing
-  const calculateCost = (text: string) => { 
-  // Rough estimate: 1 token ≈ 4 characters
-    const estimatedTokens = Math.ceil(text.length / 4);
-    return estimatedTokens
-  };
 
     // Function to toggle the modal
     const toggleModal = () => {
@@ -753,40 +1331,165 @@ const Chat = ({
     ].join("\n");
   };
 
+  const createSpeechUtterance = useCallback(
+    (
+      utteranceId: string,
+      utteranceText: string,
+      stage: SpeechUtterance['stage'],
+      overrides: Partial<SpeechIntent> = {},
+      manual = false
+    ): SpeechUtterance => {
+      const intent = inferSpeechIntent(utteranceText, overrides);
+      const gesturePlan = buildGesturePlan(utteranceText, intent, stage);
+
+      return {
+        id: utteranceId,
+        text: utteranceText,
+        intent,
+        stage,
+        manual,
+        gesturePlan,
+      };
+    },
+    []
+  );
+
+  const enqueueUtterance = useCallback((utterance: SpeechUtterance) => {
+    speechDispatch({ type: 'ENQUEUE_UTTERANCE', utterance });
+  }, []);
+
+  const setGesturePlanForUtterance = useCallback((utteranceId: string, gesturePlan: GesturePlan) => {
+    speechDispatch({ type: 'SET_GESTURE_PLAN', utteranceId, gesturePlan });
+  }, []);
+
+  const cancelCurrent = useCallback((reason: 'user_input' | 'manual_cancel' | 'mode_switch' | 'flush' | 'error') => {
+    enhancedTTS.stop(140);
+    speechDispatch({ type: 'CANCEL_CURRENT', reason });
+  }, []);
+
+  const flushAll = useCallback((reason: 'user_input' | 'manual_cancel' | 'mode_switch' | 'flush' | 'error' = 'flush') => {
+    enhancedTTS.stop(140);
+    speechDispatch({ type: 'FLUSH_ALL', reason });
+    lastSpeechPlaybackKeyRef.current = '';
+  }, []);
+
+  useEffect(() => {
+    if (activeAvatarMode === 'none') {
+      flushAll('mode_switch');
+    }
+  }, [activeAvatarMode, flushAll]);
+
+  const buildTTSOptionsForUtterance = useCallback(
+    (utterance: SpeechUtterance): TTSOptions => ({
+      voice: 'onyx',
+      volume: 0.9,
+      useOpenAI: true,
+      characterStyle: 'university_ta',
+      enhanceProsody: true,
+      humanize: true,
+      naturalPauses: true,
+      progressiveMode: utterance.intent.source === 'stream',
+      speechIntent: utterance.intent,
+    }),
+    []
+  );
+
   // Handle audio transcription
   const handleAudioTranscription = (transcription: string) => {
     setUserInput(transcription);
-    setEstimatedCost(calculateCost(transcription));
   };
 
   // Handle user typing detection
   const handleUserTyping = () => {
-    console.log('✍️ User is typing...');
-    
-    // Set typing state to true
+    if ((speechControllerRef.current.status === 'speaking' || speechControllerRef.current.status === 'preparing') && enableVoice) {
+      flushAll('user_input');
+    }
+
     setIsUserTyping(true);
-    
-    // Clear existing timeout
+
     if (userTypingTimeoutRef.current) {
       clearTimeout(userTypingTimeoutRef.current);
     }
-    
-    // Set timeout to detect when user stops typing (after 2 seconds of inactivity)
+
     userTypingTimeoutRef.current = setTimeout(() => {
-      console.log('✋ User stopped typing');
       setIsUserTyping(false);
     }, 2000);
   };
 
   // Exercise-related functions
   const startExercise = async () => {
+    if (!isSqlPracticeEnabled || openingPractice) {
+      return;
+    }
+
     // Show disclaimer modal first
     setShowDisclaimerModal(true);
   };
 
-  const handleDisclaimerConfirm = () => {
+  const handleDisclaimerConfirm = async () => {
+    const storedUser = getStoredUser();
+    const userId = storedUser?.id ?? storedUser?.email ?? null;
+
+    if (!userId) {
+      showBalanceErrorNotice("לא ניתן לפתוח את תרגול ה-SQL כרגע.");
+      setShowDisclaimerModal(false);
+      return;
+    }
+
+    setOpeningPractice(true);
     setShowDisclaimerModal(false);
-    setShowPracticeModal(true);
+    clearBalanceErrorNotice();
+
+    try {
+      const response = await fetch("/api/practice/coins", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": String(userId),
+        },
+        body: JSON.stringify({
+          userId,
+          entryPoint: "chat",
+        }),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (response.status === 402) {
+        const balance = Number(payload?.balance);
+        const required = Number(payload?.required);
+
+        if (Number.isFinite(balance)) {
+          setCurrentBalanceFromServer(balance);
+        }
+
+        showBalanceErrorNotice(
+          Number.isFinite(balance) && Number.isFinite(required)
+            ? `אין מספיק מטבעות. יתרה: ${balance}, נדרש: ${required}.`
+            : "אין מספיק מטבעות"
+        );
+        return;
+      }
+
+      if (!response.ok) {
+        showBalanceErrorNotice(payload?.error || "לא ניתן לפתוח את תרגול ה-SQL כרגע.");
+        return;
+      }
+
+      const nextBalance = normalizeBalanceValue(payload);
+      if (nextBalance !== null) {
+        setCurrentBalanceFromServer(nextBalance);
+      } else if (storedUser?.email) {
+        await refreshBalanceFromServer(storedUser.email);
+      }
+
+      setShowPracticeModal(true);
+    } catch (error) {
+      console.error("Failed to open SQL practice:", error);
+      showBalanceErrorNotice("לא ניתן לפתוח את תרגול ה-SQL כרגע.");
+    } finally {
+      setOpeningPractice(false);
+    }
   };
 
   const handleDisclaimerCancel = () => {
@@ -815,7 +1518,7 @@ const Chat = ({
       });
 
       const result = await response.json();
-      
+
       if (result.correct) {
         // Success - show points animation and close modal
         setUserPoints(result.totalPoints);
@@ -826,10 +1529,10 @@ const Chat = ({
         setExerciseAnswer("");
         setExerciseAttempts(0);
         setShowSolutionButton(false);
-        
+
         // Hide animation after 3 seconds
         setTimeout(() => setPointsAnimation(null), 3000);
-        
+
         // Show success message in chat without triggering TTS
         appendMessage("assistant", `✅ ${result.feedback}`);
       } else {
@@ -851,14 +1554,14 @@ const Chat = ({
     try {
       const response = await fetch(`/api/exercises/${currentExercise.id}/solution`);
       const result = await response.json();
-      
+
       // Show solution in modal, then close modal and add to chat
       setIsExerciseMode(false);
       setCurrentExercise(null);
       setShowSolutionButton(false);
       setShowExerciseModal(false);
       setExerciseAnswer("");
-      
+
       const solutionMessage = `💡 **פתרון לתרגול**\n\n\`\`\`sql\n${result.solution}\n\`\`\`\n\nתוכל לנסות תרגול חדש!`;
       appendMessage("assistant", solutionMessage);
     } catch (error) {
@@ -883,6 +1586,97 @@ const Chat = ({
 
     loadUserPoints();
   }, [getStoredUser]);
+
+  const setCurrentBalanceFromServer = useCallback((value: number) => {
+    const normalized = Number.isFinite(value) ? value : 0;
+    setCurrentBalance(normalized);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("currentBalance", String(normalized));
+    }
+  }, []);
+
+  const clearBalanceErrorNotice = useCallback(() => {
+    setBalanceError(false);
+    setBalanceErrorMessage(null);
+    if (balanceErrorTimeoutRef.current) {
+      clearTimeout(balanceErrorTimeoutRef.current);
+      balanceErrorTimeoutRef.current = null;
+    }
+  }, []);
+
+  const showBalanceErrorNotice = useCallback((message: string) => {
+    setBalanceError(true);
+    setBalanceErrorMessage(message);
+    if (balanceErrorTimeoutRef.current) {
+      clearTimeout(balanceErrorTimeoutRef.current);
+    }
+    balanceErrorTimeoutRef.current = setTimeout(() => {
+      setBalanceError(false);
+      setBalanceErrorMessage(null);
+      balanceErrorTimeoutRef.current = null;
+    }, 4000);
+  }, []);
+
+  const normalizeBalanceValue = useCallback((payload: any): number | null => {
+    if (Array.isArray(payload)) {
+      const coins = Number(payload[0]?.coins);
+      return Number.isFinite(coins) ? coins : 0;
+    }
+    if (payload && typeof payload === "object") {
+      const candidates = [payload.coins, payload.balance, payload.currentBalance];
+      for (const candidate of candidates) {
+        const value = Number(candidate);
+        if (Number.isFinite(value)) {
+          return value;
+        }
+      }
+    }
+    return null;
+  }, []);
+
+  const refreshCoinsStatus = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/users/coins?status=1`, { cache: "no-store" });
+      if (!response.ok) return null;
+      const data: CoinsConfigClientResponse = await response.json();
+      const mainChatEnabled = data?.modules?.mainChat === true || data?.status === "ON";
+      const configuredMainChatCost = Number(data?.costs?.mainChatMessage);
+
+      setIsTokenBalanceVisible(mainChatEnabled);
+      setIsSqlPracticeEnabled(true);
+      setMainChatMessageCost(
+        Number.isFinite(configuredMainChatCost) && configuredMainChatCost >= 0
+          ? configuredMainChatCost
+          : 1
+      );
+      setPracticeOpenCost(0);
+
+      return mainChatEnabled;
+    } catch (error) {
+      console.error("Failed to refresh coins status:", error);
+      return null;
+    }
+  }, []);
+
+  const refreshBalanceFromServer = useCallback(
+    async (emailOverride?: string | null) => {
+      const email = emailOverride ?? getStoredUser()?.email ?? null;
+      if (!email) return;
+
+      try {
+        const response = await fetch(`${UPDATE_BALANCE}?email=${encodeURIComponent(email)}`);
+        if (!response.ok) return;
+        const data = await response.json();
+        const nextBalance = normalizeBalanceValue(data);
+        if (nextBalance !== null) {
+          setCurrentBalanceFromServer(nextBalance);
+        }
+      } catch (error) {
+        console.error("Failed to refresh balance:", error);
+      }
+    },
+    [getStoredUser, normalizeBalanceValue, setCurrentBalanceFromServer]
+  );
 
   // Toggle sidebar visibility
   const toggleSidebar = () => {
@@ -1107,13 +1901,17 @@ const Chat = ({
       if (!userId || !sessionId) return;
 
       // Check if analysis already exists for this session
-      const checkResponse = await fetch(`/api/conversation-summary/student/${userId}?limit=50`);
+      const checkResponse = await fetch(`/api/conversation-summary/student/${userId}?limit=50`, {
+        headers: {
+          'x-user-id': userId,
+        },
+      });
       const checkData = await checkResponse.json();
-      
+
       if (checkData.success) {
         const existingAnalysis = checkData.data.summaries.find(summary => summary.sessionId === sessionId);
         if (existingAnalysis) {
-          console.log('Conversation analysis already exists for session:', sessionId);
+          logDebug('Conversation analysis already exists for session:', sessionId);
           return;
         }
       }
@@ -1131,7 +1929,7 @@ const Chat = ({
       });
 
       if (response.ok) {
-        console.log('✅ Conversation analysis triggered for session:', sessionId);
+        logDebug('✅ Conversation analysis triggered for session:', sessionId);
       } else {
         console.error('❌ Failed to trigger conversation analysis:', response.statusText);
       }
@@ -1150,10 +1948,39 @@ const Chat = ({
     }
     setCurrentBalance(Number(localStorage.getItem("currentBalance")) || 0);
 
-    fetch(`/api/users/coins?status=1`).then(response => response.json())
-    .then(data => setIsTokenBalanceVisible(data["status"] === "ON"))
+    (async () => {
+      const statusIsOn = await refreshCoinsStatus();
+      if (statusIsOn && storedUser?.email) {
+        await refreshBalanceFromServer(storedUser.email);
+      }
+    })();
+  }, [getStoredUser, refreshBalanceFromServer, refreshCoinsStatus]);
 
-  }, [getStoredUser]);
+  useEffect(() => {
+    if (!isTokenBalanceVisible) {
+      return;
+    }
+
+    const activeEmail = user?.email ?? getStoredUser()?.email;
+    if (!activeEmail) {
+      return;
+    }
+
+    const pollCoinsState = async () => {
+      const statusIsOn = await refreshCoinsStatus();
+      if (statusIsOn) {
+        await refreshBalanceFromServer(activeEmail);
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void pollCoinsState();
+    }, 10000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [getStoredUser, isTokenBalanceVisible, refreshBalanceFromServer, refreshCoinsStatus, user?.email]);
 
   // Add this useEffect to load chat sessions when the component mounts
 useEffect(() => {
@@ -1167,7 +1994,7 @@ useEffect(() => {
       },
     }).then(response => response.json()).then(sessions => {
       setChatSessions(sessions);
-    })    
+    })
   };
 
   loadChatSessions();
@@ -1184,70 +2011,7 @@ useEffect(() => {
       },
     }).then(response => response.json()).then(sessions => {
       setChatSessions(sessions);
-    })    
-  };
-
-  const saveMessageToChat = async (
-    chatId: string,
-    role: "user" | "assistant",
-    message: string,
-    userEmail?: string
-  ) => {
-    if (!chatId || !message.trim()) return;
-
-    const response = await fetch(`/api/chat/sessions/${chatId}/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        chatId,
-        userId: userEmail,
-        message,
-        role,
-      }),
-    });
-
-    const data = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new Error(data?.error || `Failed to save ${role} message`);
-    }
-
-    return data;
-  };
-
-  const ensurePersistedChatSession = async (userEmail: string, firstMessageText: string) => {
-    if (currentChatIdRef.current) {
-      return currentChatIdRef.current;
-    }
-
-    const previousSessionId = localStorage.getItem('previousSessionId');
-    if (previousSessionId) {
-      triggerConversationAnalysis(previousSessionId);
-    }
-
-    const today = new Date().toISOString().slice(0, 10);
-    const response = await fetch(`/api/chat/sessions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        title: `${firstMessageText.substring(0, 30)} (${today})`,
-        user: userEmail,
-      }),
-    });
-
-    const newChat = await response.json().catch(() => null);
-    if (!response.ok || !newChat?._id) {
-      throw new Error(newChat?.error || 'Failed to create chat session');
-    }
-
-    currentChatIdRef.current = newChat._id;
-    setCurrentChatId(newChat._id);
-    localStorage.setItem('previousSessionId', newChat._id);
-    refreshChatSessions();
-    return newChat._id as string;
+    })
   };
 
   // Handle window resize for responsive sidebar behavior
@@ -1263,28 +2027,26 @@ useEffect(() => {
 
     // Add resize listener
     window.addEventListener('resize', handleResize);
-    
+
     // Cleanup
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-const updateUserBalance = async (value) => {
-  if (!user?.email) return;
-  await fetch(UPDATE_BALANCE, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      email: user.email,
-      currentBalance: value
-    })
-  });
-  }
+  useEffect(() => {
+    return () => {
+      if (balanceErrorTimeoutRef.current) {
+        clearTimeout(balanceErrorTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     sessionIdRef.current = sessionId;
   }, [sessionId]);
+
+  useEffect(() => {
+    currentChatIdRef.current = currentChatId;
+  }, [currentChatId]);
 
   useEffect(() => {
     const storedUser = getStoredUser();
@@ -1338,6 +2100,82 @@ const updateUserBalance = async (value) => {
     return promise;
   }, []);
 
+  const persistChatMessage = useCallback(
+    async (
+      chatId: string,
+      payload: {
+        userId?: string;
+        message: string;
+        role: "user" | "assistant";
+        citations?: ResponseCitation[];
+        metadata?: ResponseTurnMetadata | null;
+        structuredContent?: Record<string, unknown> | null;
+      }
+    ) => {
+      await fetch(`/api/chat/sessions/${chatId}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          chatId,
+          userId: payload.userId,
+          message: payload.message,
+          role: payload.role,
+          citations: payload.citations,
+          metadata: payload.metadata,
+          structuredContent: payload.structuredContent,
+        }),
+      });
+    },
+    []
+  );
+
+  const ensureChatThread = async (firstUserText: string, userEmail?: string | null) => {
+    if (!userEmail) {
+      return null;
+    }
+
+    if (currentChatIdRef.current) {
+      return currentChatIdRef.current;
+    }
+
+    if (createChatPromiseRef.current) {
+      return createChatPromiseRef.current;
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const promise = (async () => {
+      const response = await fetch(`/api/chat/sessions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: `${firstUserText.substring(0, 30)} (${today})`,
+          user: userEmail,
+          openaiSessionId: sessionIdRef.current || undefined,
+        }),
+      });
+      const newChat = await response.json();
+      if (!response.ok) {
+        throw new Error(newChat?.error || "Failed to create chat session");
+      }
+
+      const nextChatId = newChat._id as string;
+      currentChatIdRef.current = nextChatId;
+      setCurrentChatId(nextChatId);
+      localStorage.setItem("previousSessionId", nextChatId);
+      refreshChatSessions();
+      return nextChatId;
+    })().finally(() => {
+      createChatPromiseRef.current = null;
+    });
+
+    createChatPromiseRef.current = promise;
+    return promise;
+  };
+
   useEffect(() => {
     createSession().catch((error) => {
       console.error("Failed to create responses session:", error);
@@ -1348,10 +2186,18 @@ const updateUserBalance = async (value) => {
   // Cleanup speech and typing detection on unmount
   useEffect(() => {
     return () => {
-      // AVATAR DISABLED: enhancedTTS.stop();
-      
+      enhancedTTS.stop();
+
       if (userTypingTimeoutRef.current) {
         clearTimeout(userTypingTimeoutRef.current);
+      }
+
+      if (progressiveSpeechTimeoutRef.current) {
+        clearTimeout(progressiveSpeechTimeoutRef.current);
+      }
+
+      if (speechDebounceTimeoutRef.current) {
+        clearTimeout(speechDebounceTimeoutRef.current);
       }
 
       // Trigger conversation analysis for current session when component unmounts
@@ -1361,67 +2207,141 @@ const updateUserBalance = async (value) => {
     };
   }, [currentChatId, triggerConversationAnalysis]);
 
-  // Modified useEffect for progressive speech
   useEffect(() => {
-    const messageId = currentAssistantMessageId || (lastAssistantMessage ? lastAssistantMessage.substring(0,50) : "");
-    
-    console.log('👀 Watching lastAssistantMessage change:', {
-      isDone,
-      autoPlaySpeech,
-      lastAssistantMessageLength: lastAssistantMessage?.length || 0,
-      lastAssistantMessage: lastAssistantMessage?.substring(0, 50) + '...',
-      shouldSpeak,
-      hasStartedSpeaking,
-      streamingTextLength: streamingText?.length || 0,
-      isManualSpeech
-    });
-
-    // Handle manual speech playback (when clicking play button)
-    if (isManualSpeech && shouldSpeak && lastAssistantMessage) {
-      console.log('🎤 MANUAL: Triggering manual speech playback');
-      return; // Let the avatar component handle the speech
+    if (!enableVoice || !autoPlaySpeech || activeAvatarMode === 'none') {
+      return;
     }
 
-    // Progressive speech: Start speaking earlier and also on completion
-    const canStartByLength = lastAssistantMessage && lastAssistantMessage.length > 10;
-    const canStartOnDone = isDone && lastAssistantMessage && lastAssistantMessage.length > 0;
-    if (autoPlaySpeech && (canStartByLength || canStartOnDone) && !hasStartedSpeaking && lastSpokenMessageId !== messageId) {
-      console.log('🎤 PROGRESSIVE: Starting speech early with partial text');
-      setLastSpokenMessageId(messageId);
-      setHasStartedSpeaking(true);
-      setShouldSpeak(true);
-      setIsAssistantMessageComplete(true);
-    }
-    
-    // Handle completion of streaming
-    if (isDone && hasStartedSpeaking) {
-      console.log('✅ PROGRESSIVE: Message streaming completed, speech already in progress');
-      // We don't need to trigger new speech since it's already started
-    }
-    
-    // Reset for new messages
-    if (!lastAssistantMessage || lastAssistantMessage.length === 0) {
-      console.log('🔄 PROGRESSIVE: Resetting speech state for new message');
-      setHasStartedSpeaking(false);
-      setShouldSpeak(false);
+    if (!currentAssistantMessageId || !lastAssistantMessage.trim()) {
+      return;
     }
 
+    if (speechControllerRef.current.interruptionReason === 'user_input') {
+      return;
+    }
+
+    const stage: SpeechUtterance['stage'] = isDone ? 'final' : 'streaming';
+    const minimumLength = stage === 'streaming' ? 24 : 1;
+    if (lastAssistantMessage.trim().length < minimumLength) {
+      return;
+    }
+
+    if (speechDebounceTimeoutRef.current) {
+      clearTimeout(speechDebounceTimeoutRef.current);
+    }
+
+    speechDebounceTimeoutRef.current = setTimeout(() => {
+      const utterance = createSpeechUtterance(
+        currentAssistantMessageId,
+        lastAssistantMessage,
+        stage,
+        { source: 'stream' }
+      );
+      enqueueUtterance(utterance);
+      setGesturePlanForUtterance(utterance.id, utterance.gesturePlan!);
+    }, stage === 'streaming' ? 220 : 50);
+
+    return () => {
+      if (speechDebounceTimeoutRef.current) {
+        clearTimeout(speechDebounceTimeoutRef.current);
+      }
+    };
   }, [
-    currentAssistantMessageId,
-    lastAssistantMessage,
-    isDone,
+    activeAvatarMode,
     autoPlaySpeech,
-    shouldSpeak,
-    lastSpokenMessageId,
-    hasStartedSpeaking,
-    isManualSpeech,
-    streamingText?.length
+    createSpeechUtterance,
+    currentAssistantMessageId,
+    enableVoice,
+    enqueueUtterance,
+    isDone,
+    lastAssistantMessage,
+    setGesturePlanForUtterance,
   ]);
+
+  useEffect(() => {
+    const currentUtterance = speechController.currentUtterance;
+    if (!enableVoice || !currentUtterance) {
+      return;
+    }
+
+    const playbackKey = `${currentUtterance.id}:${currentUtterance.text}:${currentUtterance.stage}`;
+
+    const completeIfCurrent = () => {
+      const latestState = speechControllerRef.current;
+      if (latestState.currentUtterance?.id !== currentUtterance.id) {
+        return;
+      }
+      if (!latestState.assistantStreaming && latestState.currentUtterance.stage === 'final') {
+        speechDispatch({ type: 'COMPLETE_CURRENT', utteranceId: currentUtterance.id });
+      }
+    };
+
+    const failIfCurrent = (error: Error) => {
+      const latestState = speechControllerRef.current;
+      if (latestState.currentUtterance?.id !== currentUtterance.id) {
+        return;
+      }
+      speechDispatch({
+        type: 'FAIL_CURRENT',
+        utteranceId: currentUtterance.id,
+        message: error.message,
+      });
+    };
+
+    if (speechController.status === 'queued') {
+      speechDispatch({ type: 'PREPARE_CURRENT', utteranceId: currentUtterance.id });
+      return;
+    }
+
+    if (speechController.status === 'preparing') {
+      if (lastSpeechPlaybackKeyRef.current === playbackKey) {
+        return;
+      }
+      lastSpeechPlaybackKeyRef.current = playbackKey;
+
+      const ttsOptions = buildTTSOptionsForUtterance(currentUtterance);
+      void enhancedTTS.speak(currentUtterance.text, {
+        ...ttsOptions,
+        onStart: () => {
+          speechDispatch({ type: 'START_CURRENT', utteranceId: currentUtterance.id });
+        },
+        onEnd: completeIfCurrent,
+        onError: failIfCurrent,
+      });
+      return;
+    }
+
+    if (speechController.status === 'speaking' && currentUtterance.intent.source === 'stream') {
+      if (lastSpeechPlaybackKeyRef.current === playbackKey) {
+        return;
+      }
+
+      lastSpeechPlaybackKeyRef.current = playbackKey;
+      const ttsOptions = buildTTSOptionsForUtterance(currentUtterance);
+      void enhancedTTS.speak(currentUtterance.text, {
+        ...ttsOptions,
+        progressiveMode: true,
+        onEnd: completeIfCurrent,
+        onError: failIfCurrent,
+      });
+    }
+  }, [
+    buildTTSOptionsForUtterance,
+    enableVoice,
+    speechController.currentUtterance,
+    speechController.status,
+  ]);
+
+  useEffect(() => {
+    if (speechController.status === 'error') {
+      cancelCurrent('error');
+    }
+  }, [cancelCurrent, speechController.status]);
 
   // Avatar interaction handlers
   const handleAvatarInteraction = useCallback((gesture: string, context: any) => {
-    console.log('🎭 Avatar interaction:', { gesture, context });
-    
+    logDebug('🎭 Avatar interaction:', { gesture, context });
+
     // Track analytics
     // AVATAR DISABLED: if (enableAnalytics && currentUser) {
     //   avatarAnalytics.trackGesture(gesture, context.type, currentUser);
@@ -1430,7 +2350,7 @@ const updateUserBalance = async (value) => {
 
   const handleInteractionAnalytics = useCallback((analytics: any) => {
     if (enableAnalytics) {
-      console.log('📊 Avatar Interaction Analytics:', analytics);
+      logDebug('📊 Avatar Interaction Analytics:', analytics);
     }
   }, [enableAnalytics]);
 
@@ -1497,34 +2417,47 @@ const updateUserBalance = async (value) => {
 
         if (event.type === "response.tutor.mode") {
           tutorMode = event.enabled;
+          activeTutorSubjectModeRef.current = event.subjectMode || "sql";
           if (event.enabled) {
-            addReasoningLog("מכין הסבר ברור ומסודר לפי הבקשה שלך...");
+            addReasoningLog(
+              activeTutorSubjectModeRef.current === "relational_algebra"
+                ? "מכין הסבר מסודר באלגברת יחסים..."
+                : "מכין הסבר ברור ומסודר לפי הבקשה שלך..."
+            );
           }
           continue;
         }
 
         if (event.type === "response.reasoning_summary_text.delta") {
-          appendReasoningDelta(event.delta);
+          if (isThinkingModeEnabled) {
+            appendReasoningDelta(event.delta);
+          }
           continue;
         }
 
         if (event.type === "response.reasoning_summary_text.done") {
-          if (reasoningDraftRef.current.trim()) {
-            flushReasoningDraft();
-          } else if (event.text) {
-            addReasoningLog(event.text);
+          if (isThinkingModeEnabled) {
+            if (reasoningDraftRef.current.trim()) {
+              flushReasoningDraft();
+            } else if (event.text) {
+              addReasoningLog(event.text);
+            }
           }
           continue;
         }
 
         if (event.type === "response.tool_call.started") {
-          flushReasoningDraft();
-          addReasoningLog(getToolProgressLog(event.name, "started"));
+          if (isThinkingModeEnabled) {
+            flushReasoningDraft();
+            addReasoningLog(getToolProgressLog(event.name, "started"));
+          }
           continue;
         }
 
         if (event.type === "response.tool_call.completed") {
-          addReasoningLog(getToolProgressLog(event.name, "completed"));
+          if (isThinkingModeEnabled) {
+            addReasoningLog(getToolProgressLog(event.name, "completed"));
+          }
           continue;
         }
 
@@ -1537,7 +2470,11 @@ const updateUserBalance = async (value) => {
           sawDelta = true;
           if (tutorMode) {
             tutorRawResponseRef.current += event.delta;
-            setLastAssistantMessageText(buildTutorPreviewFromRaw(tutorRawResponseRef.current));
+            setLastAssistantMessageText(
+              activeTutorSubjectModeRef.current === "relational_algebra"
+                ? buildRelationalAlgebraPreviewFromRaw(tutorRawResponseRef.current)
+                : buildTutorPreviewFromRaw(tutorRawResponseRef.current)
+            );
             continue;
           }
           handleTextDelta({ value: event.delta });
@@ -1547,18 +2484,51 @@ const updateUserBalance = async (value) => {
         if (event.type === "response.completed") {
           sawCompleted = true;
           if (event.responseId) setPreviousResponseId(event.responseId);
+          if (event.metadata?.sessionId) {
+            sessionIdRef.current = event.metadata.sessionId;
+            setSessionId(event.metadata.sessionId);
+          }
           if (!createdAssistantMessage) {
             handleTextCreated();
             createdAssistantMessage = true;
           }
           flushReasoningDraft();
           setIsReasoningCollapsed(true);
+
+          const activeChatId = currentChatIdRef.current;
+          const storedUser = getStoredUser();
+
           if (event.tutorResponse) {
             await setLastMessageTutorResponse(event.tutorResponse, true);
+            if (activeChatId) {
+              await persistChatMessage(activeChatId, {
+                userId: storedUser?.email,
+                role: "assistant",
+                message: buildTutorResponseText(event.tutorResponse),
+                citations: event.citations,
+                metadata: event.metadata || null,
+                structuredContent: { tutorResponse: event.tutorResponse },
+              });
+            }
             continue;
           }
-          if (!sawDelta && event.outputText) {
-            await appendToLastMessageProgressively(event.outputText);
+
+          if (event.outputText) {
+            if (!sawDelta) {
+              await appendToLastMessageProgressively(event.outputText);
+            } else {
+              setLastAssistantMessageText(event.outputText);
+            }
+          }
+
+          if (activeChatId) {
+            await persistChatMessage(activeChatId, {
+              userId: storedUser?.email,
+              role: "assistant",
+              message: event.outputText || "",
+              citations: event.citations,
+              metadata: event.metadata || null,
+            });
           }
           continue;
         }
@@ -1569,6 +2539,7 @@ const updateUserBalance = async (value) => {
           const failureText = renderStreamFailureMessage(failureKind);
           setStreamError(failureText);
           appendMessage("assistant", failureText);
+          await persistAssistantFailure(failureText, event.message);
           endStreamResponse();
           return;
         }
@@ -1580,31 +2551,37 @@ const updateUserBalance = async (value) => {
       const failureText = renderStreamFailureMessage("stream_interruption");
       setStreamError(failureText);
       appendMessage("assistant", failureText);
+      await persistAssistantFailure(failureText, "stream_interruption");
     }
 
     endStreamResponse();
   };
 
-  const sendMessage = async (text, image: File | null = selectedImage) => { 
+  const sendMessage = async (
+    text,
+    image: File | null = selectedImage,
+    composerDirectives: ComposerDirective[] = []
+  ) => {
     setImageProcessing(true);
+    clearBalanceErrorNotice();
     setIsReasoningCollapsed(false);
     setReasoningLogs([]);
     reasoningDraftRef.current = "";
     tutorRawResponseRef.current = "";
     setReasoningDraft("");
-    
+
     // Notify parent component about user message for avatar interaction
     if (onUserMessage) {
       onUserMessage(text);
     }
-    
+
     // Handle avatar interaction for user message
     if (enableAvatarInteractions && text.trim()) {
       if (enableSQLGestureMapping) {
         const analysis = analyzeMessage(text);
         const { recommendedGesture, confidence, sqlAnalysis } = analysis;
 
-        console.log('🔍 Message Analysis:', {
+        logDebug('🔍 Message Analysis:', {
           message: text.substring(0, 50) + '...',
           recommendedGesture,
           confidence,
@@ -1624,17 +2601,17 @@ const updateUserBalance = async (value) => {
         // Trigger gesture if confidence is high enough
         if (confidence > 0.6 && avatarRef.current) {
           avatarRef.current.playGesture(recommendedGesture, 2, false, 1000);
-          
-          console.log(`🎭 Playing gesture: ${recommendedGesture} (confidence: ${confidence.toFixed(2)})`);
+
+          logDebug(`🎭 Playing gesture: ${recommendedGesture} (confidence: ${confidence.toFixed(2)})`);
         }
       }
     }
-    
+
     // Message text is used as-is.
     let messageWithTags = text;
 
     if (formattedHomeworkContext) {
-      messageWithTags = `${formattedHomeworkContext}\n\nשאלת הסטודנט: ${text}\n\nהנחיות חשובות:\n- אל תספק תשובה ישירה או קוד SQL מוכן\n- תן רמזים והנחיות שיעזרו לסטודנט למצוא את הפתרון בעצמו\n- שאל שאלות מנחות במקום לתת תשובות\n- עודד חשיבה עצמאית ולמידה\n- הסתמך על ההקשר לעיל וענה בעברית, עם דגשים על SQL כאשר רלוונטי.`;
+      messageWithTags = `שאלת הסטודנט הנוכחית, שעליה צריך לענות ישירות ובאופן ספציפי:\n${text}\n\nהקשר לשימוש רק אם הוא רלוונטי לשאלה:\n${formattedHomeworkContext}\n\nהנחיות חשובות:\n- פתח במענה ממוקד לשאלה הספציפית שנשאלה עכשיו; אל תחליף אותה בהסבר כללי על כתיבת שאילתות.\n- אל תספק תשובה ישירה או קוד SQL מוכן לשאלת שיעורי הבית.\n- תן רמזים והנחיות שיעזרו לסטודנט למצוא את הפתרון בעצמו.\n- אם חסר מידע, שאל שאלת הבהרה קצרה וממוקדת.\n- הסתמך על ההקשר לעיל וענה בעברית, עם דגשים על SQL כאשר רלוונטי.`;
     }
 
     // Process image if one is selected
@@ -1649,31 +2626,19 @@ const updateUserBalance = async (value) => {
       }
     }
 
-    // if (currentBalance - estimatedCost < 0) {
-    //   setBalanceError(true)
-    //   setUserInput("")
-    //   setTimeout(() => {  // Set timeout to clear error after 3 seconds
-    //     setBalanceError(false);
-    //   }, 3000);
-    // } else {
-    updateUserBalance(currentBalance - estimatedCost)
-    setCurrentBalance(currentBalance - estimatedCost)
     const storedUser = getStoredUser();
     const userEmail = storedUser?.email;
-    assistantPersistTextRef.current = "";
-    assistantPersistSessionIdRef.current = null;
-    assistantPersistSavedRef.current = false;
+    const studentId = storedUser?.id || userEmail;
+    let activeChatId = currentChatIdRef.current;
 
-    if (userEmail) {
-      try {
-        const chatId = await ensurePersistedChatSession(userEmail, text);
-        assistantPersistSessionIdRef.current = chatId;
-        await saveMessageToChat(chatId, 'user', text, userEmail);
-      } catch (persistenceError) {
-        console.error('Error saving user chat message:', persistenceError);
+    if (!activeChatId) {
+      const previousSessionId = localStorage.getItem('previousSessionId');
+      if (previousSessionId) {
+        triggerConversationAnalysis(previousSessionId);
       }
+      activeChatId = await ensureChatThread(text, userEmail);
     }
-    
+
     setStreamError(null);
 
     // saveToDatabase(text, "user");
@@ -1688,33 +2653,96 @@ const updateUserBalance = async (value) => {
           },
           body: JSON.stringify({
             sessionId: activeSessionId,
+            chatId: activeChatId || undefined,
             previousResponseId: previousResponseId || undefined,
             content: messageWithTags, // Send message with tags to AI
             imageData: imageData, // Send image data if available
+            userEmail: userEmail ?? undefined,
             homeworkRunner: !!homeworkContext, // Allow all SQL (subqueries, CONCAT, ALL, TOP) in homework
             thinkingMode: isThinkingModeEnabled,
+            composerDirectives,
             stream: true,
+            metadata: {
+              student_id: homeworkContext?.studentId || studentId || "",
+              ...(subjectMode === "relational_algebra"
+                ? {
+                    subject_mode: "relational_algebra",
+                    tutor_mode: "true",
+                  }
+                : {}),
+              ...(homeworkContext
+                ? {
+                    homework_set_id: homeworkContext.homeworkSetId || "",
+                    question_id: homeworkContext.currentQuestion?.id || "",
+                  }
+                : {}),
+            },
           }),
         }
       );
-      
+
+      if (response.status === 402) {
+        let insufficientBody: InsufficientCoinsClientBody | null = null;
+        try {
+          insufficientBody = await response.json();
+        } catch (error) {
+          console.error("Failed to parse 402 response body:", error);
+        }
+
+        if (insufficientBody?.error === "INSUFFICIENT_COINS") {
+          const balance = Number(insufficientBody.balance);
+          const required = Number(insufficientBody.required);
+
+          if (Number.isFinite(balance)) {
+            setCurrentBalanceFromServer(balance);
+          }
+
+          const hebrewMessage =
+            Number.isFinite(balance) && Number.isFinite(required)
+              ? `אין מספיק מטבעות. יתרה: ${balance}, נדרש: ${required}.`
+              : "אין מספיק מטבעות. נסה שוב אחרי שתתעדכן היתרה.";
+
+          showBalanceErrorNotice(hebrewMessage);
+          setInputDisabled(false);
+          setIsThinking(false);
+          setImageProcessing(false);
+          return;
+        }
+      }
+
       // Check if response is ok and has a body
       if (!response.ok) {
         console.error('❌ Failed to send message:', response.status, response.statusText);
-        appendMessage("assistant", "מצטער, הייתה שגיאה בעיבוד ההודעה. נסה שוב.");
+        const failureText = "מצטער, הייתה שגיאה בעיבוד ההודעה. נסה שוב.";
+        appendMessage("assistant", failureText);
+        await persistAssistantFailure(failureText, `http_${response.status}`);
         setInputDisabled(false);
         setIsThinking(false);
         setImageProcessing(false);
         return;
       }
-      
+
+      if (activeChatId && userEmail) {
+        void persistChatMessage(activeChatId, {
+          userId: userEmail,
+          message: text,
+          role: "user",
+        });
+      }
+
       if (!response.body) {
         console.error('❌ Response body is null');
-        appendMessage("assistant", "מצטער, הייתה שגיאה בתקשורת. נסה לרענן את הדף.");
+        const failureText = "מצטער, הייתה שגיאה בתקשורת. נסה לרענן את הדף.";
+        appendMessage("assistant", failureText);
+        await persistAssistantFailure(failureText, "missing_response_body");
         setInputDisabled(false);
         setIsThinking(false);
         setImageProcessing(false);
         return;
+      }
+
+      if (userEmail) {
+        void refreshBalanceFromServer(userEmail);
       }
 
       await consumeResponseStream(response.body);
@@ -1723,6 +2751,10 @@ const updateUserBalance = async (value) => {
       const failureText = renderStreamFailureMessage("stream_interruption");
       setStreamError(failureText);
       appendMessage("assistant", failureText);
+      await persistAssistantFailure(
+        failureText,
+        error instanceof Error ? error.message : "stream_interruption"
+      );
       setInputDisabled(false);
       setIsThinking(false);
       setIsDone(true);
@@ -1734,22 +2766,80 @@ const updateUserBalance = async (value) => {
 
   };
 
-  const submitMessage = (messageText: string, displayText?: string, image: File | null = null) => {
-    const trimmed = messageText.trim();
-    if (!trimmed) return;
+  const extractComposerCommandsFromInput = useCallback((value: string) => {
+    const persistentCommands = new Set<ComposerCommandId>();
+    const directives = new Set<ComposerDirective>(pendingComposerDirectives);
+    const cleanedParts: string[] = [];
 
+    for (const part of value.split(/(\s+)/)) {
+      const normalized = part.trim().toLowerCase();
+      const matchedCommand = COMPOSER_COMMAND_BY_TOKEN.get(normalized);
+
+      if (!matchedCommand) {
+        cleanedParts.push(part);
+        continue;
+      }
+
+      if (matchedCommand.kind === "persistent") {
+        persistentCommands.add(matchedCommand.id);
+      } else {
+        directives.add(matchedCommand.id as ComposerDirective);
+      }
+    }
+
+    return {
+      cleanedText: cleanedParts.join("").trim(),
+      persistentCommands: Array.from(persistentCommands),
+      directives: Array.from(directives),
+    };
+  }, [pendingComposerDirectives]);
+
+  const buildDirectiveOnlyPrompt = useCallback((directives: ComposerDirective[]) => {
+    const prompts: string[] = [];
+
+    if (directives.includes("personalize")) {
+      prompts.push("מה כדאי לי ללמוד או לתרגל עכשיו לפי הטעויות האחרונות שלי?");
+    }
+
+    if (directives.includes("explain")) {
+      prompts.push("הסבר לי את זה שלב-שלב.");
+    }
+
+    if (directives.includes("optimize")) {
+      prompts.push("בדוק איך אפשר לשפר את השאילתה מבחינת ביצועים וקריאות.");
+    }
+
+    if (directives.includes("mistakes")) {
+      prompts.push("התמקד בטעויות אפשריות ובאיך לתקן אותן.");
+    }
+
+    return prompts.join(" ");
+  }, []);
+
+  const submitMessage = (
+    messageText: string,
+    displayText?: string,
+    image: File | null = null,
+    composerDirectives: ComposerDirective[] = []
+  ) => {
+    const trimmed = messageText.trim();
+    if (!trimmed && !image) return;
+
+    flushAll('user_input');
+    speechDispatch({ type: 'SET_STREAMING', streaming: false });
     if (userTypingTimeoutRef.current) {
       clearTimeout(userTypingTimeoutRef.current);
     }
     setIsUserTyping(false);
-    console.log('📤 User submitted message, clearing typing state');
 
-    sendMessage(trimmed, image);
+    sendMessage(trimmed, image, composerDirectives);
     setMessages((prevMessages) => [
       ...prevMessages,
       { role: "user", text: displayText ?? trimmed, hasImage: !!image },
     ]);
     setUserInput("");
+    setPendingComposerDirectives([]);
+    closeComposerPalette();
     setInputDisabled(true);
     setIsThinking(true);
     autoScrollRef.current = true;
@@ -1779,42 +2869,83 @@ const updateUserBalance = async (value) => {
   // Add a function to load messages for a specific chat
 const loadChatMessages = (chatId: string) => {
   setLoadingMessages(true); // Set loading to true before fetching
-  // Reset speech state when loading existing chat
+  flushAll('flush');
+  speechDispatch({ type: 'SET_STREAMING', streaming: false });
   setLastAssistantMessage("");
-  setLastSpokenMessageId("");
-  setShouldSpeak(false);
-  setIsAssistantMessageComplete(false);
-  
+  setCurrentAssistantMessageId("");
+
   fetch(`/api/chat/sessions/${chatId}/messages`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
     },
   }).then(response => response.json()).then(chatMessages => {
-    const uniqueItems = keepOneInstance(chatMessages, "text");   
+    const hydratedMessages = chatMessages.map((message: ChatMessage) => {
+      const tutorResponse =
+        message.structuredContent &&
+        typeof message.structuredContent === "object" &&
+        "tutorResponse" in message.structuredContent
+          ? (message.structuredContent.tutorResponse as TutorResponse | null)
+          : null;
+
+      return {
+        ...message,
+        tutorResponse,
+      };
+    });
+    const uniqueItems = keepOneInstance(hydratedMessages, "text");
+    const selectedSession = chatSessions.find((session) => session._id === chatId);
+    const latestAssistantMessage = [...hydratedMessages]
+      .reverse()
+      .find((message) => message.role === "assistant");
+    const restoredSessionId =
+      selectedSession?.openaiState?.sessionId ||
+      latestAssistantMessage?.metadata?.sessionId ||
+      "";
+    const restoredPreviousResponseId =
+      selectedSession?.openaiState?.lastResponseId ||
+      latestAssistantMessage?.metadata?.responseId ||
+      "";
+
     setMessages(uniqueItems);
     currentChatIdRef.current = chatId;
     setCurrentChatId(chatId);
+    currentChatIdRef.current = chatId;
+    sessionIdRef.current = restoredSessionId;
+    setSessionId(restoredSessionId);
+    setPreviousResponseId(restoredPreviousResponseId);
     setLoadingMessages(false);
-  })  
+  })
 };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!userInput.trim() && !selectedImage) return;
-    
+    const { cleanedText, persistentCommands, directives } = extractComposerCommandsFromInput(userInput);
+
+    persistentCommands.forEach((commandId) => {
+      applyPersistentComposerCommand(commandId);
+    });
+
+    const messageText = cleanedText || buildDirectiveOnlyPrompt(directives);
+    if (!messageText.trim() && !selectedImage) {
+      setUserInput("");
+      setPendingComposerDirectives([]);
+      closeComposerPalette();
+      return;
+    }
+
     // Display message with image info if present
-    const displayText = selectedImage 
-      ? `${userInput}${userInput ? '\n' : ''}[תמונה מצורפת: ${selectedImage.name}]`
-      : userInput;
-    
+    const displayText = selectedImage
+      ? `${messageText}${messageText ? '\n' : ''}[תמונה מצורפת: ${selectedImage.name}]`
+      : messageText;
+
     // Check if we're in exercise mode (but exercises are now handled in modal)
     if (isExerciseMode && currentExercise) {
       // In exercise mode, regular chat is disabled
       return;
     }
-    
-    submitMessage(userInput, displayText, selectedImage);
+
+    submitMessage(messageText, displayText, selectedImage, directives);
   };
 
   /* Stream Event Handlers */
@@ -1823,24 +2954,19 @@ const loadChatMessages = (chatId: string) => {
   const handleTextCreated = () => {
     setIsDone(false);
     setIsThinking(false); // Stop thinking when assistant starts responding
-    setHasStartedSpeaking(false); // Reset for new message
+    speechDispatch({ type: 'SET_STREAMING', streaming: true });
+    flushAll('flush');
     streamingTextRef.current = "";
     assistantPersistTextRef.current = "";
     tutorRawResponseRef.current = "";
-    setStreamingText("");
     // Create a stable message id for this assistant message
     setCurrentAssistantMessageId(`${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    // If voice is enabled and we are currently speaking, stop to avoid overlap with the new message
-    // AVATAR DISABLED: if (enableVoice && enhancedTTS.isSpeaking()) {
-    //   enhancedTTS.stop();
-    // }
-    
-    // Clear any pending progressive speech
+
     if (progressiveSpeechTimeoutRef.current) {
       clearTimeout(progressiveSpeechTimeoutRef.current);
       progressiveSpeechTimeoutRef.current = null;
     }
-    
+
     appendMessage("assistant", "");
   };
 
@@ -1848,12 +2974,8 @@ const loadChatMessages = (chatId: string) => {
   const handleTextDelta = (delta) => {
     if (delta.value != null) {
       const text = delta.value;
-      
-      // Update streaming text for progressive speech
+
       streamingTextRef.current += text;
-      assistantPersistTextRef.current += text;
-      setStreamingText(streamingTextRef.current);
-      
       appendToLastMessage(text);
     }
     if (delta.annotations != null) {
@@ -1886,40 +3008,46 @@ const loadChatMessages = (chatId: string) => {
     []
   );
 
-  const persistFinalAssistantMessage = () => {
-    if (assistantPersistSavedRef.current) {
-      return;
-    }
-
-    const chatId = assistantPersistSessionIdRef.current;
-    const message = assistantPersistTextRef.current.trim();
-    const storedUser = getStoredUser();
-    if (!chatId || !message || !storedUser?.email) {
-      return;
-    }
-
-    assistantPersistSavedRef.current = true;
-    saveMessageToChat(chatId, 'assistant', message, storedUser.email).catch((error) => {
-      console.error('Error saving final assistant chat message:', error);
-    });
-  };
-
-
   const endStreamResponse = () => {
-    persistFinalAssistantMessage();
     setInputDisabled(false);
     setIsThinking(false);
     setIsDone(true);
+    speechDispatch({ type: 'SET_STREAMING', streaming: false });
     setReasoningDraft("");
     reasoningDraftRef.current = "";
     tutorRawResponseRef.current = "";
-    
+
     // Clear progressive speech timeout when stream ends
     if (progressiveSpeechTimeoutRef.current) {
       clearTimeout(progressiveSpeechTimeoutRef.current);
       progressiveSpeechTimeoutRef.current = null;
     }
   };
+
+  const persistAssistantFailure = useCallback(
+    async (message: string, failureReason: string, responseId?: string | null) => {
+      const activeChatId = currentChatIdRef.current;
+      const storedUser = getStoredUser();
+
+      if (!activeChatId) {
+        return;
+      }
+
+      await persistChatMessage(activeChatId, {
+        userId: storedUser?.email,
+        role: "assistant",
+        message,
+        metadata: {
+          canonicalStateStrategy: "previous_response_id",
+          sessionId: sessionIdRef.current || null,
+          responseId: responseId || null,
+          previousResponseId: previousResponseId || null,
+          failureReason,
+        },
+      });
+    },
+    [getStoredUser, persistChatMessage, previousResponseId]
+  );
 
   useEffect(() => {
     if (!authResolved) {
@@ -1962,7 +3090,26 @@ const loadChatMessages = (chatId: string) => {
     =======================
   */
 
-  const buildTutorResponseText = (tutorResponse: SqlTutorResponse) => {
+  const buildTutorResponseText = (tutorResponse: TutorResponse) => {
+    if (isRelationalAlgebraTutorResponse(tutorResponse)) {
+      const mistakesText =
+        tutorResponse.commonMistakes?.length > 0
+          ? tutorResponse.commonMistakes.map((mistake) => `- ${mistake}`).join("\n")
+          : "- —";
+      const stepsText =
+        tutorResponse.steps?.length > 0
+          ? tutorResponse.steps
+              .map(
+                (step, index) =>
+                  `${index + 1}. ${step.title}\n${step.expression}\n${step.explanation}${
+                    step.sqlEquivalent ? `\nSQL: ${step.sqlEquivalent}` : ""
+                  }`
+              )
+              .join("\n\n")
+          : "- —";
+      return `**סיכום**\n${tutorResponse.summary}\n\n**ביטוי אלגברת יחסים**\n\`\`\`\n${tutorResponse.relationalAlgebraExpression}\n\`\`\`\n\n**שלבים**\n${stepsText}\n\n**טעויות נפוצות**\n${mistakesText}\n\n**הערת תחום**\n${tutorResponse.scopeNote}`;
+    }
+
     const mistakesText =
       tutorResponse.commonMistakes?.length > 0
         ? tutorResponse.commonMistakes.map((mistake) => `- ${mistake}`).join("\n")
@@ -2020,6 +3167,25 @@ const loadChatMessages = (chatId: string) => {
     return blocks.length > 0 ? blocks.join("\n\n") : "מנסח תשובה...";
   };
 
+  const buildRelationalAlgebraPreviewFromRaw = (raw: string) => {
+    const summary = extractPartialJsonStringField(raw, "summary");
+    const expression = extractPartialJsonStringField(raw, "relationalAlgebraExpression");
+    const scopeNote = extractPartialJsonStringField(raw, "scopeNote");
+
+    const blocks: string[] = [];
+    if (summary) {
+      blocks.push(`**סיכום**\n${summary}`);
+    }
+    if (expression) {
+      blocks.push(`**ביטוי אלגברת יחסים**\n\`\`\`\n${expression}\n\`\`\``);
+    }
+    if (scopeNote) {
+      blocks.push(`**הערת תחום**\n${scopeNote}`);
+    }
+
+    return blocks.length > 0 ? blocks.join("\n\n") : "מנסח הסבר באלגברת יחסים...";
+  };
+
   const setLastAssistantMessageText = (text: string) => {
     assistantPersistTextRef.current = text;
     setMessages((prevMessages) => {
@@ -2043,18 +3209,18 @@ const loadChatMessages = (chatId: string) => {
         ...lastMessage,
         text: lastMessage.text + text,
       };
-      
+
       // Update last assistant message for speech synthesis if it's an assistant message
       if (lastMessage.role === 'assistant') {
         setLastAssistantMessage(updatedLastMessage.text);
       }
-      
+
       return [...prevMessages.slice(0, -1), updatedLastMessage];
     });
   };
 
   const setLastMessageTutorResponse = async (
-    tutorResponse: SqlTutorResponse,
+    tutorResponse: TutorResponse,
     progressive = false
   ) => {
     const formattedText = buildTutorResponseText(tutorResponse);
@@ -2112,17 +3278,17 @@ const loadChatMessages = (chatId: string) => {
 
   const appendMessage = (role, text, options: Partial<ChatMessage> = {}) => {
     setMessages((prevMessages) => [...prevMessages, { role, text, ...options }]);
-    
+
     // Track last assistant message for speech synthesis
     if (role === 'assistant') {
       assistantPersistTextRef.current = text;
       setLastAssistantMessage(text);
-      
+
       // Notify parent component about assistant response for avatar interaction
       if (onAssistantResponse) {
         onAssistantResponse(text);
       }
-      
+
       // Handle avatar interaction for assistant response
       if (enableAvatarInteractions) {
         const lowerResponse = text.toLowerCase();
@@ -2146,7 +3312,7 @@ const loadChatMessages = (chatId: string) => {
         // Trigger gesture if avatar is available
         if (avatarRef.current && gesture !== 'ok') {
           avatarRef.current.playGesture(gesture, 2, false, 1000);
-          console.log(`🎭 Assistant response gesture: ${gesture}`);
+          logDebug(`🎭 Assistant response gesture: ${gesture}`);
         }
 
         // Track analytics
@@ -2173,7 +3339,7 @@ const loadChatMessages = (chatId: string) => {
       })
       return [...prevMessages.slice(0, -1), updatedLastMessage];
     });
-    
+
   }
 
   const handleFeedback = (isLike, index) => {
@@ -2194,7 +3360,7 @@ const loadChatMessages = (chatId: string) => {
         "message": message.text,
         "feedback": message.feedback
       }),
-    }); 
+    });
   }
 
   const openNewChat = () => {
@@ -2202,19 +3368,17 @@ const loadChatMessages = (chatId: string) => {
     setCurrentChatId(null);
     setMessages([]);
     setStreamError(null);
+    flushAll('flush');
+    speechDispatch({ type: 'SET_STREAMING', streaming: false });
     setLastAssistantMessage("");
-    setLastSpokenMessageId(""); // Reset spoken message tracking
-    setShouldSpeak(false);
-    setIsAssistantMessageComplete(false);
-    setHasStartedSpeaking(false); // Reset progressive speech state
-    setStreamingText("");
     streamingTextRef.current = "";
+    setCurrentAssistantMessageId("");
     setReasoningLogs([]);
     setReasoningDraft("");
     reasoningDraftRef.current = "";
     autoScrollRef.current = true;
     setIsReasoningCollapsed(false);
-    
+
     // Clear any pending progressive speech
     if (progressiveSpeechTimeoutRef.current) {
       clearTimeout(progressiveSpeechTimeoutRef.current);
@@ -2222,8 +3386,10 @@ const loadChatMessages = (chatId: string) => {
     }
 
     sessionIdRef.current = "";
+    currentChatIdRef.current = null;
     setSessionId("");
     setPreviousResponseId("");
+    createChatPromiseRef.current = null;
     createSession(true).catch((error) => {
       console.error("Failed to refresh responses session:", error);
       setStreamError("לא הצלחנו לפתוח סשן חדש. נסו שוב.");
@@ -2232,29 +3398,29 @@ const loadChatMessages = (chatId: string) => {
 
 // Embedded mode styles for homework runner sidebar
 const embeddedStyles = embeddedMode ? {
-  main: { 
-    width: '100%', 
-    height: '100%', 
-    flex: '1 1 0', 
-    minHeight: 0, 
-    margin: 0, 
+  main: {
+    width: '100%',
+    height: '100%',
+    flex: '1 1 0',
+    minHeight: 0,
+    margin: 0,
     padding: 0,
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column' as const,
   },
-  container: { 
-    width: '100%', 
-    flex: '1 1 0', 
-    minHeight: 0, 
+  container: {
+    width: '100%',
+    flex: '1 1 0',
+    minHeight: 0,
     height: 0,
     display: 'flex',
     flexDirection: 'column' as const,
     overflow: 'hidden',
   },
-  chatContainer: { 
-    flex: '1 1 0', 
-    minHeight: 0, 
+  chatContainer: {
+    flex: '1 1 0',
+    minHeight: 0,
     height: 0,
     margin: 0,
     padding: 0,
@@ -2263,10 +3429,10 @@ const embeddedStyles = embeddedMode ? {
     overflow: 'hidden',
     borderRadius: 0,
   },
-  messages: { 
+  messages: {
     direction: 'rtl' as const,
-    flex: '1 1 0', 
-    minHeight: 0, 
+    flex: '1 1 0',
+    minHeight: 0,
     height: 0,
     overflowY: 'auto' as const,
     overflowX: 'hidden' as const,
@@ -2278,7 +3444,8 @@ const embeddedStyles = embeddedMode ? {
   messages: { direction: 'rtl' as const },
 };
 
-const shouldShowReasoningPanel = reasoningLogs.length > 0 || reasoningDraft.length > 0;
+const shouldShowReasoningPanel =
+  isThinkingModeEnabled && (reasoningLogs.length > 0 || reasoningDraft.length > 0);
 const hasStreamingAssistantMessage =
   inputDisabled && messages.length > 0 && messages[messages.length - 1]?.role === "assistant";
 
@@ -2313,22 +3480,108 @@ const reasoningPanel = shouldShowReasoningPanel ? (
   </div>
 ) : null;
 
+
+// const onboardingPanel = shouldShowOnboarding ? (
+//   <div className={styles.onboardingPanel}>
+//     <div className={styles.onboardingTitle}>התאמה ראשונית עם מייקל</div>
+//     <p className={styles.onboardingText}>
+//       בחר 4 העדפות קצרות כדי שמייקל יתאים את ההסברים מעכשיו.
+//     </p>
+//     <div className={styles.preferenceGrid}>
+//       <label className={styles.preferenceField}>
+//         <span>מצב למידה</span>
+//         <select value={studyMode} onChange={(event) => setStudyMode(event.target.value as TutorStudyMode)}>
+//           <option value="learn">Learn</option>
+//           <option value="debug_sql">Debug my SQL</option>
+//           <option value="homework">Solve homework carefully</option>
+//           <option value="exam_prep">Exam prep</option>
+//         </select>
+//       </label>
+//       <label className={styles.preferenceField}>
+//         <span>עומק תשובה</span>
+//         <select value={answerLength} onChange={(event) => setAnswerLength(event.target.value as TutorAnswerLength)}>
+//           <option value="short">short answer</option>
+//           <option value="step_by_step">step-by-step</option>
+//         </select>
+//       </label>
+//       <label className={styles.preferenceField}>
+//         <span>רמת הסבר</span>
+//         <select value={knowledgeLevel} onChange={(event) => setKnowledgeLevel(event.target.value as TutorKnowledgeLevel)}>
+//           <option value="beginner">beginner</option>
+//           <option value="advanced">advanced</option>
+//         </select>
+//       </label>
+//       <label className={styles.preferenceField}>
+//         <span>שפת הסבר</span>
+//         <select value={responseLanguage} onChange={(event) => setResponseLanguage(event.target.value as TutorResponseLanguage)}>
+//           <option value="he">עברית</option>
+//           <option value="en">English</option>
+//         </select>
+//       </label>
+//     </div>
+//     <div className={styles.preferenceActions}>
+//       <button type="button" className={styles.primaryInlineButton} onClick={() => setOnboardingComplete(true)}>
+//         שמור התאמה
+//       </button>
+//       <button type="button" className={styles.secondaryInlineButton} onClick={() => setOnboardingComplete(true)}>
+//         דלג לעכשיו
+//       </button>
+//     </div>
+//   </div>
+// ) : null;
+
+// const resumeBanner = resumeSession ? (
+//   <div className={styles.resumeBanner}>
+//     <div>
+//       <div className={styles.resumeTitle}>המשך מאיפה שעצרת</div>
+//       <p className={styles.resumeText}>{resumeSession.title}</p>
+//     </div>
+//     <button
+//       type="button"
+//       className={styles.primaryInlineButton}
+//       onClick={() => loadChatMessages(resumeSession._id)}
+//     >
+//       חזור לשיחה
+//     </button>
+//   </div>
+// ) : null;
+
+  if (!authResolved) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div className={styles.loadingIndicator}></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
 return (
-  <div 
-    className={`${styles.main} ${!sidebarVisible || hideSidebar || minimalMode ? styles.mainFullWidth : ''}`}
+  <div
+    className={`${styles.main} ${isProfessionalConversation ? styles.mainProfessional : ''} ${!sidebarVisible || hideSidebar || minimalMode ? styles.mainFullWidth : ''}`}
     style={embeddedStyles.main}
   >
     {sidebarVisible && !hideSidebar && !minimalMode && (
-      <Sidebar 
-        chatSessions={chatSessions} 
-        onChatSelect={loadChatMessages} 
-        handleLogout={handleLogout} 
-        onNewChat={openNewChat} 
+      <Sidebar
+        chatSessions={chatSessions}
+        onChatSelect={loadChatMessages}
+        handleLogout={handleLogout}
+        onNewChat={openNewChat}
         currentUser={currentUser}
         onToggleSidebar={toggleSidebar}
+        variant={isProfessionalConversation ? "professional" : "default"}
       />
     )}
-         <div 
+         <div
            className={`${styles.container} ${!sidebarVisible || hideSidebar || minimalMode ? styles.containerFullWidth : ''}`}
            style={embeddedStyles.container}
          >
@@ -2342,9 +3595,9 @@ return (
           ☰
         </button>
       )}
-      <div className={styles.chatContainer} style={embeddedStyles.chatContainer}>
+      <div className={`${styles.chatContainer} ${isProfessionalConversation ? styles.chatContainerProfessional : ''}`} style={embeddedStyles.chatContainer}>
         <div
-          className={styles.messages}
+          className={`${styles.messages} ${isProfessionalConversation ? styles.messagesProfessional : ''}`}
           style={embeddedStyles.messages}
           ref={messagesContainerRef}
           onScroll={handleMessagesScroll}
@@ -2366,47 +3619,27 @@ return (
                     feedback={msg.feedback}
                     hasImage={msg.hasImage}
                     tutorResponse={msg.tutorResponse}
+                    conversationVariant={conversationVariant}
                     onFeedback={msg.role === 'assistant' ? (isLike) => handleFeedback(isLike, index) : undefined}
                     autoPlaySpeech={msg.role === 'assistant' ? (enableVoice && autoPlaySpeech) : undefined}
                     onPlayMessage={msg.role === 'assistant' ? () => {
-                      console.log('🎤 Playing individual message:', {
-                        messageText: msg.text.substring(0, 50) + '...',
-                        enableVoice,
-                        avatarMode,
-                        currentAvatarState: avatarState,
-                        lastAssistantMessage: lastAssistantMessage?.substring(0, 30) + '...'
-                      });
                       if (!enableVoice) {
-                        console.log('❌ Voice is not enabled');
                         return;
                       }
-                      // Stop any current speech
-                      // AVATAR DISABLED: enhancedTTS.stop();
-                      // Reset speech states first
-                      setShouldSpeak(false);
-                      setIsAssistantMessageComplete(false);
-                      setHasStartedSpeaking(false);
-                      
-                      // Use setTimeout to ensure state changes are processed
-                      setTimeout(() => {
-                        // Set the text to the avatar for speaking
-                        setLastAssistantMessage(msg.text);
-                        // Set a new manual id and mark as spoken to avoid auto trigger
-                        const manualId = `manual-${Date.now()}`;
-                        setCurrentAssistantMessageId(manualId);
-                        setLastSpokenMessageId(manualId);
-                        setShouldSpeak(true);
-                        setIsAssistantMessageComplete(true);
-                        setHasStartedSpeaking(true);
-                        setIsManualSpeech(true);  // Mark as manual speech
-                        // Clear thinking state
-                        setIsThinking(false);
-                        console.log('🎤 Set speech state for avatar:', {
-                          shouldSpeak: true,
-                          isAssistantMessageComplete: true,
-                          text: msg.text.substring(0, 50) + '...'
-                        });
-                      }, 100);
+                      flushAll('manual_cancel');
+                      const manualId = `manual-${Date.now()}`;
+                      const utterance = createSpeechUtterance(
+                        manualId,
+                        msg.text,
+                        'final',
+                        { source: 'manual' },
+                        true
+                      );
+                      enqueueUtterance(utterance);
+                      setGesturePlanForUtterance(utterance.id, utterance.gesturePlan!);
+                      setLastAssistantMessage(msg.text);
+                      setCurrentAssistantMessageId(manualId);
+                      setIsThinking(false);
                     } : undefined}
                   />
                 </React.Fragment>
@@ -2425,17 +3658,16 @@ return (
           )}
           <div ref={messagesEndRef} />
         </div>
-        
+
         <form
           onSubmit={handleSubmit}
           style={{direction:"rtl"}}
-          className={`${styles.inputForm} ${styles.clearfix}`}
+          className={`${styles.inputForm} ${styles.clearfix} ${isProfessionalConversation ? styles.inputFormProfessional : ''}`}
         >
-          <div className={`${styles.inputContainer} ${isExerciseMode ? styles.exerciseMode : ''}`}>
-            {/* Added for query cost estimation: Shows estimated cost while typing */}
+          <div className={`${styles.inputContainer} ${isProfessionalConversation ? styles.inputContainerProfessional : ''} ${isExerciseMode ? styles.exerciseMode : ''}`}>
             {userInput && isTokenBalanceVisible && (
               <div className={styles.costPopup}>
-                עלות השאילתה: ₪{estimatedCost.toFixed(2)}
+                עלות הודעה: {mainChatMessageCost} מטבע{mainChatMessageCost === 1 ? "" : "ות"}
               </div>
             )}
             {streamError && (
@@ -2444,82 +3676,195 @@ return (
               </div>
             )}
 
-            <div className={styles.composerToolbar}>
+            {enableRelationalAlgebraMode && subjectMode === "relational_algebra" && (
+              <div className={styles.subjectModeBanner}>
+                מצב אלגברת יחסים פעיל.
+              </div>
+            )}
+
+            {enableComposerCommands && (persistentComposerChips.length > 0 || pendingComposerCommandDefinitions.length > 0) && (
+              <div className={styles.composerCommandChips} aria-label="פקודות פעילות">
+                {persistentComposerChips.map((chip) => (
+                  <div key={chip.key} className={`${styles.composerCommandChip} ${styles.composerCommandChipPersistent}`}>
+                    <span>{chip.label}</span>
+                    {chip.onRemove && (
+                      <button
+                        type="button"
+                        className={styles.composerCommandChipRemove}
+                        onClick={chip.onRemove}
+                        aria-label={`הסר ${chip.label}`}
+                      >
+                        <X size={12} strokeWidth={2.2} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {pendingComposerCommandDefinitions.map((command) => (
+                  <div key={command.id} className={`${styles.composerCommandChip} ${styles.composerCommandChipEphemeral}`}>
+                    <span>{command.label}</span>
+                    <button
+                      type="button"
+                      className={styles.composerCommandChipRemove}
+                      onClick={() =>
+                        setPendingComposerDirectives((previous) =>
+                          previous.filter((directive) => directive !== command.id)
+                        )
+                      }
+                      aria-label={`הסר ${command.label}`}
+                    >
+                      <X size={12} strokeWidth={2.2} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className={styles.composerInputFrame}>
+              <textarea
+                ref={composerInputRef}
+                className={`${styles.input} ${isProfessionalConversation ? styles.inputProfessional : ''}`}
+                name="chatMessage"
+                value={userInput}
+                onChange={(e) => {
+                  if (streamError) setStreamError(null);
+                  setUserInput(e.target.value);
+                  syncComposerPalette(e.target.value, e.target.selectionStart);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
+
+                  // Detect user typing for avatar state
+                  handleUserTyping();
+                }}
+                onClick={(e) => syncComposerPalette(e.currentTarget.value, e.currentTarget.selectionStart)}
+                onSelect={(e) => syncComposerPalette(e.currentTarget.value, e.currentTarget.selectionStart)}
+                onKeyDown={(e) => {
+                  if (isComposerPaletteOpen) {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      if (filteredComposerCommands.length > 0) {
+                        setHighlightedComposerCommandIndex((previous) =>
+                          (previous + 1) % filteredComposerCommands.length
+                        );
+                      }
+                      return;
+                    }
+
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      if (filteredComposerCommands.length > 0) {
+                        setHighlightedComposerCommandIndex((previous) =>
+                          previous === 0 ? filteredComposerCommands.length - 1 : previous - 1
+                        );
+                      }
+                      return;
+                    }
+
+                    if ((e.key === 'Enter' || e.key === 'Tab') && filteredComposerCommands.length > 0) {
+                      e.preventDefault();
+                      insertComposerCommand(filteredComposerCommands[highlightedComposerCommandIndex]);
+                      return;
+                    }
+
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      closeComposerPalette();
+                      return;
+                    }
+                  }
+
+                  if (e.key === 'Enter' && e.shiftKey) {
+                    // Allow default behavior for Shift+Enter (line break)
+                    return;
+                  } else if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }
+                }}
+                placeholder={
+                  isExerciseMode
+                    ? "הקלד את תשובת ה-SQL שלך כאן…"
+                    : enableRelationalAlgebraMode && subjectMode === "relational_algebra"
+                      ? "שאל על אלגברת יחסים, המרה מ-SQL, או פירוק לביטוי RA…"
+                      : "הקלד כאן…"
+                }
+                aria-label={isExerciseMode ? "תשובת SQL" : "הודעה לצ'אט"}
+                autoComplete="off"
+                spellCheck={false}
+                data-testid="chat-message-input"
+                style={{
+                  paddingTop: isProfessionalConversation ? '18px' : '16px',
+                  paddingRight: isProfessionalConversation ? '22px' : '20px',
+                  paddingBottom: isProfessionalConversation ? '18px' : '16px',
+                  paddingLeft: isProfessionalConversation ? '64px' : '50px'
+                }}
+              />
+
+              {/* Send Button */}
               <button
-                type="button"
-                className={`${styles.thinkingModeButton} ${isThinkingModeEnabled ? styles.thinkingModeButtonEnabled : styles.thinkingModeButtonDisabled}`}
-                onClick={() => setIsThinkingModeEnabled((prev) => !prev)}
-                disabled={inputDisabled || imageProcessing}
-                aria-pressed={isThinkingModeEnabled}
-                title={isThinkingModeEnabled ? "כיבוי מצב חשיבה" : "הפעלת מצב חשיבה"}
+                type="submit"
+                className={`${styles.sendButton} ${isProfessionalConversation ? styles.sendButtonProfessional : ''}`}
+                disabled={
+                  inputDisabled ||
+                  imageProcessing ||
+                  (!userInput.trim() && !selectedImage && pendingComposerDirectives.length === 0)
+                }
+                aria-label="שלח הודעה"
               >
-                <span className={styles.thinkingModeLabel}>Thinking</span>
-                <span className={styles.thinkingModeValue}>{isThinkingModeEnabled ? "On" : "Off"}</span>
+                <ArrowUp size={17} strokeWidth={2.35} aria-hidden="true" />
               </button>
-              <span className={styles.thinkingModeHint}>
-                {isThinkingModeEnabled ? "תשובות עם תהליך חשיבה" : "תשובות מהירות יותר"}
-              </span>
             </div>
 
-            <textarea
-              className={styles.input}
-              value={userInput}
-              onChange={(e) => {
-                if (streamError) setStreamError(null);
-                setUserInput(e.target.value);
-                setEstimatedCost(calculateCost(e.target.value));
-                e.target.style.height = 'auto';
-                e.target.style.height = e.target.scrollHeight + 'px';
-                
-                // Detect user typing for avatar state
-                handleUserTyping();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && e.shiftKey) {
-                  // Allow default behavior for Shift+Enter (line break)
-                  return;
-                } else if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit(e);
-                }
-              }}
-              placeholder={
-                isExerciseMode 
-                  ? "הקלד את תשובת ה-SQL שלך כאן..." 
-                  : "הקלד כאן..."
-              }
-              style={{
-                paddingTop: '16px',
-                paddingRight: '20px',
-                paddingBottom: '16px',
-                paddingLeft: '50px'
-              }}
-            />
-            
-            {/* Send Button */}
-            <button
-              type="submit"
-              className={styles.sendButton}
-              disabled={inputDisabled || imageProcessing || (!userInput.trim() && !selectedImage)}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+            {enableComposerCommands && isComposerPaletteOpen && (
+              <div
+                ref={composerPaletteRef}
+                className={styles.composerCommandPalette}
+                role="listbox"
+                aria-label="פקודות צ'אט"
               >
-                <path d="M15 18V6M9 12l6-6 6 6" transform="rotate(90 12 12)" />
-              </svg>
-            </button>
+                {groupedComposerCommands.length > 0 ? (
+                  groupedComposerCommands.map((group) => (
+                    <div key={group.key} className={styles.composerCommandGroup}>
+                      <div className={styles.composerCommandGroupLabel}>{group.label}</div>
+                      <div className={styles.composerCommandGroupItems}>
+                        {group.commands.map((command) => {
+                          const globalIndex = filteredComposerCommands.findIndex(
+                            (candidate) => candidate.id === command.id
+                          );
+                          const isActive = globalIndex === highlightedComposerCommandIndex;
+                          const CommandIcon = command.icon;
 
+                          return (
+                            <button
+                              key={command.id}
+                              type="button"
+                              className={`${styles.composerCommandItem} ${isActive ? styles.composerCommandItemActive : ''}`}
+                              onMouseDown={(event) => {
+                                event.preventDefault();
+                                insertComposerCommand(command);
+                              }}
+                              role="option"
+                              aria-selected={isActive}
+                            >
+                              <span className={styles.composerCommandItemIcon} aria-hidden="true">
+                                <CommandIcon size={16} strokeWidth={2.1} />
+                              </span>
+                              <span className={styles.composerCommandItemToken}>{command.token}</span>
+                              <span className={styles.composerCommandItemLabel}>{command.label}</span>
+                              <span className={styles.composerCommandItemDescription}>{command.description}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className={styles.composerCommandEmptyState}>לא נמצאו פקודות מתאימות</div>
+                )}
+              </div>
+            )}
             {/* Action Buttons Row */}
             {!minimalMode && (
-            <div className={styles.actionButtons} ref={actionMenuRef}>
+            <div className={`${styles.actionButtons} ${isProfessionalConversation ? styles.actionButtonsProfessional : ''}`} ref={actionMenuRef}>
               {/* Audio Recorder - hidden for clean version */}
               {/* {enableVoice && (
                 <AudioRecorder
@@ -2535,6 +3880,7 @@ return (
                 onClick={() => setIsActionMenuOpen((prev) => !prev)}
                 disabled={inputDisabled || imageProcessing}
                 title="פתח אפשרויות"
+                aria-label="פתח תפריט פעולות"
                 aria-haspopup="true"
                 aria-expanded={isActionMenuOpen}
               >
@@ -2546,18 +3892,46 @@ return (
                 <div className={styles.actionMenu} role="menu">
                   <button
                     type="button"
-                    className={styles.actionMenuItem}
-                    onClick={() => {
-                      setIsActionMenuOpen(false);
-                      startExercise();
-                    }}
-                    disabled={inputDisabled}
-                    title="קבל תרגול SQL חדש"
+                    className={`${styles.actionMenuItem} ${styles.actionMenuItemRestricted}`}
+                    disabled
+                    title="זמין למשתמשים מורשים בלבד"
                     role="menuitem"
+                    aria-disabled="true"
                   >
-                    <Sparkles className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
-                    <span className={styles.actionMenuItemText}>תרגול SQL</span>
+                    <div className={styles.actionMenuItemBody}>
+                      <BrainCircuit className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
+                      <span className={styles.actionMenuItemTitle}>מצב חשיבה</span>
+                      <span className={styles.actionMenuItemDescription}>זמין למשתמשים מורשים בלבד</span>
+                      <span className={`${styles.actionMenuItemBadge} ${styles.actionMenuItemBadgeLocked}`}>
+                        <LockKeyhole size={11} strokeWidth={2.3} aria-hidden="true" />
+                        מורשים בלבד
+                      </span>
+                    </div>
                   </button>
+
+                  {isSqlPracticeEnabled && (
+                    <button
+                      type="button"
+                      className={styles.actionMenuItem}
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        void startExercise();
+                      }}
+                      disabled={inputDisabled || openingPractice}
+                      title="קבל תרגול SQL חדש"
+                      role="menuitem"
+                    >
+                      <div className={styles.actionMenuItemBody}>
+                        <Sparkles className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
+                        <span className={styles.actionMenuItemTitle}>תרגול SQL</span>
+                        <span className={styles.actionMenuItemDescription}>תרגול חדש לבדיקה עצמית</span>
+                        <span
+                          className={`${styles.actionMenuItemBadge} ${styles.actionMenuItemBadgePlaceholder}`}
+                          aria-hidden="true"
+                        />
+                      </div>
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -2570,8 +3944,15 @@ return (
                     title="Attach image"
                     role="menuitem"
                   >
-                    <ImagePlus className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
-                    <span className={styles.actionMenuItemText}>הוספת תמונה</span>
+                    <div className={styles.actionMenuItemBody}>
+                      <ImagePlus className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
+                      <span className={styles.actionMenuItemTitle}>הוספת תמונה</span>
+                      <span className={styles.actionMenuItemDescription}>צירוף צילום מסך או תרשים</span>
+                      <span
+                        className={`${styles.actionMenuItemBadge} ${styles.actionMenuItemBadgePlaceholder}`}
+                        aria-hidden="true"
+                      />
+                    </div>
                   </button>
 
                   <button
@@ -2584,22 +3965,37 @@ return (
                     title="קבל שאילתת CREATE/INSERT ממייקל"
                     role="menuitem"
                   >
-                    <Braces className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
-                    <span className={styles.actionMenuItemText}>מייקל: CREATE/INSERT</span>
+                    <div className={styles.actionMenuItemBody}>
+                      <Braces className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
+                      <span className={styles.actionMenuItemTitle}>
+                        <span dir="rtl">מייקל:</span>{" "}
+                        <span className={styles.actionMenuItemInlineLtr} dir="ltr">CREATE/INSERT</span>
+                      </span>
+                      <span className={styles.actionMenuItemDescription}>יצירת סכמת טבלאות או נתוני דוגמה</span>
+                      <span
+                        className={`${styles.actionMenuItemBadge} ${styles.actionMenuItemBadgePlaceholder}`}
+                        aria-hidden="true"
+                      />
+                    </div>
                   </button>
 
                   <button
                     type="button"
-                    className={styles.actionMenuItem}
-                    onClick={() => {
-                      setIsActionMenuOpen(false);
-                      router.push('/visualizer');
-                    }}
-                    title="המחשת שאילתה"
+                    className={`${styles.actionMenuItem} ${styles.actionMenuItemRestricted}`}
+                    disabled
+                    title="זמין למשתמשים מורשים בלבד"
                     role="menuitem"
+                    aria-disabled="true"
                   >
-                    <BarChart3 className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
-                    <span className={styles.actionMenuItemText}>המחשת שאילתה</span>
+                    <div className={styles.actionMenuItemBody}>
+                      <BarChart3 className={styles.actionMenuItemIcon} size={16} strokeWidth={2} />
+                      <span className={styles.actionMenuItemTitle}>המחשת שאילתה</span>
+                      <span className={styles.actionMenuItemDescription}>זמין למשתמשים מורשים בלבד</span>
+                      <span className={`${styles.actionMenuItemBadge} ${styles.actionMenuItemBadgeLocked}`}>
+                        <LockKeyhole size={11} strokeWidth={2.3} aria-hidden="true" />
+                        מורשים בלבד
+                      </span>
+                    </div>
                   </button>
                 </div>
               )}
@@ -2624,9 +4020,9 @@ return (
             {/* Image Preview */}
             {selectedImage && (
               <div className={styles.imagePreview}>
-                <img 
-                  src={URL.createObjectURL(selectedImage)} 
-                  alt="Preview" 
+                <img
+                  src={URL.createObjectURL(selectedImage)}
+                  alt="Preview"
                   className={styles.previewImage}
                 />
                 <button
@@ -2650,110 +4046,159 @@ return (
                 עורך שאילתות
               </button> */}
     </div>
-    {/* {balanceError && (
-  <div className={styles.balanceError}>
-    No enough tokens
-  </div>
-)} */}
-    
+    {balanceError && balanceErrorMessage && (
+      <div className={styles.balanceError} role="alert" dir="rtl">
+        {balanceErrorMessage}
+      </div>
+    )}
+
     {/* Right Column - Avatar Section */}
     {!hideAvatar && !minimalMode && (
-      <div className={styles.rightColumn}>
+      <div className={`${styles.rightColumn} ${isProfessionalConversation ? styles.rightColumnProfessional : ''}`}>
         {!isHydrated ? (
-          <div 
-            className={styles.avatarHydrationPlaceholder}
+          <div
+            className={`${styles.avatarHydrationPlaceholder} ${isProfessionalConversation ? styles.avatarHydrationPlaceholderProfessional : ''}`}
             role="status"
             aria-label="טוען אווטאר"
             aria-live="polite"
           ></div>
         ) : (
           <div className={styles.avatarSection}>
-            {displayMode === 'avatar' && enableAvatar ? (
-              <>
-                {avatarMode === 'avatar' ? (
-                  <MichaelAvatarDirect
-                    text={lastAssistantMessage}
-                    state={avatarState}
-                    size="medium"
-                    progressiveMode={enableVoice && !isDone}
-                    isStreaming={enableVoice && !isDone}
-                    onSpeakingStart={() => {
-                      console.log('🎤 Michael started speaking');
-                      if (enableVoice) setShouldSpeak(true);
-                    }}
-                    onSpeakingEnd={() => {
-                      console.log('🎤 Michael finished speaking');
-                      if (enableVoice) setShouldSpeak(false);
-                      setIsAssistantMessageComplete(false);
-                      setHasStartedSpeaking(false);
-                      setIsManualSpeech(false);
-                    }}
-                  />
-                ) : (
-                  <VoiceModeCircle
-                    state={avatarState}
-                    size="medium"
-                    text={lastAssistantMessage}
-                    onSpeakingStart={() => {
-                      console.log('🎤 Voice circle started speaking');
-                      if (enableVoice) setShouldSpeak(true);
-                    }}
-                    onSpeakingEnd={() => {
-                      console.log('🎤 Voice circle finished speaking');
-                      if (enableVoice) setShouldSpeak(false);
-                      setIsAssistantMessageComplete(false);
-                      setHasStartedSpeaking(false);
-                      setIsManualSpeech(false);
-                    }}
-                  />
-                )}
-              </>
-            ) : (
-              <StaticLogoMode
-                size="medium"
-                state={avatarState}
-                userName={currentUser}
-              />
-            )}
-            
-            {/* Toggle Buttons Container */}
+            <div className={styles.profileSummary}>
+              <div className={styles.profileIdentity}>
+                <div className={styles.profileMonogram}>{userInitial}</div>
+                <div className={styles.profileText}>
+                  <span className={styles.profileEyebrow}>חשבון פעיל</span>
+                  <span className={styles.profileName}>{displayUserName}</span>
+                </div>
+              </div>
+              {isTokenBalanceVisible && (
+                <div className={styles.balancePill}>
+                  <span className={styles.balanceLabel}>יתרה</span>
+                  <span className={styles.balanceValue}>
+                    {currentBalance} מטבע{currentBalance === 1 ? "" : "ות"}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className={styles.avatarVisualShell}>
+              {displayMode === 'avatar' && enableAvatar ? (
+                <>
+                  {activeAvatarMode === 'avatar3d' ? (
+                    <MichaelAvatarDirect
+                      text={lastAssistantMessage}
+                      state={avatarState}
+                      size="large"
+                      progressiveMode={speechController.assistantStreaming}
+                      isStreaming={speechController.assistantStreaming}
+                      speechStatus={speechController.status}
+                      gesturePlan={speechController.currentUtterance?.gesturePlan ?? null}
+                      renderConfig={DEFAULT_AVATAR_RENDER_CONFIG}
+                      utteranceId={speechController.currentUtterance?.id ?? null}
+                    />
+                  ) : (
+                    <VoiceModeCircle
+                      state={avatarState}
+                      size="large"
+                      text={lastAssistantMessage}
+                      speechStatus={speechController.status}
+                      gesturePlan={speechController.currentUtterance?.gesturePlan ?? null}
+                      renderConfig={DEFAULT_AVATAR_RENDER_CONFIG}
+                      onPrimaryAction={() => {
+                        if (!enableVoice || activeAvatarMode === 'none') {
+                          return;
+                        }
+                        if (speechController.status === 'speaking' || speechController.status === 'preparing') {
+                          cancelCurrent('manual_cancel');
+                          return;
+                        }
+                        const messageToReplay = lastAssistantMessage || speechController.currentUtterance?.text;
+                        if (!messageToReplay) {
+                          return;
+                        }
+                        flushAll('manual_cancel');
+                        const manualId = `manual-${Date.now()}`;
+                        const utterance = createSpeechUtterance(
+                          manualId,
+                          messageToReplay,
+                          'final',
+                          { source: 'manual' },
+                          true
+                        );
+                        enqueueUtterance(utterance);
+                        setGesturePlanForUtterance(utterance.id, utterance.gesturePlan!);
+                      }}
+                    />
+                  )}
+                </>
+              ) : (
+                <StaticLogoMode
+                  size="large"
+                  state={avatarState}
+                  userName={currentUser}
+                />
+              )}
+            </div>
+
             <div className={styles.toggleButtonsContainer}>
-              {/* Display Mode Toggle Button */}
               <div className={styles.displayModeToggle}>
-                <button 
+                <button
                   className={`${styles.displayToggleButton} ${displayMode === 'logo' ? styles.logoModeActive : styles.avatarModeActive}`}
                   onClick={() => setDisplayMode(displayMode === 'avatar' ? 'logo' : 'avatar')}
                   title={displayMode === 'avatar' ? 'עבור למצב לוגו' : 'עבור למצב אווטאר'}
                   aria-label={displayMode === 'avatar' ? 'Switch to logo mode' : 'Switch to avatar mode'}
                 >
                   {displayMode === 'avatar' ? (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                      <circle cx="8.5" cy="8.5" r="1.5"/>
-                      <path d="M21 15l-5-5L5 21"/>
-                    </svg>
+                    <>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <path d="M21 15l-5-5L5 21"/>
+                      </svg>
+                      <span className={styles.controlButtonLabel}>אווטאר</span>
+                    </>
                   ) : (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                      <circle cx="12" cy="7" r="4"/>
-                    </svg>
+                    <>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                      </svg>
+                      <span className={styles.controlButtonLabel}>לוגו</span>
+                    </>
                   )}
                 </button>
               </div>
-            </div>
-            
-            {/* User info below the avatar */}
-            <div className={styles.userInfo}>
-              <div className={styles.nickname}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                  <span>היי {currentUser}</span>
+              {displayMode === 'avatar' && enableAvatar && (
+                <div className={styles.avatarModeToggle}>
+                  <button
+                    className={`${styles.modeToggleButton} ${activeAvatarMode === 'avatar3d' ? styles.avatarActive : styles.voiceActive}`}
+                    onClick={() => setAvatarMode((previous) => previous === 'avatar3d' ? 'voiceCircle' : 'avatar3d')}
+                    title={activeAvatarMode === 'avatar3d' ? 'עבור למצב קול' : 'עבור למצב אווטאר תלת-ממדי'}
+                    aria-label={activeAvatarMode === 'avatar3d' ? 'Switch to voice circle' : 'Switch to 3D avatar'}
+                  >
+                    {activeAvatarMode === 'avatar3d' ? (
+                      <>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                          <line x1="12" y1="19" x2="12" y2="23" />
+                          <line x1="8" y1="23" x2="16" y2="23" />
+                        </svg>
+                        <span className={styles.controlButtonLabel}>קול</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                          <circle cx="12" cy="7" r="4" />
+                        </svg>
+                        <span className={styles.controlButtonLabel}>תלת־ממד</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-                {isTokenBalanceVisible && (
-                  <div>
-                    יתרה נוכחית: ₪{currentBalance}
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           </div>
         )}
@@ -2790,19 +4235,19 @@ return (
             </div>
           )}
         </div>
-        
+
         {currentExercise && (
           <>
             <div className={styles.exerciseContent}>
               <div className={styles.exerciseDifficulty}>
-                דרגת קושי: {currentExercise.difficulty === 'easy' ? 'קל' : currentExercise.difficulty === 'medium' ? 'בינוני' : 'קשה'} 
+                דרגת קושי: {currentExercise.difficulty === 'easy' ? 'קל' : currentExercise.difficulty === 'medium' ? 'בינוני' : 'קשה'}
                 ({currentExercise.points} נקודות)
               </div>
-              
+
               <div className={styles.exerciseQuestion}>
                 {currentExercise.question}
               </div>
-              
+
               <div className={styles.exerciseSqlEditor}>
                 <textarea
                   className={styles.exerciseTextarea}
@@ -2824,7 +4269,7 @@ return (
                   }}
                 />
               </div>
-              
+
               {/* SQL Helper Buttons */}
               <div className={styles.sqlHelperButtons}>
                 <button
@@ -2863,7 +4308,7 @@ return (
                   JOIN
                 </button>
               </div>
-              
+
               <div className={styles.exerciseActions}>
                 <button
                   className={styles.submitExerciseButton}
@@ -2872,7 +4317,7 @@ return (
                 >
                   שלח תשובה
                 </button>
-                
+
                 {showSolutionButton && (
                   <button
                     className={styles.showSolutionButton}
@@ -2882,7 +4327,7 @@ return (
                   </button>
                 )}
               </div>
-              
+
               {exerciseAttempts > 0 && (
                 <div className={styles.exerciseFeedback}>
                   כמעט! נסה לבדוק אם שכחת משהו בשאילתה.
@@ -2937,18 +4382,23 @@ return (
             <p className={styles.disclaimerText}>
               מייקל יכול ליצור שאלות ותשובות שלא נכללות בחומר הנלמד
             </p>
+            <p className={styles.disclaimerText}>
+              פתיחת תרגול SQL אינה מחייבת מטבעות. מטבע חדש מתקבל רק באתגר SQL שמרצה פותח עבורך.
+            </p>
             <div className={styles.disclaimerActions}>
               <button
                 className={styles.disclaimerCancelButton}
                 onClick={handleDisclaimerCancel}
+                disabled={openingPractice}
               >
                 ביטול
               </button>
               <button
                 className={styles.disclaimerConfirmButton}
                 onClick={handleDisclaimerConfirm}
+                disabled={openingPractice}
               >
-                אני מסכים, התחל תרגול
+                {openingPractice ? "פותח תרגול..." : "אני מסכים, התחל תרגול"}
               </button>
             </div>
           </div>
@@ -2960,7 +4410,8 @@ return (
     <PracticeModal
       isOpen={showPracticeModal}
       onClose={() => setShowPracticeModal(false)}
-      userId={user?.email || 'anonymous'}
+      userId={user?.email || getStoredUser()?.email || 'anonymous'}
+      openCost={practiceOpenCost}
     />
 
     <Modal isOpen={sqlTutorModalOpen} onClose={closeSqlTutorModal}>
