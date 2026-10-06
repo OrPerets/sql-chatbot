@@ -29,9 +29,14 @@ describe('deadline-utils availability windows', () => {
     expect(isHomeworkAccessAdmin('orperets11@gmail.com')).toBe(true);
     expect(isHomeworkAccessAdmin('roeizer@shenkar.ac.il')).toBe(true);
     expect(isHomeworkAccessAdmin('talushka7@gmail.com')).toBe(true);
+    expect(isHomeworkAccessAdmin('danielto@mail.tau.ac.il')).toBe(true);
     expect(getAvailabilityState(homework, 'orperets11@gmail.com', now)).toBe('open');
     expect(isHomeworkAccessible(homework, 'roeizer@shenkar.ac.il', now)).toBe(true);
     expect(getAvailabilityState(homework, 'talushka7@gmail.com', now)).toBe('open');
+    expect(getAvailabilityState(homework, 'danielto@mail.tau.ac.il', now)).toBe('open');
+    expect(
+      getAvailabilityState(homework, 'danielto@mail.tau.ac.il', new Date('2026-03-11T00:00:00.000Z'))
+    ).toBe('open');
   });
 
   it('treats legacy dueAt-only homework as open before the deadline', () => {

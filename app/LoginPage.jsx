@@ -208,7 +208,7 @@ const LoginPage = () => {
     const user = availableUsers.find(item => item.email === email);
 
     if (loginMode === 'admin') {
-      const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il"];
+      const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il", "danielto@mail.tau.ac.il"];
       if (!adminEmails.includes(email)) {
         setError('אין לך הרשאת מנהל');
         setTimeout(() => setError(''), 3000);

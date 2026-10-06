@@ -22,7 +22,7 @@ const LandingPage = () => {
 
     try {
       const user = JSON.parse(storedUser);
-      const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il", "r_admin@gmail.com"];
+      const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il", "r_admin@gmail.com", "danielto@mail.tau.ac.il"];
       const userIsAdmin = adminEmails.includes(user.email);
       setIsAdmin(userIsAdmin);
       setUserName(user.name || user.firstName || null);

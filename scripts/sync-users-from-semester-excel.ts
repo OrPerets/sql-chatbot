@@ -30,6 +30,7 @@ const KEEP_EMAILS = new Set(
     'itaialon12@gmail.com',
     // Instructor account used in admin allowlists (אור פרץ)
     'orperets11@gmail.com',
+    'danielto@mail.tau.ac.il',
   ].map((e) => e.toLowerCase())
 )
 

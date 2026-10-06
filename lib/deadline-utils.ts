@@ -29,6 +29,7 @@ const HOMEWORK_ACCESS_ADMIN_EMAILS = [
   'orperets11@gmail.com',
   'roeizer@shenkar.ac.il',
   'talushka7@gmail.com',
+  'danielto@mail.tau.ac.il',
 ] as const;
 
 // Extension duration in milliseconds (2 days)
