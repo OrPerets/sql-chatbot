@@ -6,6 +6,7 @@ interface User {
   email: string;
   name: string;
   firstName: string;
+  semester?: string | null;
   classId: number;
   coins: number;
 }
@@ -31,7 +32,8 @@ const UsersList: React.FC<UsersListProps> = ({
     (selectedClass === 0 || user.classId === selectedClass) &&
     ((user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
     (user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
-    (user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false))
+    (user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+    (user.semester?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false))
   );
 
   return (
@@ -71,6 +73,7 @@ const UsersList: React.FC<UsersListProps> = ({
             <div className={styles.userInfo}>
               <div className={styles.userEmail}>{user.email}</div>
               <div className={styles.userName}>{user.name}</div>
+              <div className={styles.userEmail}>סמסטר: {user.semester || 'לא משויך'}</div>
             </div>
           </div>
         ))}

@@ -20,12 +20,13 @@ export async function PUT(
     }
     
     // Otherwise, update user info
-    const { firstName, lastName, email: newEmail } = body
+    const { firstName, lastName, email: newEmail, semester } = body
     
     const result = await updateUser(email, {
       firstName,
       lastName,
-      email: newEmail
+      email: newEmail,
+      semester: typeof semester === 'string' ? semester : undefined
     })
     
     if (!result.success) {

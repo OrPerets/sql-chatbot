@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
       name: userName,
       firstName: user.firstName,
       lastName: user.lastName,
+      semester: user.semester,
     });
   } catch (error: unknown) {
     console.error("Error during homework student login:", error);

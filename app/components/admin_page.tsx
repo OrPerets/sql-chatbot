@@ -38,11 +38,11 @@ const AdminPage: React.FC = () => {
  const [loading, setLoading] = useState(true);
  const [dismissedMessages, setDismissedMessages] = useState<string[]>([]);
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
-  const [newUser, setNewUser] = useState({ firstName: '', lastName: '', email: '' });
+  const [newUser, setNewUser] = useState({ firstName: '', lastName: '', email: '', semester: '' });
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'manage'>('add');
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<any>(null);
-  const [editUserData, setEditUserData] = useState({ firstName: '', lastName: '', email: '' });
+  const [editUserData, setEditUserData] = useState({ firstName: '', lastName: '', email: '', semester: '' });
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [modalSearchTerm, setModalSearchTerm] = useState('');
@@ -54,7 +54,7 @@ const AdminPage: React.FC = () => {
     return users.filter(user => {
       const userName = (user.name || `${user.firstName || ''} ${user.lastName || ''}`).toLowerCase();
       const userEmail = (user.email || '').toLowerCase();
-      return userName.includes(searchLower) || userEmail.includes(searchLower);
+      return userName.includes(searchLower) || userEmail.includes(searchLower) || (user.semester || '').toLowerCase().includes(searchLower);
     });
   }, [users, modalSearchTerm]);
 
@@ -381,6 +381,7 @@ const AdminPage: React.FC = () => {
          firstName: newUser.firstName,
          lastName: newUser.lastName,
          email: newUser.email,
+         semester: newUser.semester.trim(),
          password: 'shenkar',
          isFirst: true
        }),
@@ -395,7 +396,7 @@ const AdminPage: React.FC = () => {
 
      handleSuccess('המשתמש נוצר בהצלחה!');
      setIsAddUserModalOpen(false);
-     setNewUser({ firstName: '', lastName: '', email: '' });
+    setNewUser({ firstName: '', lastName: '', email: '', semester: '' });
      setModalMode('add');
      // Refresh users data
      fetchUsersData();
@@ -429,7 +430,8 @@ const handleSelectUser = (user: any) => {
   setEditUserData({
     firstName,
     lastName,
-    email: user.email || ''
+    email: user.email || '',
+    semester: user.semester || ''
   });
 };
 
@@ -479,7 +481,8 @@ const handleSelectUser = (user: any) => {
        body: JSON.stringify({
          firstName: editUserData.firstName,
          lastName: editUserData.lastName,
-         email: editUserData.email
+         email: editUserData.email,
+         semester: editUserData.semester.trim()
        }),
      });
 
@@ -492,7 +495,7 @@ const handleSelectUser = (user: any) => {
 
      handleSuccess('פרטי המשתמש עודכנו בהצלחה!');
      setSelectedUserForEdit(null);
-     setEditUserData({ firstName: '', lastName: '', email: '' });
+    setEditUserData({ firstName: '', lastName: '', email: '', semester: '' });
      fetchUsersData();
    } catch (error) {
      console.error('Error updating user:', error);
@@ -558,7 +561,7 @@ const handleSelectUser = (user: any) => {
          setIsAddUserModalOpen(false);
          setModalMode('add');
          setSelectedUserForEdit(null);
-         setEditUserData({ firstName: '', lastName: '', email: '' });
+         setEditUserData({ firstName: '', lastName: '', email: '', semester: '' });
          setModalSearchTerm('');
        }}>
          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -570,7 +573,7 @@ const handleSelectUser = (user: any) => {
                  setIsAddUserModalOpen(false);
                  setModalMode('add');
                  setSelectedUserForEdit(null);
-                 setEditUserData({ firstName: '', lastName: '', email: '' });
+                 setEditUserData({ firstName: '', lastName: '', email: '', semester: '' });
                  setModalSearchTerm('');
                }}
              >
@@ -585,7 +588,7 @@ const handleSelectUser = (user: any) => {
                onClick={() => {
                  setModalMode('add');
                  setSelectedUserForEdit(null);
-                 setEditUserData({ firstName: '', lastName: '', email: '' });
+                 setEditUserData({ firstName: '', lastName: '', email: '', semester: '' });
                  setModalSearchTerm('');
                }}
              >
@@ -637,6 +640,18 @@ const handleSelectUser = (user: any) => {
                      dir="ltr"
                    />
                  </div>
+
+                 <div className={styles.formGroup}>
+                   <label className={styles.formLabel}>סמסטר (אופציונלי)</label>
+                   <input
+                     type="text"
+                     className={styles.formInput}
+                     value={newUser.semester}
+                     onChange={(e) => setNewUser({ ...newUser, semester: e.target.value })}
+                     placeholder="למשל: 2026-fall"
+                     dir="ltr"
+                   />
+                 </div>
                  
                  <div className={styles.formInfo}>
                    <p>ערכי ברירת מחדל:</p>
@@ -676,6 +691,7 @@ const handleSelectUser = (user: any) => {
                              <div className={styles.userListItemInfo}>
                                <div className={styles.userListItemName}>{user.name || `${user.firstName || ''} ${user.lastName || ''}`}</div>
                                <div className={styles.userListItemEmail}>{user.email}</div>
+                               <div className={styles.userListItemEmail}>סמסטר: {user.semester || 'לא משויך'}</div>
                              </div>
                            </div>
                          ))
@@ -694,7 +710,7 @@ const handleSelectUser = (user: any) => {
                          className={styles.backButton}
                          onClick={() => {
                            setSelectedUserForEdit(null);
-                           setEditUserData({ firstName: '', lastName: '', email: '' });
+                           setEditUserData({ firstName: '', lastName: '', email: '', semester: '' });
                            setModalSearchTerm('');
                          }}
                        >
@@ -737,6 +753,18 @@ const handleSelectUser = (user: any) => {
                          dir="ltr"
                        />
                      </div>
+
+                     <div className={styles.formGroup}>
+                       <label className={styles.formLabel}>סמסטר (אופציונלי)</label>
+                       <input
+                         type="text"
+                         className={styles.formInput}
+                         value={editUserData.semester}
+                         onChange={(e) => setEditUserData({ ...editUserData, semester: e.target.value })}
+                         placeholder="למשל: 2026-fall"
+                         dir="ltr"
+                       />
+                     </div>
                      
                      <div className={styles.userActions}>
                        <button
@@ -760,7 +788,7 @@ const handleSelectUser = (user: any) => {
                  setIsAddUserModalOpen(false);
                  setModalMode('add');
                  setSelectedUserForEdit(null);
-                 setEditUserData({ firstName: '', lastName: '', email: '' });
+                 setEditUserData({ firstName: '', lastName: '', email: '', semester: '' });
                  setModalSearchTerm('');
                }}
                disabled={isCreatingUser || isUpdatingUser}

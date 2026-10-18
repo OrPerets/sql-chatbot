@@ -22,6 +22,7 @@ export async function POST(request: Request) {
         email: body.email,
         firstName: body.firstName,
         lastName: body.lastName,
+        semester: typeof body.semester === 'string' ? body.semester : undefined,
         password: body.password || 'shenkar',
         isFirst: body.isFirst !== undefined ? body.isFirst : true
       })

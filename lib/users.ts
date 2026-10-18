@@ -9,6 +9,7 @@ export interface UserModel {
   name?: string
   firstName?: string
   lastName?: string
+  semester?: string | null
   studentIdNumber?: string // Israeli ID number (ת.ז)
   password?: string
   role?: string
@@ -38,7 +39,7 @@ export class UsersService {
     })
   }
 
-  async createUser(userData: { email: string; firstName: string; lastName: string; password?: string; isFirst?: boolean }): Promise<{ success: boolean; insertedId?: any; error?: string }> {
+  async createUser(userData: { email: string; firstName: string; lastName: string; semester?: string; password?: string; isFirst?: boolean }): Promise<{ success: boolean; insertedId?: any; error?: string }> {
     return executeWithRetry(async (db) => {
       // Check if user already exists
       const existingUser = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({ email: userData.email })
@@ -51,6 +52,7 @@ export class UsersService {
         email: userData.email,
         firstName: userData.firstName,
         lastName: userData.lastName,
+        ...(userData.semester?.trim() ? { semester: userData.semester.trim() } : {}),
         password: userData.password || 'shenkar',
         isFirst: userData.isFirst !== undefined ? userData.isFirst : true,
         name: `${userData.firstName} ${userData.lastName}` // Combine for compatibility
@@ -71,7 +73,7 @@ export class UsersService {
     })
   }
 
-  async updateUser(email: string, userData: { firstName?: string; lastName?: string; email?: string }): Promise<{ success: boolean; modifiedCount: number; error?: string }> {
+  async updateUser(email: string, userData: { firstName?: string; lastName?: string; email?: string; semester?: string }): Promise<{ success: boolean; modifiedCount: number; error?: string }> {
     return executeWithRetry(async (db) => {
       // Check if user exists
       const existingUser = await db.collection<UserModel>(COLLECTIONS.USERS).findOne({ email })
@@ -97,6 +99,9 @@ export class UsersService {
       }
       if (userData.email !== undefined && userData.email !== email) {
         updateData.email = userData.email
+      }
+      if (userData.semester !== undefined) {
+        updateData.semester = userData.semester.trim() || null
       }
 
       // Update name field if firstName or lastName changed
@@ -317,12 +322,12 @@ export async function checkPasswordResetRateLimit(email: string) {
   return service.checkPasswordResetRateLimit(email)
 }
 
-export async function createUser(userData: { email: string; firstName: string; lastName: string; password?: string; isFirst?: boolean }) {
+export async function createUser(userData: { email: string; firstName: string; lastName: string; semester?: string; password?: string; isFirst?: boolean }) {
   const service = await getUsersService()
   return service.createUser(userData)
 }
 
-export async function updateUser(email: string, userData: { firstName?: string; lastName?: string; email?: string }) {
+export async function updateUser(email: string, userData: { firstName?: string; lastName?: string; email?: string; semester?: string }) {
   const service = await getUsersService()
   return service.updateUser(email, userData)
 }
