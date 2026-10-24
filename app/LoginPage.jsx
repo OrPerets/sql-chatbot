@@ -205,7 +205,8 @@ const LoginPage = () => {
       availableUsers = await fetchUsers();
     }
 
-    const user = availableUsers.find(item => item.email === email);
+    //const user = availableUsers.find(item => item.email === email);
+    const user = availableUsers.find(item => item.email?.trim().toLowerCase() === email.trim().toLowerCase());
 
     if (loginMode === 'admin') {
       const adminEmails = ["liorbs89@gmail.com", "eyalh747@gmail.com", "orperets11@gmail.com", "roeizer@shenkar.ac.il", "danielto@mail.tau.ac.il"];
