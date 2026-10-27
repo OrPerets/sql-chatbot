@@ -271,7 +271,7 @@ const LoginPage = () => {
       return;
     }
 
-    const user = users.find(item => item.email === email);
+    const user = users.find(item => item.email?.trim().toLowerCase() === email.trim().toLowerCase());
     if (!user) {
       setError('User not found');
       setIsLoading(false);
@@ -286,7 +286,7 @@ const LoginPage = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          "email": email,
+          "email": user.email,
           "password": newPassword
         })
       });
